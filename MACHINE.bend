@@ -134,20 +134,23 @@ def launch(b: Norm.Begin, +fasta: String, +vcf: String, +cs: List<&2, String>) -
 # given truthful reference reads, writes exactly what run says (stdout bytes,
 # stderr messages, exit code), within bound steps and bound reads.
 #
-# What this law does not cover (the trusted driver, main.bend): reading the
-# files' bytes; answering each reference read Req{chrom, a, b} of an Ask with
-# exactly truth(B.Fasta.parse(fasta), chrom, a, b), in order: Unknown when the .fai has no such
-# contig, else Known with the contig's length String.length(Contig.raw) and the slice
-# a .. b - 1 of Contig.raw (the sequence letters without line breaks, spaces,
-# tabs and CRs). The driver reads it through the .fai index (built by
-# samtools faidx), whose offsets count only line breaks (for a FASTA file that
-# is not P.Fasta.plain the law says nothing; the driver stops with
-# "error: unsupported FASTA", exit code 2, when a read holds a space or tab);
-# writing the bytes and the messages
-# (B.Note.render); exiting with the code; and the errors outside the laws: a
-# usage error (law usage: prints B.usage and exits with code 2) and a file
-# that cannot be read (prints "error: cannot read <path>" and exits with
-# code 2).
+# What this law does not cover (the trusted driver, main.bend, with its effects
+# in io64.c):
+# - Reading the files' bytes (the command line's bytes too) and writing every
+#   stdout byte and message (B.Note.render) exactly, then exiting with the code.
+# - Answering each reference read Req{chrom, a, b} of an Ask, in order, with
+#   exactly truth(B.Fasta.parse(fasta), chrom, a, b): Unknown when the .fai has
+#   no such contig, else Known with the contig's length String.length(Contig.raw)
+#   and the slice a .. b - 1 of Contig.raw (the letters without line breaks,
+#   spaces, tabs and CRs). The driver reads it through the .fai index (built by
+#   samtools faidx from this FASTA file), at 64-bit offsets.
+# - For a FASTA file that is not P.Fasta.plain the law says nothing.
+# - The driver's own errors, each one line on stderr and exit code 2: a usage
+#   error (law usage; prints B.usage), "error: cannot read <path>", "error:
+#   cannot write", "error: bad .fai index <path>.fai", "error: unsupported FASTA
+#   <path>" (a byte read that the .fai layout does not explain), "error: .fai
+#   index does not match <path>" (fewer letters than the index promises),
+#   "error: FASTA read too large <path>" (one read of 4 GiB or more).
 law machine:
   for argv: List<&2, String>
   for o: B.Opts

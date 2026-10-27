@@ -31,17 +31,19 @@ type Next is Data:
   Ask{reqs: List<&2, Req>}
   Finish{code: Nat}
 
-# A FASTA file whose contigs' sequence lines hold no space or tab. Only the
-# contigs B.Fasta.parse keeps count (text before the first header, and a header
-# with an empty or repeated name with its lines, are ignored there too). The
-# driver reads the reference through the .fai index, which cannot skip blanks,
-# so the program's law covers only such files.
+# A FASTA file the .fai index can serve. Only the contigs B.Fasta.parse keeps
+# count (text before the first header, and a header with an empty or repeated
+# name with its lines, are ignored there too); each must have at least one
+# letter (samtools faidx leaves a contig without letters out of the index), and
+# its lines must hold no space or tab and no CR except at the end of a line
+# (the index cannot skip them). The program's law covers only such files.
+# A line (without its LF) holds a space or tab, or a CR before its end.
 def Fasta.blank(s: String) -> Bool:
   match s:
     case SNil{}:
       False{}
-    case SCon{Chr{+x}, t}:
-      U32.is_eq(x, 32) || U32.is_eq(x, 9) || Fasta.blank(t)
+    case SCon{Chr{+x}, +t}:
+      U32.is_eq(x, 32) || U32.is_eq(x, 9) || (U32.is_eq(x, 13) && Bool.not(String.is_empty(t))) || Fasta.blank(t)
 
 def Fasta.blank_seq.put(head: Bool, +l: String, rest: Bool) -> Bool:
   match head:
@@ -58,14 +60,15 @@ def Fasta.blank_seq(ls: List<&2, String>) -> Bool:
     case +l <> t:
       Fasta.blank_seq.put(B.Fasta.is_head(l), l, Fasta.blank_seq(t))
 
-# One header's contig: its name, and whether its lines hold a blank.
+# One header's contig: its name, and whether it is unusable (its lines hold a
+# blank, or it has no letters).
 type Flag is Data:
   Flag{name: String, blank: Bool}
 
 def Fasta.flags.put(head: Bool, +l: String, +t: List<&2, String>, rest: List<&2, Flag>) -> List<&2, Flag>:
   match head:
     case True{}:
-      Flag{B.Fasta.name(l), Fasta.blank_seq(t)} <> rest
+      Flag{B.Fasta.name(l), Fasta.blank_seq(t) || String.is_empty(B.Fasta.seq(t))} <> rest
     case False{}:
       rest
 
@@ -84,7 +87,7 @@ def Fasta.kept_blank.put(skip: Bool, +n: String, b: Bool, +seen: List<&2, String
       b || rest
 
 # Some contig kept by B.Fasta.parse (the first of its name, a non-empty name)
-# has a blank in its lines.
+# is unusable.
 def Fasta.kept_blank(fs: List<&2, Flag>, +seen: List<&2, String>) -> Bool:
   match fs:
     case Nil{}:
