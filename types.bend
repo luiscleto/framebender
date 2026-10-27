@@ -608,16 +608,6 @@ def Bases.of_fasta(s: String) -> List<&2, Base>:
     case SCon{h, t}:
       Base.of_fasta(h) <> Bases.of_fasta(t)
 
-# What the tool learns from one read of the reference.
-#   NoAns: nothing was read (the line needs no reference).
-#   Unknown: the contig is not in the reference.
-#   Known: the contig has clen letters; raw holds its letters as written
-#     (Contig.raw) from 0-based index off: all of them, or a window.
-type Ans is Data:
-  NoAns{}
-  Unknown{}
-  Known{clen: Nat, off: Nat, raw: String}
-
 # ===========================================================================
 # Outcomes, messages and options
 # ===========================================================================
@@ -801,22 +791,3 @@ def Args.parse(argv: List<&2, String>) -> Maybe<&2, Cfg>:
       None{}
     case +cmd <> +rest:
       Args.done.if(String.eq(cmd, "norm"), rest)
-
-# ===========================================================================
-# The program as a state machine
-# ===========================================================================
-
-# What the machine is given at each step: the next piece of the VCF file, the
-# end of the file, or the answer to its last reference read.
-type In is Data:
-  Chunk{s: String}
-  Eof{}
-  Ref{a: Ans}
-
-# What the machine wants next: more of the VCF file; the reference bases of
-# contig chrom from 0-based index from up to (not including) upto; or to stop
-# with an exit code.
-type Next is Data:
-  More{}
-  Ask{chrom: String, from: Nat, upto: Nat}
-  Finish{code: Nat}

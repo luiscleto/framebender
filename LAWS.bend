@@ -1,24 +1,32 @@
 import Base
 import ./types.bend as B
-import ./norm.bend as Norm
+import ./tan.bend as Tan
 import ./run.bend as R
 
 # framebender: the laws.
 #
-# APPROVED (2026-10-27) by agreement of the three reviewers after eight
-# rounds (reviews/), on the owner's delegation. A law or definition is never
-# weakened or deleted without the owner's consent.
+# DRAFT 3 (2026-10-27): the science layer. The owner asked for two layers:
 #
-# The code is reached only through Norm.var, Norm.judge_in, Norm.start and
-# Norm.step. Everything else below is a definition owned by these laws, written
-# to be obviously right rather than fast. types.bend (bases, text, FASTA,
-# messages, options) is part of this spec.
+# Science (this file with types.bend, run.bend and tan.bend): what an expert
+# reviews and approves once. Definitions (what a variant does, valid,
+# normalized after Tan et al.), the whole-file definition run, and laws about
+# them: the normal form is the same change, valid, normalized, unique and
+# shortest; every record the tool normalizes is valid; a run sorts its output;
+# running twice changes nothing. Nothing here mentions the program's code.
+# tan.bend's algorithm need not be read: the laws same_change, stays_valid,
+# standard_form and unique fix its result.
+#
+# Implementation (MACHINE.bend): the program writes exactly what run says. The
+# program can change freely (faster, parallel); only proofs change.
+#
+# A law or definition, once approved, is never weakened or deleted without
+# the owner's consent.
 #
 # The laws, from the top:
-#   machine         the program's output is exactly run(FASTA, VCF, options)
-#   sorted, grouped_in, no_unsorted, twice_run what run guarantees
-#   window, window_enough                       reading the reference in pieces
-#   same_change ... shortest                    the normal form of one variant
+#   sorted, grouped_in, no_unsorted, twice_run   what run guarantees
+#   normalized_valid                              records normalized are valid
+#   same_change ... shortest, unique              the normal form of one variant
+#   (MACHINE.bend: machine, usage)
 #
 # Sources: Tan, Abecasis and Kang, "Unified representation of genetic
 # variants", Bioinformatics 2015; the VCF 4.3 specification; bcftools 1.24.
@@ -190,7 +198,7 @@ def size(v: B.Var) -> Nat:
       Nat.add(len(ref), total(alts))
 
 # ==========================================================================
-# Laws: one variant (seq is the contig the variant is on)
+# Laws: the normal form of one variant (seq is the contig it is on)
 # ==========================================================================
 
 # Same change: the output makes exactly the change the input made, with the
@@ -199,21 +207,21 @@ law same_change:
   for seq: List<&2, B.Base>
   for v: B.Var
   for hv: {valid(seq, v) == True{} : Bool}
-  {haps(seq, Norm.var(seq, v)) == haps(seq, v) : List<&2, List<&2, B.Base>>}
+  {haps(seq, Tan.normal(seq, v)) == haps(seq, v) : List<&2, List<&2, B.Base>>}
 
 # The output is itself valid: its REF is the contig's bases at its position.
 law stays_valid:
   for seq: List<&2, B.Base>
   for v: B.Var
   for hv: {valid(seq, v) == True{} : Bool}
-  {valid(seq, Norm.var(seq, v)) == True{} : Bool}
+  {valid(seq, Tan.normal(seq, v)) == True{} : Bool}
 
 # Standard form: the output is left-aligned and parsimonious.
 law standard_form:
   for seq: List<&2, B.Base>
   for v: B.Var
   for hv: {valid(seq, v) == True{} : Bool}
-  {normalized(seq, Norm.var(seq, v)) == True{} : Bool}
+  {normalized(seq, Tan.normal(seq, v)) == True{} : Bool}
 
 # A variant already in standard form is left as it is.
 law normal_unchanged:
@@ -221,14 +229,14 @@ law normal_unchanged:
   for v: B.Var
   for hv: {valid(seq, v) == True{} : Bool}
   for hn: {normalized(seq, v) == True{} : Bool}
-  {Norm.var(seq, v) == v : B.Var}
+  {Tan.normal(seq, v) == v : B.Var}
 
 # Running it twice changes nothing.
 law twice:
   for seq: List<&2, B.Base>
   for v: B.Var
   for hv: {valid(seq, v) == True{} : Bool}
-  {Norm.var(seq, Norm.var(seq, v)) == Norm.var(seq, v) : B.Var}
+  {Tan.normal(seq, Tan.normal(seq, v)) == Tan.normal(seq, v) : B.Var}
 
 # One form per change: two variants that make the same change come out as the
 # same variant.
@@ -239,7 +247,7 @@ law one_form:
   for hv: {valid(seq, v) == True{} : Bool}
   for hw: {valid(seq, w) == True{} : Bool}
   for hs: {haps(seq, v) == haps(seq, w) : List<&2, List<&2, B.Base>>}
-  {Norm.var(seq, v) == Norm.var(seq, w) : B.Var}
+  {Tan.normal(seq, v) == Tan.normal(seq, w) : B.Var}
 
 # Shortest: no valid variant making the same change has fewer letters.
 law shortest:
@@ -249,7 +257,21 @@ law shortest:
   for hv: {valid(seq, v) == True{} : Bool}
   for hw: {valid(seq, w) == True{} : Bool}
   for hs: {haps(seq, v) == haps(seq, w) : List<&2, List<&2, B.Base>>}
-  {Nat.is_le(size(Norm.var(seq, v)), size(w)) == True{} : Bool}
+  {Nat.is_le(size(Tan.normal(seq, v)), size(w)) == True{} : Bool}
+
+# Unique: two valid, normalized variants that make the same change are the
+# same variant. (With same_change, stays_valid and standard_form this fixes
+# Tan.normal's result without reading its algorithm.)
+law unique:
+  for seq: List<&2, B.Base>
+  for v: B.Var
+  for w: B.Var
+  for hv: {valid(seq, v) == True{} : Bool}
+  for hw: {valid(seq, w) == True{} : Bool}
+  for hnv: {normalized(seq, v) == True{} : Bool}
+  for hnw: {normalized(seq, w) == True{} : Bool}
+  for hs: {haps(seq, v) == haps(seq, w) : List<&2, List<&2, B.Base>>}
+  {v == w : B.Var}
 
 # ==========================================================================
 # Definitions: one body line
@@ -263,7 +285,7 @@ def problem(c: Maybe<&2, B.Code>, +fs: List<&2, String>, +body: String, +seq: Li
     case Some{k}:
       res(B.Problem{k}, fs, body)
     case None{}:
-      +w = Norm.var(seq, v)
+      +w = Tan.normal(seq, v)
       B.Res{B.Normalized{}, pos_of(w), B.Rec.rebuild(fs, v, w), B.Rec.stale(fs, v, w)}
 
 def first(b: Bool, c: B.Code, rest: Maybe<&2, B.Code>) -> Maybe<&2, B.Code>:
@@ -319,107 +341,47 @@ def judge.shape(bad: Bool, skip: Bool, +fa: List<&2, B.Contig>, +fs: List<&2, St
 #   7. ALT_DUP: two of REF and the ALTs are equal (ignoring case);
 #   8. REF_MISMATCH: REF is not the reference's bases at POS (ignoring case),
 #      including a REF running past the contig's end;
-#   9. normalized: the record is rewritten for Norm.var's variant
+#   9. normalized: the record is rewritten for Tan.normal's variant
 #      (B.Rec.rebuild), sorted by its new POS.
 # Every other outcome keeps the text and is sorted by the input POS.
 def judge(+fa: List<&2, B.Contig>, +body: String) -> B.Res:
   +fs = B.Rec.fields(body)
   judge.shape(B.Rec.malformed(fs), B.Rec.out_of_scope(fs), fa, fs, body)
 
-# ==========================================================================
-# Laws: reading the reference in pieces
-# ==========================================================================
+def line_valid.vars(r: Maybe<&2, List<&2, B.Base>>, a: Maybe<&2, List<&2, List<&2, B.Base>>>, +seq: List<&2, B.Base>, +pos: Nat) -> Bool:
+  match r a:
+    case Some{ref} Some{alts}:
+      valid(seq, B.Var{pos, ref, alts})
+    case _ _:
+      False{}
 
-def known.ok(m: Maybe<&2, String>, clen: Nat, +off: Nat, +raw: String) -> Bool:
+def line_valid.contig(m: Maybe<&2, String>, +fs: List<&2, String>) -> Bool:
   match m:
     case None{}:
       False{}
-    case Some{+r}:
-      Nat.is_eq(clen, String.length(r)) && String.eq(raw, String.take(String.drop(r, off), String.length(raw)))
+    case Some{raw}:
+      line_valid.vars(B.Allele.read(B.Rec.field(fs, 3n)), B.Alleles.read(B.Rec.alts(fs)), B.Bases.of_fasta(raw), B.Rec.pos(fs))
 
-# An answer that tells the truth about contig chrom: nothing; "unknown" when
-# the reference has no such contig; or its real length and some of its real
-# letters, as written in the FASTA file.
-def truthful(+fa: List<&2, B.Contig>, +chrom: String, a: B.Ans) -> Bool:
-  match a:
-    case B.NoAns{}:
-      True{}
-    case B.Unknown{}:
-      Maybe.is_none(&2, String, B.Fasta.find(fa, chrom))
-    case B.Known{clen, off, raw}:
-      known.ok(B.Fasta.find(fa, chrom), clen, off, raw)
-
-def chrom_of(body: String) -> String:
-  B.Rec.field(B.Rec.fields(body), 0n)
-
-# Any result the code gives from a truthful answer is the result for the
-# whole reference.
-law window:
-  for fa: List<&2, B.Contig>
-  for body: String
-  for a: B.Ans
-  for r: B.Res
-  for ht: {truthful(fa, chrom_of(body), a) == True{} : Bool}
-  for hr: {Norm.judge_in(a, body) == Some{r} : Maybe<&2, B.Res>}
-  {r == judge(fa, body) : B.Res}
-
-# The answer holds the letters lo .. hi - 1 (0-based), or up to the contig's
-# end.
-def covers(a: B.Ans, +lo: Nat, +hi: Nat) -> Bool:
-  match a:
-    case B.Known{+clen, +off, raw}:
-      Nat.is_le(off, lo) && Nat.is_le(Nat.min(hi, clen), Nat.add(off, String.length(raw)))
-    case _:
-      False{}
-
-def is_known(a: B.Ans) -> Bool:
-  match a:
-    case B.Known{c, o, b}:
-      True{}
-    case _:
-      False{}
-
-def is_unknown(a: B.Ans) -> Bool:
-  match a:
-    case B.Unknown{}:
-      True{}
-    case _:
-      False{}
-
-def enough.go(r: B.Res, +p: Nat, +rlen: Nat, a: B.Ans) -> Bool:
-  match r:
-    case B.Res{B.Broken{}, k, t, s}:
-      True{}
-    case B.Res{B.Skipped{}, k, t, s}:
-      True{}
-    case B.Res{B.NoContig{}, k, t, s}:
-      is_unknown(a)
-    case B.Res{B.Problem{B.RefMismatch{}}, k, t, s}:
-      covers(a, Nat.sub(p, 1n), Nat.add(Nat.sub(p, 1n), rlen))
-    case B.Res{B.Problem{c}, k, t, s}:
-      is_known(a)
-    case B.Res{B.Normalized{}, +k, t, s}:
-      covers(a, Nat.min(Nat.sub(p, 1n), Nat.sub(k, 2n)), Nat.add(Nat.sub(p, 1n), rlen))
-
-# What the code needs to answer, by the line's outcome: MALFORMED and out of
-# scope, nothing; UNKNOWN_CHROM, the answer "unknown"; BAD_END, NON_ACGTN,
-# BAD_POS and ALT_DUP, that the contig exists; REF_MISMATCH, the input REF's
-# letters (up to the contig's end); normalized, every letter from the input
-# POS, or from one before the new POS (or the contig's first letter) when that
-# is earlier, to the end of the input REF.
-def enough(+fa: List<&2, B.Contig>, +body: String, a: B.Ans) -> Bool:
+# The variant a record describes (POS, REF, ALTs read as bases) is valid on
+# the contig its CHROM names.
+def line_valid(+fa: List<&2, B.Contig>, body: String) -> Bool:
   +fs = B.Rec.fields(body)
-  enough.go(judge(fa, body), B.Rec.pos(fs), String.length(B.Rec.field(fs, 3n)), a)
+  line_valid.contig(B.Fasta.find(fa, B.Rec.field(fs, 0n)), fs)
 
-# A truthful answer holding what the line needs always gives a result (so
-# asking for bigger windows ends, at the latest with the whole contig).
-law window_enough:
+def is_normalized(r: B.Res) -> Bool:
+  match r:
+    case B.Res{B.Normalized{}, k, t, s}:
+      True{}
+    case _:
+      False{}
+
+# A record the tool normalizes describes a valid variant on its contig, so the
+# laws about the normal form (same_change ... unique) apply to it.
+law normalized_valid:
   for fa: List<&2, B.Contig>
   for body: String
-  for a: B.Ans
-  for ht: {truthful(fa, chrom_of(body), a) == True{} : Bool}
-  for he: {enough(fa, body, a) == True{} : Bool}
-  {Maybe.is_some(&2, B.Res, Norm.judge_in(a, body)) == True{} : Bool}
+  for h: {is_normalized(judge(fa, body)) == True{} : Bool}
+  {line_valid(fa, body) == True{} : Bool}
 
 # ==========================================================================
 # Definitions: the whole run
@@ -688,134 +650,3 @@ law twice_run:
   for h: {R.Report.code(run(fasta, vcf, o)) == 0n : Nat}
   {(Nat.is_eq(R.Report.code(run(fasta, R.Report.out(run(fasta, vcf, o)), o)), 0n)
     && String.eq(body(R.Report.out(run(fasta, R.Report.out(run(fasta, vcf, o)), o))), body(R.Report.out(run(fasta, vcf, o))))) == True{} : Bool}
-
-# ==========================================================================
-# The law of the program: the state machine does what run says
-# ==========================================================================
-
-# The truthful answer to "the bases of contig chrom from index a up to b".
-def truth.of(m: Maybe<&2, String>, +a: Nat, +b: Nat) -> B.Ans:
-  match m:
-    case None{}:
-      B.Unknown{}
-    case Some{+r}:
-      +n = String.length(r)
-      B.Known{n, Nat.min(a, n), String.take(String.drop(r, a), Nat.sub(b, a))}
-
-# The truthful answer to "the letters of contig chrom from index a up to b".
-def truth(+fa: List<&2, B.Contig>, +chrom: String, +a: Nat, +b: Nat) -> B.Ans:
-  truth.of(B.Fasta.find(fa, chrom), a, b)
-
-# The driver, as a definition: it feeds the machine the VCF file in the pieces
-# cs, then the end of the file (once), answers each reference read truthfully,
-# and collects what the machine writes until it asks to stop.
-#   eof: the end of the file was given; done: the exit code, once it stopped.
-type DSt is Data:
-  DSt{st: Norm.St, next: B.Next, cs: List<&2, String>, eof: Bool, out: String, notes: List<&2, B.Note>, done: Maybe<&2, Nat>}
-
-def absorb(s: Norm.Step, cs: List<&2, String>, eof: Bool, +out: String, +notes: List<&2, B.Note>) -> DSt:
-  match s:
-    case Norm.Step{st, o, ns, nx}:
-      DSt{st, nx, cs, eof, out ++ o, List.append(&2, B.Note, notes, ns), None{}}
-
-def dstep.more(cs: List<&2, String>, eof: Bool, st: Norm.St, +out: String, +notes: List<&2, B.Note>) -> DSt:
-  match cs eof:
-    case Nil{} True{}:
-      DSt{st, B.More{}, Nil{}, True{}, out, notes, None{}}
-    case Nil{} False{}:
-      absorb(Norm.step(st, B.Eof{}), Nil{}, True{}, out, notes)
-    case c <> t _:
-      absorb(Norm.step(st, B.Chunk{c}), t, eof, out, notes)
-
-# One step of the driver. Asking for more after the end of the file gets
-# nothing (so such a machine never stops).
-def dstep(+fa: List<&2, B.Contig>, d: DSt) -> DSt:
-  match d:
-    case DSt{st, nx, cs, e, out, notes, Some{c}}:
-      DSt{st, nx, cs, e, out, notes, Some{c}}
-    case DSt{st, B.Finish{+c}, cs, e, out, notes, None{}}:
-      DSt{st, B.Finish{c}, cs, e, out, notes, Some{c}}
-    case DSt{st, B.Ask{ch, a, b}, cs, e, out, notes, None{}}:
-      absorb(Norm.step(st, B.Ref{truth(fa, ch, a, b)}), cs, e, out, notes)
-    case DSt{st, B.More{}, cs, e, out, notes, None{}}:
-      dstep.more(cs, e, st, out, notes)
-
-def drive(fuel: Nat, +fa: List<&2, B.Contig>, d: DSt) -> DSt:
-  match fuel:
-    case 0n:
-      d
-    case 1n+f:
-      drive(f, fa, dstep(fa, d))
-
-def result(d: DSt) -> Maybe<&2, R.Report>:
-  match d:
-    case DSt{st, nx, cs, e, out, notes, Some{c}}:
-      Some{R.Report{out, notes, c}}
-    case DSt{st, nx, cs, e, out, notes, None{}}:
-      None{}
-
-def pieces_len(cs: List<&2, String>) -> Nat:
-  List.length(&2, String, cs)
-
-# How many steps the machine may take: one per piece, one for the end of the
-# file, one to stop, and (VCF length + 1) times (FASTA length + 3): there are
-# at most VCF length + 1 lines, and a line may read the reference at most
-# FASTA length + 3 times. A bound for the proof, not the speed the code aims
-# at (it doubles its windows).
-def bound(fasta: String, vcf: String, cs: List<&2, String>) -> Nat:
-  Nat.add(Nat.add(pieces_len(cs), 3n), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n)))
-
-# What a started program produces: the FASTA and VCF paths it opens, and its
-# report.
-type Launch is Data:
-  Launch{ref: String, vcf: String, rep: R.Report}
-
-def launch.of(m: Maybe<&2, R.Report>, r: String, v: String) -> Maybe<&2, Launch>:
-  match m:
-    case None{}:
-      None{}
-    case Some{rep}:
-      Some{Launch{r, v, rep}}
-
-def launch(b: Norm.Begin, +fasta: String, +vcf: String, +cs: List<&2, String>) -> Maybe<&2, Launch>:
-  match b:
-    case Norm.Usage{}:
-      None{}
-    case Norm.Begin{st, r, v}:
-      launch.of(result(drive(bound(fasta, vcf, cs), B.Fasta.parse(fasta), DSt{st, B.More{}, cs, False{}, "", Nil{}, None{}})), r, v)
-
-# The program: started with a command line B.Args.parse accepts, it opens the
-# FASTA and VCF files it names and, however the VCF file is cut into pieces,
-# given truthful reference reads, writes exactly what run says (stdout bytes,
-# stderr messages, exit code) and stops within bound steps.
-#
-# What this law does not cover (the trusted driver, main.bend): reading the
-# files' bytes; answering each reference read Ask{chrom, a, b} with exactly
-# truth(B.Fasta.parse(fasta), chrom, a, b): Unknown when the .fai has no such
-# contig, else Known with the contig's length len(Contig.raw) and the slice
-# a .. b - 1 of Contig.raw (the sequence letters without line breaks, spaces,
-# tabs and CRs). The driver reads it through the .fai index (built by
-# samtools faidx), whose offsets count only line breaks, so it stops with
-# "error: unsupported FASTA" (exit code 2) if a read holds a space or tab;
-# writing the bytes and the messages
-# (B.Note.render); exiting with the code; and the errors outside the laws: a
-# usage error (law usage: prints B.usage and exits with code 2) and a file
-# that cannot be read (prints "error: cannot read <path>" and exits with
-# code 2).
-law machine:
-  for argv: List<&2, String>
-  for o: B.Opts
-  for ref: String
-  for vcfpath: String
-  for fasta: String
-  for vcf: String
-  for cs: List<&2, String>
-  for ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>}
-  for h: {String.concat(cs) == vcf : String}
-  {launch(Norm.start(argv), fasta, vcf, cs) == Some{Launch{ref, vcfpath, run(fasta, vcf, o)}} : Maybe<&2, Launch>}
-
-# A command line B.Args.parse does not accept is a usage error.
-law usage:
-  for argv: List<&2, String>
-  for ha: {B.Args.parse(argv) == None{} : Maybe<&2, B.Cfg>}
-  {Norm.start(argv) == Norm.Usage{} : Norm.Begin}

@@ -3,10 +3,10 @@ import ./types.bend as B
 
 # framebender: how a run handles lines, one at a time (spec).
 #
-# Part of the spec, split out of LAWS.bend unchanged (2026-10-27) so that the
-# code can use the same bookkeeping: LAWS.run feeds it the outcome of
-# LAWS.judge for each line, the machine (norm.bend) the outcome of
-# Norm.judge_in. Reviewed and approved with LAWS.bend.
+# Part of the spec (science layer), reviewed and approved with LAWS.bend:
+# LAWS.run feeds it the outcome of LAWS.judge for each line. Implementations
+# may call these definitions or use their own (proven equal); the file itself
+# does not change for an implementation.
 
 def version() -> String:
   "0.1.0"
