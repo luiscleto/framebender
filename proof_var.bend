@@ -5,10 +5,58 @@ import ./norm_var.bend as V
 import ./run.bend as R
 import ./LAWS.bend as L
 import ./proof_base.bend as P
+import ./proof_var_lists.bend as Q
+import ./proof_var_rep.bend as RP
+import ./proof_var_spec.bend as SP
+import ./proof_var_code.bend as C
+import ./proof_var_uniq.bend as U
 
 # Proofs: the normal form of one variant (Norm.var, norm_var.bend).
 # Each law below restates the law of the same name in LAWS.bend with every
 # variable reusable (+); PROOF.bend forwards L.name to it.
+
+# What the normalizer's answer satisfies (proof_var_code.bend: C.main), read
+# back through Maybe.default.
+
+def ext_valid(+seq: Q.Bs(), +h: Q.Als(), +s: Nat, m: Maybe<&2, B.Var>, +v: B.Var, +e: {C.good_f(seq, h, s, m) == True{} : Bool}) ->
+  {L.valid(seq, Maybe.default(&2, B.Var, m, v)) == True{} : Bool}:
+  match m:
+    case None{}:
+      Empty.absurd({L.valid(seq, v) == True{} : Bool}, P.false_ne_true(e))
+    case Some{w}:
+      match w:
+        case B.Var{+p, +r, +xs}:
+          C.gd_valid(seq, h, s, p, r, xs, P.and_true_l(C.Gd(seq, h, s, p, r, xs), L.normalized(seq, B.Var{p, r, xs}), e))
+
+def ext_haps(+seq: Q.Bs(), +h: Q.Als(), +s: Nat, m: Maybe<&2, B.Var>, +v: B.Var, +e: {C.good_f(seq, h, s, m) == True{} : Bool}) ->
+  {L.haps(seq, Maybe.default(&2, B.Var, m, v)) == h : Q.Als()}:
+  match m:
+    case None{}:
+      Empty.absurd({L.haps(seq, v) == h : Q.Als()}, P.false_ne_true(e))
+    case Some{w}:
+      match w:
+        case B.Var{+p, +r, +xs}:
+          C.gd_haps(seq, h, s, p, r, xs, P.and_true_l(C.Gd(seq, h, s, p, r, xs), L.normalized(seq, B.Var{p, r, xs}), e))
+
+def ext_size(+seq: Q.Bs(), +h: Q.Als(), +s: Nat, m: Maybe<&2, B.Var>, +v: B.Var, +e: {C.good_f(seq, h, s, m) == True{} : Bool}) ->
+  {Nat.is_le(L.size(Maybe.default(&2, B.Var, m, v)), s) == True{} : Bool}:
+  match m:
+    case None{}:
+      Empty.absurd({Nat.is_le(L.size(v), s) == True{} : Bool}, P.false_ne_true(e))
+    case Some{w}:
+      match w:
+        case B.Var{+p, +r, +xs}:
+          C.gd_size(seq, h, s, p, r, xs, P.and_true_l(C.Gd(seq, h, s, p, r, xs), L.normalized(seq, B.Var{p, r, xs}), e))
+
+def ext_norm(+seq: Q.Bs(), +h: Q.Als(), +s: Nat, m: Maybe<&2, B.Var>, +v: B.Var, +e: {C.good_f(seq, h, s, m) == True{} : Bool}) ->
+  {L.normalized(seq, Maybe.default(&2, B.Var, m, v)) == True{} : Bool}:
+  match m:
+    case None{}:
+      Empty.absurd({L.normalized(seq, v) == True{} : Bool}, P.false_ne_true(e))
+    case Some{w}:
+      match w:
+        case B.Var{+p, +r, +xs}:
+          P.and_true_r(C.Gd(seq, h, s, p, r, xs), L.normalized(seq, B.Var{p, r, xs}), e)
 
 law same_change:
   for +seq: List<&2, B.Base>
@@ -16,17 +64,26 @@ law same_change:
   for +hv: {L.valid(seq, v) == True{} : Bool}
   {L.haps(seq, Norm.var(seq, v)) == L.haps(seq, v) : List<&2, List<&2, B.Base>>}
 
+def same_change(seq, v, hv):
+  ext_haps(seq, L.haps(seq, v), L.size(v), V.var_in(0n, seq, v), v, C.main(seq, v, hv))
+
 law stays_valid:
   for +seq: List<&2, B.Base>
   for +v: B.Var
   for +hv: {L.valid(seq, v) == True{} : Bool}
   {L.valid(seq, Norm.var(seq, v)) == True{} : Bool}
 
+def stays_valid(seq, v, hv):
+  ext_valid(seq, L.haps(seq, v), L.size(v), V.var_in(0n, seq, v), v, C.main(seq, v, hv))
+
 law standard_form:
   for +seq: List<&2, B.Base>
   for +v: B.Var
   for +hv: {L.valid(seq, v) == True{} : Bool}
   {L.normalized(seq, Norm.var(seq, v)) == True{} : Bool}
+
+def standard_form(seq, v, hv):
+  ext_norm(seq, L.haps(seq, v), L.size(v), V.var_in(0n, seq, v), v, C.main(seq, v, hv))
 
 law normal_unchanged:
   for +seq: List<&2, B.Base>
@@ -35,11 +92,17 @@ law normal_unchanged:
   for +hn: {L.normalized(seq, v) == True{} : Bool}
   {Norm.var(seq, v) == v : B.Var}
 
+def normal_unchanged(seq, v, hv, hn):
+  U.uniq(seq, Norm.var(seq, v), v, stays_valid(seq, v, hv), hv, standard_form(seq, v, hv), hn, same_change(seq, v, hv))
+
 law twice:
   for +seq: List<&2, B.Base>
   for +v: B.Var
   for +hv: {L.valid(seq, v) == True{} : Bool}
   {Norm.var(seq, Norm.var(seq, v)) == Norm.var(seq, v) : B.Var}
+
+def twice(seq, v, hv):
+  normal_unchanged(seq, Norm.var(seq, v), stays_valid(seq, v, hv), standard_form(seq, v, hv))
 
 law one_form:
   for +seq: List<&2, B.Base>
@@ -50,6 +113,12 @@ law one_form:
   for +hs: {L.haps(seq, v) == L.haps(seq, w) : List<&2, List<&2, B.Base>>}
   {Norm.var(seq, v) == Norm.var(seq, w) : B.Var}
 
+def one_form(seq, v, w, hv, hw, hs):
+  U.uniq(seq, Norm.var(seq, v), Norm.var(seq, w), stays_valid(seq, v, hv), stays_valid(seq, w, hw),
+    standard_form(seq, v, hv), standard_form(seq, w, hw),
+    SP.trans3(L.haps(seq, Norm.var(seq, v)), L.haps(seq, v), L.haps(seq, w), L.haps(seq, Norm.var(seq, w)),
+      same_change(seq, v, hv), hs, same_change(seq, w, hw)))
+
 law shortest:
   for +seq: List<&2, B.Base>
   for +v: B.Var
@@ -58,6 +127,11 @@ law shortest:
   for +hw: {L.valid(seq, w) == True{} : Bool}
   for +hs: {L.haps(seq, v) == L.haps(seq, w) : List<&2, List<&2, B.Base>>}
   {Nat.is_le(L.size(Norm.var(seq, v)), L.size(w)) == True{} : Bool}
+
+def shortest(seq, v, w, hv, hw, hs):
+  %Equal.sym(B.Var, Norm.var(seq, v), Norm.var(seq, w), one_form(seq, v, w, hv, hw, hs)) :
+    {Nat.is_le(L.size(_), L.size(w)) == True{} : Bool}
+  ext_size(seq, L.haps(seq, w), L.size(w), V.var_in(0n, seq, w), w, C.main(seq, w, hw))
 
 # ---------------------------------------------------------------------------
 # Interface for proof_window.bend: the normalizer reading a window

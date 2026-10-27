@@ -346,3 +346,45 @@ law nitems_cons:
 
 def nitems_cons(l, t, fa, n):
   acc_split(t, fa, True{}, 1n+n, [L.item(fa, l, 1n+n)])
+
+law halted_code:
+  for +ls: List<&2, B.Line>
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +n: Nat
+  for +i: Bool
+  for +h: String
+  for +c: Maybe<&2, String>
+  for +e: List<&2, String>
+  for +l: Maybe<&2, R.Item>
+  for +b: List<&2, R.Item>
+  for +k: R.Cnt
+  for +out: String
+  for +ns: List<&2, B.Note>
+  {R.Report.code(R.finish(L.run.go(ls, fa, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}}))) == 1n : Nat}
+
+def halted_code(ls, fa, o, n, i, h, c, e, l, b, k, out, ns):
+  %Equal.sym(R.Report, R.finish(L.run.go(ls, fa, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}})), R.Report{out, ns, 1n},
+    halted(ls, fa, o, n, i, h, c, e, l, b, k, out, ns)) : {R.Report.code(_) == 1n : Nat}
+  {==}
+
+law halted_notes:
+  for +ls: List<&2, B.Line>
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +n: Nat
+  for +i: Bool
+  for +h: String
+  for +c: Maybe<&2, String>
+  for +e: List<&2, String>
+  for +l: Maybe<&2, R.Item>
+  for +b: List<&2, R.Item>
+  for +k: R.Cnt
+  for +out: String
+  for +ns: List<&2, B.Note>
+  {R.Report.notes(R.finish(L.run.go(ls, fa, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}}))) == ns : List<&2, B.Note>}
+
+def halted_notes(ls, fa, o, n, i, h, c, e, l, b, k, out, ns):
+  %Equal.sym(R.Report, R.finish(L.run.go(ls, fa, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}})), R.Report{out, ns, 1n},
+    halted(ls, fa, o, n, i, h, c, e, l, b, k, out, ns)) : {R.Report.notes(_) == ns : List<&2, B.Note>}
+  {==}

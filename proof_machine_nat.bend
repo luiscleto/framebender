@@ -108,6 +108,17 @@ def le_mul_r(a, b, c, e):
     case 1n+p 1n+q:
       le_add_l(c, Nat.mul(p, c), Nat.mul(q, c), le_mul_r(p, q, c, e))
 
+law and_intro:
+  for +a: Bool
+  for +b: Bool
+  for ea: {a == True{} : Bool}
+  for eb: {b == True{} : Bool}
+  {Bool.and(a, b) == True{} : Bool}
+
+def and_intro(a, b, ea, eb):
+  %Equal.sym(Bool, a, True{}, ea) : {Bool.and(_, b) == True{} : Bool}
+  eb
+
 # Strings
 # =======
 

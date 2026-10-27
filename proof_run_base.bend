@@ -351,3 +351,61 @@ def str_eq_sym.go(+a: String, +b: String, +x: Bool, e: {String.eq(a, b) == x : B
 
 def str_eq_sym(a, b):
   str_eq_sym.go(a, b, String.eq(a, b), {==})
+
+law le_succ:
+  for +a: Nat
+  {Nat.is_le(a, 1n+a) == True{} : Bool}
+
+def le_succ(a):
+  match a:
+    case 0n:
+      {==}
+    case 1n+p:
+      le_succ(p)
+
+law le_add_l:
+  for +a: Nat
+  for +w: Nat
+  {Nat.is_le(w, Nat.add(a, w)) == True{} : Bool}
+
+def le_add_l(a, w):
+  match a:
+    case 0n:
+      P.le_refl(w)
+    case 1n+p:
+      le_trans(w, Nat.add(p, w), 1n+Nat.add(p, w), le_add_l(p, w), le_succ(Nat.add(p, w)))
+
+# a + w <= b + w gives a <= b.
+law le_add_cancel:
+  for +a: Nat
+  for +b: Nat
+  for +w: Nat
+  for h: {Nat.is_le(Nat.add(a, w), Nat.add(b, w)) == True{} : Bool}
+  {Nat.is_le(a, b) == True{} : Bool}
+
+def le_add_cancel(a, b, w, h):
+  match a b:
+    case 0n _:
+      P.le_zero_l(b)
+    case 1n+p 0n:
+      Empty.absurd({Nat.is_le(1n+p, 0n) == True{} : Bool}, le_s_not(Nat.add(p, w), w, h, le_add_l(p, w)))
+    case 1n+p 1n+q:
+      le_add_cancel(p, q, w, h)
+
+# a < b gives a + 1 <= b.
+law lt_le_s:
+  for +a: Nat
+  for +b: Nat
+  for h: {Nat.is_lt(a, b) == True{} : Bool}
+  {Nat.is_le(1n+a, b) == True{} : Bool}
+
+def lt_le_s(a, b, h):
+  match a b:
+    case 0n 0n:
+      Empty.absurd({Nat.is_le(1n, 0n) == True{} : Bool}, P.false_ne_true(h))
+    case 0n 1n+q:
+      P.le_zero_l(q)
+    case 1n+p 0n:
+      Empty.absurd({Nat.is_le(1n+1n+p, 0n) == True{} : Bool}, P.false_ne_true(h))
+    case 1n+p 1n+q:
+      lt_le_s(p, q, h)

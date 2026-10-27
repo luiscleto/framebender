@@ -707,3 +707,98 @@ def flushed_text(xs, last, o2, l2, s, e):
   Equal.cong(R.Flush, String, f => Flush.txt(f), R.Flushed{o2, l2}, R.Flushed{L.texts(xs), flast(xs, last)},
     Equal.trans(R.Flush, R.Flushed{o2, l2}, R.flush(xs, last), R.Flushed{L.texts(xs), flast(xs, last)},
       Equal.sym(R.Flush, R.flush(xs, last), R.Flushed{o2, l2}, e), flush_sorted(xs, last, s)))
+
+# Ready items and the bound on the last key
+# =========================================
+
+def all_ready(xs: List<&2, R.Item>, +w: Nat, +p: Nat) -> Bool:
+  match xs:
+    case Nil{}:
+      True{}
+    case x <> t:
+      R.ready(w, p, x) && all_ready(t, w, p)
+
+# The last item written (if any) was ready at input position p.
+def lbound(m: Maybe<&2, R.Item>, +w: Nat, +p: Nat) -> Bool:
+  match m:
+    case None{}:
+      True{}
+    case Some{x}:
+      R.ready(w, p, x)
+
+def take_ready_ready.go(+w: Nat, +p: Nat, +x: R.Item, +t: List<&2, R.Item>, +r: Bool,
+  er: {R.ready(w, p, x) == r : Bool}, ih: {all_ready(R.take_ready(w, p, t), w, p) == True{} : Bool}) ->
+  {all_ready(R.take_ready.put(r, x, R.take_ready(w, p, t)), w, p) == True{} : Bool}:
+  match r:
+    case True{}:
+      and_intro(R.ready(w, p, x), all_ready(R.take_ready(w, p, t), w, p), er, ih)
+    case False{}:
+      {==}
+
+law take_ready_ready:
+  for +w: Nat
+  for +p: Nat
+  for +b: List<&2, R.Item>
+  {all_ready(R.take_ready(w, p, b), w, p) == True{} : Bool}
+
+def take_ready_ready(w, p, b):
+  match b:
+    case Nil{}:
+      {==}
+    case +x <> +t:
+      take_ready_ready.go(w, p, x, t, R.ready(w, p, x), {==}, take_ready_ready(w, p, t))
+
+law flast_bound:
+  for +xs: List<&2, R.Item>
+  for +last: Maybe<&2, R.Item>
+  for +w: Nat
+  for +p: Nat
+  for +hl: {lbound(last, w, p) == True{} : Bool}
+  for +hx: {all_ready(xs, w, p) == True{} : Bool}
+  {lbound(flast(xs, last), w, p) == True{} : Bool}
+
+def flast_bound(xs, last, w, p, hl, hx):
+  match xs:
+    case Nil{}:
+      hl
+    case +x <> +t:
+      flast_bound(t, Some{x}, w, p, P.and_true_l(R.ready(w, p, x), all_ready(t, w, p), hx), P.and_true_r(R.ready(w, p, x), all_ready(t, w, p), hx))
+
+law lbound_mono:
+  for +last: Maybe<&2, R.Item>
+  for +w: Nat
+  for +p: Nat
+  for +q: Nat
+  for +hl: {lbound(last, w, p) == True{} : Bool}
+  for +hpq: {Nat.is_le(p, q) == True{} : Bool}
+  {lbound(last, w, q) == True{} : Bool}
+
+def lbound_mono(last, w, p, q, hl, hpq):
+  match last:
+    case None{}:
+      {==}
+    case Some{+x}:
+      Q.le_trans(Nat.add(R.Item.key(x), w), p, q, hl, hpq)
+
+# The last key written is at most the key of a later line that moved left by
+# less than w.
+law key_ok:
+  for +last: Maybe<&2, R.Item>
+  for +w: Nat
+  for +pa: Nat
+  for +pz: Nat
+  for +kz: Nat
+  for +hl: {lbound(last, w, pa) == True{} : Bool}
+  for +hp: {Nat.is_le(pa, pz) == True{} : Bool}
+  for +hm: {Nat.is_lt(pz, Nat.add(kz, w)) == True{} : Bool}
+  {Nat.is_le(lkey(last), kz) == True{} : Bool}
+
+def key_ok(last, w, pa, pz, kz, hl, hp, hm):
+  match last:
+    case None{}:
+      P.le_zero_l(kz)
+    case Some{+x}:
+      +kx = R.Item.key(x)
+      +a = Q.le_trans(Nat.add(kx, w), pa, pz, hl, hp)
+      +b = Q.le_trans(1n+Nat.add(kx, w), 1n+pz, Nat.add(kz, w), a, Q.lt_le_s(pz, Nat.add(kz, w), hm))
+      Q.le_of_s(kx, kz, Q.le_add_cancel(1n+kx, kz, w, b))
