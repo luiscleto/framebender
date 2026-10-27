@@ -43,6 +43,16 @@ def Io.write_fd(fd: U32, data: List<&2, U32>) -> IO(Result<&1, &1, U32 & String,
   import "./io64.c"
   import "./io64.js"
 
+# Read up to max bytes as a String, one Char per byte.
+def Io.read_str(file: File, max: U32) -> IO(File & Result<&1, &1, U32 & String, String>):
+  import "./io64.c"
+  import "./io64.js"
+
+# Write a String of Chars 0-255 as bytes, one per Char.
+def Io.write_str(fd: U32, s: String) -> IO(Result<&1, &1, U32 & String, Unit>):
+  import "./io64.c"
+  import "./io64.js"
+
 # ---------------------------------------------------------------------------
 # Bytes and text: one Char per byte, so every byte is copied exactly
 # ---------------------------------------------------------------------------
@@ -94,7 +104,7 @@ def or_die?(-A: Type, r: Result<&1, &1, U32 & String, A>, what: String) -> IO(A)
 
 def put?(fd: U32, s: String) -> IO(Unit):
   do IO<Unit>:
-    r : Result<&1, &1, U32 & String, Unit> <- Io.write_fd(fd, str_bytes(s))
+    r : Result<&1, &1, U32 & String, Unit> <- Io.write_str(fd, s)
     or_die(Unit, r, "cannot write")
 
 def notes_text?(ns: List<&2, B.Note>) -> String:
@@ -326,12 +336,12 @@ def answers?(rs: List<&2, P.Req>, fai: Map<&2, Maybe<&2, Fai>>, fa: File, +ref: 
 # The loop
 # ---------------------------------------------------------------------------
 
-def loop.input?(bs: List<&2, U32>, st: Norm.St) -> Norm.Step:
-  match bs:
-    case Nil{}:
+def loop.input?(s: String, st: Norm.St) -> Norm.Step:
+  match s:
+    case SNil{}:
       Norm.step(st, P.Eof{})
-    case b <> t:
-      Norm.step(st, P.Chunk{bytes_str(b <> t)})
+    case SCon{c, t}:
+      Norm.step(st, P.Chunk{SCon{c, t}})
 
 def loop?(io: Io, +vpath: String, st: Norm.St, next: P.Next) -> IO(Unit):
   match io:
@@ -344,7 +354,7 @@ def loop?(io: Io, +vpath: String, st: Norm.St, next: P.Next) -> IO(Unit):
             IO.exit(U32.from_nat(code))
         case P.More{}:
           do IO<Unit>:
-            p : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_bytes(vcf, 65536)
+            p : File & Result<&1, &1, U32 & String, String> <- Io.read_str(vcf, 65536)
             loop.more(p, fa, ref, vpath, fai, st)
         case P.Ask{rs}:
           do IO<Unit>:
@@ -356,12 +366,12 @@ def loop.ref?(q: Map<&2, Maybe<&2, Fai>> & (File & List<&2, P.Ans>), vcf: File, 
     case (fai, (fa, as)):
       emit(Io{vcf, fa, ref, fai}, vpath, Norm.step(st, P.Ref{as}))
 
-def loop.more?(p: File & Result<&1, &1, U32 & String, List<&2, U32>>, fa: File, +ref: String, +vpath: String, fai: Map<&2, Maybe<&2, Fai>>, st: Norm.St) -> IO(Unit):
+def loop.more?(p: File & Result<&1, &1, U32 & String, String>, fa: File, +ref: String, +vpath: String, fai: Map<&2, Maybe<&2, Fai>>, st: Norm.St) -> IO(Unit):
   match p:
     case (vcf, r):
       do IO<Unit>:
-        +bs : List<&2, U32> <- or_die(List<&2, U32>, r, "cannot read " ++ vpath)
-        emit(Io{vcf, fa, ref, fai}, vpath, loop.input(bs, st))
+        s : String <- or_die(String, r, "cannot read " ++ vpath)
+        emit(Io{vcf, fa, ref, fai}, vpath, loop.input(s, st))
 
 # Write what a step wrote, then go on with what it wants next.
 def emit?(io: Io, +vpath: String, s: Norm.Step) -> IO(Unit):
