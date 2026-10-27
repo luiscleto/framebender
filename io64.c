@@ -9,6 +9,11 @@
 #ifdef CID(Io.pread_full)
 static void io_pread_full_call(IoWork* w) {
   int fd = (int)w->hand;
+  if (w->data == NULL) {
+    w->code = ENOMEM;
+    w->size = 0;
+    return;
+  }
   uint64_t want = w->word;
   uint64_t got = 0;
   off_t off = (off_t)w->made;
@@ -26,7 +31,7 @@ static void io_pread_full_call(IoWork* w) {
   w->size = got;
 }
 static Term io_pread_full_pack(Env e, IoWork* w) {
-  Term r = io_res(e, w, io_list(e, w->data, w->size));
+  Term r = io_res(e, w, io_list(e, w->data, w->data == NULL ? 0 : w->size));
   free(w->data);
   return io_tup(e, io_hand(w->hand), r);
 }
@@ -34,7 +39,7 @@ Term io_pread_full_run(Env e, Term* f, IoWork* w) {
   w->hand = (intptr_t)io_hand_v(f[0]);
   w->made = (intptr_t)(((uint64_t)(u32)f[1] << 32) | (uint64_t)(u32)f[2]);
   w->word = (u32)f[3];
-  w->data = io_mem(malloc((size_t)w->word + 1));
+  w->data = malloc((size_t)w->word + 1);
   return io_work(w, io_pread_full_call, io_pread_full_pack);
 }
 static void __attribute__((constructor)) io_pread_full_use(void) {

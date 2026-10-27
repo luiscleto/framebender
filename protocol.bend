@@ -31,70 +31,122 @@ type Next is Data:
   Ask{reqs: List<&2, Req>}
   Finish{code: Nat}
 
-# A FASTA file the .fai index can serve. Only the contigs B.Fasta.parse keeps
-# count (text before the first header, and a header with an empty or repeated
-# name with its lines, are ignored there too); each must have at least one
-# letter (samtools faidx leaves a contig without letters out of the index), and
-# its lines must hold no space or tab and no CR except at the end of a line
-# (the index cannot skip them). The program's law covers only such files.
-# A line (without its LF) holds a space or tab, or a CR before its end.
-def Fasta.blank(s: String) -> Bool:
+# A FASTA file that samtools faidx indexes and serves exactly as
+# B.Fasta.parse reads it:
+# - the file starts with a header line ('>'), or is empty;
+# - no header line holds a vertical tab or form feed (samtools ends a name at
+#   any whitespace, B.Fasta.name only at space, tab or CR);
+# - in every contig (also the ones B.Fasta.parse ignores, which samtools still
+#   reads), each sequence line is bytes 0x21-0x7E, then optionally one CR, the
+#   same for all its non-empty lines; all lines have the same length except that the
+#   last ones may be shorter or empty, with no letters after them;
+# - every contig B.Fasta.parse keeps has at least one letter (samtools leaves
+#   a contig without letters out of the index).
+# The program's law covers only such files.
+
+def Fasta.graph(s: String) -> Bool:
+  match s:
+    case SNil{}:
+      True{}
+    case SCon{Chr{+x}, t}:
+      U32.is_ge(x, 33) && U32.is_le(x, 126) && Fasta.graph(t)
+
+# A header line holds a vertical tab or form feed.
+def Fasta.vtff(s: String) -> Bool:
   match s:
     case SNil{}:
       False{}
-    case SCon{Chr{+x}, +t}:
-      U32.is_eq(x, 32) || U32.is_eq(x, 9) || (U32.is_eq(x, 13) && Bool.not(String.is_empty(t))) || Fasta.blank(t)
+    case SCon{Chr{+x}, t}:
+      U32.is_eq(x, 11) || U32.is_eq(x, 12) || Fasta.vtff(t)
 
-def Fasta.blank_seq.put(head: Bool, +l: String, rest: Bool) -> Bool:
-  match head:
+# The state while reading a contig's lines: the length of its first line (0
+# before one), whether a shorter or empty line ended its letters, whether its
+# lines end in CR (0: not known yet, 1: no, 2: yes), its letters so far, and
+# whether B.Fasta.parse keeps it.
+type Lay is Data:
+  Lay{width: Nat, ended: Bool, cr: Nat, letters: Nat, kept: Bool}
+
+# The verdict so far: the names seen, the contig being read (None before the
+# first header), and whether the file is still fine.
+type Plain is Data:
+  Plain{seen: List<&2, String>, cur: Maybe<&2, Lay>, ok: Bool}
+
+# A contig ends: a kept contig needs a letter.
+def Fasta.close(m: Maybe<&2, Lay>) -> Bool:
+  match m:
+    case None{}:
+      True{}
+    case Some{Lay{w, e, c, n, k}}:
+      Bool.not(k) || Nat.is_lt(0n, n)
+
+def Fasta.cr_ok(+cr: Nat, +has: Bool) -> Bool:
+  Nat.is_eq(cr, 0n) || Nat.is_eq(cr, Bool.pick(Nat, has, 2n, 1n))
+
+def Fasta.seq_line.go(ok: Bool, l: Lay) -> Maybe<&2, Lay>:
+  match ok:
     case True{}:
-      False{}
+      Some{l}
     case False{}:
-      Fasta.blank(l) || rest
+      None{}
 
-# Some line up to the next header line holds a blank.
-def Fasta.blank_seq(ls: List<&2, String>) -> Bool:
+# One sequence line of a contig, without its CR if has: a line of length len.
+def Fasta.seq_line(l: Lay, +len: Nat, +has: Bool, good: Bool) -> Maybe<&2, Lay>:
+  match l:
+    case Lay{+w, +e, +cr, n, k}:
+      +blank = Nat.is_eq(len, 0n)
+      Fasta.seq_line.go(good && (blank || (Fasta.cr_ok(cr, has) && Bool.not(e) && (Nat.is_eq(w, 0n) || Nat.is_le(len, w)))),
+        Lay{Bool.pick(Nat, Nat.is_eq(w, 0n), len, w), e || blank || (Bool.not(Nat.is_eq(w, 0n)) && Nat.is_lt(len, w)), Bool.pick(Nat, blank, cr, Bool.pick(Nat, has, 2n, 1n)), Nat.add(n, len), k})
+
+def Fasta.chomp.if(cr: Bool, +l: String) -> String:
+  match cr:
+    case True{}:
+      String.take(l, Nat.sub(String.length(l), 1n))
+    case False{}:
+      l
+
+def Fasta.after_line(m: Maybe<&2, Lay>, +seen: List<&2, String>) -> Plain:
+  match m:
+    case None{}:
+      Plain{seen, None{}, False{}}
+    case Some{lay}:
+      Plain{seen, Some{lay}, True{}}
+
+def Fasta.after_line.k(ok: Bool, m: Maybe<&2, Lay>, +seen: List<&2, String>) -> Plain:
+  match ok:
+    case False{}:
+      Plain{seen, None{}, False{}}
+    case True{}:
+      Fasta.after_line(m, seen)
+
+def Fasta.line.k(head: Bool, cur: Maybe<&2, Lay>, +l: String, +seen: List<&2, String>, +ok: Bool) -> Plain:
+  match head cur:
+    case True{} c:
+      +n = B.Fasta.name(l)
+      +keep = Bool.not(String.is_empty(n)) && Bool.not(B.Fasta.seen(n, seen))
+      Plain{Bool.pick(List<&2, String>, keep, n <> seen, seen), Some{Lay{0n, False{}, 0n, 0n, keep}}, ok && Fasta.close(c) && Bool.not(Fasta.vtff(l))}
+    case False{} None{}:
+      Plain{seen, None{}, ok && String.is_empty(l)}
+    case False{} Some{lay}:
+      +has = String.ends_with(l, "\r")
+      +body = Fasta.chomp.if(has, l)
+      Fasta.after_line.k(ok, Fasta.seq_line(lay, String.length(body), has, Fasta.graph(body)), seen)
+
+def Fasta.line(p: Plain, +head: Bool, +l: String) -> Plain:
+  match p:
+    case Plain{seen, cur, ok}:
+      Fasta.line.k(head, cur, l, seen, ok)
+
+def Fasta.plain.go(ls: List<&2, String>, p: Plain) -> Plain:
   match ls:
     case Nil{}:
-      False{}
+      p
     case +l <> t:
-      Fasta.blank_seq.put(B.Fasta.is_head(l), l, Fasta.blank_seq(t))
+      Fasta.plain.go(t, Fasta.line(p, B.Fasta.is_head(l), l))
 
-# One header's contig: its name, and whether it is unusable (its lines hold a
-# blank, or it has no letters).
-type Flag is Data:
-  Flag{name: String, blank: Bool}
-
-def Fasta.flags.put(head: Bool, +l: String, +t: List<&2, String>, rest: List<&2, Flag>) -> List<&2, Flag>:
-  match head:
-    case True{}:
-      Flag{B.Fasta.name(l), Fasta.blank_seq(t) || String.is_empty(B.Fasta.seq(t))} <> rest
-    case False{}:
-      rest
-
-def Fasta.flags(ls: List<&2, String>) -> List<&2, Flag>:
-  match ls:
-    case Nil{}:
-      Nil{}
-    case +l <> +t:
-      Fasta.flags.put(B.Fasta.is_head(l), l, t, Fasta.flags(t))
-
-def Fasta.kept_blank.put(skip: Bool, +n: String, b: Bool, +seen: List<&2, String>, rest: Bool) -> Bool:
-  match skip:
-    case True{}:
-      rest
-    case False{}:
-      b || rest
-
-# Some contig kept by B.Fasta.parse (the first of its name, a non-empty name)
-# is unusable.
-def Fasta.kept_blank(fs: List<&2, Flag>, +seen: List<&2, String>) -> Bool:
-  match fs:
-    case Nil{}:
-      False{}
-    case Flag{+n, b} <> t:
-      +skip = String.is_empty(n) || B.Fasta.seen(n, seen)
-      Fasta.kept_blank.put(skip, n, b, seen, Fasta.kept_blank(t, Bool.pick(List<&2, String>, skip, seen, n <> seen)))
+def Fasta.plain.end(p: Plain) -> Bool:
+  match p:
+    case Plain{s, c, ok}:
+      ok && Fasta.close(c)
 
 def Fasta.plain(text: String) -> Bool:
-  Bool.not(Fasta.kept_blank(Fasta.flags(String.split(text, '\n')), Nil{}))
+  Fasta.plain.end(Fasta.plain.go(String.split(text, '\n'), Plain{Nil{}, None{}, True{}}))

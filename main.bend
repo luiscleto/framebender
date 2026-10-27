@@ -14,8 +14,9 @@ import ./norm.bend as Norm
 # writes, and exits with the machine's code. Every error of its own prints one
 # line "error: ..." and exits with code 2:
 #   usage (B.usage), "cannot read <path>", "cannot write" (stdout/stderr),
-#   "bad .fai index <path>.fai" (a line that is not name and four numbers, or
-#   a contig with letters but no letters per line), "unsupported FASTA <path>"
+#   "bad .fai index <path>.fai" (a line that is not a name and four numbers,
+#   or a contig whose line layout samtools would not write; a line with an
+#   empty name is checked and then ignored, as B.Fasta.parse ignores ">"), "unsupported FASTA <path>"
 #   (a byte the .fai layout does not explain: a space or tab, a CR not just
 #   before LF, a line break out of place), ".fai index does not match <path>"
 #   (fewer letters read than the .fai promises), "FASTA read too large <path>"
@@ -151,21 +152,39 @@ def fai_entry.ok?(ok: Bool, f: Fai) -> Maybe<&2, Fai>:
     case False{}:
       None{}
 
-# A .fai entry; None unless all four are numbers, and a contig with letters
-# has letters on its lines.
+# A .fai entry; None unless all four are numbers and a contig with letters
+# has a line layout samtools writes (letters per line > 0, bytes per line =
+# letters per line + 1 for LF or + 2 for CR LF).
 def fai_entry?(n: Maybe<&2, Nat>, o: Maybe<&2, Nat>, lb: Maybe<&2, Nat>, lw: Maybe<&2, Nat>) -> Maybe<&2, Fai>:
   match n o lb lw:
-    case Some{+a} Some{b} Some{+c} Some{d}:
-      fai_entry.ok(Nat.is_eq(a, 0n) || Bool.not(Nat.is_eq(c, 0n)), Fai{a, b, c, d})
+    case Some{+a} Some{b} Some{+c} Some{+d}:
+      fai_entry.ok(Nat.is_eq(a, 0n) || (Bool.not(Nat.is_eq(c, 0n)) && (Nat.is_eq(d, Nat.add(c, 1n)) || Nat.is_eq(d, Nat.add(c, 2n)))), Fai{a, b, c, d})
     case _ _ _ _:
       None{}
 
-def fai_load.add?(e: Maybe<&2, Fai>, name: String, t: List<&2, String>, m: Map<&2, Maybe<&2, Fai>>) -> Maybe<&2, Map<&2, Maybe<&2, Fai>>>:
+def fai_load.keep?(empty: Bool, name: String, f: Fai, m: Map<&2, Maybe<&2, Fai>>) -> Map<&2, Maybe<&2, Fai>>:
+  match empty:
+    case True{}:
+      m
+    case False{}:
+      Map.set(&2, Maybe<&2, Fai>, m, name, Some{f})
+
+# A line must be exactly five tab-separated fields.
+def fai_entry.shape?(ok: Bool, e: Maybe<&2, Fai>) -> Maybe<&2, Fai>:
+  match ok:
+    case True{}:
+      e
+    case False{}:
+      None{}
+
+# An entry with an empty name (samtools indexes a header ">" under "") is
+# checked but not kept: B.Fasta.parse ignores such a contig, so "" is Unknown.
+def fai_load.add?(e: Maybe<&2, Fai>, +name: String, t: List<&2, String>, m: Map<&2, Maybe<&2, Fai>>) -> Maybe<&2, Map<&2, Maybe<&2, Fai>>>:
   match e:
     case None{}:
       None{}
     case Some{f}:
-      fai_load(t, Map.set(&2, Maybe<&2, Fai>, m, name, Some{f}))
+      fai_load(t, fai_load.keep(String.is_empty(name), name, f, m))
 
 def fai_load.line?(empty: Bool, +l: String, t: List<&2, String>, m: Map<&2, Maybe<&2, Fai>>) -> Maybe<&2, Map<&2, Maybe<&2, Fai>>>:
   match empty:
@@ -173,7 +192,8 @@ def fai_load.line?(empty: Bool, +l: String, t: List<&2, String>, m: Map<&2, Mayb
       fai_load(t, m)
     case False{}:
       +fs = B.Rec.fields(l)
-      fai_load.add(fai_entry(B.Pos.read(B.Rec.field(fs, 1n)), B.Pos.read(B.Rec.field(fs, 2n)), B.Pos.read(B.Rec.field(fs, 3n)), B.Pos.read(B.Rec.field(fs, 4n))), B.Rec.field(fs, 0n), t, m)
+      +shape = Nat.is_eq(List.length(&2, String, fs), 5n)
+      fai_load.add(fai_entry.shape(shape, fai_entry(B.Pos.read(B.Rec.field(fs, 1n)), B.Pos.read(B.Rec.field(fs, 2n)), B.Pos.read(B.Rec.field(fs, 3n)), B.Pos.read(B.Rec.field(fs, 4n)))), B.Rec.field(fs, 0n), t, m)
 
 # The .fai lines as entries; None if a line is not a name and four numbers.
 def fai_load?(ls: List<&2, String>, m: Map<&2, Maybe<&2, Fai>>) -> Maybe<&2, Map<&2, Maybe<&2, Fai>>>:
