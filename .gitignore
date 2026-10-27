@@ -9,3 +9,4 @@ refs/VCFv4.3.pdf
 refs/bcftools.html
 # raw agent logs
 reviews/*.err
+!io64.c
