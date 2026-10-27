@@ -10,6 +10,7 @@ import ./proof_var_rep.bend as RP
 import ./proof_var_spec.bend as SP
 import ./proof_var_code.bend as C
 import ./proof_var_uniq.bend as U
+import ./proof_var_win.bend as W
 
 # Proofs: the normal form of one variant (Norm.var, norm_var.bend).
 # Each law below restates the law of the same name in LAWS.bend with every
@@ -161,6 +162,19 @@ law var_in_sound:
   for +hw: {V.var_in(off, bases, v) == Some{w} : Maybe<&2, B.Var>}
   {w == Norm.var(seq, v) : B.Var}
 
+def var_in_sound(seq, off, bases, v, w, hb, hv, hw):
+  match v:
+    case B.Var{+pos, +ref, +alts}:
+      +als = {ref <> alts : Q.Als()}
+      +fu = Nat.add(pos, V.total(als))
+      +rw = V.right(fu, V.next_act(off, bases, pos, als), off, bases, pos, als)
+      +rs = V.right(fu, V.next_act(0n, seq, pos, als), 0n, seq, pos, als)
+      +hs = W.lo(rw, rs, w,
+        c => e => W.sim_sound(fu, V.lasts_eq(als), V.all_long(als), Nat.is_le(2n, pos), V.Win.get(off, bases, Nat.sub(pos, 2n)),
+          V.Win.get(0n, seq, Nat.sub(pos, 2n)), off, bases, seq, pos, als, c, hb, {==}, {==}, e), hw)
+      %Equal.sym(Maybe<&2, B.Var>, V.left_of(rs), Some{w}, hs) : {w == Maybe.default(&2, B.Var, _, B.Var{pos, ref, alts}) : B.Var}
+      {==}
+
 # A window holding what the normalization reads gives an answer.
 law var_in_enough:
   for +seq: List<&2, B.Base>
@@ -171,3 +185,24 @@ law var_in_enough:
   for +hv: {L.valid(seq, v) == True{} : Bool}
   for +hc: {covers(off, L.len(bases), v, Norm.var(seq, v)) == True{} : Bool}
   {Maybe.is_some(&2, B.Var, V.var_in(off, bases, v)) == True{} : Bool}
+
+def var_in_enough(seq, off, bases, v, hb, hv, hc):
+  match v:
+    case B.Var{+pos, +ref, +alts}:
+      +v0 = {B.Var{pos, ref, alts} : B.Var}
+      +als = {ref <> alts : Q.Als()}
+      +fu = Nat.add(pos, V.total(als))
+      +rw = V.right(fu, V.next_act(off, bases, pos, als), off, bases, pos, als)
+      +rs = V.right(fu, V.next_act(0n, seq, pos, als), 0n, seq, pos, als)
+      +hsl = W.gf_some(seq, L.haps(seq, v0), L.size(v0), V.left_of(rs), C.main(seq, v0, hv))
+      +hsh = W.right_shape(fu, V.lasts_eq(als), V.all_long(als), Nat.is_le(2n, pos), V.Win.get(0n, seq, Nat.sub(pos, 2n)), 0n, seq, pos, als, pos,
+        {==}, Q.or_tt_l(Nat.is_eq(pos, pos), Bool.not(V.all_long(als)), P.eq_refl(pos)))
+      +c1 = Nat.is_le(off, Nat.min(Nat.sub(pos, 1n), Nat.sub(L.pos_of(Norm.var(seq, v0)), 2n)))
+      +c2 = Nat.is_le(Nat.add(Nat.sub(pos, 1n), L.len(ref)), Nat.add(off, L.len(bases)))
+      +hlo = W.hlo_of(rs, off, pos, v0, W.lo_some(rs, hsl), hsh, P.and_true_l(c1, c2, hc))
+      +hup = W.hup_of(pos, L.len(ref), Nat.add(off, L.len(bases)), RP.vk1(seq, pos, ref, alts, hv), RP.vk2(seq, pos, ref, alts, hv),
+        P.and_true_r(c1, c2, hc))
+      +heq = W.sim_eq(fu, V.lasts_eq(als), V.all_long(als), Nat.is_le(2n, pos), V.Win.get(off, bases, Nat.sub(pos, 2n)),
+        V.Win.get(0n, seq, Nat.sub(pos, 2n)), off, bases, seq, pos, als, hb, {==}, {==}, {==}, hlo, hup)
+      %Equal.sym(Maybe<&2, V.Cur>, rw, rs, heq) : {Maybe.is_some(&2, B.Var, V.left_of(_)) == True{} : Bool}
+      hsl

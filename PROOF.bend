@@ -20,3 +20,42 @@ def L.usage(argv, ha):
 
 # Forwarded to the proof files (a law is forwarded once its proof there is
 # complete; an open law cannot be called).
+
+def L.same_change(seq, v, hv):
+  PV.same_change(seq, v, hv)
+
+def L.stays_valid(seq, v, hv):
+  PV.stays_valid(seq, v, hv)
+
+def L.standard_form(seq, v, hv):
+  PV.standard_form(seq, v, hv)
+
+def L.normal_unchanged(seq, v, hv, hn):
+  PV.normal_unchanged(seq, v, hv, hn)
+
+def L.twice(seq, v, hv):
+  PV.twice(seq, v, hv)
+
+def L.one_form(seq, v, w, hv, hw, hs):
+  PV.one_form(seq, v, w, hv, hw, hs)
+
+def L.shortest(seq, v, w, hv, hw, hs):
+  PV.shortest(seq, v, w, hv, hw, hs)
+
+def L.window(fa, body, a, r, ht, hr):
+  PW.window(fa, body, a, r, ht, hr)
+
+def L.window_enough(fa, body, a, ht, he):
+  PW.window_enough(fa, body, a, ht, he)
+
+def L.machine(argv, o, ref, vcfpath, fasta, vcf, cs, ha, h):
+  PM.machine(argv, o, ref, vcfpath, fasta, vcf, cs, ha, h)
+
+def L.sorted(fasta, vcf, o, h):
+  PR.sorted(fasta, vcf, o, h)
+
+def L.grouped_in(fasta, vcf, o, h):
+  PR.grouped_in(fasta, vcf, o, h)
+
+def L.no_unsorted(fasta, vcf, o, hw, hg, ha, hm):
+  PR.no_unsorted(fasta, vcf, o, hw, hg, ha, hm)

@@ -707,9 +707,8 @@ law window:
   for +hr: {Norm.judge_in(a, body) == Some{r} : Maybe<&2, B.Res>}
   {r == L.judge(fa, body) : B.Res}
 
-# Open only until PV.var_in_sound is proven; then:
-#   def window(fa, body, a, r, ht, hr):
-#     window.core(PV.var_in_sound, fa, body, a, r, ht, hr)
+def window(fa, body, a, r, ht, hr):
+  window.core(PV.var_in_sound, fa, body, a, r, ht, hr)
 
 law window_enough:
   for +fa: List<&2, B.Contig>
@@ -719,6 +718,5 @@ law window_enough:
   for +he: {L.enough(fa, body, a) == True{} : Bool}
   {Maybe.is_some(&2, B.Res, Norm.judge_in(a, body)) == True{} : Bool}
 
-# Open only until PV.var_in_enough is proven; then:
-#   def window_enough(fa, body, a, ht, he):
-#     window_enough.core(PV.var_in_enough, fa, body, a, ht, he)
+def window_enough(fa, body, a, ht, he):
+  window_enough.core(PV.var_in_enough, fa, body, a, ht, he)

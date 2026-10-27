@@ -689,3 +689,149 @@ def len2(+x: Bs(), +a0: B.Base, +at: Bs(), +c: Bs(), e: {Nat.is_le(1n, len(c)) =
   le_trans(2n, len(a0 <> app(at, c)), len(app(x, a0 <> app(at, c))),
     le_trans(1n, len(c), len(app(at, c)), e, le_len_app_r(at, c)),
     le_len_app_r(x, a0 <> app(at, c)))
+
+# Reading through a window
+# ========================
+
+def get_take(+xs: Bs(), +n: Nat, +j: Nat, e: {Nat.is_le(1n+j, n) == True{} : Bool}) ->
+  {List.get(&2, B.Base, take(xs, n), j) == List.get(&2, B.Base, xs, j) : Maybe<&2, B.Base>}:
+  match xs n j:
+    case Nil{} _ _:
+      {==}
+    case h <> t 0n _:
+      Empty.absurd({List.get(&2, B.Base, take(h <> t, 0n), j) == List.get(&2, B.Base, h <> t, j) : Maybe<&2, B.Base>}, P.false_ne_true(e))
+    case h <> t 1n+m 0n:
+      {==}
+    case h <> t 1n+m 1n+k:
+      get_take(t, m, k, e)
+
+def get_take_some(+xs: Bs(), +n: Nat, +j: Nat, +x: B.Base, e: {List.get(&2, B.Base, take(xs, n), j) == Some{x} : Maybe<&2, B.Base>}) ->
+  {List.get(&2, B.Base, xs, j) == Some{x} : Maybe<&2, B.Base>}:
+  match xs n j:
+    case Nil{} _ _:
+      Empty.absurd({List.get(&2, B.Base, Nil{}, j) == Some{x} : Maybe<&2, B.Base>}, none_ne_some2(x, e))
+    case h <> t 0n _:
+      Empty.absurd({List.get(&2, B.Base, h <> t, j) == Some{x} : Maybe<&2, B.Base>}, none_ne_some2(x, e))
+    case h <> t 1n+m 0n:
+      e
+    case h <> t 1n+m 1n+k:
+      get_take_some(t, m, k, x, e)
+
+def get_drop(+xs: Bs(), +k: Nat, +j: Nat) -> {List.get(&2, B.Base, drop(xs, k), j) == List.get(&2, B.Base, xs, Nat.add(k, j)) : Maybe<&2, B.Base>}:
+  match xs k:
+    case Nil{} _:
+      match k:
+        case 0n:
+          {==}
+        case 1n+m:
+          {==}
+    case h <> t 0n:
+      {==}
+    case h <> t 1n+m:
+      get_drop(t, m, j)
+
+def add_sub(+a: Nat, +b: Nat, e: {Nat.is_le(a, b) == True{} : Bool}) -> {Nat.add(a, Nat.sub(b, a)) == b : Nat}:
+  match a b:
+    case 0n _:
+      P.sub_zero(b)
+    case 1n+p 0n:
+      Empty.absurd({Nat.add(1n+p, Nat.sub(0n, 1n+p)) == 0n : Nat}, P.false_ne_true(e))
+    case 1n+p 1n+q:
+      %add_sub(p, q, e) : {1n+Nat.add(p, Nat.sub(q, p)) == 1n+_ : Nat}
+      {==}
+
+def le_not_lt(+a: Nat, +b: Nat, e: {Nat.is_le(a, b) == True{} : Bool}) -> {Nat.is_lt(b, a) == False{} : Bool}:
+  match a b:
+    case 0n _:
+      P.lt_zero(b)
+    case 1n+p 0n:
+      Empty.absurd({Nat.is_lt(0n, 1n+p) == False{} : Bool}, P.false_ne_true(e))
+    case 1n+p 1n+q:
+      le_not_lt(p, q, e)
+
+def not_lt_le(+i: Nat, +o: Nat, e: {Nat.is_lt(i, o) == False{} : Bool}) -> {Nat.is_le(o, i) == True{} : Bool}:
+  match i o:
+    case 0n 0n:
+      {==}
+    case 0n 1n+q:
+      Empty.absurd({Nat.is_le(1n+q, 0n) == True{} : Bool}, P.true_ne_false(e))
+    case 1n+p 0n:
+      {==}
+    case 1n+p 1n+q:
+      not_lt_le(p, q, e)
+
+def min_le_l(+a: Nat, +b: Nat) -> {Nat.is_le(Nat.min(a, b), a) == True{} : Bool}:
+  match a b:
+    case 0n _:
+      {==}
+    case 1n+p 0n:
+      {==}
+    case 1n+p 1n+q:
+      min_le_l(p, q)
+
+def min_le_r(+a: Nat, +b: Nat) -> {Nat.is_le(Nat.min(a, b), b) == True{} : Bool}:
+  match a b:
+    case 0n _:
+      P.le_zero_l(b)
+    case 1n+p 0n:
+      {==}
+    case 1n+p 1n+q:
+      min_le_r(p, q)
+
+def sub1_le(+a: Nat) -> {Nat.is_le(Nat.sub(a, 1n), a) == True{} : Bool}:
+  match a:
+    case 0n:
+      {==}
+    case 1n+p:
+      %Equal.sym(Nat, Nat.sub(p, 0n), p, P.sub_zero(p)) : {Nat.is_le(_, 1n+p) == True{} : Bool}
+      le_succ(p)
+
+def sub1_mono(+a: Nat, +b: Nat, e: {Nat.is_le(a, b) == True{} : Bool}) -> {Nat.is_le(Nat.sub(a, 1n), Nat.sub(b, 1n)) == True{} : Bool}:
+  match a b:
+    case 0n _:
+      P.le_zero_l(Nat.sub(b, 1n))
+    case 1n+p 0n:
+      Empty.absurd({Nat.is_le(Nat.sub(1n+p, 1n), 0n) == True{} : Bool}, P.false_ne_true(e))
+    case 1n+p 1n+q:
+      %Equal.sym(Nat, Nat.sub(p, 0n), p, P.sub_zero(p)) : {Nat.is_le(_, Nat.sub(q, 0n)) == True{} : Bool}
+      %Equal.sym(Nat, Nat.sub(q, 0n), q, P.sub_zero(q)) : {Nat.is_le(p, _) == True{} : Bool}
+      e
+
+def sub2_le_sub1(+p: Nat) -> {Nat.is_le(Nat.sub(p, 2n), Nat.sub(p, 1n)) == True{} : Bool}:
+  %sub_sub_one(p) : {Nat.is_le(_, Nat.sub(p, 1n)) == True{} : Bool}
+  sub1_le(Nat.sub(p, 1n))
+
+def jbound(+o: Nat, +i: Nat, +n: Nat, e1: {Nat.is_le(o, i) == True{} : Bool}, e2: {Nat.is_le(1n+i, Nat.add(o, n)) == True{} : Bool}) ->
+  {Nat.is_le(1n+Nat.sub(i, o), n) == True{} : Bool}:
+  match o i:
+    case 0n _:
+      %Equal.sym(Nat, Nat.sub(i, 0n), i, P.sub_zero(i)) : {Nat.is_le(1n+_, n) == True{} : Bool}
+      e2
+    case 1n+p 0n:
+      Empty.absurd({Nat.is_le(1n+Nat.sub(0n, 1n+p), n) == True{} : Bool}, P.false_ne_true(e1))
+    case 1n+p 1n+q:
+      jbound(p, q, n, e1, e2)
+
+def sub2_lt(+p: Nat, e: {Nat.is_le(2n, p) == True{} : Bool}) -> {Nat.is_le(1n+Nat.sub(p, 2n), p) == True{} : Bool}:
+  match p:
+    case 0n:
+      Empty.absurd({Nat.is_le(1n+Nat.sub(0n, 2n), 0n) == True{} : Bool}, P.false_ne_true(e))
+    case 1n+q:
+      match q:
+        case 0n:
+          Empty.absurd({Nat.is_le(1n+Nat.sub(1n, 2n), 1n) == True{} : Bool}, P.false_ne_true(e))
+        case 1n+k:
+          %Equal.sym(Nat, Nat.sub(k, 0n), k, P.sub_zero(k)) : {Nat.is_le(1n+_, 2n+k) == True{} : Bool}
+          le_succ(k)
+
+def cdisc(-A: Data, m: Maybe<&2, A>) -> Type:
+  match m:
+    case None{}:
+      Unit
+    case Some{x}:
+      Empty
+
+# None is not Some (for any element type).
+def none_ne_some_c(-A: Data, -x: A, e: {None{} == Some{x} : Maybe<&2, A>}) -> Empty:
+  %e : cdisc(A, _)
+  Unit{}
