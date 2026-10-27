@@ -224,3 +224,21 @@ Per-area notes: `notes/proof_var.md`, `proof_window.md`, `proof_run.md`, `proof_
   through five levels.
 - Slack in the laws: `no_unsorted`'s hypothesis `1 <= w` is never used; `twice_run` holds even for
   `w = 0`.
+
+### CPU threads and the GPU (2026-10-27, RTX 4080 Laptop 12 GB, CUDA 13.4, 32 CPU threads)
+
+Benchmark: judge every body line of GIAB chr22 (`judge_in` with no reference answer: split into
+fields, MALFORMED and scope checks) in parallel halves (`a b = par(..) par(..)`), outside the tool.
+- With output text (4 MB pieces): 1 thread 5.2 s, 4 threads 3.3 s, 32 threads 2.7 s. Splitting the
+  text into lines and joining the output stay sequential, so about 2x.
+- Counting only (no output text): 1 thread 3.3 s, 32 threads 1.6 s.
+- GPU (`par!`): every full-size run fails with "memory fault (machine stack overflow?)". Bend walks
+  lists recursively and a GPU lane's stack holds between 1,000 and 2,000 nested calls (summing a
+  list of 1,000 Nats works, 2,000 fails); GIAB lines are up to 985 characters, and splitting one
+  into fields recurses once per character.
+- Short lines (INFO replaced by `.`, at most about 60 characters): GPU 1.0 s, CPU 1 thread 0.22 s,
+  32 threads 0.11 s, same results. The GPU is about 10x slower than the CPU on this branchy
+  linked-list work, as the Bend guide predicts ("divergent work ... stays faster on the CPU").
+Conclusion: CPU threads can help (about 2x on the per-line work); the GPU does not fit text in
+linked lists. Using either in the tool needs the machine to judge many lines at once, which the
+current machine law's one-request-at-a-time protocol does not allow.
