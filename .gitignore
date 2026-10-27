@@ -1,6 +1,8 @@
+# test data (large, downloaded)
 data/
-*.c
+# build outputs: the binary, the GPU program bend writes beside it, the kernel translation
 /framebender
+/framebender.gpu
 *.bendtt
 # third-party documents kept locally only (copyright): the paper and the PDF/HTML originals
 refs/tan2015.html
@@ -9,4 +11,3 @@ refs/VCFv4.3.pdf
 refs/bcftools.html
 # raw agent logs
 reviews/*.err
-!io64.c
