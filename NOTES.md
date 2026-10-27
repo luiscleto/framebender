@@ -179,3 +179,48 @@ seconds; the tool splits each line's fields several times (`judge_in` twice per 
 `want`/`body_done`, `R.body_line`). Planned after the proofs: split each line once and pass the
 fields along (a code change to re-prove, or prove equal to the old code as minebender's
 `proof_speed.bend` did). bcftools' 0.08 s is out of reach with list-based text.
+
+## Proofs (2026-10-27): all 15 laws proven, `bend` and `--verdict` (Lean-backed kernel)
+
+`./check.sh`: examples, the driver builds, `bend PROOF.bend --check-only` and `--verdict` print
+ALL PROOFS CHECK. About 16,000 lines of proof in `proof_*.bend`, written by four Claude agents in
+parallel (Herdr workspaces `prove-var`, `prove-window`, `prove-run`, `prove-machine`), one per area,
+briefed by `PROVING.md`; the lead wrote `usage` and wired `PROOF.bend`. Wall time: window 17 min,
+machine 45 min, var 53 min, run 1 h 27 min (all in parallel, about 1.5 h in total). The spec files
+(`LAWS.bend`, `types.bend`, `run.bend`, `examples.bend`) are unchanged since the proofs started;
+each restated law was checked to be identical to the approved one.
+
+Per-area notes: `notes/proof_var.md`, `proof_window.md`, `proof_run.md`, `proof_machine.md`.
+
+### Where proofs got hard (Q3)
+
+- Rewrite direction (`%e : G` needs `e : {new == old}`) was the most frequent error in every area
+  (the run agent counted about 60 failed checks). Lemmas are naturally stated "complex == simple",
+  so simplifying a goal needs `Equal.sym`; rewriting a hypothesis needs `{(%e : G; h) : G[old]}`.
+- Affinity: function-typed hypotheses are usable once, so another area's laws could not be passed
+  down as hypotheses where they are needed per line (window laws in the machine proof, var laws in
+  `twice_run`); those proofs waited for the laws and called them. Every equation used twice needs `+`.
+- Language restrictions shaped the proofs: no match after a let, matches in binder order, no
+  destructuring of computed pairs, no mutual recursion (eliminators take the induction hypothesis as
+  a function argument), recursive defs do not unfold on variables (identical code and spec helpers,
+  e.g. `V.inits` and `L.inits`, each needed an equality lemma), no `_` for erased arguments.
+- Missing Base facts: `String.eq` sound (down to `Word.cmp` over 32 bits, proven twice, by the
+  window and run agents independently), decimal print/read round trip, split/join round trip.
+- Size: `twice_run` was the largest (about 7,900 lines with the other run laws), mostly text facts
+  (canonical POS/REF/ALT reread the same, END rewrite consistent, a rebuilt record ends in CR only
+  if the original did). The normal form's uniqueness (Tan et al.) took the var agent 53 minutes,
+  by case analysis on list cuts rather than index arithmetic; the lead's closed-form analysis
+  (P, Q, D in `PROVING.md`) was not needed.
+- The out/notes "frame": the machine clears a line's output after handing it on, the spec keeps
+  accumulating; relating them needed a frame lemma through every function of `run.bend`.
+
+### What proving found (Q2-adjacent)
+
+- Code change forced by a law: windows for a line far past its contig's end grew too slowly to stay
+  within `L.bound` (about POS reads instead of clen + 2). The machine agent made `resolve` jump to
+  the contig's start once the answer shows the contig is shorter than the window (output unchanged).
+- Spec gap that never matters: for an empty REF past the contig end the code's REF check and the
+  spec's disagree; unreachable because an empty REF is MALFORMED, but the proof carries that fact
+  through five levels.
+- Slack in the laws: `no_unsorted`'s hypothesis `1 <= w` is never used; `twice_run` holds even for
+  `w = 0`.
