@@ -1,6 +1,6 @@
 # Fast-agent notes (2026-10-27)
 
-Brief: FAST.md. Laws untouched; only implementation files and implementation proofs changed:
+Brief: `notes/briefs/FAST.md`. Laws untouched; only implementation files and implementation proofs changed:
 `norm.bend`, `norm_line.bend`, `proof_machine_sim.bend`, new `proof_fast.bend` (548 lines).
 Gate: `./check.sh` ALL PROOFS CHECK (bend and `--verdict`). `test/compare.sh`: 0 / 0 / 1 (the
 `<DEL>` record). stdout, stderr and exit code byte-identical to the previous binary on chr22,

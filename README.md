@@ -1,100 +1,101 @@
 # framebender
 
-A VCF normalizer, `framebender norm`, written in [Bend 2](https://bend-lang.com) as a trial of
-law-driven development: the behaviour is stated as laws, and a proof checker verifies that the
-program obeys every one of them. It does what `bcftools norm -f` does for sequence-resolved records:
-left-align and trim indels and complex variants against a reference, so that the same variant always
-has the same representation.
+A VCF normalizer written in [Bend 2](https://bend-lang.com), with a machine-checked proof that it
+does what its specification says. It rewrites each variant in a VCF file into its one standard
+form (left-aligned and as short as possible, as defined by Tan et al. 2015), the job
+`bcftools norm -f` does, and gives the same records as bcftools on the whole GIAB HG002 genome.
+
+It is a proof of concept for *law-driven development*: the behaviour is written down as laws that
+an expert can review, and the Bend proof checker verifies that the program obeys every one. The
+implementation can then be rewritten freely: a change that breaks a law fails the proof check.
+
+## Install
+
+You need [Bend 2](https://bend-lang.com) (2.0.39), clang, and
+[samtools](https://www.htslib.org/) to index the reference.
 
 ```
-framebender norm -f ref.fa [-c e|w] [-w N] in.vcf > out.vcf
+git clone https://github.com/luiscleto/framebender
+cd framebender
+bend main.bend -o framebender
 ```
 
-- `-f ref.fa`: the reference, with a `ref.fa.fai` index built by `samtools faidx` (1.24).
-- `-c e` (default): stop at the first record whose REF does not match the reference (or with letters
-  outside ACGTN, a duplicate allele, POS 0, or an inconsistent INFO/END). `-c w`: pass such records
-  through unchanged with a warning on stderr.
-- `-w N` (default 100000): how far back (in bases) the output buffer waits before writing a record;
-  a record that moves left by `N` or more stops the run with UNSORTED.
-- Plain VCF in and out (`bgzip -dc in.vcf.gz | framebender norm -f ref.fa /dev/stdin`).
+## Run
+
+```
+samtools faidx ref.fa                      # once: writes ref.fa.fai
+./framebender norm -f ref.fa in.vcf > out.vcf
+```
+
+- `-c w`: pass records whose REF does not match the reference through with a warning
+  (default `-c e`: stop at the first one).
+- `-w N`: how far (in bases) a record may move left; default 100000.
+- Input and output are plain VCF. For `.vcf.gz`: `bgzip -dc in.vcf.gz | ./framebender norm -f ref.fa /dev/stdin`.
 
 ## What is guaranteed
 
-The laws come in two layers. The **science layer** (`LAWS.bend`, `types.bend`, `run.bend`,
-`tan.bend`) mentions no code and is what an expert reviews; the **implementation layer**
-(`protocol.bend`, `MACHINE.bend`) says that the program writes exactly what the science says.
-In plain words:
+Proven for every input, not tested on examples:
 
-- **Normal form** (Tan, Abecasis and Kang, *Bioinformatics* 2015): every record the tool rewrites
-  makes the same change as before (same haplotypes, same alleles in the same order), is valid against
-  the reference, is left-aligned and parsimonious, and is the unique such representation: two
-  records making the same change always come out identical, and no representation is shorter.
-  Multiallelic records are normalized as a whole.
-- **Each line gets exactly one outcome**, in this order: MALFORMED (stops), out of scope (symbolic
-  `<...>` including `<*>`, `*`, `.`, breakends: passed through), UNKNOWN_CHROM (stops), BAD_END,
-  NON_ACGTN, BAD_POS, ALT_DUP, REF_MISMATCH (stop under `-c e`, warning under `-c w`), normalized.
-- **Normalized records are written canonically** (POS without leading zeros, REF/ALT upper case,
-  INFO/END updated when POS or the REF length changes); every other byte is kept, including CRLF
-  line endings.
-- **Sorted output**: a successful run writes the body grouped by CHROM (in input order) and sorted by
-  position within each CHROM, ties in input order; sorted input with moves smaller than `-w` never
-  stops with UNSORTED.
-- **Idempotent**: running the tool on its own output changes no record.
-- **The program**: for every way the input arrives (any split into pieces), the program's stdout,
-  stderr messages and exit code are exactly those of the whole-file definition `run`.
+- Every rewritten variant makes the same change to the genome as before, still matches the
+  reference, and is in the standard form.
+- The standard form is unique: two records that describe the same change always come out
+  identical, and no equivalent record is shorter.
+- Records already in standard form are left alone, and running the tool on its own output changes
+  nothing.
+- Each line gets exactly one outcome (normalized, passed through, or a named error), in a fixed
+  order of checks.
+- The output is grouped by chromosome and sorted by position.
+- However the input arrives, the program writes exactly what the specification defines.
 
-What the laws do not cover (the trusted driver, `main.bend` and `io64.c`): reading and writing the
-bytes, reading the reference through the `.fai` index, and the driver's own errors (exit code 2). The
-law covers FASTA files that samtools faidx 1.24 indexes and serves exactly as the spec reads them
-(`P.Fasta.plain` in `protocol.bend`; `test/plain_cases.bend`): in practice, any FASTA file with
-uniform line lengths, no spaces or control characters in sequence lines, and no letterless contigs.
+The laws are in [`LAWS.bend`](LAWS.bend); [`docs/LAWS.md`](docs/LAWS.md) walks through them in
+plain terms and says what they do not cover.
 
-## Differences from bcftools norm 1.24
+## Results against bcftools norm 1.24
 
-Records: identical on the GIAB HG002 whole-genome benchmark calls (4,048,342 records, hg38), on
-20,739 scrambled indels, and on the edge cases in `test/edge`, except where noted here
-(`test/compare.sh ref.fa in.vcf` runs both).
-- Symbolic `<DEL>`/`<DUP>` records are passed through (bcftools realigns them).
-- Already-normal records with lower-case alleles or leading zeros in POS are written canonically
-  (bcftools keeps them); bases taken from a soft-masked reference are written in upper case.
-- framebender stops (exit 1) on unsorted input, a CHROM that comes back, moves of `-w` or more,
-  inconsistent INFO/END, duplicate ALTs and empty alleles; bcftools warns or continues.
-- An out-of-scope record on an unknown contig passes; bcftools stops.
-- Sample columns are kept as written; htslib pads one with fewer values than FORMAT lists
-  (`GT:AD:PS` with `1/0:1,1` becomes `1/0:1,1:.`).
-- The two added header lines carry no date, so the output is reproducible; bcftools also re-serializes
-  the header through htslib (e.g. adds `##FILTER=<ID=PASS,...>`).
+Same records on GIAB HG002 v4.2.1 (hg38): chr22 (50,284 records), the whole genome (4,048,342
+records), 20,739 indels moved to random equivalent positions, and the edge cases in `test/edge`.
+The intentional differences:
 
-## Performance
+- Symbolic alleles such as `<DEL>` are passed through; bcftools realigns them.
+- Unsorted input, duplicate ALTs, inconsistent INFO/END and empty alleles stop the run; bcftools
+  warns or carries on. A record framebender does not normalize passes through even on an unknown
+  chromosome, where bcftools stops.
+- Normalized records are written canonically: alleles in upper case, POS without leading zeros.
+  Everything else on a line is kept byte for byte, including sample columns that bcftools pads
+  (`1/0:1,1` for `GT:AD:PS` stays as is).
+- The header gets two added lines with no date, so the output is reproducible.
 
-GIAB HG002, `-c w`, 32 threads (details and history in `NOTES.md`, Q5):
+Speed (32 CPU threads, writing to a file):
 
-| input | bcftools norm 1.24 | framebender |
+| GIAB HG002 | bcftools | framebender |
 |---|---|---|
-| chr22 (50,284 records, 35 MB) | 0.08 s | 4.5 s |
-| whole genome (4,048,342 records, 2.8 GB), to a file | 7.4-8.0 s | 586-595 s |
+| chr22 | 0.08 s | 4.5 s |
+| whole genome (2.8 GB) | 7.4 s | 590 s |
 
-framebender is far slower: text is processed as linked lists of characters, judging lines in
-parallel scaled to only about 4 threads in prototypes, and long runs slow down as the runtime's heap
-loses locality. The implementation is
-free to change as long as every law stays proven, which is how it went from 31.7 s to 4.5 s on chr22
-with byte-identical output.
+framebender is 60–80× slower. Bend 2 stores text as linked lists of characters, so every pass over
+a line is expensive. Judging lines in parallel helped only up to about 4 threads, and long runs
+slow down as the runtime's memory loses locality. Even so, seven rewrites of the implementation
+took chr22 from 31.7 s to 4.5 s without touching a law. Each rewrite was re-proven and gave
+byte-identical output.
 
-## Building and checking
+## How it was made
 
-Needs Bend 2 (`bend`) and clang. `bend main.bend -o framebender` builds the binary.
-`./check.sh` checks the examples, then every proof twice: with `bend` and with Bend's Lean-proven
-kernel (`--verdict`).
+An AI agent drafted the laws. Three reviewers from different model families (Claude, GPT and
+Gemini, with Grok standing in once) reviewed them independently until all three agreed. Agents then
+wrote the code and the proofs. Nobody with a bioinformatics background has reviewed the laws yet:
+if you have one, the science files (`LAWS.bend`, `types.bend`, `run.bend`, `tan.bend`) are the
+place to start, and issues are welcome.
 
-## Files
+Every real bug was found by the reviewers in the small trusted layer that reads files, never
+inside the laws. [`NOTES.md`](NOTES.md) is the full record: decisions, who caught what, where the
+proofs got hard, and the measurements.
 
-- `LAWS.bend`, `types.bend`, `run.bend`, `tan.bend`: the science layer (definitions and laws).
-- `protocol.bend`, `MACHINE.bend`: the implementation contract.
-- `norm.bend`, `norm_line.bend`: the program (a state machine); `main.bend`, `io64.c`: the driver.
-- `PROOF.bend`, `proof_*.bend`: the proofs. `examples.bend`: concrete cases checked by evaluation.
-- `reviews/`: the law reviews by three independent models (Claude, GPT, Gemini; Grok stood in once).
-- `NOTES.md`: decisions, review history, where proofs got hard, measurements.
+## Documentation
+
+- [`docs/LAWS.md`](docs/LAWS.md): the laws in plain terms, and the trust boundary.
+- [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md): building, checking the proofs, comparing with
+  bcftools, and the file layout.
 
 ## License
 
-MIT (see `LICENSE`).
+MIT (see [`LICENSE`](LICENSE)).

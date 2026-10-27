@@ -1,6 +1,6 @@
 # Speed notes (speed agent, 2026-10-27)
 
-Goal (SPEEDUP.md): make `framebender norm -c w` faster on real data, output byte-identical, every
+Goal (`notes/briefs/SPEEDUP.md`): make `framebender norm -c w` faster on real data, output byte-identical, every
 proof re-established (`./check.sh`: ALL PROOFS CHECK twice).
 
 ## Result

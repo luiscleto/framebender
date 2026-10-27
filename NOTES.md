@@ -1,6 +1,6 @@
 # framebender: notes
 
-Running notes for the second law-driven-development trial (see BRIEF.md for the questions to answer).
+Running notes for the second law-driven-development trial (see `notes/briefs/BRIEF.md` for the questions to answer).
 
 ## Decisions, first draft (2026-10-26; superseded by the revised decisions below)
 
@@ -185,7 +185,7 @@ fields along (a code change to re-prove, or prove equal to the old code as mineb
 `./check.sh`: examples, the driver builds, `bend PROOF.bend --check-only` and `--verdict` print
 ALL PROOFS CHECK. About 16,000 lines of proof in `proof_*.bend`, written by four Claude agents in
 parallel (Herdr workspaces `prove-var`, `prove-window`, `prove-run`, `prove-machine`), one per area,
-briefed by `PROVING.md`; the lead wrote `usage` and wired `PROOF.bend`. Wall time: window 17 min,
+briefed by `notes/briefs/PROVING.md`; the lead wrote `usage` and wired `PROOF.bend`. Wall time: window 17 min,
 machine 45 min, var 53 min, run 1 h 27 min (all in parallel, about 1.5 h in total). The spec files
 (`LAWS.bend`, `types.bend`, `run.bend`, `examples.bend`) are unchanged since the proofs started;
 each restated law was checked to be identical to the approved one.
@@ -210,7 +210,7 @@ Per-area notes: `notes/proof_var.md`, `proof_window.md`, `proof_run.md`, `proof_
   (canonical POS/REF/ALT reread the same, END rewrite consistent, a rebuilt record ends in CR only
   if the original did). The normal form's uniqueness (Tan et al.) took the var agent 53 minutes,
   by case analysis on list cuts rather than index arithmetic; the lead's closed-form analysis
-  (P, Q, D in `PROVING.md`) was not needed.
+  (P, Q, D in `notes/briefs/PROVING.md`) was not needed.
 - The out/notes "frame": the machine clears a line's output after handing it on, the spec keeps
   accumulating; relating them needed a frame lemma through every function of `run.bend`.
 
