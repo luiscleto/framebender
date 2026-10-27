@@ -143,7 +143,7 @@ def launch(b: Norm.Begin, +fasta: String, +vcf: String, +cs: List<&2, String>) -
 #   no such contig, else Known with the contig's length String.length(Contig.raw)
 #   and the slice a .. b - 1 of Contig.raw (the letters without line breaks,
 #   spaces, tabs and CRs). The driver reads it through the .fai index (built by
-#   samtools faidx from this FASTA file), at 64-bit offsets.
+#   samtools faidx 1.24 from this FASTA file), at 64-bit offsets.
 # - For a FASTA file that is not P.Fasta.plain the law says nothing.
 # - The driver's own errors, each one line on stderr and exit code 2: a usage
 #   error (law usage; prints B.usage), "error: cannot read <path>", "error:

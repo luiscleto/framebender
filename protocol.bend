@@ -31,11 +31,14 @@ type Next is Data:
   Ask{reqs: List<&2, Req>}
   Finish{code: Nat}
 
-# A FASTA file that samtools faidx indexes and serves exactly as
-# B.Fasta.parse reads it:
-# - the file starts with a header line ('>'), or is empty;
-# - no header line holds a vertical tab or form feed (samtools ends a name at
-#   any whitespace, B.Fasta.name only at space, tab or CR);
+# A FASTA file that samtools faidx 1.24 indexes and serves exactly as
+# B.Fasta.parse reads it (checked against samtools on each case):
+# - the file starts with a header line ('>'), and its last header has a
+#   non-empty sequence line (samtools refuses the file otherwise);
+# - no header line holds a NUL, vertical tab or form feed, nor a space, tab or
+#   CR right after the '>' followed by more bytes (samtools skips leading
+#   whitespace and ends a name at any whitespace or NUL; B.Fasta.name ends it
+#   only at space, tab or CR);
 # - in every contig (also the ones B.Fasta.parse ignores, which samtools still
 #   reads), each sequence line is bytes 0x21-0x7E, then optionally one CR, the
 #   same for all its non-empty lines; all lines have the same length except that the
@@ -51,13 +54,32 @@ def Fasta.graph(s: String) -> Bool:
     case SCon{Chr{+x}, t}:
       U32.is_ge(x, 33) && U32.is_le(x, 126) && Fasta.graph(t)
 
-# A header line holds a vertical tab or form feed.
+# A header line holds a NUL, vertical tab or form feed.
 def Fasta.vtff(s: String) -> Bool:
   match s:
     case SNil{}:
       False{}
     case SCon{Chr{+x}, t}:
-      U32.is_eq(x, 11) || U32.is_eq(x, 12) || Fasta.vtff(t)
+      U32.is_eq(x, 0) || U32.is_eq(x, 11) || U32.is_eq(x, 12) || Fasta.vtff(t)
+
+def Fasta.lead_ws.if(ws: Bool, rest: String) -> Bool:
+  match ws:
+    case True{}:
+      Bool.not(String.is_empty(rest))
+    case False{}:
+      False{}
+
+# A header line has a space, tab or CR right after the '>', followed by more
+# bytes.
+def Fasta.lead_ws.go(s: String) -> Bool:
+  match s:
+    case SNil{}:
+      False{}
+    case SCon{Chr{+x}, t}:
+      Fasta.lead_ws.if(U32.is_eq(x, 32) || U32.is_eq(x, 9) || U32.is_eq(x, 13), t)
+
+def Fasta.lead_ws(l: String) -> Bool:
+  Fasta.lead_ws.go(String.drop(l, 1n))
 
 # The state while reading a contig's lines: the length of its first line (0
 # before one), whether a shorter or empty line ended its letters, whether its
@@ -123,7 +145,7 @@ def Fasta.line.k(head: Bool, cur: Maybe<&2, Lay>, +l: String, +seen: List<&2, St
     case True{} c:
       +n = B.Fasta.name(l)
       +keep = Bool.not(String.is_empty(n)) && Bool.not(B.Fasta.seen(n, seen))
-      Plain{Bool.pick(List<&2, String>, keep, n <> seen, seen), Some{Lay{0n, False{}, 0n, 0n, keep}}, ok && Fasta.close(c) && Bool.not(Fasta.vtff(l))}
+      Plain{Bool.pick(List<&2, String>, keep, n <> seen, seen), Some{Lay{0n, False{}, 0n, 0n, keep}}, ok && Fasta.close(c) && Bool.not(Fasta.vtff(l)) && Bool.not(Fasta.lead_ws(l))}
     case False{} None{}:
       Plain{seen, None{}, ok && String.is_empty(l)}
     case False{} Some{lay}:
@@ -143,10 +165,18 @@ def Fasta.plain.go(ls: List<&2, String>, p: Plain) -> Plain:
     case +l <> t:
       Fasta.plain.go(t, Fasta.line(p, B.Fasta.is_head(l), l))
 
+# The last contig has a letter (so the file had a header too).
+def Fasta.last_ok(m: Maybe<&2, Lay>) -> Bool:
+  match m:
+    case None{}:
+      False{}
+    case Some{Lay{w, e, c, n, k}}:
+      Nat.is_lt(0n, n)
+
 def Fasta.plain.end(p: Plain) -> Bool:
   match p:
-    case Plain{s, c, ok}:
-      ok && Fasta.close(c)
+    case Plain{s, +c, ok}:
+      ok && Fasta.close(c) && Fasta.last_ok(c)
 
 def Fasta.plain(text: String) -> Bool:
   Fasta.plain.end(Fasta.plain.go(String.split(text, '\n'), Plain{Nil{}, None{}, True{}}))
