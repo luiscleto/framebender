@@ -128,14 +128,30 @@ def St.rs(st: St) -> R.RunSt:
 def advance(+st: St) -> Adv:
   advance.go(R.RunSt.halt(St.rs(st)), st)
 
+def grow.if(whole: Bool, +back: Nat, +l: B.Line) -> Nat:
+  match whole:
+    case True{}:
+      B.Rec.pos(B.Rec.fields(B.Line.body(l)))
+    case False{}:
+      Nat.add(Nat.mul(back, 2n), 1n)
+
+# How far back the next window starts: twice as far, or (once the window is
+# as long as the contig) back to the contig's first letter.
+def grow(a: B.Ans, +back: Nat, +l: B.Line) -> Nat:
+  match a:
+    case B.Known{clen, off, raw}:
+      grow.if(Nat.is_le(clen, back), back, l)
+    case _:
+      Nat.add(Nat.mul(back, 2n), 1n)
+
 # A reference read arrived for the waiting line: handle the line, or ask
-# again with a window twice as far back.
-def resolve(st: St, a: B.Ans) -> Adv:
+# again with a window further back (grow).
+def resolve(st: St, +a: B.Ans) -> Adv:
   match st:
     case St{o, rs, pend, queue, eof, None{}}:
       advance(St{o, rs, pend, queue, eof, None{}})
     case St{o, rs, pend, queue, eof, Some{Pending{+l, +back}}}:
-      try_line(judge_in(a, B.Line.body(l)), o, rs, l, Nat.add(Nat.mul(back, 2n), 1n), pend, queue, eof)
+      try_line(judge_in(a, B.Line.body(l)), o, rs, l, grow(a, back, l), pend, queue, eof)
 
 def rev_onto(xs: List<&2, B.Note>, acc: List<&2, B.Note>) -> List<&2, B.Note>:
   match xs:
