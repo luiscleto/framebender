@@ -92,35 +92,42 @@ def insert(+e: Item, buf: List<&2, Item>) -> List<&2, Item>:
 def ready(+w: Nat, +inpos: Nat, x: Item) -> Bool:
   Nat.is_le(Nat.add(Item.key(x), w), inpos)
 
-def take_ready.put(ok: Bool, x: Item, rest: List<&2, Item>) -> List<&2, Item>:
-  match ok:
-    case True{}:
-      x <> rest
-    case False{}:
+# The first item of the buffer is ready (False for an empty buffer).
+def head_ready(+w: Nat, +inpos: Nat, buf: List<&2, Item>) -> Bool:
+  match buf:
+    case Nil{}:
+      False{}
+    case x <> t:
+      ready(w, inpos, x)
+
+# ok: the first item of buf is ready. (Written with ok so the rest of the
+# buffer is only looked at while items are ready; a strict helper taking the
+# recursive call would walk the whole buffer.)
+def take_ready.go(buf: List<&2, Item>, ok: Bool, +w: Nat, +inpos: Nat) -> List<&2, Item>:
+  match buf ok:
+    case Nil{} _:
+      Nil{}
+    case x <> +t True{}:
+      x <> take_ready.go(t, head_ready(w, inpos, t), w, inpos)
+    case x <> t False{}:
       Nil{}
 
 # The items at the front of the buffer that are ready: key + w <= inpos.
-def take_ready(+w: Nat, +inpos: Nat, buf: List<&2, Item>) -> List<&2, Item>:
-  match buf:
-    case Nil{}:
-      Nil{}
-    case +x <> t:
-      take_ready.put(ready(w, inpos, x), x, take_ready(w, inpos, t))
+def take_ready(+w: Nat, +inpos: Nat, +buf: List<&2, Item>) -> List<&2, Item>:
+  take_ready.go(buf, head_ready(w, inpos, buf), w, inpos)
 
-def drop_ready.put(ok: Bool, x: Item, t: List<&2, Item>, rest: List<&2, Item>) -> List<&2, Item>:
-  match ok:
-    case True{}:
-      rest
-    case False{}:
+def drop_ready.go(buf: List<&2, Item>, ok: Bool, +w: Nat, +inpos: Nat) -> List<&2, Item>:
+  match buf ok:
+    case Nil{} _:
+      Nil{}
+    case x <> +t True{}:
+      drop_ready.go(t, head_ready(w, inpos, t), w, inpos)
+    case x <> t False{}:
       x <> t
 
 # The buffer without take_ready's items.
-def drop_ready(+w: Nat, +inpos: Nat, buf: List<&2, Item>) -> List<&2, Item>:
-  match buf:
-    case Nil{}:
-      Nil{}
-    case +x <> +t:
-      drop_ready.put(ready(w, inpos, x), x, t, drop_ready(w, inpos, t))
+def drop_ready(+w: Nat, +inpos: Nat, +buf: List<&2, Item>) -> List<&2, Item>:
+  drop_ready.go(buf, head_ready(w, inpos, buf), w, inpos)
 
 # Writing items in order: all of them, with the last item written; or the
 # writing stops at the first item whose key is below the last key written

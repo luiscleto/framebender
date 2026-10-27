@@ -128,6 +128,46 @@ def S1(x, y):
         {String.split.fin(h, _, Char.is_eq(h, '\n')) == S1.rhs(String.split.fin(h, split(t), Char.is_eq(h, '\n')), y) : List<&2, String>}
       S1.k(h, Char.is_eq(h, '\n'), {==}, split(t), split_cons(t), y)
 
+# Norm.line is B.Text.line: the last character is read without reversing.
+def cr_if(+acc: String, +c: Bool) -> {String.starts_with.go.if(SNil{}, acc, c) == c : Bool}:
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+law ends_cr.go:
+  for +t: String
+  for +h: Char
+  for +acc: String
+  {String.starts_with.go("\r", String.reverse.go(t, SCon{h, acc})) == Norm.ends_cr.go(t, h) : Bool}
+
+def ends_cr.go(t, h, acc):
+  match t:
+    case SNil{}:
+      cr_if(acc, Char.is_eq(h, '\r'))
+    case SCon{+h2, +t2}:
+      ends_cr.go(t2, h2, SCon{h, acc})
+
+law ends_cr:
+  for +p: String
+  {Norm.ends_cr(p) == String.ends_with(p, "\r") : Bool}
+
+def ends_cr(p):
+  match p:
+    case SNil{}:
+      {==}
+    case SCon{+h, +t}:
+      Equal.sym(Bool, String.starts_with.go("\r", String.reverse.go(t, SCon{h, SNil{}})), Norm.ends_cr.go(t, h), ends_cr.go(t, h, SNil{}))
+
+law line_eq:
+  for +p: String
+  {Norm.line(p) == B.Text.line(p) : B.Line}
+
+def line_eq(p):
+  %Equal.sym(Bool, Norm.ends_cr(p), String.ends_with(p, "\r"), ends_cr(p)) : {B.Text.line.if(_, p) == B.Text.line(p) : B.Line}
+  {==}
+
 # feed reads the same pieces.
 law A1:
   for +ps: List<&2, String>
@@ -140,7 +180,9 @@ def A1(ps, p):
       {==}
     case q <> t:
       %Equal.sym(Norm.Fed, Norm.feed.go(t, q), Norm.Fed{lines_of(pinit.go(t, q)), plast.go(t, q)}, A1(t, q)) :
-        {Norm.Fed.cons(B.Text.line(p), _) == Norm.Fed{lines_of(pinit.go(q <> t, p)), plast.go(q <> t, p)} : Norm.Fed}
+        {Norm.Fed.cons(Norm.line(p), _) == Norm.Fed{lines_of(pinit.go(q <> t, p)), plast.go(q <> t, p)} : Norm.Fed}
+      %Equal.sym(B.Line, Norm.line(p), B.Text.line(p), line_eq(p)) :
+        {Norm.Fed.cons(_, Norm.Fed{lines_of(pinit.go(t, q)), plast.go(t, q)}) == Norm.Fed{lines_of(pinit.go(q <> t, p)), plast.go(q <> t, p)} : Norm.Fed}
       {==}
 
 law L2.k:

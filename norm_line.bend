@@ -7,6 +7,92 @@ import ./norm_var.bend as V
 # (norm.bend).
 
 # ---------------------------------------------------------------------------
+# INFO/END (B.Info.end_ok, without splitting INFO into its entries)
+# ---------------------------------------------------------------------------
+
+# The lazy copies below take an ok flag for the first character, so the copy
+# stops there; a strict helper taking the recursive call would copy the rest.
+
+def piece.ok(s: String) -> Bool:
+  match s:
+    case SNil{}:
+      False{}
+    case SCon{h, t}:
+      Bool.not(Char.is_eq(h, ';'))
+
+def piece.go(s: String, ok: Bool) -> String:
+  match s ok:
+    case SNil{} _:
+      SNil{}
+    case SCon{h, +t} True{}:
+      SCon{h, piece.go(t, piece.ok(t))}
+    case SCon{h, t} False{}:
+      SNil{}
+
+# The first INFO entry of s: the text before the first ';'.
+def piece(+s: String) -> String:
+  piece.go(s, piece.ok(s))
+
+def ikey.ok2(semi: Bool, eq: Bool) -> Bool:
+  match semi eq:
+    case False{} False{}:
+      True{}
+    case False{} True{}:
+      False{}
+    case True{} _:
+      False{}
+
+def ikey.ok(s: String) -> Bool:
+  match s:
+    case SNil{}:
+      False{}
+    case SCon{+h, t}:
+      ikey.ok2(Char.is_eq(h, ';'), Char.is_eq(h, '='))
+
+def ikey.go(s: String, ok: Bool) -> String:
+  match s ok:
+    case SNil{} _:
+      SNil{}
+    case SCon{h, +t} True{}:
+      SCon{h, ikey.go(t, ikey.ok(t))}
+    case SCon{h, t} False{}:
+      SNil{}
+
+# The key of the first INFO entry of s (B.Info.key of piece(s)).
+def ikey(+s: String) -> String:
+  ikey.go(s, ikey.ok(s))
+
+# What an entry adds to B.Info.ends: its value if it is an END entry.
+def end_val(is_end: Bool, +s: String) -> Maybe<&2, Maybe<&2, Nat>>:
+  match is_end:
+    case True{}:
+      Some{B.Pos.read(String.drop(piece(s), 4n))}
+    case False{}:
+      None{}
+
+def scan.put(m: Maybe<&2, Maybe<&2, Nat>>, rest: List<&2, Maybe<&2, Nat>>) -> List<&2, Maybe<&2, Nat>>:
+  match m:
+    case None{}:
+      rest
+    case Some{v}:
+      v <> rest
+
+# B.Info.ends of the entries of s, one character at a time; start: s begins
+# an entry (else the rest of the current entry is skipped).
+def scan(s: String, start: Bool) -> List<&2, Maybe<&2, Nat>>:
+  match s start:
+    case SNil{} _:
+      Nil{}
+    case SCon{+h, +t} True{}:
+      scan.put(end_val(String.eq(ikey(SCon{h, t}), "END"), SCon{h, t}), scan(t, Char.is_eq(h, ';')))
+    case SCon{h, t} False{}:
+      scan(t, Char.is_eq(h, ';'))
+
+# B.Info.end_ok, computed with scan.
+def end_ok(info: String, +e: Nat) -> Bool:
+  B.Info.end_ok.go(scan(info, True{}), e)
+
+# ---------------------------------------------------------------------------
 # One body line, reading the contig through what the reference answered
 # ---------------------------------------------------------------------------
 
@@ -81,7 +167,7 @@ def judge_in.ans(a: B.Ans, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.
       +bases = B.Bases.of_fasta(raw)
       +ref = B.Rec.field(fs, 3n)
       e = Nat.sub(Nat.add(B.Rec.pos(fs), String.length(ref)), 1n)
-      found(B.Info.end_ok(B.Rec.field(fs, 7n), e), B.Allele.read(ref), B.Alleles.read(B.Rec.alts(fs)), clen, off, bases, fs, body)
+      found(end_ok(B.Rec.field(fs, 7n), e), B.Allele.read(ref), B.Alleles.read(B.Rec.alts(fs)), clen, off, bases, fs, body)
 
 def judge_in.go(bad: Bool, skip: Bool, a: B.Ans, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
   match bad skip:
@@ -92,9 +178,12 @@ def judge_in.go(bad: Bool, skip: Bool, a: B.Ans, +fs: List<&2, String>, +body: S
     case False{} False{}:
       judge_in.ans(a, fs, body)
 
+# judge_in with the line's fields already split (fs = B.Rec.fields(body)).
+def judge_fs(a: B.Ans, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
+  judge_in.go(B.Rec.malformed(fs), B.Rec.out_of_scope(fs), a, fs, body)
+
 # The result for one body line (its text without terminator), given what the
 # reference answered for the line's CHROM; None when the answer is not enough
 # (the machine then asks for more).
 def judge_in(a: B.Ans, +body: String) -> Maybe<&2, B.Res>:
-  +fs = B.Rec.fields(body)
-  judge_in.go(B.Rec.malformed(fs), B.Rec.out_of_scope(fs), a, fs, body)
+  judge_fs(a, B.Rec.fields(body), body)

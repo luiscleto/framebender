@@ -8,6 +8,7 @@ import ./LAWS.bend as L
 import ./proof_base.bend as P
 import ./proof_var.bend as PV
 import ./proof_window_lists.bend as W
+import ./proof_window_info.bend as WI
 
 # Proofs: reading the reference through a window (Norm.judge_in, norm_line.bend).
 # Each law below restates the law of the same name in LAWS.bend with every
@@ -317,9 +318,11 @@ def win.known(sound: VarSound(), +fs: List<&2, String>, +body: String, +hm: {B.R
         Equal.sym(Nat, L.len(B.Bases.of_fasta(r0)), String.length(r0), W.of_fasta_len(r0)))
       +hb = window_bases(r0, off, raw, P.and_true_r(hc, hs, ht))
       +ref = B.Rec.field(fs, 3n)
-      e = Nat.sub(Nat.add(B.Rec.pos(fs), String.length(ref)), 1n)
+      +e = Nat.sub(Nat.add(B.Rec.pos(fs), String.length(ref)), 1n)
+      %WI.end_ok_eq(B.Rec.field(fs, 7n), e) :
+        {r == L.judge.bases(_, B.Allele.read(ref), B.Alleles.read(B.Rec.alts(fs)), fs, body, B.Bases.of_fasta(r0)) : B.Res}
       win.found(sound, fs, body, B.Bases.of_fasta(r0), clen, off, B.Bases.of_fasta(raw), hclen, hb, hm,
-        B.Info.end_ok(B.Rec.field(fs, 7n), e), B.Allele.read(ref), B.Alleles.read(B.Rec.alts(fs)), {==}, {==}, r, hr)
+        J.end_ok(B.Rec.field(fs, 7n), e), B.Allele.read(ref), B.Alleles.read(B.Rec.alts(fs)), {==}, {==}, r, hr)
 
 def win.unknown(+fs: List<&2, String>, +body: String, m: Maybe<&2, String>,
   +ht: {Maybe.is_none(&2, String, m) == True{} : Bool},
@@ -599,7 +602,9 @@ def en.known(enough: VarEnough(), +fs: List<&2, String>, +body: String, +hm: {B.
         Equal.sym(Nat, L.len(B.Bases.of_fasta(r0)), String.length(r0), W.of_fasta_len(r0)))
       +hb = window_bases(r0, off, raw, P.and_true_r(hc, hs, ht))
       +ref = B.Rec.field(fs, 3n)
-      e = Nat.sub(Nat.add(B.Rec.pos(fs), String.length(ref)), 1n)
+      +e = Nat.sub(Nat.add(B.Rec.pos(fs), String.length(ref)), 1n)
+      %Equal.sym(Bool, J.end_ok(B.Rec.field(fs, 7n), e), B.Info.end_ok(B.Rec.field(fs, 7n), e), WI.end_ok_eq(B.Rec.field(fs, 7n), e)) :
+        {Maybe.is_some(&2, B.Res, J.found(_, B.Allele.read(ref), B.Alleles.read(B.Rec.alts(fs)), clen, off, B.Bases.of_fasta(raw), fs, body)) == True{} : Bool}
       en.found(enough, fs, body, B.Bases.of_fasta(r0), clen, off, raw, B.Bases.of_fasta(raw), hclen, hb, W.of_fasta_len(raw), hm,
         B.Info.end_ok(B.Rec.field(fs, 7n), e), B.Allele.read(ref), B.Alleles.read(B.Rec.alts(fs)), {==}, {==}, he)
 

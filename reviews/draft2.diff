@@ -1,0 +1,344 @@
+--- LAWS.bend	2026-10-27 10:15:00.549353441 +0000
++++ draft/LAWS.bend	2026-10-27 12:58:44.517245784 +0000
+@@ -1,23 +1,31 @@
+ import Base
+ import ./types.bend as B
++import ./tan.bend as Tan
+ import ./norm.bend as Norm
+ import ./run.bend as R
+ 
+ # framebender: the laws.
+ #
+-# APPROVED (2026-10-27) by agreement of the three reviewers after eight
+-# rounds (reviews/), on the owner's delegation. A law or definition is never
+-# weakened or deleted without the owner's consent.
++# DRAFT 2 (2026-10-27), restructured on the owner's request into two layers:
+ #
+-# The code is reached only through Norm.var, Norm.judge_in, Norm.start and
+-# Norm.step. Everything else below is a definition owned by these laws, written
+-# to be obviously right rather than fast. types.bend (bases, text, FASTA,
+-# messages, options) is part of this spec.
++# Science layer (what an expert reviews and approves once): the definitions
++# (what a variant does, valid, normalized after Tan et al.), the reference
++# normalizer Tan.normal (tan.bend), the whole-file definition run (with
++# run.bend and types.bend), and laws about them: the normal form exists, is
++# unique and shortest; a run sorts its output; running twice changes nothing.
++# These laws mention no code, so they never change when the code changes.
++#
++# Implementation layer: law machine (and usage): the program, whatever it does
++# inside, writes exactly what run says. The code is reached only through
++# Norm.start and Norm.step; it may read the reference in any windows, many at
++# once, and organize its work freely (batches, parallel threads, caches).
++#
++# A law or definition, once approved, is never weakened or deleted without
++# the owner's consent.
+ #
+ # The laws, from the top:
+-#   machine         the program's output is exactly run(FASTA, VCF, options)
++#   machine, usage                              the program is run
+ #   sorted, grouped_in, no_unsorted, twice_run what run guarantees
+-#   window, window_enough                       reading the reference in pieces
+ #   same_change ... shortest                    the normal form of one variant
+ #
+ # Sources: Tan, Abecasis and Kang, "Unified representation of genetic
+@@ -190,7 +198,7 @@
+       Nat.add(len(ref), total(alts))
+ 
+ # ==========================================================================
+-# Laws: one variant (seq is the contig the variant is on)
++# Laws: the normal form of one variant (seq is the contig it is on)
+ # ==========================================================================
+ 
+ # Same change: the output makes exactly the change the input made, with the
+@@ -199,21 +207,21 @@
+   for seq: List<&2, B.Base>
+   for v: B.Var
+   for hv: {valid(seq, v) == True{} : Bool}
+-  {haps(seq, Norm.var(seq, v)) == haps(seq, v) : List<&2, List<&2, B.Base>>}
++  {haps(seq, Tan.normal(seq, v)) == haps(seq, v) : List<&2, List<&2, B.Base>>}
+ 
+ # The output is itself valid: its REF is the contig's bases at its position.
+ law stays_valid:
+   for seq: List<&2, B.Base>
+   for v: B.Var
+   for hv: {valid(seq, v) == True{} : Bool}
+-  {valid(seq, Norm.var(seq, v)) == True{} : Bool}
++  {valid(seq, Tan.normal(seq, v)) == True{} : Bool}
+ 
+ # Standard form: the output is left-aligned and parsimonious.
+ law standard_form:
+   for seq: List<&2, B.Base>
+   for v: B.Var
+   for hv: {valid(seq, v) == True{} : Bool}
+-  {normalized(seq, Norm.var(seq, v)) == True{} : Bool}
++  {normalized(seq, Tan.normal(seq, v)) == True{} : Bool}
+ 
+ # A variant already in standard form is left as it is.
+ law normal_unchanged:
+@@ -221,14 +229,14 @@
+   for v: B.Var
+   for hv: {valid(seq, v) == True{} : Bool}
+   for hn: {normalized(seq, v) == True{} : Bool}
+-  {Norm.var(seq, v) == v : B.Var}
++  {Tan.normal(seq, v) == v : B.Var}
+ 
+ # Running it twice changes nothing.
+ law twice:
+   for seq: List<&2, B.Base>
+   for v: B.Var
+   for hv: {valid(seq, v) == True{} : Bool}
+-  {Norm.var(seq, Norm.var(seq, v)) == Norm.var(seq, v) : B.Var}
++  {Tan.normal(seq, Tan.normal(seq, v)) == Tan.normal(seq, v) : B.Var}
+ 
+ # One form per change: two variants that make the same change come out as the
+ # same variant.
+@@ -239,7 +247,7 @@
+   for hv: {valid(seq, v) == True{} : Bool}
+   for hw: {valid(seq, w) == True{} : Bool}
+   for hs: {haps(seq, v) == haps(seq, w) : List<&2, List<&2, B.Base>>}
+-  {Norm.var(seq, v) == Norm.var(seq, w) : B.Var}
++  {Tan.normal(seq, v) == Tan.normal(seq, w) : B.Var}
+ 
+ # Shortest: no valid variant making the same change R.has fewer letters.
+ law shortest:
+@@ -249,7 +257,7 @@
+   for hv: {valid(seq, v) == True{} : Bool}
+   for hw: {valid(seq, w) == True{} : Bool}
+   for hs: {haps(seq, v) == haps(seq, w) : List<&2, List<&2, B.Base>>}
+-  {Nat.is_le(size(Norm.var(seq, v)), size(w)) == True{} : Bool}
++  {Nat.is_le(size(Tan.normal(seq, v)), size(w)) == True{} : Bool}
+ 
+ # ==========================================================================
+ # Definitions: one body line
+@@ -263,7 +271,7 @@
+     case Some{k}:
+       res(B.Problem{k}, fs, body)
+     case None{}:
+-      +w = Norm.var(seq, v)
++      +w = Tan.normal(seq, v)
+       B.Res{B.Normalized{}, pos_of(w), B.Rec.rebuild(fs, v, w), B.Rec.stale(fs, v, w)}
+ 
+ def first(b: Bool, c: B.Code, rest: Maybe<&2, B.Code>) -> Maybe<&2, B.Code>:
+@@ -319,7 +327,7 @@
+ #   7. ALT_DUP: two of REF and the ALTs are equal (ignoring case);
+ #   8. REF_MISMATCH: REF is not the reference's bases at POS (ignoring case),
+ #      including a REF running past the contig's end;
+-#   9. normalized: the record is rewritten for Norm.var's variant
++#   9. normalized: the record is rewritten for Tan.normal's variant
+ #      (B.Rec.rebuild), sorted by its new POS.
+ # Every other outcome keeps the text and is sorted by the input POS.
+ def judge(+fa: List<&2, B.Contig>, +body: String) -> B.Res:
+@@ -327,101 +335,6 @@
+   judge.shape(B.Rec.malformed(fs), B.Rec.out_of_scope(fs), fa, fs, body)
+ 
+ # ==========================================================================
+-# Laws: reading the reference in pieces
+-# ==========================================================================
+-
+-def known.ok(m: Maybe<&2, String>, clen: Nat, +off: Nat, +raw: String) -> Bool:
+-  match m:
+-    case None{}:
+-      False{}
+-    case Some{+r}:
+-      Nat.is_eq(clen, String.length(r)) && String.eq(raw, String.take(String.drop(r, off), String.length(raw)))
+-
+-# An answer that tells the truth about contig chrom: nothing; "unknown" when
+-# the reference R.has no such contig; or its real length and some of its real
+-# letters, as written in the FASTA file.
+-def truthful(+fa: List<&2, B.Contig>, +chrom: String, a: B.Ans) -> Bool:
+-  match a:
+-    case B.NoAns{}:
+-      True{}
+-    case B.Unknown{}:
+-      Maybe.is_none(&2, String, B.Fasta.find(fa, chrom))
+-    case B.Known{clen, off, raw}:
+-      known.ok(B.Fasta.find(fa, chrom), clen, off, raw)
+-
+-def chrom_of(body: String) -> String:
+-  B.Rec.field(B.Rec.fields(body), 0n)
+-
+-# Any result the code gives from a truthful answer is the result for the
+-# whole reference.
+-law window:
+-  for fa: List<&2, B.Contig>
+-  for body: String
+-  for a: B.Ans
+-  for r: B.Res
+-  for ht: {truthful(fa, chrom_of(body), a) == True{} : Bool}
+-  for hr: {Norm.judge_in(a, body) == Some{r} : Maybe<&2, B.Res>}
+-  {r == judge(fa, body) : B.Res}
+-
+-# The answer holds the letters lo .. hi - 1 (0-based), or up to the contig's
+-# end.
+-def covers(a: B.Ans, +lo: Nat, +hi: Nat) -> Bool:
+-  match a:
+-    case B.Known{+clen, +off, raw}:
+-      Nat.is_le(off, lo) && Nat.is_le(Nat.min(hi, clen), Nat.add(off, String.length(raw)))
+-    case _:
+-      False{}
+-
+-def is_known(a: B.Ans) -> Bool:
+-  match a:
+-    case B.Known{c, o, b}:
+-      True{}
+-    case _:
+-      False{}
+-
+-def is_unknown(a: B.Ans) -> Bool:
+-  match a:
+-    case B.Unknown{}:
+-      True{}
+-    case _:
+-      False{}
+-
+-def enough.go(r: B.Res, +p: Nat, +rlen: Nat, a: B.Ans) -> Bool:
+-  match r:
+-    case B.Res{B.Broken{}, k, t, s}:
+-      True{}
+-    case B.Res{B.Skipped{}, k, t, s}:
+-      True{}
+-    case B.Res{B.NoContig{}, k, t, s}:
+-      is_unknown(a)
+-    case B.Res{B.Problem{B.RefMismatch{}}, k, t, s}:
+-      covers(a, Nat.sub(p, 1n), Nat.add(Nat.sub(p, 1n), rlen))
+-    case B.Res{B.Problem{c}, k, t, s}:
+-      is_known(a)
+-    case B.Res{B.Normalized{}, +k, t, s}:
+-      covers(a, Nat.min(Nat.sub(p, 1n), Nat.sub(k, 2n)), Nat.add(Nat.sub(p, 1n), rlen))
+-
+-# What the code needs to answer, by the line's outcome: MALFORMED and out of
+-# scope, nothing; UNKNOWN_CHROM, the answer "unknown"; BAD_END, NON_ACGTN,
+-# BAD_POS and ALT_DUP, that the contig exists; REF_MISMATCH, the input REF's
+-# letters (up to the contig's end); normalized, every letter from the input
+-# POS, or from one before the new POS (or the contig's first letter) when that
+-# is earlier, to the end of the input REF.
+-def enough(+fa: List<&2, B.Contig>, +body: String, a: B.Ans) -> Bool:
+-  +fs = B.Rec.fields(body)
+-  enough.go(judge(fa, body), B.Rec.pos(fs), String.length(B.Rec.field(fs, 3n)), a)
+-
+-# A truthful answer holding what the line needs always gives a result (so
+-# asking for bigger windows ends, at the latest with the whole contig).
+-law window_enough:
+-  for fa: List<&2, B.Contig>
+-  for body: String
+-  for a: B.Ans
+-  for ht: {truthful(fa, chrom_of(body), a) == True{} : Bool}
+-  for he: {enough(fa, body, a) == True{} : Bool}
+-  {Maybe.is_some(&2, B.Res, Norm.judge_in(a, body)) == True{} : Bool}
+-
+-# ==========================================================================
+ # Definitions: the whole run
+ # ==========================================================================
+ 
+@@ -693,7 +606,6 @@
+ # The law of the program: the state machine does what run says
+ # ==========================================================================
+ 
+-# The truthful answer to "the bases of contig chrom from index a up to b".
+ def truth.of(m: Maybe<&2, String>, +a: Nat, +b: Nat) -> B.Ans:
+   match m:
+     case None{}:
+@@ -706,8 +618,21 @@
+ def truth(+fa: List<&2, B.Contig>, +chrom: String, +a: Nat, +b: Nat) -> B.Ans:
+   truth.of(B.Fasta.find(fa, chrom), a, b)
+ 
++def truths.one(+fa: List<&2, B.Contig>, r: B.Req) -> B.Ans:
++  match r:
++    case B.Req{c, a, b}:
++      truth(fa, c, a, b)
++
++# The truthful answers to a list of reads, in order.
++def truths(+fa: List<&2, B.Contig>, rs: List<&2, B.Req>) -> List<&2, B.Ans>:
++  match rs:
++    case Nil{}:
++      Nil{}
++    case r <> t:
++      truths.one(fa, r) <> truths(fa, t)
++
+ # The driver, as a definition: it feeds the machine the VCF file in the pieces
+-# cs, then the end of the file (once), answers each reference read truthfully,
++# cs, then the end of the file (once), answers all reference reads truthfully,
+ # and collects what the machine writes until it asks to R.stop.
+ #   eof: the end of the file was given; done: the exit code, once it stopped.
+ type DSt is Data:
+@@ -735,8 +660,8 @@
+       DSt{st, nx, cs, e, out, notes, Some{c}}
+     case DSt{st, B.Finish{+c}, cs, e, out, notes, None{}}:
+       DSt{st, B.Finish{c}, cs, e, out, notes, Some{c}}
+-    case DSt{st, B.Ask{ch, a, b}, cs, e, out, notes, None{}}:
+-      absorb(Norm.step(st, B.Ref{truth(fa, ch, a, b)}), cs, e, out, notes)
++    case DSt{st, B.Ask{rs}, cs, e, out, notes, None{}}:
++      absorb(Norm.step(st, B.Ref{truths(fa, rs)}), cs, e, out, notes)
+     case DSt{st, B.More{}, cs, e, out, notes, None{}}:
+       dstep.more(cs, e, st, out, notes)
+ 
+@@ -790,8 +715,8 @@
+ # stderr messages, exit code) and stops within bound steps.
+ #
+ # What this law does not cover (the trusted driver, main.bend): reading the
+-# files' bytes; answering each reference read Ask{chrom, a, b} with exactly
+-# truth(B.Fasta.parse(fasta), chrom, a, b): Unknown when the .fai R.has no such
++# files' bytes; answering each reference read Req{chrom, a, b} of an Ask with
++# exactly truth(B.Fasta.parse(fasta), chrom, a, b), in order: Unknown when the .fai R.has no such
+ # contig, else Known with the contig's length len(Contig.raw) and the slice
+ # a .. b - 1 of Contig.raw (the sequence letters without line breaks, spaces,
+ # tabs and CRs). The driver reads it through the .fai index (built by
+--- types.bend	2026-10-27 12:29:44.308526548 +0000
++++ draft/types.bend	2026-10-27 12:58:00.700386441 +0000
+@@ -806,17 +806,21 @@
+ # The program as a state machine
+ # ===========================================================================
+ 
++# A reference read: the letters of contig chrom from 0-based index from up to
++# (not including) upto.
++type Req is Data:
++  Req{chrom: String, from: Nat, upto: Nat}
++
+ # What the machine is given at each step: the next piece of the VCF file, the
+-# end of the file, or the answer to its last reference read.
++# end of the file, or the answers to its last reference reads (in order).
+ type In is Data:
+   Chunk{s: String}
+   Eof{}
+-  Ref{a: Ans}
++  Ref{ans: List<&2, Ans>}
+ 
+-# What the machine wants next: more of the VCF file; the reference bases of
+-# contig chrom from 0-based index from up to (not including) upto; or to stop
+-# with an exit code.
++# What the machine wants next: more of the VCF file; any number of reference
++# reads, all answered at once; or to stop with an exit code.
+ type Next is Data:
+   More{}
+-  Ask{chrom: String, from: Nat, upto: Nat}
++  Ask{reqs: List<&2, Req>}
+   Finish{code: Nat}
+--- norm_var.bend	2026-10-27 10:54:50.597387757 +0000
++++ draft/tan.bend	2026-10-27 12:58:00.700224645 +0000
+@@ -1,8 +1,16 @@
+ import Base
+ import ./types.bend as B
+ 
+-# framebender: normalizing one variant (code, not spec). Reached from the laws
+-# through Norm.var (norm.bend).
++# framebender: the reference normalizer (spec). Tan, Abecasis and Kang 2015,
++# Algorithm 1, on all alleles at once: while every allele ends with the same
++# base, drop that base (when an allele would become empty, first take the base
++# before the variant as a new first base of every allele, moving one position
++# left; never before position 1); then, while every allele starts with the same
++# base and all have at least two bases, drop that first base (moving one
++# position right). LAWS.bend proves that its result is the unique normalized
++# form (laws same_change ... shortest). It is written to read the contig
++# through a window (var_in) so that implementations can reuse its proofs; the
++# spec uses the whole contig (normal).
+ 
+ # ---------------------------------------------------------------------------
+ # Reading the reference through a window
+@@ -188,5 +196,6 @@
+       fuel = Nat.add(pos, total(als))
+       left_of(right(fuel, next_act(off, bases, pos, als), off, bases, pos, als))
+ 
+-def var(+seq: List<&2, B.Base>, +v: B.Var) -> B.Var:
++# The normal form of v on contig seq.
++def normal(+seq: List<&2, B.Base>, +v: B.Var) -> B.Var:
+   Maybe.default(&2, B.Var, var_in(0n, seq, v), v)

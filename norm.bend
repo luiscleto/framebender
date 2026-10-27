@@ -21,9 +21,10 @@ def judge_in(a: B.Ans, +body: String) -> Maybe<&2, B.Res>:
 # ---------------------------------------------------------------------------
 
 # A body line waiting for a reference read; the window starts back letters
-# before its POS.
+# before its POS; fs: its fields (B.Rec.fields of its body), kept so they are
+# split only once.
 type Pending is Data:
-  Pending{line: B.Line, back: Nat}
+  Pending{line: B.Line, back: Nat, fs: List<&2, String>}
 
 # The machine's state: the options; the run's bookkeeping (R.RunSt, shared
 # with the spec; its out and notes are emptied after every line); the end of
@@ -83,32 +84,32 @@ def RunSt.clear(rs: R.RunSt) -> R.RunSt:
 def went(+o: B.Opts, +rs: R.RunSt, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
   Went{St{o, RunSt.clear(rs), pend, queue, eof, None{}}, RunSt.out(rs), RunSt.notes(rs)}
 
-def body_done(r: B.Res, +o: B.Opts, rs: R.RunSt, +l: B.Line, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
-  +fs = B.Rec.fields(B.Line.body(l))
+# fs: the line's fields (B.Rec.fields of its body), split once per visit.
+def body_done(r: B.Res, +o: B.Opts, rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
   +rs1 = R.tick(rs)
   +at = {B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
   went(o, R.body_line(r, rs1, o, l, at, B.Rec.pos(fs)), pend, queue, eof)
 
 # The window asked for a line: from back letters before its POS to the end of
 # its REF.
-def want(+o: B.Opts, +rs: R.RunSt, +l: B.Line, +back: Nat, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
-  +fs = B.Rec.fields(B.Line.body(l))
+def want(+o: B.Opts, +rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, +back: Nat, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
   +p = Nat.sub(B.Rec.pos(fs), 1n)
-  Want{St{o, rs, pend, queue, eof, Some{Pending{l, back}}}, B.Rec.field(fs, 0n), Nat.sub(p, back), Nat.add(p, String.length(B.Rec.field(fs, 3n)))}
+  Want{St{o, rs, pend, queue, eof, Some{Pending{l, back, fs}}}, B.Rec.field(fs, 0n), Nat.sub(p, back), Nat.add(p, String.length(B.Rec.field(fs, 3n)))}
 
-def try_line(m: Maybe<&2, B.Res>, +o: B.Opts, +rs: R.RunSt, +l: B.Line, +back: Nat, +pend: String, +queue: List<&2, B.Line>, +eof: Bool) -> Adv:
+def try_line(m: Maybe<&2, B.Res>, +o: B.Opts, +rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, +back: Nat, +pend: String, +queue: List<&2, B.Line>, +eof: Bool) -> Adv:
   match m:
     case Some{r}:
-      body_done(r, o, rs, l, pend, queue, eof)
+      body_done(r, o, rs, l, fs, pend, queue, eof)
     case None{}:
-      want(o, rs, l, back, pend, queue, eof)
+      want(o, rs, l, fs, back, pend, queue, eof)
 
 def next_line(inbody: Bool, +o: B.Opts, +rs: R.RunSt, +l: B.Line, +pend: String, +queue: List<&2, B.Line>, +eof: Bool) -> Adv:
   match inbody:
     case False{}:
       went(o, R.head_line(R.is_chrom_line(B.Line.body(l)), R.tick(rs), o, l), pend, queue, eof)
     case True{}:
-      try_line(judge_in(B.NoAns{}, B.Line.body(l)), o, rs, l, 100n, pend, queue, eof)
+      +fs = B.Rec.fields(B.Line.body(l))
+      try_line(J.judge_fs(B.NoAns{}, fs, B.Line.body(l)), o, rs, l, fs, 100n, pend, queue, eof)
 
 def advance.go(halted: Bool, st: St) -> Adv:
   match halted st:
@@ -150,8 +151,8 @@ def resolve(st: St, +a: B.Ans) -> Adv:
   match st:
     case St{o, rs, pend, queue, eof, None{}}:
       advance(St{o, rs, pend, queue, eof, None{}})
-    case St{o, rs, pend, queue, eof, Some{Pending{+l, +back}}}:
-      try_line(judge_in(a, B.Line.body(l)), o, rs, l, grow(a, back, l), pend, queue, eof)
+    case St{o, rs, pend, queue, eof, Some{Pending{+l, +back, +fs}}}:
+      try_line(J.judge_fs(a, fs, B.Line.body(l)), o, rs, l, fs, grow(a, back, l), pend, queue, eof)
 
 def rev_onto(xs: List<&2, B.Note>, acc: List<&2, B.Note>) -> List<&2, B.Note>:
   match xs:
@@ -160,8 +161,24 @@ def rev_onto(xs: List<&2, B.Note>, acc: List<&2, B.Note>) -> List<&2, B.Note>:
     case x <> t:
       rev_onto(t, x <> acc)
 
+def cat.go(xs: List<&2, String>, h: String) -> String:
+  match xs:
+    case Nil{}:
+      h
+    case x <> t:
+      h ++ cat.go(t, x)
+
+# String.concat, without copying the last piece (String.concat appends "" to
+# it, which copies it).
+def cat(xs: List<&2, String>) -> String:
+  match xs:
+    case Nil{}:
+      ""
+    case x <> t:
+      cat.go(t, x)
+
 def outs_text(outs: List<&2, String>) -> String:
-  String.concat(List.reverse(&2, String, outs))
+  cat(List.reverse(&2, String, outs))
 
 def notes_list(ns: List<&2, B.Note>) -> List<&2, B.Note>:
   List.reverse(&2, B.Note, ns)
@@ -217,12 +234,31 @@ def Fed.cons(l: B.Line, f: Fed) -> Fed:
     case Fed{ls, r}:
       Fed{l <> ls, r}
 
+def ends_cr.go(s: String, h: Char) -> Bool:
+  match s:
+    case SNil{}:
+      Char.is_eq(h, '\r')
+    case SCon{h2, t}:
+      ends_cr.go(t, h2)
+
+# String.ends_with(s, "\r"), without reversing s.
+def ends_cr(s: String) -> Bool:
+  match s:
+    case SNil{}:
+      False{}
+    case SCon{h, t}:
+      ends_cr.go(t, h)
+
+# B.Text.line, computed with ends_cr.
+def line(+p: String) -> B.Line:
+  B.Text.line.if(ends_cr(p), p)
+
 def feed.go(ps: List<&2, String>, p: String) -> Fed:
   match ps:
     case Nil{}:
       Fed{Nil{}, p}
     case q <> t:
-      Fed.cons(B.Text.line(p), feed.go(t, q))
+      Fed.cons(line(p), feed.go(t, q))
 
 def feed.start(ps: List<&2, String>) -> Fed:
   match ps:

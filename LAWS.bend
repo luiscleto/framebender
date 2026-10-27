@@ -155,7 +155,7 @@ def all_long.go(xs: List<&2, List<&2, B.Base>>) -> Bool:
     case x <> t:
       Nat.is_le(2n, len(x)) && all_long.go(t)
 
-# Every allele R.has at least two bases.
+# Every allele has at least two bases.
 def all_long(v: B.Var) -> Bool:
   match v:
     case B.Var{pos, ref, alts}:
@@ -172,7 +172,7 @@ def parsimonious(+seq: List<&2, B.Base>, +v: B.Var) -> Bool:
 # al.). When some allele would otherwise be empty, every allele keeps one
 # unchanged neighbouring base: the one before the event or, when there is no
 # base before it (the event starts at the first base of the contig), the one
-# after it. Otherwise no neighbouring base is R.added.
+# after it. Otherwise no neighbouring base is added.
 def normalized(+seq: List<&2, B.Base>, +v: B.Var) -> Bool:
   left_aligned(seq, v) && parsimonious(seq, v)
 
@@ -241,7 +241,7 @@ law one_form:
   for hs: {haps(seq, v) == haps(seq, w) : List<&2, List<&2, B.Base>>}
   {Norm.var(seq, v) == Norm.var(seq, w) : B.Var}
 
-# Shortest: no valid variant making the same change R.has fewer letters.
+# Shortest: no valid variant making the same change has fewer letters.
 law shortest:
   for seq: List<&2, B.Base>
   for v: B.Var
@@ -314,7 +314,7 @@ def judge.shape(bad: Bool, skip: Bool, +fa: List<&2, B.Contig>, +fs: List<&2, St
 #   3. UNKNOWN_CHROM: CHROM is not a contig of the reference;
 #   4. BAD_END: INFO's END is not exactly one "END=<digits>" equal to
 #      POS + len(REF) - 1 (B.Info.end_ok);
-#   5. NON_ACGTN: REF or an ALT R.has a letter other than A, C, G, T, N;
+#   5. NON_ACGTN: REF or an ALT has a letter other than A, C, G, T, N;
 #   6. BAD_POS: POS is 0;
 #   7. ALT_DUP: two of REF and the ALTs are equal (ignoring case);
 #   8. REF_MISMATCH: REF is not the reference's bases at POS (ignoring case),
@@ -338,7 +338,7 @@ def known.ok(m: Maybe<&2, String>, clen: Nat, +off: Nat, +raw: String) -> Bool:
       Nat.is_eq(clen, String.length(r)) && String.eq(raw, String.take(String.drop(r, off), String.length(raw)))
 
 # An answer that tells the truth about contig chrom: nothing; "unknown" when
-# the reference R.has no such contig; or its real length and some of its real
+# the reference has no such contig; or its real length and some of its real
 # letters, as written in the FASTA file.
 def truthful(+fa: List<&2, B.Contig>, +chrom: String, a: B.Ans) -> Bool:
   match a:
@@ -441,7 +441,7 @@ def line_step.go(halted: Bool, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt
     case False{}:
       line_in(R.RunSt.inbody(st), fa, o, R.tick(st), l)
 
-# One more line of the file (nothing happens once the run R.has stopped).
+# One more line of the file (nothing happens once the run has stopped).
 def line_step(+fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +l: B.Line) -> R.RunSt:
   line_step.go(R.RunSt.halt(st), fa, o, st, l)
 
@@ -454,7 +454,7 @@ def run.go(ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, st: R.RunS
 
 # The whole run, defined over the whole files. Line by line:
 #   - Header lines (up to the #CHROM line) are held, then written when the
-#     #CHROM line is read, with the two R.added lines just before it.
+#     #CHROM line is read, with the two added lines just before it.
 #   - Each body line is judged (judge). If its outcome stops the run, the run
 #     stops without writing anything more. Else, if its CHROM differs from the
 #     current CHROM run, the whole buffer is written, and the run stops with
@@ -478,7 +478,7 @@ def item_of(r: B.Res, +l: B.Line, at: B.At, +inpos: Nat) -> R.Item:
     case B.Res{_, k, t, s} _:
       R.Item{inpos, inpos, at, B.Line.text(l)}
 
-# The item a body line becomes (for a line that does not R.stop the run).
+# The item a body line becomes (for a line that does not stop the run).
 def item(+fa: List<&2, B.Contig>, +l: B.Line, +n: Nat) -> R.Item:
   +fs = B.Rec.fields(B.Line.body(l))
   item_of(judge(fa, B.Line.body(l)), l, B.At{n, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))
@@ -525,7 +525,7 @@ def head.go(ls: List<&2, B.Line>, +o: B.Opts, +done: Bool, acc: String) -> Strin
     case +l <> t:
       head.go(t, o, done || R.is_chrom_line(B.Line.body(l)), head.step(done, acc, o, l))
 
-# The header as written: the header lines with the two R.added lines before the
+# The header as written: the header lines with the two added lines before the
 # #CHROM line.
 def head(vcf: String, +o: B.Opts) -> String:
   head.go(B.Text.lines(vcf), o, False{}, "")
@@ -599,7 +599,7 @@ def grouped(xs: List<&2, R.Item>) -> Bool:
     case +x <> t:
       grouped.go(t, R.Item.chrom(x), Nil{})
 
-# Sorted output: a run that succeeds writes the header with the two R.added
+# Sorted output: a run that succeeds writes the header with the two added
 # lines, then the body lines grouped by CHROM (in input order) and, within each
 # CHROM, sorted by position, lines with equal positions in input order.
 law sorted:
@@ -680,7 +680,7 @@ def body(vcf: String) -> String:
   body.go(B.Text.lines(vcf), False{}, "")
 
 # Running the tool on its own output succeeds and gives the same body lines
-# (the header gains another pair of R.added lines).
+# (the header gains another pair of added lines).
 law twice_run:
   for fasta: String
   for vcf: String
@@ -708,7 +708,7 @@ def truth(+fa: List<&2, B.Contig>, +chrom: String, +a: Nat, +b: Nat) -> B.Ans:
 
 # The driver, as a definition: it feeds the machine the VCF file in the pieces
 # cs, then the end of the file (once), answers each reference read truthfully,
-# and collects what the machine writes until it asks to R.stop.
+# and collects what the machine writes until it asks to stop.
 #   eof: the end of the file was given; done: the exit code, once it stopped.
 type DSt is Data:
   DSt{st: Norm.St, next: B.Next, cs: List<&2, String>, eof: Bool, out: String, notes: List<&2, B.Note>, done: Maybe<&2, Nat>}
@@ -758,7 +758,7 @@ def pieces_len(cs: List<&2, String>) -> Nat:
   List.length(&2, String, cs)
 
 # How many steps the machine may take: one per piece, one for the end of the
-# file, one to R.stop, and (VCF length + 1) times (FASTA length + 3): there are
+# file, one to stop, and (VCF length + 1) times (FASTA length + 3): there are
 # at most VCF length + 1 lines, and a line may read the reference at most
 # FASTA length + 3 times. A bound for the proof, not the speed the code aims
 # at (it doubles its windows).
@@ -791,7 +791,7 @@ def launch(b: Norm.Begin, +fasta: String, +vcf: String, +cs: List<&2, String>) -
 #
 # What this law does not cover (the trusted driver, main.bend): reading the
 # files' bytes; answering each reference read Ask{chrom, a, b} with exactly
-# truth(B.Fasta.parse(fasta), chrom, a, b): Unknown when the .fai R.has no such
+# truth(B.Fasta.parse(fasta), chrom, a, b): Unknown when the .fai has no such
 # contig, else Known with the contig's length len(Contig.raw) and the slice
 # a .. b - 1 of Contig.raw (the sequence letters without line breaks, spaces,
 # tabs and CRs). The driver reads it through the .fai index (built by

@@ -337,7 +337,7 @@ def all_le_app(xs, ys, k, h1, h2):
 
 def take_drop.go(+w: Nat, +p: Nat, +x: R.Item, +t: List<&2, R.Item>, +r: Bool,
   ih: {app(R.take_ready(w, p, t), R.drop_ready(w, p, t)) == t : List<&2, R.Item>}) ->
-  {app(R.take_ready.put(r, x, R.take_ready(w, p, t)), R.drop_ready.put(r, x, t, R.drop_ready(w, p, t))) == x <> t : List<&2, R.Item>}:
+  {app(R.take_ready.go(x <> t, r, w, p), R.drop_ready.go(x <> t, r, w, p)) == x <> t : List<&2, R.Item>}:
   match r:
     case True{}:
       %ih : {x <> app(R.take_ready(w, p, t), R.drop_ready(w, p, t)) == x <> _ : List<&2, R.Item>}
@@ -728,7 +728,7 @@ def lbound(m: Maybe<&2, R.Item>, +w: Nat, +p: Nat) -> Bool:
 
 def take_ready_ready.go(+w: Nat, +p: Nat, +x: R.Item, +t: List<&2, R.Item>, +r: Bool,
   er: {R.ready(w, p, x) == r : Bool}, ih: {all_ready(R.take_ready(w, p, t), w, p) == True{} : Bool}) ->
-  {all_ready(R.take_ready.put(r, x, R.take_ready(w, p, t)), w, p) == True{} : Bool}:
+  {all_ready(R.take_ready.go(x <> t, r, w, p), w, p) == True{} : Bool}:
   match r:
     case True{}:
       and_intro(R.ready(w, p, x), all_ready(R.take_ready(w, p, t), w, p), er, ih)
