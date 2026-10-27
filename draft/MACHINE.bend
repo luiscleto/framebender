@@ -137,7 +137,7 @@ def launch(b: Norm.Begin, +fasta: String, +vcf: String, +cs: List<&2, String>) -
 # What this law does not cover (the trusted driver, main.bend): reading the
 # files' bytes; answering each reference read Req{chrom, a, b} of an Ask with
 # exactly truth(B.Fasta.parse(fasta), chrom, a, b), in order: Unknown when the .fai has no such
-# contig, else Known with the contig's length L.len(Contig.raw) and the slice
+# contig, else Known with the contig's length String.length(Contig.raw) and the slice
 # a .. b - 1 of Contig.raw (the sequence letters without line breaks, spaces,
 # tabs and CRs). The driver reads it through the .fai index (built by
 # samtools faidx), whose offsets count only line breaks (for a FASTA file that

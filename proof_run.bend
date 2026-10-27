@@ -1,6 +1,5 @@
 import Base
 import ./types.bend as B
-import ./norm.bend as Norm
 import ./run.bend as R
 import ./LAWS.bend as L
 import ./proof_base.bend as P

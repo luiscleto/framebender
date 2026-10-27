@@ -1,25 +1,17 @@
 import Base
-import ./types.bend as B
-import ./norm.bend as Norm
-import ./run.bend as R
 import ./LAWS.bend as L
-import ./proof_base.bend as P
+import ./MACHINE.bend as M
 import ./proof_var.bend as PV
 import ./proof_window.bend as PW
 import ./proof_run.bend as PR
 import ./proof_machine.bend as PM
 
-# Proofs of the laws in LAWS.bend: `def L.name` proves `law name`.
-# Rewrites: `%e : G` with e : {new == old}; G is the goal with `_` where old
-# is; what follows proves G with new there.
+# Proofs of the laws: `def L.name` proves `law name` of LAWS.bend (the
+# science), `def M.name` proves `law name` of MACHINE.bend (the
+# implementation). Each forwards to the proof file that restates the law with
+# every variable reusable.
 
-# A command line Args.parse rejects starts with a usage error.
-def L.usage(argv, ha):
-  %Equal.sym(Maybe<&2, B.Cfg>, B.Args.parse(argv), None{}, ha) : {Norm.start.of(_) == Norm.Usage{} : Norm.Begin}
-  {==}
-
-# Forwarded to the proof files (a law is forwarded once its proof there is
-# complete; an open law cannot be called).
+# The normal form of one variant (proof_var.bend).
 
 def L.same_change(seq, v, hv):
   PV.same_change(seq, v, hv)
@@ -42,14 +34,15 @@ def L.one_form(seq, v, w, hv, hw, hs):
 def L.shortest(seq, v, w, hv, hw, hs):
   PV.shortest(seq, v, w, hv, hw, hs)
 
-def L.window(fa, body, a, r, ht, hr):
-  PW.window(fa, body, a, r, ht, hr)
+def L.unique(seq, v, w, hv, hw, hnv, hnw, hs):
+  PV.unique(seq, v, w, hv, hw, hnv, hnw, hs)
 
-def L.window_enough(fa, body, a, ht, he):
-  PW.window_enough(fa, body, a, ht, he)
+# Records the tool normalizes are valid (proof_window.bend).
 
-def L.machine(argv, o, ref, vcfpath, fasta, vcf, cs, ha, h):
-  PM.machine(argv, o, ref, vcfpath, fasta, vcf, cs, ha, h)
+def L.normalized_valid(fa, body, h):
+  PW.normalized_valid(fa, body, h)
+
+# What run guarantees (proof_run.bend).
 
 def L.sorted(fasta, vcf, o, h):
   PR.sorted(fasta, vcf, o, h)
@@ -62,3 +55,11 @@ def L.no_unsorted(fasta, vcf, o, hw, hg, ha, hm):
 
 def L.twice_run(fasta, vcf, o, h):
   PR.twice_run(fasta, vcf, o, h)
+
+# The program (proof_machine.bend).
+
+def M.machine(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h):
+  PM.machine(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h)
+
+def M.usage(argv, ha):
+  PM.usage(argv, ha)

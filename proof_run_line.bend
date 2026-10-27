@@ -1,6 +1,5 @@
 import Base
 import ./types.bend as B
-import ./norm.bend as Norm
 import ./run.bend as R
 import ./LAWS.bend as L
 import ./proof_base.bend as P
@@ -10,6 +9,7 @@ import ./proof_run_text.bend as X
 import ./proof_run_dec.bend as D
 import ./proof_run_rec.bend as C
 import ./proof_run_rejudge.bend as J
+import ./tan.bend as Tan
 import ./proof_var.bend as PV
 
 # Each body line that does not stop run 1 is written as a line that run 2
@@ -312,7 +312,7 @@ def AT(+n: Nat, +body: String) -> B.At:
 # A normalized line.
 def nz.go(+fa: List<&2, B.Contig>, +o: B.Opts, +body: String, +term: String, +n: Nat, +raw: String,
   +ref: List<&2, B.Base>, +alts: List<&2, List<&2, B.Base>>, w: B.Var,
-  +ew: {Norm.var(B.Bases.of_fasta(raw), VV(body, ref, alts)) == w : B.Var},
+  +ew: {Tan.normal(B.Bases.of_fasta(raw), VV(body, ref, alts)) == w : B.Var},
   +em: {B.Rec.malformed(FS(body)) == False{} : Bool},
   +ef: {B.Fasta.find(fa, B.Rec.field(FS(body), 0n)) == Some{raw} : Maybe<&2, String>},
   +er: {B.Allele.read(B.Rec.field(FS(body), 3n)) == Some{ref} : Maybe<&2, List<&2, B.Base>>},
@@ -344,7 +344,7 @@ def nz.go(+fa: List<&2, B.Contig>, +o: B.Opts, +body: String, +term: String, +n:
       +k = Nat.sub(J.slen(fs), 8n)
       +hl = J.ge8(J.slen(fs), m1)
       +hvv = nz_valid(fs, seq, ref, alts, end1, em, er, ea, ec)
-      +htw = {(%ew : {Norm.var(seq, _) == _ : B.Var}; PV.twice(seq, v, hvv)) : {Norm.var(seq, W) == W : B.Var}}
+      +htw = {(%ew : {Tan.normal(seq, _) == _ : B.Var}; PV.twice(seq, v, hvv)) : {Tan.normal(seq, W) == W : B.Var}}
       +hv = {(%ew : {L.valid(seq, _) == True{} : Bool}; PV.stays_valid(seq, v, hvv)) : {L.valid(seq, W) == True{} : Bool}}
       +htab = X.pieces_noc(body, '\t')
       +hi2 = inf_noc(mv, info, q, s, y, '\t', C.field_noc(fs, 7n, '\t', htab), C.digits_noc(Nat.show(e2), '\t', D.show_digits(e2), {==}), {==})
@@ -407,7 +407,7 @@ def pl.problem(+fa: List<&2, B.Contig>, +o: B.Opts, +body: String, +term: String
     case Some{+k}:
       pl.pass(fa, o, body, term, n, L.res(B.Problem{k}, FS(body), body), ej, hg, hgo, {==}, {==})
     case None{}:
-      nz.go(fa, o, body, term, n, raw, ref, alts, Norm.var(B.Bases.of_fasta(raw), VV(body, ref, alts)), {==}, em, ef, er, ea, ec, hg)
+      nz.go(fa, o, body, term, n, raw, ref, alts, Tan.normal(B.Bases.of_fasta(raw), VV(body, ref, alts)), {==}, em, ef, er, ea, ec, hg)
 
 def pl.bases(+fa: List<&2, B.Contig>, +o: B.Opts, +body: String, +term: String, +n: Nat, +raw: String,
   r: Maybe<&2, List<&2, B.Base>>, +er: {B.Allele.read(B.Rec.field(FS(body), 3n)) == r : Maybe<&2, List<&2, B.Base>>},

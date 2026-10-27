@@ -1,6 +1,5 @@
 import Base
 import ./types.bend as B
-import ./norm.bend as Norm
 import ./LAWS.bend as L
 import ./proof_base.bend as P
 import ./proof_run_base.bend as Q
@@ -8,6 +7,7 @@ import ./proof_run_sort.bend as S
 import ./proof_run_text.bend as X
 import ./proof_run_dec.bend as D
 import ./proof_run_rec.bend as C
+import ./tan.bend as Tan
 import ./proof_var.bend as PV
 
 # A normalized line, rebuilt, is judged again: normalized, same POS, same
@@ -420,7 +420,7 @@ law rejudge:
   for +hi2: {X.no_c(i2, '\t') == True{} : Bool}
   for +hend: {B.Info.end_ok(i2, Nat.sub(Nat.add(q, L.len(s)), 1n)) == True{} : Bool}
   for +hv: {L.valid(B.Bases.of_fasta(raw), B.Var{q, s, y}) == True{} : Bool}
-  for +htw: {Norm.var(B.Bases.of_fasta(raw), B.Var{q, s, y}) == B.Var{q, s, y} : B.Var}
+  for +htw: {Tan.normal(B.Bases.of_fasta(raw), B.Var{q, s, y}) == B.Var{q, s, y} : B.Var}
   {L.judge(fa, String.join(fsA(fs, q, s, y, i2), "\t")) == RES(q, s, y, fsA(fs, q, s, y, i2)) : B.Res}
 
 def rejudge(fa, fs, raw, q, s, y, i2, k, hl, hf0, hfind, htab, hi2, hend, hv, htw):
@@ -484,7 +484,7 @@ def rejudge(fa, fs, raw, q, s, y, i2, k, hl, hf0, hfind, htab, hi2, hend, hv, ht
     {L.judge.bases(True{}, Some{s}, _, F, b2, seq) == R : B.Res}
   %Equal.sym(Nat, B.Rec.pos(F), q, pF) : {L.problem(L.checks(True{}, seq, B.Var{_, s, y}), F, b2, seq, B.Var{_, s, y}) == R : B.Res}
   %Equal.sym(Maybe<&2, B.Code>, L.checks(True{}, seq, W), None{}, C.checks_valid(seq, q, s, y, hv)) : {L.problem(_, F, b2, seq, W) == R : B.Res}
-  %Equal.sym(B.Var, Norm.var(seq, W), W, htw) : {B.Res{B.Normalized{}, L.pos_of(_), B.Rec.rebuild(F, W, _), B.Rec.stale(F, W, _)} == R : B.Res}
+  %Equal.sym(B.Var, Tan.normal(seq, W), W, htw) : {B.Res{B.Normalized{}, L.pos_of(_), B.Rec.rebuild(F, W, _), B.Rec.stale(F, W, _)} == R : B.Res}
   %Equal.sym(Bool, Nat.is_eq(q, q), True{}, P.eq_refl(q)) :
     {B.Res{B.Normalized{}, q, String.join(B.Rec.put(B.Rec.put(B.Rec.put(B.Rec.put(F, 1n, Nat.show(q)), 3n, B.Allele.show(s)), 4n, J(y)), 7n,
       B.Rec.info(Bool.not(Bool.and(_, Nat.is_eq(L.len(s), L.len(s)))), B.Rec.field(F, 7n), W)), "\t"), B.Rec.stale(F, W, W)} == R : B.Res}

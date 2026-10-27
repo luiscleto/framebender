@@ -1,7 +1,7 @@
 import Base
 import ./types.bend as B
 import ./protocol.bend as Pr
-import ./proof_window_defs.bend as WD
+import ./proof_window_defs.bend as WS
 import ./norm.bend as Norm
 import ./run.bend as R
 import ./LAWS.bend as L
@@ -12,15 +12,19 @@ import ./proof_machine_frame.bend as PF
 import ./proof_machine_fasta.bend as PFa
 import ./proof_machine_ask.bend as PA
 import ./proof_machine_win.bend as W
+import ./MACHINE.bend as M
 
-# The machine proof: driving the machine (L.drive) is the spec (L.run).
+# The machine proof: driving the machine (M.drive) is the spec (L.run).
 #
 # Between two driver steps the driver is in one of three states: More (the
 # machine waits for input, its queue empty), Ask (a line waits for a reference
 # read) or Finish. Good says what each state satisfies relative to a spec state
 # S: the machine's bookkeeping is S cleared, the driver collected S's out and
 # notes, and the report T is what the spec makes of the lines still to come
-# from S. need counts the driver steps left; every step lowers it.
+# from S. need counts the driver steps left; every step lowers it. The
+# machine asks one read at a time (Good is Empty for any other Ask), so a step
+# adds at most one to the driver's read counter, and reads + fuel never grows
+# (OkR): the reads stay within the bound too.
 
 # Definitions
 # ===========
@@ -69,7 +73,7 @@ def wupto(+l: B.Line) -> Nat:
   Nat.add(lpos(l), String.length(B.Rec.field(lfs(l), 3n)))
 
 def clen_of(+fa: List<&2, B.Contig>, +l: B.Line) -> Nat:
-  PFa.mlen(B.Fasta.find(fa, WD.chrom_of(B.Line.body(l))))
+  PFa.mlen(B.Fasta.find(fa, WS.chrom_of(B.Line.body(l))))
 
 # Reads a waiting line may still need after the one asked for: none once the
 # window starts at the contig's first letter.
@@ -88,15 +92,15 @@ def need.ask(+fa: List<&2, B.Contig>, +cc: Nat, st: Norm.St, e: Bool, +cs: List<
     case Norm.St{o, rs, pend, q, e2, Some{Norm.Pending{l, back, fs}}}:
       1n+Nat.add(asks0(fa, l, back), bud(cc, q, e, pend, cs))
 
-def need(+fa: List<&2, B.Contig>, +cc: Nat, d: L.DSt) -> Nat:
+def need(+fa: List<&2, B.Contig>, +cc: Nat, d: M.DSt) -> Nat:
   match d:
-    case L.DSt{st, nx, cs, e, out, notes, Some{c}}:
+    case M.DSt{st, nx, cs, e, rd, out, notes, Some{c}}:
       0n
-    case L.DSt{st, B.Finish{c}, cs, e, out, notes, None{}}:
+    case M.DSt{st, Pr.Finish{c}, cs, e, rd, out, notes, None{}}:
       1n
-    case L.DSt{st, B.More{}, cs, e, out, notes, None{}}:
+    case M.DSt{st, Pr.More{}, cs, e, rd, out, notes, None{}}:
       need.more(st, cc, e, cs)
-    case L.DSt{st, B.Ask{ch, a, b}, cs, e, out, notes, None{}}:
+    case M.DSt{st, Pr.Ask{qs}, cs, e, rd, out, notes, None{}}:
       need.ask(fa, cc, st, e, cs)
 
 def GoodM(+fa: List<&2, B.Contig>, +T: R.Report, +o: B.Opts, +rs: R.RunSt, +pend: String, +cs: List<&2, String>, +out: String, +notes: List<&2, B.Note>) -> Type:
@@ -169,29 +173,41 @@ def GA(+fa: List<&2, B.Contig>, +T: R.Report, st: Norm.St, +ch: String, +a: Nat,
                 case False{}:
                   GoodA(fa, T, o, rs, pend, q, l, back, fs, ch, a, b, cs, False{}, out, notes)
 
-def Good(+fa: List<&2, B.Contig>, +T: R.Report, d: L.DSt) -> Type:
+# The machine asks one read at a time.
+def GQ(+fa: List<&2, B.Contig>, +T: R.Report, +st: Norm.St, qs: List<&2, Pr.Req>, +cs: List<&2, String>, +e: Bool, +out: String, +notes: List<&2, B.Note>) -> Type:
+  match qs:
+    case Nil{}:
+      Empty
+    case Pr.Req{ch, a, b} <> t:
+      match t:
+        case Nil{}:
+          GA(fa, T, st, ch, a, b, cs, e, out, notes)
+        case x <> t2:
+          Empty
+
+def Good(+fa: List<&2, B.Contig>, +T: R.Report, d: M.DSt) -> Type:
   match d:
-    case L.DSt{st, nx, cs, e, out, notes, Some{c}}:
+    case M.DSt{st, nx, cs, e, rd, out, notes, Some{c}}:
       {R.Report{out, notes, c} == T : R.Report}
-    case L.DSt{st, B.Finish{c}, cs, e, out, notes, None{}}:
+    case M.DSt{st, Pr.Finish{c}, cs, e, rd, out, notes, None{}}:
       {R.Report{out, notes, c} == T : R.Report}
-    case L.DSt{st, B.More{}, cs, e, out, notes, None{}}:
+    case M.DSt{st, Pr.More{}, cs, e, rd, out, notes, None{}}:
       GM(fa, T, st, cs, e, out, notes)
-    case L.DSt{st, B.Ask{ch, a, b}, cs, e, out, notes, None{}}:
-      GA(fa, T, st, ch, a, b, cs, e, out, notes)
+    case M.DSt{st, Pr.Ask{qs}, cs, e, rd, out, notes, None{}}:
+      GQ(fa, T, st, qs, cs, e, out, notes)
 
 # A good state with at most bud driver steps left.
-def Ok(+fasta: String, +T: R.Report, +D: L.DSt, +bud: Nat) -> Type:
+def Ok(+fasta: String, +T: R.Report, +D: M.DSt, +bud: Nat) -> Type:
   Good(B.Fasta.parse(fasta), T, D) & {Nat.is_le(need(B.Fasta.parse(fasta), cost(fasta), D), bud) == True{} : Bool}
 
 # A good state after one driver step from a state with nb steps left.
-def StepOK(+fasta: String, +T: R.Report, +D: L.DSt, +nb: Nat) -> Type:
+def StepOK(+fasta: String, +T: R.Report, +D: M.DSt, +nb: Nat) -> Type:
   Good(B.Fasta.parse(fasta), T, D) & {Nat.is_le(1n+need(B.Fasta.parse(fasta), cost(fasta), D), nb) == True{} : Bool}
 
 # The driver state after pumping lines from a state with an empty wait.
 def PD(+o: B.Opts, +rsm: R.RunSt, +pend: String, +q: List<&2, B.Line>, +e: Bool, +outs: List<&2, String>, +ns: List<&2, B.Note>,
-  +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +f: Nat) -> L.DSt:
-  L.absorb(Norm.pump(f, Norm.advance(Norm.St{o, rsm, pend, q, e, None{}}), outs, ns), cs, e, O, N)
+  +cs: List<&2, String>, +rd: Nat, +O: String, +N: List<&2, B.Note>, +f: Nat) -> M.DSt:
+  M.absorb(Norm.pump(f, Norm.advance(Norm.St{o, rsm, pend, q, e, None{}}), outs, ns), cs, e, rd, O, N)
 
 # The machine's bookkeeping after a body line whose result is r.
 def bl(+r: B.Res, +o: B.Opts, +S: R.RunSt, +l: B.Line) -> R.RunSt:
@@ -208,7 +224,7 @@ def mstep(+fa: List<&2, B.Contig>, +o: B.Opts, +S: R.RunSt, +l: B.Line) -> R.Run
 law ok_weaken:
   for +fasta: String
   for +T: R.Report
-  for +D: L.DSt
+  for +D: M.DSt
   for +b1: Nat
   for +b2: Nat
   for ok: Ok(fasta, T, D, b1)
@@ -223,7 +239,7 @@ def ok_weaken(fasta, T, D, b1, b2, ok, h):
 law ok_step:
   for +fasta: String
   for +T: R.Report
-  for +D: L.DSt
+  for +D: M.DSt
   for +b: Nat
   for +nb: Nat
   for ok: Ok(fasta, T, D, b)
@@ -546,7 +562,7 @@ def askle.k(c, x, back, m, hx):
     case False{}:
       le_plus(Nat.sub(x, back), m, PN.le_trans(Nat.sub(x, back), x, m, sub_le(x, back), hx))
 
-# A line's reads fit in what L.bound allows per line.
+# A line's reads fit in what M.bound allows per line.
 law askle:
   for +fasta: String
   for +l: B.Line
@@ -555,7 +571,7 @@ law askle:
 
 def askle(fasta, l, back):
   askle.k(Nat.is_le(lpos(l), back), clen_of(B.Fasta.parse(fasta), l), back, String.length(fasta),
-    PFa.clen_le(fasta, WD.chrom_of(B.Line.body(l))))
+    PFa.clen_le(fasta, WS.chrom_of(B.Line.body(l))))
 
 # The end of the run
 # ==================
@@ -598,6 +614,7 @@ law fin_k:
   for +ns: List<&2, B.Note>
   for +cs: List<&2, String>
   for +e: Bool
+  for +rd: Nat
   for +O: String
   for +N: List<&2, B.Note>
   for +bd: Nat
@@ -605,9 +622,9 @@ law fin_k:
   for +hN: {List.append(&2, B.Note, N, Norm.notes_list(ns)) == sns : List<&2, B.Note>}
   for +hT: {T == R.finish.flush(f, so, sns, kc) : R.Report}
   for +hb: {Nat.is_le(1n, bd) == True{} : Bool}
-  Ok(fasta, T, L.absorb(Norm.finish.of(R.finish.flush(f, "", Nil{}, kc), st, outs, ns), cs, e, O, N), bd)
+  Ok(fasta, T, M.absorb(Norm.finish.of(R.finish.flush(f, "", Nil{}, kc), st, outs, ns), cs, e, rd, O, N), bd)
 
-def fin_k(fasta, T, st, f, kc, so, sns, outs, ns, cs, e, O, N, bd, hO, hN, hT, hb):
+def fin_k(fasta, T, st, f, kc, so, sns, outs, ns, cs, e, rd, O, N, bd, hO, hN, hT, hb):
   match f kc:
     case R.Broke{o2, bad, prev} _:
       +nt = {B.Stop{B.Unsorted{}, Some{bad}, prev} : B.Note}
@@ -629,8 +646,8 @@ def fin_k(fasta, T, st, f, kc, so, sns, outs, ns, cs, e, O, N, bd, hO, hN, hT, h
         Equal.sym(R.Report, T, R.Report{String.append(so, o2), List.append(&2, B.Note, sns, [nt]), 0n}, hT)), hb)
 
 def FING(+fasta: String, +T: R.Report, +o: B.Opts, +S: R.RunSt, +pend: String, +q: List<&2, B.Line>, +e: Bool, +w: Maybe<&2, Norm.Pending>,
-  +outs: List<&2, String>, +ns: List<&2, B.Note>, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +bd: Nat) -> Type:
-  Ok(fasta, T, L.absorb(Norm.finish(Norm.St{o, Norm.RunSt.clear(S), pend, q, e, w}, outs, ns), cs, e, O, N), bd)
+  +outs: List<&2, String>, +ns: List<&2, B.Note>, +cs: List<&2, String>, +rd: Nat, +O: String, +N: List<&2, B.Note>, +bd: Nat) -> Type:
+  Ok(fasta, T, M.absorb(Norm.finish(Norm.St{o, Norm.RunSt.clear(S), pend, q, e, w}, outs, ns), cs, e, rd, O, N), bd)
 
 # The machine finishing gives the spec's report.
 law fin_ok:
@@ -645,6 +662,7 @@ law fin_ok:
   for +outs: List<&2, String>
   for +ns: List<&2, B.Note>
   for +cs: List<&2, String>
+  for +rd: Nat
   for +O: String
   for +N: List<&2, B.Note>
   for +bd: Nat
@@ -653,9 +671,9 @@ law fin_ok:
   for +hg: {PF.good(S) == True{} : Bool}
   for +hT: {T == R.finish(S) : R.Report}
   for +hb: {Nat.is_le(1n, bd) == True{} : Bool}
-  FING(fasta, T, o, S, pend, q, e, w, outs, ns, cs, O, N, bd)
+  FING(fasta, T, o, S, pend, q, e, w, outs, ns, cs, rd, O, N, bd)
 
-def fin_ok(fasta, T, o, S, pend, q, e, w, outs, ns, cs, O, N, bd, hO, hN, hg, hT, hb):
+def fin_ok(fasta, T, o, S, pend, q, e, w, outs, ns, cs, rd, O, N, bd, hO, hN, hg, hT, hb):
   match S:
     case R.RunSt{n, i, h, c, ee, la, b, k, so, sns, True{}}:
       +ot = Norm.outs_text(outs)
@@ -680,28 +698,28 @@ def fin_ok(fasta, T, o, S, pend, q, e, w, outs, ns, cs, O, N, bd, hO, hN, hg, hT
           app3(N, nl, [nt], Nil{}, hN)),
         Equal.sym(R.Report, T, R.Report{"", [nt], 1n}, hT)), hb)
     case R.RunSt{n, False{}, h, c, ee, la, b, k, SCon{x1, x2}, sns, False{}}:
-      Empty.absurd(FING(fasta, T, o, R.RunSt{n, False{}, h, c, ee, la, b, k, SCon{x1, x2}, sns, False{}}, pend, q, e, w, outs, ns, cs, O, N, bd),
+      Empty.absurd(FING(fasta, T, o, R.RunSt{n, False{}, h, c, ee, la, b, k, SCon{x1, x2}, sns, False{}}, pend, q, e, w, outs, ns, cs, rd, O, N, bd),
         P.false_ne_true(hg))
     case R.RunSt{n, False{}, h, c, ee, la, b, k, SNil{}, y <> ys, False{}}:
-      Empty.absurd(FING(fasta, T, o, R.RunSt{n, False{}, h, c, ee, la, b, k, SNil{}, y <> ys, False{}}, pend, q, e, w, outs, ns, cs, O, N, bd),
+      Empty.absurd(FING(fasta, T, o, R.RunSt{n, False{}, h, c, ee, la, b, k, SNil{}, y <> ys, False{}}, pend, q, e, w, outs, ns, cs, rd, O, N, bd),
         P.false_ne_true(hg))
     case R.RunSt{n, True{}, h, c, ee, la, b, k, so, sns, False{}}:
       fin_k(fasta, T, Norm.St{o, R.RunSt{n, True{}, h, c, ee, la, b, k, "", Nil{}, False{}}, pend, q, e, w}, R.flush(b, la), k, so, sns,
-        outs, ns, cs, e, O, N, bd, hO, hN, hT, hb)
+        outs, ns, cs, e, rd, O, N, bd, hO, hN, hT, hb)
 
 # One body line through try_line
 # ==============================
 
 def TLG(+fasta: String, +T: R.Report, +o: B.Opts, +m: Maybe<&2, B.Res>, +l: B.Line, +back: Nat, +t: List<&2, B.Line>, +S: R.RunSt, +g: Nat,
-  +outs: List<&2, String>, +ns: List<&2, B.Note>, +pend: String, +cs: List<&2, String>, +e: Bool, +O: String, +N: List<&2, B.Note>, +K: Nat) -> Type:
-  Ok(fasta, T, L.absorb(Norm.pump(1n+g, Norm.try_line(m, o, Norm.RunSt.clear(S), l, B.Rec.fields(B.Line.body(l)), back, pend, t, e), outs, ns), cs, e, O, N),
+  +outs: List<&2, String>, +ns: List<&2, B.Note>, +pend: String, +cs: List<&2, String>, +e: Bool, +rd: Nat, +O: String, +N: List<&2, B.Note>, +K: Nat) -> Type:
+  Ok(fasta, T, M.absorb(Norm.pump(1n+g, Norm.try_line(m, o, Norm.RunSt.clear(S), l, B.Rec.fields(B.Line.body(l)), back, pend, t, e), outs, ns), cs, e, rd, O, N),
     Nat.add(K, bud(cost(fasta), t, e, pend, cs)))
 
 # The driver state after a body line handled with r: pump goes on with the
 # rest of the queue.
 def WD(+o: B.Opts, +rsm: R.RunSt, +M: R.RunSt, +pend: String, +t: List<&2, B.Line>, +e: Bool, +outs: List<&2, String>, +ns: List<&2, B.Note>,
-  +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +g: Nat) -> L.DSt:
-  PD(o, rsm, pend, t, e, Norm.RunSt.out(M) <> outs, Norm.rev_onto(Norm.RunSt.notes(M), ns), cs, O, N, g)
+  +cs: List<&2, String>, +rd: Nat, +O: String, +N: List<&2, B.Note>, +g: Nat) -> M.DSt:
+  PD(o, rsm, pend, t, e, Norm.RunSt.out(M) <> outs, Norm.rev_onto(Norm.RunSt.notes(M), ns), cs, rd, O, N, g)
 
 # A body line: with a result (which the window law says is judge's), pump
 # goes on as the spec (ih); without one, the machine asks for the window.
@@ -713,7 +731,7 @@ law TL:
   for +l: B.Line
   for +m: Maybe<&2, B.Res>
   for +hm: {Norm.judge_in(A, B.Line.body(l)) == m : Maybe<&2, B.Res>}
-  for +htr: {WD.truthful(B.Fasta.parse(fasta), WD.chrom_of(B.Line.body(l)), A) == True{} : Bool}
+  for +htr: {WS.truthful(B.Fasta.parse(fasta), WS.chrom_of(B.Line.body(l)), A) == True{} : Bool}
   for +back: Nat
   for +t: List<&2, B.Line>
   for +S: R.RunSt
@@ -723,6 +741,7 @@ law TL:
   for +pend: String
   for +cs: List<&2, String>
   for +e: Bool
+  for +rd: Nat
   for +O: String
   for +N: List<&2, B.Note>
   for +hO: {String.append(O, Norm.outs_text(outs)) == Norm.RunSt.out(S) : String}
@@ -735,20 +754,20 @@ law TL:
   for +K: Nat
   for hnone: {Norm.judge_in(A, B.Line.body(l)) == None{} : Maybe<&2, B.Res>} -> {Nat.is_le(1n+asks0(B.Fasta.parse(fasta), l, back), K) == True{} : Bool}
   for ih: Ok(fasta, T, WD(o, Norm.RunSt.clear(PF.pre(Norm.RunSt.out(S), Norm.RunSt.notes(S), mstep(B.Fasta.parse(fasta), o, S, l))),
-    mstep(B.Fasta.parse(fasta), o, S, l), pend, t, e, outs, ns, cs, O, N, g), bud(cost(fasta), t, e, pend, cs))
-  TLG(fasta, T, o, m, l, back, t, S, g, outs, ns, pend, cs, e, O, N, K)
+    mstep(B.Fasta.parse(fasta), o, S, l), pend, t, e, outs, ns, cs, rd, O, N, g), bud(cost(fasta), t, e, pend, cs))
+  TLG(fasta, T, o, m, l, back, t, S, g, outs, ns, pend, cs, e, rd, O, N, K)
 
-def TL(fasta, T, o, A, l, m, hm, htr, back, t, S, g, outs, ns, pend, cs, e, O, N, hO, hN, hg, hh, hi, hp, hT, K, hnone, ih):
+def TL(fasta, T, o, A, l, m, hm, htr, back, t, S, g, outs, ns, pend, cs, e, rd, O, N, hO, hN, hg, hh, hi, hp, hT, K, hnone, ih):
   match m:
     case Some{r}:
       +fa = B.Fasta.parse(fasta)
       +M1 = mstep(fa, o, S, l)
       +bt = bud(cost(fasta), t, e, pend, cs)
       %Equal.sym(B.Res, r, L.judge(fa, B.Line.body(l)), W.window(fa, B.Line.body(l), A, r, htr, hm)) :
-        Ok(fasta, T, WD(o, Norm.RunSt.clear(bl(_, o, S, l)), bl(_, o, S, l), pend, t, e, outs, ns, cs, O, N, g), Nat.add(K, bt))
+        Ok(fasta, T, WD(o, Norm.RunSt.clear(bl(_, o, S, l)), bl(_, o, S, l), pend, t, e, outs, ns, cs, rd, O, N, g), Nat.add(K, bt))
       %PF.clear_pre(Norm.RunSt.out(S), Norm.RunSt.notes(S), M1) :
-        Ok(fasta, T, WD(o, _, M1, pend, t, e, outs, ns, cs, O, N, g), Nat.add(K, bt))
-      ok_weaken(fasta, T, WD(o, Norm.RunSt.clear(PF.pre(Norm.RunSt.out(S), Norm.RunSt.notes(S), M1)), M1, pend, t, e, outs, ns, cs, O, N, g),
+        Ok(fasta, T, WD(o, _, M1, pend, t, e, outs, ns, cs, rd, O, N, g), Nat.add(K, bt))
+      ok_weaken(fasta, T, WD(o, Norm.RunSt.clear(PF.pre(Norm.RunSt.out(S), Norm.RunSt.notes(S), M1)), M1, pend, t, e, outs, ns, cs, rd, O, N, g),
         bt, Nat.add(K, bt), ih, PN.le_add_left(bt, K, bt, P.le_refl(bt)))
     case None{}:
       match e:
@@ -765,8 +784,8 @@ def TL(fasta, T, o, A, l, m, hm, htr, back, t, S, g, outs, ns, pend, cs, e, O, N
 # =======================================
 
 def PLG(+fasta: String, +T: R.Report, +o: B.Opts, +S: R.RunSt, +q: List<&2, B.Line>, +f: Nat, +outs: List<&2, String>, +ns: List<&2, B.Note>,
-  +pend: String, +cs: List<&2, String>, +e: Bool, +O: String, +N: List<&2, B.Note>) -> Type:
-  Ok(fasta, T, PD(o, Norm.RunSt.clear(S), pend, q, e, outs, ns, cs, O, N, f), bud(cost(fasta), q, e, pend, cs))
+  +pend: String, +cs: List<&2, String>, +e: Bool, +rd: Nat, +O: String, +N: List<&2, B.Note>) -> Type:
+  Ok(fasta, T, PD(o, Norm.RunSt.clear(S), pend, q, e, outs, ns, cs, rd, O, N, f), bud(cost(fasta), q, e, pend, cs))
 
 # Pumping the queue q from a machine whose bookkeeping is S cleared (with S's
 # out and notes collected before) ends in a good state, within the queue's
@@ -783,6 +802,7 @@ law PL:
   for +pend: String
   for +cs: List<&2, String>
   for +e: Bool
+  for +rd: Nat
   for +O: String
   for +N: List<&2, B.Note>
   for +hf: {Nat.is_le(1n+List.length(&2, B.Line, q), f) == True{} : Bool}
@@ -791,24 +811,24 @@ law PL:
   for +hg: {PF.good(S) == True{} : Bool}
   for +hp: {B.Text.lines(pend) == B.Text.last(pend) : List<&2, B.Line>}
   for +hT: {T == R.finish(L.run.go(List.append(&2, B.Line, q, rest_lines(e, pend, cs)), B.Fasta.parse(fasta), o, S)) : R.Report}
-  PLG(fasta, T, o, S, q, f, outs, ns, pend, cs, e, O, N)
+  PLG(fasta, T, o, S, q, f, outs, ns, pend, cs, e, rd, O, N)
 
-def PL(q, fasta, T, o, S, f, outs, ns, pend, cs, e, O, N, hf, hO, hN, hg, hp, hT):
+def PL(q, fasta, T, o, S, f, outs, ns, pend, cs, e, rd, O, N, hf, hO, hN, hg, hp, hT):
   match q S f:
     case _ _ 0n:
-      Empty.absurd(PLG(fasta, T, o, S, q, 0n, outs, ns, pend, cs, e, O, N), P.false_ne_true(hf))
+      Empty.absurd(PLG(fasta, T, o, S, q, 0n, outs, ns, pend, cs, e, rd, O, N), P.false_ne_true(hf))
     case _ R.RunSt{n, i, h, c, ee, la, b, k, so, sns, True{}} 1n+g:
       +Sl = {R.RunSt{n, i, h, c, ee, la, b, k, so, sns, True{}} : R.RunSt}
       +fa = B.Fasta.parse(fasta)
       +ls = List.append(&2, B.Line, q, rest_lines(e, pend, cs))
-      fin_ok(fasta, T, o, Sl, pend, q, e, None{}, outs, ns, cs, O, N, bud(cost(fasta), q, e, pend, cs), hO, hN, hg,
+      fin_ok(fasta, T, o, Sl, pend, q, e, None{}, outs, ns, cs, rd, O, N, bud(cost(fasta), q, e, pend, cs), hO, hN, hg,
         Equal.trans(R.Report, T, R.finish(L.run.go(ls, fa, o, Sl)), R.finish(Sl), hT,
           Equal.cong(R.RunSt, R.Report, x => R.finish(x), L.run.go(ls, fa, o, Sl), Sl, run_go_halted(ls, fa, o, Sl, {==}))),
         bud_pos(cost(fasta), q, e, pend, cs))
     case Nil{} R.RunSt{n, i, h, c, ee, la, b, k, so, sns, False{}} 1n+g:
       match e:
         case True{}:
-          fin_ok(fasta, T, o, R.RunSt{n, i, h, c, ee, la, b, k, so, sns, False{}}, pend, Nil{}, True{}, None{}, outs, ns, cs, O, N,
+          fin_ok(fasta, T, o, R.RunSt{n, i, h, c, ee, la, b, k, so, sns, False{}}, pend, Nil{}, True{}, None{}, outs, ns, cs, rd, O, N,
             bud(cost(fasta), Nil{}, True{}, pend, cs), hO, hN, hg, hT, bud_pos(cost(fasta), Nil{}, True{}, pend, cs))
         case False{}:
           ((R.RunSt{n, i, h, c, ee, la, b, k, so, sns, False{}}, ({==}, (hO, (hN, (hg, ({==}, (hp, hT))))))),
@@ -817,17 +837,17 @@ def PL(q, fasta, T, o, S, f, outs, ns, pend, cs, e, O, N, hf, hO, hN, hg, hp, hT
       +S0 = {R.RunSt{n, False{}, h, c, ee, la, b, k, "", Nil{}, False{}} : R.RunSt}
       +S1 = R.head_line(R.is_chrom_line(B.Line.body(l)), R.tick(S0), o, l)
       +cc = cost(fasta)
-      ih = PL(t, fasta, T, o, S1, g, Norm.RunSt.out(S1) <> outs, Norm.rev_onto(Norm.RunSt.notes(S1), ns), pend, cs, e, O, N,
+      ih = PL(t, fasta, T, o, S1, g, Norm.RunSt.out(S1) <> outs, Norm.rev_onto(Norm.RunSt.notes(S1), ns), pend, cs, e, rd, O, N,
         hf, HO(O, outs, Norm.RunSt.out(S1), "", hO), HN(N, ns, Norm.RunSt.notes(S1), Nil{}, hN),
         good_head(R.is_chrom_line(B.Line.body(l)), n, h, c, ee, la, b, k, o, l), hp, hT)
-      ok_weaken(fasta, T, WD(o, Norm.RunSt.clear(S1), S1, pend, t, e, outs, ns, cs, O, N, g),
+      ok_weaken(fasta, T, WD(o, Norm.RunSt.clear(S1), S1, pend, t, e, outs, ns, cs, rd, O, N, g),
         bud(cc, t, e, pend, cs), bud(cc, l <> t, e, pend, cs), ih,
         bud_cons(Nat.mul(List.length(&2, B.Line, t), cc), cc, rest_need(cc, e, pend, cs)))
     case l <> t R.RunSt{n, False{}, h, c, ee, la, b, k, SCon{x1, x2}, sns, False{}} 1n+g:
-      Empty.absurd(PLG(fasta, T, o, R.RunSt{n, False{}, h, c, ee, la, b, k, SCon{x1, x2}, sns, False{}}, l <> t, 1n+g, outs, ns, pend, cs, e, O, N),
+      Empty.absurd(PLG(fasta, T, o, R.RunSt{n, False{}, h, c, ee, la, b, k, SCon{x1, x2}, sns, False{}}, l <> t, 1n+g, outs, ns, pend, cs, e, rd, O, N),
         P.false_ne_true(hg))
     case l <> t R.RunSt{n, False{}, h, c, ee, la, b, k, SNil{}, y <> ys, False{}} 1n+g:
-      Empty.absurd(PLG(fasta, T, o, R.RunSt{n, False{}, h, c, ee, la, b, k, SNil{}, y <> ys, False{}}, l <> t, 1n+g, outs, ns, pend, cs, e, O, N),
+      Empty.absurd(PLG(fasta, T, o, R.RunSt{n, False{}, h, c, ee, la, b, k, SNil{}, y <> ys, False{}}, l <> t, 1n+g, outs, ns, pend, cs, e, rd, O, N),
         P.false_ne_true(hg))
     case l <> t R.RunSt{n, True{}, h, c, ee, la, b, k, so, sns, False{}} 1n+g:
       +fa = B.Fasta.parse(fasta)
@@ -838,7 +858,7 @@ def PL(q, fasta, T, o, S, f, outs, ns, pend, cs, e, O, N, hf, hO, hN, hg, hp, hT
       +cc = cost(fasta)
       +fs = B.Rec.fields(B.Line.body(l))
       +tc = R.tick(Norm.RunSt.clear(Sl))
-      ih = PL(t, fasta, T, o, S2, g, Norm.RunSt.out(M1) <> outs, Norm.rev_onto(Norm.RunSt.notes(M1), ns), pend, cs, e, O, N,
+      ih = PL(t, fasta, T, o, S2, g, Norm.RunSt.out(M1) <> outs, Norm.rev_onto(Norm.RunSt.notes(M1), ns), pend, cs, e, rd, O, N,
         hf,
         Equal.trans(String, String.append(O, Norm.outs_text(Norm.RunSt.out(M1) <> outs)), String.append(so, Norm.RunSt.out(M1)), Norm.RunSt.out(S2),
           HO(O, outs, Norm.RunSt.out(M1), so, hO),
@@ -855,9 +875,9 @@ def PL(q, fasta, T, o, S, f, outs, ns, pend, cs, e, O, N, hf, hO, hN, hg, hp, hT
           Equal.cong(R.RunSt, R.Report, x => R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, x)), L.line_step(fa, o, Sl, l), S2,
             LS_body(fa, o, Sl, l, {==}, {==}))))
       +jm = Norm.judge_in(None{}, B.Line.body(l))
-      ok_weaken(fasta, T, L.absorb(Norm.pump(1n+g, Norm.try_line(jm, o, Norm.RunSt.clear(Sl), l, B.Rec.fields(B.Line.body(l)), 100n, pend, t, e), outs, ns), cs, e, O, N),
+      ok_weaken(fasta, T, M.absorb(Norm.pump(1n+g, Norm.try_line(jm, o, Norm.RunSt.clear(Sl), l, B.Rec.fields(B.Line.body(l)), 100n, pend, t, e), outs, ns), cs, e, rd, O, N),
         Nat.add(cc, bud(cc, t, e, pend, cs)), bud(cc, l <> t, e, pend, cs),
-        TL(fasta, T, o, None{}, l, jm, {==}, {==}, 100n, t, Sl, g, outs, ns, pend, cs, e, O, N, hO, hN, hg, {==}, {==}, hp, hT, cc,
+        TL(fasta, T, o, None{}, l, jm, {==}, {==}, 100n, t, Sl, g, outs, ns, pend, cs, e, rd, O, N, hO, hN, hg, {==}, {==}, hp, hT, cc,
           x => askle(fasta, l, 100n), ih),
         bud_assoc(cc, Nat.mul(List.length(&2, B.Line, t), cc), rest_need(cc, e, pend, cs)))
 
@@ -885,8 +905,8 @@ law no_enough:
   for +l: B.Line
   for +A: Maybe<&2, Pr.Ans>
   for +hn: {Norm.judge_in(A, B.Line.body(l)) == None{} : Maybe<&2, B.Res>}
-  for +htr: {WD.truthful(B.Fasta.parse(fasta), WD.chrom_of(B.Line.body(l)), A) == True{} : Bool}
-  for +he: {WD.enough(B.Fasta.parse(fasta), B.Line.body(l), A) == True{} : Bool}
+  for +htr: {WS.truthful(B.Fasta.parse(fasta), WS.chrom_of(B.Line.body(l)), A) == True{} : Bool}
+  for +he: {WS.enough(B.Fasta.parse(fasta), B.Line.body(l), A) == True{} : Bool}
   Empty
 
 def no_enough(fasta, l, A, hn, htr, he):
@@ -897,10 +917,10 @@ law okz:
   for +l: B.Line
   for +back: Nat
   for +hle: {Nat.is_le(lpos(l), back) == True{} : Bool}
-  {PA.ans_ok(B.Fasta.find(fa, WD.chrom_of(B.Line.body(l))), A0(fa, l, back), wupto(l)) == True{} : Bool}
+  {PA.ans_ok(B.Fasta.find(fa, WS.chrom_of(B.Line.body(l))), A0(fa, l, back), wupto(l)) == True{} : Bool}
 
 def okz(fa, l, back, hle):
-  +m = B.Fasta.find(fa, WD.chrom_of(B.Line.body(l)))
+  +m = B.Fasta.find(fa, WS.chrom_of(B.Line.body(l)))
   %Equal.sym(Nat, wfrom(l, back), 0n, PA.sub_le_zero(lpos(l), back, hle)) :
     {PA.ans_ok(m, Some{M.truth.of(m, _, wupto(l))}, wupto(l)) == True{} : Bool}
   PA.ok_zero(m, wupto(l))
@@ -909,11 +929,11 @@ law okn:
   for +fa: List<&2, B.Contig>
   for +l: B.Line
   for +back: Nat
-  for +hm: {B.Fasta.find(fa, WD.chrom_of(B.Line.body(l))) == None{} : Maybe<&2, String>}
-  {PA.ans_ok(B.Fasta.find(fa, WD.chrom_of(B.Line.body(l))), A0(fa, l, back), wupto(l)) == True{} : Bool}
+  for +hm: {B.Fasta.find(fa, WS.chrom_of(B.Line.body(l))) == None{} : Maybe<&2, String>}
+  {PA.ans_ok(B.Fasta.find(fa, WS.chrom_of(B.Line.body(l))), A0(fa, l, back), wupto(l)) == True{} : Bool}
 
 def okn(fa, l, back, hm):
-  %Equal.sym(Maybe<&2, String>, B.Fasta.find(fa, WD.chrom_of(B.Line.body(l))), None{}, hm) :
+  %Equal.sym(Maybe<&2, String>, B.Fasta.find(fa, WS.chrom_of(B.Line.body(l))), None{}, hm) :
     {PA.ans_ok(_, Some{M.truth.of(_, wfrom(l, back), wupto(l))}, wupto(l)) == True{} : Bool}
   {==}
 
@@ -1016,7 +1036,7 @@ law askdec.b:
   for +l: B.Line
   for +back: Nat
   for +mf: Maybe<&2, String>
-  for +hm: {B.Fasta.find(B.Fasta.parse(fasta), WD.chrom_of(B.Line.body(l))) == mf : Maybe<&2, String>}
+  for +hm: {B.Fasta.find(B.Fasta.parse(fasta), WS.chrom_of(B.Line.body(l))) == mf : Maybe<&2, String>}
   for +hn: {Norm.judge_in(A0(B.Fasta.parse(fasta), l, back), B.Line.body(l)) == None{} : Maybe<&2, B.Res>}
   ADG(B.Fasta.parse(fasta), l, back)
 
@@ -1031,7 +1051,7 @@ def askdec.b(fasta, l, back, mf, hm, hn):
       +fa = B.Fasta.parse(fasta)
       +f = wfrom(l, back)
       +u = wupto(l)
-      %Equal.sym(Maybe<&2, String>, B.Fasta.find(fa, WD.chrom_of(B.Line.body(l))), Some{r}, hm) :
+      %Equal.sym(Maybe<&2, String>, B.Fasta.find(fa, WS.chrom_of(B.Line.body(l))), Some{r}, hm) :
         {Nat.is_le(1n+Bool.pick(Nat, Nat.is_le(lpos(l), Norm.grow(Some{M.truth.of(_, f, u)}, back, l)), 0n,
           Nat.add(Nat.sub(PFa.mlen(_), Norm.grow(Some{M.truth.of(_, f, u)}, back, l)), 1n)), Nat.add(Nat.sub(PFa.mlen(_), back), 1n)) == True{} : Bool}
       askdec.c(l, back, String.length(r), Nat.is_le(String.length(r), back), {==})
@@ -1054,7 +1074,7 @@ def askdec.a(fasta, l, back, le, hle, hn):
       Empty.absurd({Nat.is_le(1n+asks0(fa, l, Norm.grow(a, back, l)), 0n) == True{} : Bool},
         no_enough(fasta, l, a, hn, PA.truthful_truth(fa, wchrom(l), wfrom(l, back), wupto(l)), PA.E_main(fa, B.Line.body(l), a, okz(fa, l, back, hle))))
     case False{}:
-      askdec.b(fasta, l, back, B.Fasta.find(B.Fasta.parse(fasta), WD.chrom_of(B.Line.body(l))), {==}, hn)
+      askdec.b(fasta, l, back, B.Fasta.find(B.Fasta.parse(fasta), WS.chrom_of(B.Line.body(l))), {==}, hn)
 
 # A read that gives no result leaves fewer reads to come.
 law askdec:
@@ -1071,12 +1091,12 @@ def askdec(fasta, l, back, hn):
 # ===============================
 
 def AskG(+fasta: String, +T: R.Report, +o: B.Opts, +rs: R.RunSt, +pend: String, +q: List<&2, B.Line>, +e: Bool, +l: B.Line, +back: Nat, +fs: List<&2, String>,
-  +ch: String, +a: Nat, +b: Nat, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>) -> Type:
-  +d = {L.DSt{Norm.St{o, rs, pend, q, e, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, e, O, N, None{}} : L.DSt}
-  StepOK(fasta, T, L.dstep(B.Fasta.parse(fasta), d), need(B.Fasta.parse(fasta), cost(fasta), d))
+  +ch: String, +a: Nat, +b: Nat, +cs: List<&2, String>, +rd: Nat, +O: String, +N: List<&2, B.Note>) -> Type:
+  +d = {M.DSt{Norm.St{o, rs, pend, q, e, Some{Norm.Pending{l, back, fs}}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, e, rd, O, N, None{}} : M.DSt}
+  StepOK(fasta, T, M.dstep(B.Fasta.parse(fasta), d), need(B.Fasta.parse(fasta), cost(fasta), d))
 
-def AD(+f: Nat, +st: Norm.St, +a: Maybe<&2, Pr.Ans>, +cs: List<&2, String>, +e: Bool, +O: String, +N: List<&2, B.Note>) -> L.DSt:
-  L.absorb(Norm.pump(f, Norm.resolve(st, a), Nil{}, Nil{}), cs, e, O, N)
+def AD(+f: Nat, +st: Norm.St, +a: Maybe<&2, Pr.Ans>, +cs: List<&2, String>, +e: Bool, +rd: Nat, +O: String, +N: List<&2, B.Note>) -> M.DSt:
+  M.absorb(Norm.pump(f, Norm.resolve(st, a), Nil{}, Nil{}), cs, e, rd, O, N)
 
 law add2:
   for +x: Nat
@@ -1101,6 +1121,7 @@ law AS.k:
   for +l: B.Line
   for +back: Nat
   for +cs: List<&2, String>
+  for +rd: Nat
   for +O: String
   for +N: List<&2, B.Note>
   for +hO: {O == Norm.RunSt.out(S) : String}
@@ -1110,14 +1131,14 @@ law AS.k:
   for +hi: {R.RunSt.inbody(S) == True{} : Bool}
   for +hp: {B.Text.lines(pend) == B.Text.last(pend) : List<&2, B.Line>}
   for +hT: {T == R.finish(L.run.go(l <> List.append(&2, B.Line, q, rest_lines(e, pend, cs)), B.Fasta.parse(fasta), o, S)) : R.Report}
-  AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, B.Rec.fields(B.Line.body(l)), wchrom(l), wfrom(l, back), wupto(l), cs, O, N)
+  AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, B.Rec.fields(B.Line.body(l)), wchrom(l), wfrom(l, back), wupto(l), cs, rd, O, N)
 
-def AS.k(fasta, T, o, S, pend, q, e, l, back, cs, O, N, hO, hN, hg, hh, hi, hp, hT):
+def AS.k(fasta, T, o, S, pend, q, e, l, back, cs, rd, O, N, hO, hN, hg, hh, hi, hp, hT):
   +fa = B.Fasta.parse(fasta)
   +cc = cost(fasta)
   +a0 = A0(fa, l, back)
   +st = {Norm.St{o, Norm.RunSt.clear(S), pend, q, e, Some{Norm.Pending{l, back, B.Rec.fields(B.Line.body(l))}}} : Norm.St}
-  +d = {L.DSt{st, B.Ask{wchrom(l), wfrom(l, back), wupto(l)}, cs, e, O, N, None{}} : L.DSt}
+  +d = {M.DSt{st, Pr.Ask{Pr.Req{wchrom(l), wfrom(l, back), wupto(l)} <> Nil{}}, cs, e, rd, O, N, None{}} : M.DSt}
   +nb = need(fa, cc, d)
   +nq = List.length(&2, B.Line, q)
   +M1 = mstep(fa, o, S, l)
@@ -1125,9 +1146,10 @@ def AS.k(fasta, T, o, S, pend, q, e, l, back, cs, O, N, hO, hN, hg, hh, hi, hp, 
   +rest = rest_lines(e, pend, cs)
   +fs = B.Rec.fields(B.Line.body(l))
   +tc = R.tick(Norm.RunSt.clear(S))
+  +rd1 = Nat.add(rd, 1n)
   +hO1 = Equal.trans(String, String.append(O, ""), O, Norm.RunSt.out(S), PN.str_nil(O), hO)
   +hN1 = Equal.trans(List<&2, B.Note>, List.append(&2, B.Note, N, Nil{}), N, Norm.RunSt.notes(S), P.append_nil(B.Note, N), hN)
-  ih = PL(q, fasta, T, o, S2, 1n+nq, Norm.RunSt.out(M1) <> Nil{}, Norm.rev_onto(Norm.RunSt.notes(M1), Nil{}), pend, cs, e, O, N,
+  ih = PL(q, fasta, T, o, S2, 1n+nq, Norm.RunSt.out(M1) <> Nil{}, Norm.rev_onto(Norm.RunSt.notes(M1), Nil{}), pend, cs, e, rd1, O, N,
     P.le_refl(1n+nq),
     Equal.trans(String, String.append(O, Norm.outs_text(Norm.RunSt.out(M1) <> Nil{})), String.append(Norm.RunSt.out(S), Norm.RunSt.out(M1)), Norm.RunSt.out(S2),
       HO(O, Nil{}, Norm.RunSt.out(M1), Norm.RunSt.out(S), hO1),
@@ -1146,13 +1168,13 @@ def AS.k(fasta, T, o, S, pend, q, e, l, back, cs, O, N, hO, hN, hg, hh, hi, hp, 
       R.finish(L.run.go(List.append(&2, B.Line, q, rest), fa, o, S2)), hT,
       Equal.cong(R.RunSt, R.Report, x => R.finish(L.run.go(List.append(&2, B.Line, q, rest), fa, o, x)), L.line_step(fa, o, S, l), S2,
         LS_body(fa, o, S, l, hh, hi))))
-  %Equal.sym(Nat, Nat.add(nq, 2n), 2n+nq, add2(nq)) : StepOK(fasta, T, AD(_, st, a0, cs, e, O, N), nb)
+  %Equal.sym(Nat, Nat.add(nq, 2n), 2n+nq, add2(nq)) : StepOK(fasta, T, AD(_, st, a0, cs, e, rd1, O, N), nb)
   +jm = Norm.judge_in(a0, B.Line.body(l))
   +g2 = Norm.grow(a0, back, l)
   +k0 = asks0(fa, l, back)
-  ok_step(fasta, T, L.absorb(Norm.pump(2n+nq, Norm.try_line(jm, o, Norm.RunSt.clear(S), l, B.Rec.fields(B.Line.body(l)), g2, pend, q, e), Nil{}, Nil{}), cs, e, O, N),
+  ok_step(fasta, T, M.absorb(Norm.pump(2n+nq, Norm.try_line(jm, o, Norm.RunSt.clear(S), l, B.Rec.fields(B.Line.body(l)), g2, pend, q, e), Nil{}, Nil{}), cs, e, rd1, O, N),
     Nat.add(k0, bud(cc, q, e, pend, cs)), nb,
-    TL(fasta, T, o, a0, l, jm, {==}, PA.truthful_truth(fa, wchrom(l), wfrom(l, back), wupto(l)), g2, q, S, 1n+nq, Nil{}, Nil{}, pend, cs, e, O, N,
+    TL(fasta, T, o, a0, l, jm, {==}, PA.truthful_truth(fa, wchrom(l), wfrom(l, back), wupto(l)), g2, q, S, 1n+nq, Nil{}, Nil{}, pend, cs, e, rd1, O, N,
       hO1, hN1, hg, hh, hi, hp, hT, k0, hn => askdec(fasta, l, back, hn), ih),
     P.le_refl(nb))
 
@@ -1170,32 +1192,33 @@ law AS:
   for +a: Nat
   for +b: Nat
   for +cs: List<&2, String>
+  for +rd: Nat
   for +O: String
   for +N: List<&2, B.Note>
   for +fs: List<&2, String>
   for ga: GoodA(B.Fasta.parse(fasta), T, o, rs, pend, q, l, back, fs, ch, a, b, cs, e, O, N)
-  AskG(fasta, T, o, rs, pend, q, e, l, back, fs, ch, a, b, cs, O, N)
+  AskG(fasta, T, o, rs, pend, q, e, l, back, fs, ch, a, b, cs, rd, O, N)
 
-def AS(fasta, T, o, rs, pend, q, e, l, back, ch, a, b, cs, O, N, fs, ga):
+def AS(fasta, T, o, rs, pend, q, e, l, back, ch, a, b, cs, rd, O, N, fs, ga):
   match ga:
     case (S, (hrs, (hO, (hN, (hg, (hh, (hi, (hfs, (hch, (ha, (hb, (hp, hT)))))))))))):
-      %Equal.sym(R.RunSt, rs, Norm.RunSt.clear(S), hrs) : AskG(fasta, T, o, _, pend, q, e, l, back, fs, ch, a, b, cs, O, N)
-      %Equal.sym(List<&2, String>, fs, B.Rec.fields(B.Line.body(l)), hfs) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, _, ch, a, b, cs, O, N)
-      %Equal.sym(String, ch, wchrom(l), hch) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, B.Rec.fields(B.Line.body(l)), _, a, b, cs, O, N)
-      %Equal.sym(Nat, a, wfrom(l, back), ha) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, B.Rec.fields(B.Line.body(l)), wchrom(l), _, b, cs, O, N)
-      %Equal.sym(Nat, b, wupto(l), hb) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, B.Rec.fields(B.Line.body(l)), wchrom(l), wfrom(l, back), _, cs, O, N)
-      AS.k(fasta, T, o, S, pend, q, e, l, back, cs, O, N, hO, hN, hg, hh, hi, hp, hT)
+      %Equal.sym(R.RunSt, rs, Norm.RunSt.clear(S), hrs) : AskG(fasta, T, o, _, pend, q, e, l, back, fs, ch, a, b, cs, rd, O, N)
+      %Equal.sym(List<&2, String>, fs, B.Rec.fields(B.Line.body(l)), hfs) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, _, ch, a, b, cs, rd, O, N)
+      %Equal.sym(String, ch, wchrom(l), hch) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, B.Rec.fields(B.Line.body(l)), _, a, b, cs, rd, O, N)
+      %Equal.sym(Nat, a, wfrom(l, back), ha) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, B.Rec.fields(B.Line.body(l)), wchrom(l), _, b, cs, rd, O, N)
+      %Equal.sym(Nat, b, wupto(l), hb) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, B.Rec.fields(B.Line.body(l)), wchrom(l), wfrom(l, back), _, cs, rd, O, N)
+      AS.k(fasta, T, o, S, pend, q, e, l, back, cs, rd, O, N, hO, hN, hg, hh, hi, hp, hT)
 
 # A driver step from a More state
 # ===============================
 
-def MoreG(+fasta: String, +T: R.Report, +o: B.Opts, +rs: R.RunSt, +pend: String, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>) -> Type:
-  +d = {L.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, B.More{}, cs, False{}, O, N, None{}} : L.DSt}
-  StepOK(fasta, T, L.dstep(B.Fasta.parse(fasta), d), need(B.Fasta.parse(fasta), cost(fasta), d))
+def MoreG(+fasta: String, +T: R.Report, +o: B.Opts, +rs: R.RunSt, +pend: String, +cs: List<&2, String>, +rd: Nat, +O: String, +N: List<&2, B.Note>) -> Type:
+  +d = {M.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, Pr.More{}, cs, False{}, rd, O, N, None{}} : M.DSt}
+  StepOK(fasta, T, M.dstep(B.Fasta.parse(fasta), d), need(B.Fasta.parse(fasta), cost(fasta), d))
 
-def CD(+fv: Norm.Fed, +o: B.Opts, +rs: R.RunSt, +t: List<&2, String>, +O: String, +N: List<&2, B.Note>) -> L.DSt:
+def CD(+fv: Norm.Fed, +o: B.Opts, +rs: R.RunSt, +t: List<&2, String>, +rd: Nat, +O: String, +N: List<&2, B.Note>) -> M.DSt:
   +st = {Norm.St{o, rs, "", Nil{}, False{}, None{}} : Norm.St}
-  L.absorb(Norm.pump(Norm.St.fuel(Norm.feed.put(fv, st)), Norm.advance(Norm.feed.put(fv, st)), Nil{}, Nil{}), t, False{}, O, N)
+  M.absorb(Norm.pump(Norm.St.fuel(Norm.feed.put(fv, st)), Norm.advance(Norm.feed.put(fv, st)), Nil{}, Nil{}), t, False{}, rd, O, N)
 
 law le_s2:
   for +x: Nat
@@ -1261,6 +1284,7 @@ law MS.k:
   for +S: R.RunSt
   for +pend: String
   for +cs: List<&2, String>
+  for +rd: Nat
   for +O: String
   for +N: List<&2, B.Note>
   for +hO: {O == Norm.RunSt.out(S) : String}
@@ -1268,9 +1292,9 @@ law MS.k:
   for +hg: {PF.good(S) == True{} : Bool}
   for +hp: {B.Text.lines(pend) == B.Text.last(pend) : List<&2, B.Line>}
   for +hT: {T == R.finish(L.run.go(B.Text.lines(String.append(pend, String.concat(cs))), B.Fasta.parse(fasta), o, S)) : R.Report}
-  MoreG(fasta, T, o, Norm.RunSt.clear(S), pend, cs, O, N)
+  MoreG(fasta, T, o, Norm.RunSt.clear(S), pend, cs, rd, O, N)
 
-def MS.k(fasta, T, o, S, pend, cs, O, N, hO, hN, hg, hp, hT):
+def MS.k(fasta, T, o, S, pend, cs, rd, O, N, hO, hN, hg, hp, hT):
   match cs:
     case Nil{}:
       +fa = B.Fasta.parse(fasta)
@@ -1280,9 +1304,9 @@ def MS.k(fasta, T, o, S, pend, cs, O, N, hO, hN, hg, hp, hT):
         Equal.cong(String, List<&2, B.Line>, s => B.Text.lines(s), String.append(pend, ""), pend, PN.str_nil(pend)), hp)
       +hq2 = Equal.trans(List<&2, B.Line>, B.Text.lines(String.append(pend, "")), q, List.append(&2, B.Line, q, Nil{}), hq,
         Equal.sym(List<&2, B.Line>, List.append(&2, B.Line, q, Nil{}), q, P.append_nil(B.Line, q)))
-      ok_step(fasta, T, PD(o, Norm.RunSt.clear(S), "", q, True{}, Nil{}, Nil{}, Nil{}, O, N, Nat.add(List.length(&2, B.Line, q), 2n)),
+      ok_step(fasta, T, PD(o, Norm.RunSt.clear(S), "", q, True{}, Nil{}, Nil{}, Nil{}, rd, O, N, Nat.add(List.length(&2, B.Line, q), 2n)),
         bud(cc, q, True{}, "", Nil{}), rest_need(cc, False{}, pend, Nil{}),
-        PL(q, fasta, T, o, S, Nat.add(List.length(&2, B.Line, q), 2n), Nil{}, Nil{}, "", Nil{}, True{}, O, N,
+        PL(q, fasta, T, o, S, Nat.add(List.length(&2, B.Line, q), 2n), Nil{}, Nil{}, "", Nil{}, True{}, rd, O, N,
           le_s2(List.length(&2, B.Line, q)),
           Equal.trans(String, String.append(O, ""), O, Norm.RunSt.out(S), PN.str_nil(O), hO),
           Equal.trans(List<&2, B.Note>, List.append(&2, B.Note, N, Nil{}), N, Norm.RunSt.notes(S), P.append_nil(B.Note, N), hN),
@@ -1306,10 +1330,10 @@ def MS.k(fasta, T, o, S, pend, cs, O, N, hO, hN, hg, hp, hT):
         Equal.cong(String, List<&2, B.Line>, s => B.Text.lines(s), String.append(pend, String.append(c, ct)), String.append(x, ct),
           Equal.sym(String, String.append(x, ct), String.append(pend, String.append(c, ct)), PN.str_assoc(pend, c, ct))),
         PL.L1(x, ct))
-      %Equal.sym(Norm.Fed, Norm.feed.start(PL.split(x)), Norm.Fed{fl, fr}, PL.L2(x)) : StepOK(fasta, T, CD(_, o, Norm.RunSt.clear(S), t, O, N), nb)
-      ok_step(fasta, T, PD(o, Norm.RunSt.clear(S), fr, fl, False{}, Nil{}, Nil{}, t, O, N, Nat.add(List.length(&2, B.Line, fl), 2n)),
+      %Equal.sym(Norm.Fed, Norm.feed.start(PL.split(x)), Norm.Fed{fl, fr}, PL.L2(x)) : StepOK(fasta, T, CD(_, o, Norm.RunSt.clear(S), t, rd, O, N), nb)
+      ok_step(fasta, T, PD(o, Norm.RunSt.clear(S), fr, fl, False{}, Nil{}, Nil{}, t, rd, O, N, Nat.add(List.length(&2, B.Line, fl), 2n)),
         bud(cc, fl, False{}, fr, t), nb,
-        PL(fl, fasta, T, o, S, Nat.add(List.length(&2, B.Line, fl), 2n), Nil{}, Nil{}, fr, t, False{}, O, N,
+        PL(fl, fasta, T, o, S, Nat.add(List.length(&2, B.Line, fl), 2n), Nil{}, Nil{}, fr, t, False{}, rd, O, N,
           le_s2(List.length(&2, B.Line, fl)),
           Equal.trans(String, String.append(O, ""), O, Norm.RunSt.out(S), PN.str_nil(O), hO),
           Equal.trans(List<&2, B.Note>, List.append(&2, B.Note, N, Nil{}), N, Norm.RunSt.notes(S), P.append_nil(B.Note, N), hN),
@@ -1332,30 +1356,123 @@ law MS:
   for +rs: R.RunSt
   for +pend: String
   for +cs: List<&2, String>
+  for +rd: Nat
   for +O: String
   for +N: List<&2, B.Note>
   for gm: GoodM(B.Fasta.parse(fasta), T, o, rs, pend, cs, O, N)
-  MoreG(fasta, T, o, rs, pend, cs, O, N)
+  MoreG(fasta, T, o, rs, pend, cs, rd, O, N)
 
-def MS(fasta, T, o, rs, pend, cs, O, N, gm):
+def MS(fasta, T, o, rs, pend, cs, rd, O, N, gm):
   match gm:
     case (S, (hrs, (hO, (hN, (hg, (hh, (hp, hT))))))):
-      %Equal.sym(R.RunSt, rs, Norm.RunSt.clear(S), hrs) : MoreG(fasta, T, o, _, pend, cs, O, N)
-      MS.k(fasta, T, o, S, pend, cs, O, N, hO, hN, hg, hp, hT)
+      %Equal.sym(R.RunSt, rs, Norm.RunSt.clear(S), hrs) : MoreG(fasta, T, o, _, pend, cs, rd, O, N)
+      MS.k(fasta, T, o, S, pend, cs, rd, O, N, hO, hN, hg, hp, hT)
+
+# The reads so far
+# ================
+
+def reads(d: M.DSt) -> Nat:
+  match d:
+    case M.DSt{st, nx, cs, e, rd, out, notes, dn}:
+      rd
+
+law le_succ_self:
+  for +x: Nat
+  {Nat.is_le(x, 1n+x) == True{} : Bool}
+
+def le_succ_self(x):
+  PN.le_succ_r(x, x, P.le_refl(x))
+
+law le_drop0:
+  for +x: Nat
+  for +lim: Nat
+  for +h: {Nat.is_le(Nat.add(x, 0n), lim) == True{} : Bool}
+  {Nat.is_le(x, lim) == True{} : Bool}
+
+def le_drop0(x, lim, h):
+  %P.add_zero(x) : {Nat.is_le(_, lim) == True{} : Bool}
+  h
+
+# One more read, and one step less.
+law reads_step:
+  for +r2: Nat
+  for +r: Nat
+  for +f: Nat
+  for +lim: Nat
+  for +h1: {Nat.is_le(r2, 1n+r) == True{} : Bool}
+  for +h2: {Nat.is_le(Nat.add(r, 1n+f), lim) == True{} : Bool}
+  {Nat.is_le(Nat.add(r2, f), lim) == True{} : Bool}
+
+def reads_step(r2, r, f, lim, h1, h2):
+  PN.le_trans(Nat.add(r2, f), Nat.add(1n+r, f), lim, P.le_add(r2, 1n+r, f, f, h1, P.le_refl(f)),
+    (%P.add_succ(r, f) : {Nat.is_le(_, lim) == True{} : Bool}; h2))
+
+law absorb_le:
+  for +s: Norm.Step
+  for +cs: List<&2, String>
+  for +e: Bool
+  for +rd: Nat
+  for +out: String
+  for +notes: List<&2, B.Note>
+  {Nat.is_le(reads(M.absorb(s, cs, e, rd, out, notes)), 1n+rd) == True{} : Bool}
+
+def absorb_le(s, cs, e, rd, out, notes):
+  match s:
+    case Norm.Step{st, o, ns, nx}:
+      le_succ_self(rd)
+
+# A step on More makes no read.
+law more_le:
+  for +cs: List<&2, String>
+  for +e: Bool
+  for +st: Norm.St
+  for +rd: Nat
+  for +out: String
+  for +notes: List<&2, B.Note>
+  {Nat.is_le(reads(M.dstep.more(cs, e, st, rd, out, notes)), 1n+rd) == True{} : Bool}
+
+def more_le(cs, e, st, rd, out, notes):
+  match cs e:
+    case Nil{} True{}:
+      le_succ_self(rd)
+    case Nil{} False{}:
+      absorb_le(Norm.step(st, Pr.Eof{}), Nil{}, True{}, rd, out, notes)
+    case c <> t _:
+      absorb_le(Norm.step(st, Pr.Chunk{c}), t, e, rd, out, notes)
+
+# A step on an Ask of one read makes one read.
+law ask_le:
+  for +s: Norm.Step
+  for +cs: List<&2, String>
+  for +e: Bool
+  for +rd: Nat
+  for +out: String
+  for +notes: List<&2, B.Note>
+  {Nat.is_le(reads(M.absorb(s, cs, e, Nat.add(rd, 1n), out, notes)), 1n+rd) == True{} : Bool}
+
+def ask_le(s, cs, e, rd, out, notes):
+  match s:
+    case Norm.Step{st, o, ns, nx}:
+      %Equal.sym(Nat, Nat.add(rd, 1n), 1n+rd, P.add_one(rd)) : {Nat.is_le(_, 1n+rd) == True{} : Bool}
+      P.le_refl(1n+rd)
 
 # Driving: every step keeps the state good and lowers need
 # ========================================================
 
-def STG(+fasta: String, +T: R.Report, +d: L.DSt, +f: Nat) -> Type:
-  +d2 = L.dstep(B.Fasta.parse(fasta), d)
+def STG(+fasta: String, +T: R.Report, +d: M.DSt, +f: Nat) -> Type:
+  +d2 = M.dstep(B.Fasta.parse(fasta), d)
   Good(B.Fasta.parse(fasta), T, d2) & {Nat.is_le(need(B.Fasta.parse(fasta), cost(fasta), d2), f) == True{} : Bool}
+
+# STG, and the step made at most one read.
+def STR(+fasta: String, +T: R.Report, +d: M.DSt, +f: Nat) -> Type:
+  STG(fasta, T, d, f) & {Nat.is_le(reads(M.dstep(B.Fasta.parse(fasta), d)), 1n+reads(d)) == True{} : Bool}
 
 law step_from:
   for +fasta: String
   for +T: R.Report
-  for +d: L.DSt
+  for +d: M.DSt
   for +f: Nat
-  for so: StepOK(fasta, T, L.dstep(B.Fasta.parse(fasta), d), need(B.Fasta.parse(fasta), cost(fasta), d))
+  for so: StepOK(fasta, T, M.dstep(B.Fasta.parse(fasta), d), need(B.Fasta.parse(fasta), cost(fasta), d))
   for +hb: {Nat.is_le(need(B.Fasta.parse(fasta), cost(fasta), d), 1n+f) == True{} : Bool}
   STG(fasta, T, d, f)
 
@@ -1364,111 +1481,152 @@ def step_from(fasta, T, d, f, so, hb):
     case (g2, e2):
       +fa = B.Fasta.parse(fasta)
       +cc = cost(fasta)
-      (g2, PN.le_trans(1n+need(fa, cc, L.dstep(fa, d)), need(fa, cc, d), 1n+f, e2, hb))
+      (g2, PN.le_trans(1n+need(fa, cc, M.dstep(fa, d)), need(fa, cc, d), 1n+f, e2, hb))
 
 law STEP:
   for +fasta: String
   for +T: R.Report
-  for +d: L.DSt
+  for +d: M.DSt
   for +f: Nat
   for g: Good(B.Fasta.parse(fasta), T, d)
   for +hb: {Nat.is_le(need(B.Fasta.parse(fasta), cost(fasta), d), 1n+f) == True{} : Bool}
-  STG(fasta, T, d, f)
+  STR(fasta, T, d, f)
 
 def STEP(fasta, T, d, f, g, hb):
   match d:
-    case L.DSt{st, nx, cs, e, out, notes, Some{c}}:
-      (g, P.le_zero_l(f))
-    case L.DSt{st, B.Finish{c}, cs, e, out, notes, None{}}:
-      (g, P.le_zero_l(f))
-    case L.DSt{Norm.St{o, rs, pend, x <> t, e2, w}, B.More{}, cs, e, out, notes, None{}}:
+    case M.DSt{st, nx, cs, e, rd, out, notes, Some{c}}:
+      ((g, P.le_zero_l(f)), le_succ_self(rd))
+    case M.DSt{st, Pr.Finish{c}, cs, e, rd, out, notes, None{}}:
+      ((g, P.le_zero_l(f)), le_succ_self(rd))
+    case M.DSt{Norm.St{o, rs, pend, x <> t, e2, w}, Pr.More{}, cs, e, rd, out, notes, None{}}:
       match g:
-    case L.DSt{Norm.St{o, rs, pend, Nil{}, True{}, w}, B.More{}, cs, e, out, notes, None{}}:
+    case M.DSt{Norm.St{o, rs, pend, Nil{}, True{}, w}, Pr.More{}, cs, e, rd, out, notes, None{}}:
       match g:
-    case L.DSt{Norm.St{o, rs, pend, Nil{}, False{}, Some{p}}, B.More{}, cs, e, out, notes, None{}}:
+    case M.DSt{Norm.St{o, rs, pend, Nil{}, False{}, Some{p}}, Pr.More{}, cs, e, rd, out, notes, None{}}:
       match g:
-    case L.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, B.More{}, cs, True{}, out, notes, None{}}:
+    case M.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, Pr.More{}, cs, True{}, rd, out, notes, None{}}:
       match g:
-    case L.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, B.More{}, cs, False{}, out, notes, None{}}:
-      step_from(fasta, T, L.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, B.More{}, cs, False{}, out, notes, None{}}, f,
-        MS(fasta, T, o, rs, pend, cs, out, notes, g), hb)
-    case L.DSt{Norm.St{o, rs, pend, q, True{}, None{}}, B.Ask{ch, a, b}, cs, e, out, notes, None{}}:
+    case M.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, Pr.More{}, cs, False{}, rd, out, notes, None{}}:
+      (step_from(fasta, T, M.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, Pr.More{}, cs, False{}, rd, out, notes, None{}}, f,
+        MS(fasta, T, o, rs, pend, cs, rd, out, notes, g), hb),
+        more_le(cs, False{}, Norm.St{o, rs, pend, Nil{}, False{}, None{}}, rd, out, notes))
+    case M.DSt{st, Pr.Ask{Nil{}}, cs, e, rd, out, notes, None{}}:
       match g:
-    case L.DSt{Norm.St{o, rs, pend, q, True{}, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, True{}, out, notes, None{}}:
-      step_from(fasta, T, L.DSt{Norm.St{o, rs, pend, q, True{}, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, True{}, out, notes, None{}}, f,
-        AS(fasta, T, o, rs, pend, q, True{}, l, back, ch, a, b, cs, out, notes, fs, g), hb)
-    case L.DSt{Norm.St{o, rs, pend, q, True{}, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, False{}, out, notes, None{}}:
+    case M.DSt{st, Pr.Ask{Pr.Req{c1, a1, b1} <> y <> t}, cs, e, rd, out, notes, None{}}:
       match g:
-    case L.DSt{Norm.St{o, rs, pend, q, False{}, None{}}, B.Ask{ch, a, b}, cs, e, out, notes, None{}}:
+    case M.DSt{Norm.St{o, rs, pend, q, True{}, None{}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, e, rd, out, notes, None{}}:
       match g:
-    case L.DSt{Norm.St{o, rs, pend, q, False{}, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, True{}, out, notes, None{}}:
+    case M.DSt{Norm.St{o, rs, pend, q, True{}, Some{Norm.Pending{l, back, fs}}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, True{}, rd, out, notes, None{}}:
+      +st = {Norm.St{o, rs, pend, q, True{}, Some{Norm.Pending{l, back, fs}}} : Norm.St}
+      (step_from(fasta, T, M.DSt{st, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, True{}, rd, out, notes, None{}}, f,
+        AS(fasta, T, o, rs, pend, q, True{}, l, back, ch, a, b, cs, rd, out, notes, fs, g), hb),
+        ask_le(Norm.step(st, Pr.Ref{M.truths(B.Fasta.parse(fasta), Pr.Req{ch, a, b} <> Nil{})}), cs, True{}, rd, out, notes))
+    case M.DSt{Norm.St{o, rs, pend, q, True{}, Some{Norm.Pending{l, back, fs}}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, False{}, rd, out, notes, None{}}:
       match g:
-    case L.DSt{Norm.St{o, rs, pend, q, False{}, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, False{}, out, notes, None{}}:
-      step_from(fasta, T, L.DSt{Norm.St{o, rs, pend, q, False{}, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, False{}, out, notes, None{}}, f,
-        AS(fasta, T, o, rs, pend, q, False{}, l, back, ch, a, b, cs, out, notes, fs, g), hb)
+    case M.DSt{Norm.St{o, rs, pend, q, False{}, None{}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, e, rd, out, notes, None{}}:
+      match g:
+    case M.DSt{Norm.St{o, rs, pend, q, False{}, Some{Norm.Pending{l, back, fs}}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, True{}, rd, out, notes, None{}}:
+      match g:
+    case M.DSt{Norm.St{o, rs, pend, q, False{}, Some{Norm.Pending{l, back, fs}}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, False{}, rd, out, notes, None{}}:
+      +st = {Norm.St{o, rs, pend, q, False{}, Some{Norm.Pending{l, back, fs}}} : Norm.St}
+      (step_from(fasta, T, M.DSt{st, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, False{}, rd, out, notes, None{}}, f,
+        AS(fasta, T, o, rs, pend, q, False{}, l, back, ch, a, b, cs, rd, out, notes, fs, g), hb),
+        ask_le(Norm.step(st, Pr.Ref{M.truths(B.Fasta.parse(fasta), Pr.Req{ch, a, b} <> Nil{})}), cs, False{}, rd, out, notes))
 
-def ZG(+T: R.Report, +d: L.DSt) -> Type:
-  {L.result(d) == Some{T} : Maybe<&2, R.Report>}
+def ZG(+T: R.Report, +d: M.DSt, +lim: Nat) -> Type:
+  {M.result(d, lim) == Some{T} : Maybe<&2, R.Report>}
 
-# Out of steps, a good state has stopped with the spec's report.
+# Out of steps, a good state has stopped with the spec's report (within the
+# reads allowed).
 law Z:
   for +fasta: String
   for +T: R.Report
-  for +d: L.DSt
+  for +d: M.DSt
+  for +lim: Nat
   for g: Good(B.Fasta.parse(fasta), T, d)
   for +hb: {Nat.is_le(need(B.Fasta.parse(fasta), cost(fasta), d), 0n) == True{} : Bool}
-  ZG(T, d)
+  for +hr: {Nat.is_le(reads(d), lim) == True{} : Bool}
+  ZG(T, d, lim)
 
-def Z(fasta, T, d, g, hb):
+def Z(fasta, T, d, lim, g, hb, hr):
   match d:
-    case L.DSt{st, nx, cs, e, out, notes, Some{c}}:
+    case M.DSt{st, nx, cs, e, rd, out, notes, Some{c}}:
+      %Equal.sym(Bool, Nat.is_le(rd, lim), True{}, hr) : {M.result.if(_, R.Report{out, notes, c}) == Some{T} : Maybe<&2, R.Report>}
       Equal.cong(R.Report, Maybe<&2, R.Report>, x => Some{x}, R.Report{out, notes, c}, T, g)
-    case L.DSt{st, B.Finish{c}, cs, e, out, notes, None{}}:
-      Empty.absurd(ZG(T, L.DSt{st, B.Finish{c}, cs, e, out, notes, None{}}), P.false_ne_true(hb))
-    case L.DSt{Norm.St{o, rs, pend, x <> t, e2, w}, B.More{}, cs, e, out, notes, None{}}:
-      match g:
-    case L.DSt{Norm.St{o, rs, pend, Nil{}, True{}, w}, B.More{}, cs, e, out, notes, None{}}:
-      match g:
-    case L.DSt{Norm.St{o, rs, pend, Nil{}, False{}, Some{p}}, B.More{}, cs, e, out, notes, None{}}:
-      match g:
-    case L.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, B.More{}, cs, True{}, out, notes, None{}}:
-      match g:
-    case L.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, B.More{}, cs, False{}, out, notes, None{}}:
-      Empty.absurd(ZG(T, L.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, B.More{}, cs, False{}, out, notes, None{}}), P.false_ne_true(hb))
-    case L.DSt{Norm.St{o, rs, pend, q, True{}, None{}}, B.Ask{ch, a, b}, cs, e, out, notes, None{}}:
-      match g:
-    case L.DSt{Norm.St{o, rs, pend, q, True{}, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, True{}, out, notes, None{}}:
-      Empty.absurd(ZG(T, L.DSt{Norm.St{o, rs, pend, q, True{}, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, True{}, out, notes, None{}}),
+    case M.DSt{st, Pr.Finish{c}, cs, e, rd, out, notes, None{}}:
+      Empty.absurd(ZG(T, M.DSt{st, Pr.Finish{c}, cs, e, rd, out, notes, None{}}, lim),
         P.false_ne_true(hb))
-    case L.DSt{Norm.St{o, rs, pend, q, True{}, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, False{}, out, notes, None{}}:
+    case M.DSt{Norm.St{o, rs, pend, x <> t, e2, w}, Pr.More{}, cs, e, rd, out, notes, None{}}:
       match g:
-    case L.DSt{Norm.St{o, rs, pend, q, False{}, None{}}, B.Ask{ch, a, b}, cs, e, out, notes, None{}}:
+    case M.DSt{Norm.St{o, rs, pend, Nil{}, True{}, w}, Pr.More{}, cs, e, rd, out, notes, None{}}:
       match g:
-    case L.DSt{Norm.St{o, rs, pend, q, False{}, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, True{}, out, notes, None{}}:
+    case M.DSt{Norm.St{o, rs, pend, Nil{}, False{}, Some{p}}, Pr.More{}, cs, e, rd, out, notes, None{}}:
       match g:
-    case L.DSt{Norm.St{o, rs, pend, q, False{}, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, False{}, out, notes, None{}}:
-      Empty.absurd(ZG(T, L.DSt{Norm.St{o, rs, pend, q, False{}, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, False{}, out, notes, None{}}),
+    case M.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, Pr.More{}, cs, True{}, rd, out, notes, None{}}:
+      match g:
+    case M.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, Pr.More{}, cs, False{}, rd, out, notes, None{}}:
+      Empty.absurd(ZG(T, M.DSt{Norm.St{o, rs, pend, Nil{}, False{}, None{}}, Pr.More{}, cs, False{}, rd, out, notes, None{}}, lim),
+        P.false_ne_true(hb))
+    case M.DSt{st, Pr.Ask{Nil{}}, cs, e, rd, out, notes, None{}}:
+      match g:
+    case M.DSt{st, Pr.Ask{Pr.Req{c1, a1, b1} <> y <> t}, cs, e, rd, out, notes, None{}}:
+      match g:
+    case M.DSt{Norm.St{o, rs, pend, q, True{}, None{}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, e, rd, out, notes, None{}}:
+      match g:
+    case M.DSt{Norm.St{o, rs, pend, q, True{}, Some{Norm.Pending{l, back, fs}}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, True{}, rd, out, notes, None{}}:
+      Empty.absurd(ZG(T, M.DSt{Norm.St{o, rs, pend, q, True{}, Some{Norm.Pending{l, back, fs}}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, True{}, rd, out, notes, None{}}, lim),
+        P.false_ne_true(hb))
+    case M.DSt{Norm.St{o, rs, pend, q, True{}, Some{Norm.Pending{l, back, fs}}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, False{}, rd, out, notes, None{}}:
+      match g:
+    case M.DSt{Norm.St{o, rs, pend, q, False{}, None{}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, e, rd, out, notes, None{}}:
+      match g:
+    case M.DSt{Norm.St{o, rs, pend, q, False{}, Some{Norm.Pending{l, back, fs}}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, True{}, rd, out, notes, None{}}:
+      match g:
+    case M.DSt{Norm.St{o, rs, pend, q, False{}, Some{Norm.Pending{l, back, fs}}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, False{}, rd, out, notes, None{}}:
+      Empty.absurd(ZG(T, M.DSt{Norm.St{o, rs, pend, q, False{}, Some{Norm.Pending{l, back, fs}}}, Pr.Ask{Pr.Req{ch, a, b} <> Nil{}}, cs, False{}, rd, out, notes, None{}}, lim),
         P.false_ne_true(hb))
 
-# Driving a good state with enough fuel gives the spec's report.
+# A good state with at most bud driver steps left, whose reads plus bud stay
+# within lim.
+def OkR(+fasta: String, +T: R.Report, +D: M.DSt, +bud: Nat, +lim: Nat) -> Type:
+  Ok(fasta, T, D, bud) & {Nat.is_le(Nat.add(reads(D), bud), lim) == True{} : Bool}
+
+law step_ok:
+  for +fasta: String
+  for +T: R.Report
+  for +d: M.DSt
+  for +f: Nat
+  for +lim: Nat
+  for sr: STR(fasta, T, d, f)
+  for +hr: {Nat.is_le(Nat.add(reads(d), 1n+f), lim) == True{} : Bool}
+  OkR(fasta, T, M.dstep(B.Fasta.parse(fasta), d), f, lim)
+
+def step_ok(fasta, T, d, f, lim, sr, hr):
+  match sr:
+    case (sg, h1):
+      (sg, reads_step(reads(M.dstep(B.Fasta.parse(fasta), d)), reads(d), f, lim, h1, hr))
+
+# Driving a good state with enough fuel gives the spec's report; each step
+# makes at most one read, so the reads stay within lim.
 law drive_good:
   for +fuel: Nat
   for +fasta: String
   for +T: R.Report
-  for +d: L.DSt
-  for gh: Ok(fasta, T, d, fuel)
-  {L.result(L.drive(fuel, B.Fasta.parse(fasta), d)) == Some{T} : Maybe<&2, R.Report>}
+  for +d: M.DSt
+  for +lim: Nat
+  for gh: OkR(fasta, T, d, fuel, lim)
+  {M.result(M.drive(fuel, B.Fasta.parse(fasta), d), lim) == Some{T} : Maybe<&2, R.Report>}
 
-def drive_good(fuel, fasta, T, d, gh):
+def drive_good(fuel, fasta, T, d, lim, gh):
   match fuel:
     case 0n:
       match gh:
-        case (g, hb):
-          Z(fasta, T, d, g, hb)
+        case ((g, hb), hr):
+          Z(fasta, T, d, lim, g, hb, le_drop0(reads(d), lim, hr))
     case 1n+f:
       match gh:
-        case (g, hb):
-          drive_good(f, fasta, T, L.dstep(B.Fasta.parse(fasta), d), STEP(fasta, T, d, f, g, hb))
+        case ((g, hb), hr):
+          drive_good(f, fasta, T, M.dstep(B.Fasta.parse(fasta), d), lim, step_ok(fasta, T, d, f, lim, STEP(fasta, T, d, f, g, hb), hr))
 
 # The start
 # =========
@@ -1504,8 +1662,8 @@ law start_ok:
   for +vcf: String
   for +cs: List<&2, String>
   for +h: {String.concat(cs) == vcf : String}
-  Ok(fasta, L.run(fasta, vcf, o), L.DSt{Norm.St{o, R.start_st(), "", Nil{}, False{}, None{}}, B.More{}, cs, False{}, "", Nil{}, None{}},
-    L.bound(fasta, vcf, cs))
+  Ok(fasta, L.run(fasta, vcf, o), M.DSt{Norm.St{o, R.start_st(), "", Nil{}, False{}, None{}}, Pr.More{}, cs, False{}, 0n, "", Nil{}, None{}},
+    M.bound(fasta, vcf, cs))
 
 def start_ok(o, fasta, vcf, cs, h):
   +fa = B.Fasta.parse(fasta)
