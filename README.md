@@ -71,11 +71,13 @@ GIAB HG002, `-c w`, 32 threads (details and history in `NOTES.md`, Q5):
 
 | input | bcftools norm 1.24 | framebender |
 |---|---|---|
-| chr22 (50,284 records, 35 MB) | 0.08 s | 4.7 s |
-| whole genome (4,048,342 records, 2.8 GB), to a file | 7.4 s | 595 s |
+| chr22 (50,284 records, 35 MB) | 0.08 s | 4.5 s |
+| whole genome (4,048,342 records, 2.8 GB), to a file | 7.4-8.0 s | 586-595 s |
 
-framebender is far slower: text is processed as linked lists of characters. The implementation is
-free to change as long as every law stays proven, which is how it went from 31.7 s to 4.7 s on chr22
+framebender is far slower: text is processed as linked lists of characters, judging lines in
+parallel scaled to only about 4 threads in prototypes, and long runs slow down as the runtime's heap
+loses locality. The implementation is
+free to change as long as every law stays proven, which is how it went from 31.7 s to 4.5 s on chr22
 with byte-identical output.
 
 ## Building and checking
