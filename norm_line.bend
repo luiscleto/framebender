@@ -2,6 +2,8 @@ import Base
 import ./types.bend as B
 import ./protocol.bend as P
 import ./tan.bend as V
+import ../lawful-bytes/defs.bend as D
+import ../lawful-bytes/bytes.bend as BY
 
 # framebender: the result for one body line, reading the reference through a
 # window (code, not spec). The normalizer is the spec's (tan.bend, V.var_in on
@@ -158,20 +160,37 @@ def found(end_ok: Bool, r: Maybe<&2, List<&2, B.Base>>, a: Maybe<&2, List<&2, Li
     case True{} _ _:
       Some{mk(B.Problem{B.NonAcgtn{}}, fs, body)}
 
+# The bases of a packed reference answer: B.Bases.of_fasta of its text
+# (bytes_enc.bend's text), one byte at a time.
+def bases.go(xs: List<&2, U32>) -> List<&2, B.Base>:
+  match xs:
+    case Nil{}:
+      Nil{}
+    case Con{x, t}:
+      B.Base.of_fasta(Chr{x}) <> bases.go(t)
+
+def bases.k(r: D.Bytes & List<&2, U32>) -> List<&2, B.Base>:
+  (b, xs) = r
+  bases.go(xs)
+
+def bases(raw: D.Bytes) -> List<&2, B.Base>:
+  D.Bytes{+n, buf} = raw
+  bases.k(BY.to_list(D.Bytes{n, buf}, 0, n))
+
 # a: what the reference answered (None: nothing was read yet).
-def judge_in.ans(a: Maybe<&2, P.Ans>, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
+def judge_in.ans(a: Maybe<&1, P.Ans>, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
   match a:
     case None{}:
       None{}
     case Some{P.Unknown{}}:
       Some{mk(B.NoContig{}, fs, body)}
     case Some{P.Known{+clen, +off, raw}}:
-      +bases = B.Bases.of_fasta(raw)
+      +bases = bases(raw)
       +ref = B.Rec.field(fs, 3n)
       e = Nat.sub(Nat.add(B.Rec.pos(fs), String.length(ref)), 1n)
       found(end_ok(B.Rec.field(fs, 7n), e), B.Allele.read(ref), B.Alleles.read(B.Rec.alts(fs)), clen, off, bases, fs, body)
 
-def judge_in.go(bad: Bool, skip: Bool, a: Maybe<&2, P.Ans>, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
+def judge_in.go(bad: Bool, skip: Bool, a: Maybe<&1, P.Ans>, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
   match bad skip:
     case True{} _:
       Some{mk(B.Broken{}, fs, body)}
@@ -181,13 +200,13 @@ def judge_in.go(bad: Bool, skip: Bool, a: Maybe<&2, P.Ans>, +fs: List<&2, String
       judge_in.ans(a, fs, body)
 
 # judge_in with the line's fields already split (fs = B.Rec.fields(body)).
-def judge_fs(a: Maybe<&2, P.Ans>, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
+def judge_fs(a: Maybe<&1, P.Ans>, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
   judge_in.go(B.Rec.malformed(fs), B.Rec.out_of_scope(fs), a, fs, body)
 
 # The result for one body line (its text without terminator), given what the
 # reference answered for the line's CHROM (None: nothing read); None when the
 # answer is not enough (the machine then asks for more).
-def judge_in(a: Maybe<&2, P.Ans>, +body: String) -> Maybe<&2, B.Res>:
+def judge_in(a: Maybe<&1, P.Ans>, +body: String) -> Maybe<&2, B.Res>:
   judge_fs(a, B.Rec.fields(body), body)
 
 # ---------------------------------------------------------------------------
@@ -427,7 +446,7 @@ def fast.found(end_ok: Bool, r: Maybe<&2, List<&2, B.Base>>, a: Maybe<&2, List<&
     case True{} _ _:
       fast.res(B.Problem{B.NonAcgtn{}}, pos, body)
 
-def fast.ans(a: Maybe<&2, P.Ans>, +pos: Nat, +f1: String, +f3: String, +f4: String, f7: String, alts: List<&2, String>, +body: String) -> Fast:
+def fast.ans(a: Maybe<&1, P.Ans>, +pos: Nat, +f1: String, +f3: String, +f4: String, f7: String, alts: List<&2, String>, +body: String) -> Fast:
   match a:
     case None{}:
       Other{None{}}
@@ -435,9 +454,9 @@ def fast.ans(a: Maybe<&2, P.Ans>, +pos: Nat, +f1: String, +f3: String, +f4: Stri
       fast.res(B.NoContig{}, pos, body)
     case Some{P.Known{+clen, +off, raw}}:
       e = Nat.sub(Nat.add(pos, String.length(f3)), 1n)
-      fast.found(end_ok(f7, e), B.Allele.read(f3), B.Alleles.read(alts), clen, off, B.Bases.of_fasta(raw), pos, f1, f3, f4, body)
+      fast.found(end_ok(f7, e), B.Allele.read(f3), B.Alleles.read(alts), clen, off, bases(raw), pos, f1, f3, f4, body)
 
-def fast.go(bad: Bool, skip: Bool, a: Maybe<&2, P.Ans>, +fs: List<&2, String>, +body: String) -> Fast:
+def fast.go(bad: Bool, skip: Bool, a: Maybe<&1, P.Ans>, +fs: List<&2, String>, +body: String) -> Fast:
   match bad skip:
     case True{} _:
       fast.res(B.Broken{}, B.Rec.pos(fs), body)
@@ -446,5 +465,5 @@ def fast.go(bad: Bool, skip: Bool, a: Maybe<&2, P.Ans>, +fs: List<&2, String>, +
     case False{} False{}:
       fast.ans(a, B.Rec.pos(fs), B.Rec.field(fs, 1n), B.Rec.field(fs, 3n), B.Rec.field(fs, 4n), B.Rec.field(fs, 7n), B.Rec.alts(fs), body)
 
-def fast(a: Maybe<&2, P.Ans>, +fs: List<&2, String>, +body: String) -> Fast:
+def fast(a: Maybe<&1, P.Ans>, +fs: List<&2, String>, +body: String) -> Fast:
   fast.go(B.Rec.malformed(fs), B.Rec.out_of_scope(fs), a, fs, body)

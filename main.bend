@@ -2,6 +2,7 @@ import Base
 import ./types.bend as B
 import ./protocol.bend as P
 import ./norm.bend as Norm
+import ../lawful-bytes/defs.bend as D
 
 # framebender: the driver (trusted, not proven; see the comment on law machine
 # in MACHINE.bend).
@@ -20,7 +21,9 @@ import ./norm.bend as Norm
 #   (a byte the .fai layout does not explain: a space or tab, a CR not just
 #   before LF, a line break out of place), ".fai index does not match <path>"
 #   (fewer letters read than the .fai promises), "FASTA read too large <path>"
-#   (one read of 4 GiB or more).
+#   (a read of more than 2^31 letters, which the program never asks for: a
+#   packed buffer holds at most 2^31 bytes; any smaller window is read, its
+#   bytes on disk, line breaks included, in parts).
 # Arguments, paths and all output are bytes, copied exactly.
 
 type Fai is Data:
@@ -35,21 +38,29 @@ type Io is Type:
 # of bytes to an inherited descriptor (1: stdout, 2: stderr)
 # ---------------------------------------------------------------------------
 
-def Io.pread_full(file: File, hi: U32, lo: U32, n: U32) -> IO(File & Result<&1, &1, U32 & String, List<&2, U32>>):
+# Read the next piece of a file, up to max bytes, packed (n, block) as
+# bytes_enc.bend's enc; n = 0 at the end of the file.
+def Io.read_block(file: File, max: U32) -> IO(File & Result<&1, &1, U32 & String, U32 & Array<U32>>):
+  import "./io64.c"
+  import "./io64.js"
+
+# Read the shi * 2^32 + slo bytes of the FASTA at offset hi * 2^32 + lo (in
+# parts), whose first byte is at column col of a line layout of lb letters
+# per line, lw bytes per line;
+# answers (code, (n, block)): code 0 when every byte fits the layout and
+# exactly want letters were read (packed as enc), 1 when a byte does not
+# fit, 2 when the count differs.
+def Io.fa_read(file: File, hi: U32, lo: U32, shi: U32, slo: U32, col: U32, lb: U32, lw: U32, want: U32) -> IO(File & Result<&1, &1, U32 & String, U32 & (U32 & Array<U32>)>):
+  import "./io64.c"
+  import "./io64.js"
+
+# Write the first n bytes of a block to an inherited descriptor (1: stdout);
+# answers 0 or an errno.
+def Io.write_block(fd: U32, n: U32, a: Array<U32>) -> IO(U32):
   import "./io64.c"
   import "./io64.js"
 
 def Io.write_fd(fd: U32, data: List<&2, U32>) -> IO(Result<&1, &1, U32 & String, Unit>):
-  import "./io64.c"
-  import "./io64.js"
-
-# Read up to max bytes as a String, one Char per byte.
-def Io.read_str(file: File, max: U32) -> IO(File & Result<&1, &1, U32 & String, String>):
-  import "./io64.c"
-  import "./io64.js"
-
-# Write a String of Chars 0-255 as bytes, one per Char.
-def Io.write_str(fd: U32, s: String) -> IO(Result<&1, &1, U32 & String, Unit>):
   import "./io64.c"
   import "./io64.js"
 
@@ -104,8 +115,26 @@ def or_die?(-A: Type, r: Result<&1, &1, U32 & String, A>, what: String) -> IO(A)
 
 def put?(fd: U32, s: String) -> IO(Unit):
   do IO<Unit>:
-    r : Result<&1, &1, U32 & String, Unit> <- Io.write_str(fd, s)
+    r : Result<&1, &1, U32 & String, Unit> <- Io.write_fd(fd, str_bytes(s))
     or_die(Unit, r, "cannot write")
+
+def put_code?(c: U32) -> IO(Unit):
+  put_ok(U32.is_zero(c))
+
+def put_ok?(ok: Bool) -> IO(Unit):
+  match ok:
+    case True{}:
+      IO.pure(Unit, Unit{})
+    case False{}:
+      die(Unit, "cannot write")
+
+# Write an output buffer's bytes (D.view) to stdout.
+def put_bytes?(b: D.Bytes) -> IO(Unit):
+  match b:
+    case D.Bytes{n, a}:
+      do IO<Unit>:
+        c : U32 <- Io.write_block(1, n, a)
+        put_code(c)
 
 def notes_text?(ns: List<&2, B.Note>) -> String:
   match ns:
@@ -227,73 +256,46 @@ def fai_at?(+e: Fai, +i: Nat) -> Nat:
 # Answering a reference read
 # ---------------------------------------------------------------------------
 
-def letters.put?(skip: Bool, b: U32, rest: String) -> String:
-  match skip:
-    case True{}:
-      rest
-    case False{}:
-      SCon{Chr{b}, rest}
+def answer.k?(p: File & Result<&1, &1, U32 & String, U32 & (U32 & Array<U32>)>, +ref: String, +n: Nat, +a: Nat) -> IO(File & P.Ans):
+  match p:
+    case (fa, Fail{e}):
+      die(File & P.Ans, "cannot read " ++ ref)
+    case (fa, Done{(c, (k, blk))}):
+      answer.check(c, ref, fa, P.Known{n, a, D.Bytes{k, blk}})
 
-# The bytes read, without line breaks.
-def letters?(bs: List<&2, U32>) -> String:
-  match bs:
-    case Nil{}:
-      SNil{}
-    case +b <> t:
-      letters.put(U32.is_eq(b, 10) || U32.is_eq(b, 13), b, letters(t))
+def answer.check?(+c: U32, +ref: String, fa: File, ans: P.Ans) -> IO(File & P.Ans):
+  answer.check.go(U32.is_eq(c, 0), U32.is_eq(c, 1), ref, fa, ans)
 
-# Byte b at column col of a line of the .fai layout (lb letters, then the
-# line break: LF, or CR LF when lw = lb + 2) is where the layout puts it.
-def fits.byte?(+b: U32, +col: Nat, +lb: Nat, +lw: Nat) -> Bool:
-  Bool.pick(Bool, U32.is_eq(b, 10), Nat.is_eq(Nat.add(col, 1n), lw),
-  Bool.pick(Bool, U32.is_eq(b, 13), Nat.is_eq(col, lb) && Nat.is_eq(lw, Nat.add(lb, 2n)),
-  Bool.not(U32.is_eq(b, 32) || U32.is_eq(b, 9)) && Nat.is_lt(col, lb)))
-
-# Every byte read from file offset x on fits the layout of the contig that
-# starts at off.
-def fits?(bs: List<&2, U32>, +x: Nat, +off: Nat, +lb: Nat, +lw: Nat) -> Bool:
-  match bs:
-    case Nil{}:
-      True{}
-    case +b <> t:
-      fits.byte(b, Nat.mod(Nat.sub(x, off), lw), lb, lw) && fits(t, 1n+x, off, lb, lw)
-
-def answer.check?(fit: Bool, full: Bool, +ref: String, fa: File, ans: P.Ans) -> IO(File & P.Ans):
-  match fit full:
-    case False{} _:
-      die(File & P.Ans, "unsupported FASTA " ++ ref)
-    case True{} False{}:
-      die(File & P.Ans, ".fai index does not match " ++ ref)
-    case True{} True{}:
+def answer.check.go?(ok: Bool, bad: Bool, +ref: String, fa: File, ans: P.Ans) -> IO(File & P.Ans):
+  match ok bad:
+    case True{} _:
       IO.pure(File & P.Ans, (fa, ans))
-
-def answer.k?(p: File & Result<&1, &1, U32 & String, List<&2, U32>>, +ref: String, +f: Fai, +a: Nat, +b: Nat, +o0: Nat) -> IO(File & P.Ans):
-  match p f:
-    case (fa, r) Fai{+n, +off, +lb, +lw}:
-      do IO<File & P.Ans>:
-        +bs : List<&2, U32> <- or_die(List<&2, U32>, r, "cannot read " ++ ref)
-        +s : String = letters(bs)
-        answer.check(fits(bs, o0, off, lb, lw), Nat.is_eq(String.length(s), Nat.sub(b, a)), ref, fa, P.Known{n, a, s})
+    case False{} True{}:
+      die(File & P.Ans, "unsupported FASTA " ++ ref)
+    case False{} False{}:
+      die(File & P.Ans, ".fai index does not match " ++ ref)
 
 def answer.read.go?(small: Bool, fa: File, +ref: String, +f: Fai, +a2: Nat, +b2: Nat, +o0: Nat, +span: Nat) -> IO(File & P.Ans):
-  match small:
-    case False{}:
+  match small f:
+    case False{} _:
       die(File & P.Ans, "FASTA read too large " ++ ref)
-    case True{}:
+    case True{} Fai{+n, off, +lb, +lw}:
       do IO<File & P.Ans>:
-        p : File & Result<&1, &1, U32 & String, List<&2, U32>> <- Io.pread_full(fa, U32.from_nat(Nat.div(o0, two32())), U32.from_nat(Nat.mod(o0, two32())), U32.from_nat(span))
-        answer.k(p, ref, f, a2, b2, o0)
+        p : File & Result<&1, &1, U32 & String, U32 & (U32 & Array<U32>)> <- Io.fa_read(fa, U32.from_nat(Nat.div(o0, two32())), U32.from_nat(Nat.mod(o0, two32())), U32.from_nat(Nat.div(span, two32())), U32.from_nat(Nat.mod(span, two32())), U32.from_nat(Nat.mod(a2, lb)), U32.from_nat(lb), U32.from_nat(lw), U32.from_nat(Nat.sub(b2, a2)))
+        answer.k(p, ref, n, a2)
 
-# Read letters a2 .. b2 - 1 of contig f (a2 < b2 <= its length).
+# Read letters a2 .. b2 - 1 of contig f (a2 < b2 <= its length, at most 2^31
+# letters): the bytes from the .fai offset of letter a2 up to that of letter
+# b2.
 def answer.read?(fa: File, +ref: String, +f: Fai, +a2: Nat, +b2: Nat) -> IO(File & P.Ans):
   +o0 = fai_at(f, a2)
   +o1 = fai_at(f, b2)
-  answer.read.go(Nat.is_lt(Nat.sub(o1, o0), two32()), fa, ref, f, a2, b2, o0, Nat.sub(o1, o0))
+  answer.read.go(Nat.is_le(Nat.sub(b2, a2), 2147483648n), fa, ref, f, a2, b2, o0, Nat.sub(o1, o0))
 
 def answer.span?(some: Bool, fa: File, +ref: String, +f: Fai, +a2: Nat, +b2: Nat) -> IO(File & P.Ans):
   match some f:
     case False{} Fai{n, off, lb, lw}:
-      IO.pure(File & P.Ans, (fa, P.Known{n, a2, ""}))
+      IO.pure(File & P.Ans, (fa, P.Known{n, a2, D.Bytes{0, Array.new(U32, 0n, 0)}}))
     case True{} _:
       answer.read(fa, ref, f, a2, b2)
 
@@ -310,25 +312,25 @@ def answer.got?(got: Map<&2, Maybe<&2, Fai>> & Maybe<&2, Fai>, fa: File, +ref: S
         q : File & P.Ans <- answer.span(Nat.is_lt(a2, b2), fa, ref, Fai{n, off, lb, lw}, a2, b2)
         return (m, q)
 
-def answers.cons?(+ans: P.Ans, r: Map<&2, Maybe<&2, Fai>> & (File & List<&2, P.Ans>)) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&2, P.Ans>)):
+def answers.cons?(+ans: P.Ans, r: Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
   match r:
     case (m, (fa, as)):
-      IO.pure(Map<&2, Maybe<&2, Fai>> & (File & List<&2, P.Ans>), (m, (fa, ans <> as)))
+      IO.pure(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>), (m, (fa, ans <> as)))
 
-def answers.k?(q: Map<&2, Maybe<&2, Fai>> & (File & P.Ans), t: List<&2, P.Req>, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&2, P.Ans>)):
+def answers.k?(q: Map<&2, Maybe<&2, Fai>> & (File & P.Ans), t: List<&2, P.Req>, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
   match q:
     case (m, (fa, ans)):
-      do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&2, P.Ans>)>:
-        r : Map<&2, Maybe<&2, Fai>> & (File & List<&2, P.Ans>) <- answers(t, m, fa, ref)
+      do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)>:
+        r : Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>) <- answers(t, m, fa, ref)
         answers.cons(ans, r)
 
 # The answers to the reads rs, in order.
-def answers?(rs: List<&2, P.Req>, fai: Map<&2, Maybe<&2, Fai>>, fa: File, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&2, P.Ans>)):
+def answers?(rs: List<&2, P.Req>, fai: Map<&2, Maybe<&2, Fai>>, fa: File, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
   match rs:
     case Nil{}:
-      IO.pure(Map<&2, Maybe<&2, Fai>> & (File & List<&2, P.Ans>), (fai, (fa, Nil{})))
+      IO.pure(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>), (fai, (fa, Nil{})))
     case P.Req{c, a, b} <> t:
-      do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&2, P.Ans>)>:
+      do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)>:
         q : Map<&2, Maybe<&2, Fai>> & (File & P.Ans) <- answer.got(Map.get(Maybe<&2, Fai>, None{}, fai, c), fa, ref, a, b)
         answers.k(q, t, ref)
 
@@ -336,12 +338,20 @@ def answers?(rs: List<&2, P.Req>, fai: Map<&2, Maybe<&2, Fai>>, fa: File, +ref: 
 # The loop
 # ---------------------------------------------------------------------------
 
-def loop.input?(s: String, st: Norm.St) -> Norm.Step:
-  match s:
-    case SNil{}:
+# The size of a piece of the VCF file read at once (3.5 MB: with the bytes
+# carried over it fits a 4 MB output buffer).
+def piece?() -> U32:
+  3670016
+
+def loop.input?(+n: U32, blk: Array<U32>, st: Norm.St) -> Norm.Step:
+  loop.input.go(U32.is_zero(n), n, blk, st)
+
+def loop.input.go?(eof: Bool, +n: U32, blk: Array<U32>, st: Norm.St) -> Norm.Step:
+  match eof:
+    case True{}:
       Norm.step(st, P.Eof{})
-    case SCon{c, t}:
-      Norm.step(st, P.Chunk{SCon{c, t}})
+    case False{}:
+      Norm.step(st, P.Chunk{D.Bytes{n, blk}})
 
 def loop?(io: Io, +vpath: String, st: Norm.St, next: P.Next) -> IO(Unit):
   match io:
@@ -354,31 +364,31 @@ def loop?(io: Io, +vpath: String, st: Norm.St, next: P.Next) -> IO(Unit):
             IO.exit(U32.from_nat(code))
         case P.More{}:
           do IO<Unit>:
-            p : File & Result<&1, &1, U32 & String, String> <- Io.read_str(vcf, 65536)
+            p : File & Result<&1, &1, U32 & String, U32 & Array<U32>> <- Io.read_block(vcf, piece())
             loop.more(p, fa, ref, vpath, fai, st)
         case P.Ask{rs}:
           do IO<Unit>:
-            q : Map<&2, Maybe<&2, Fai>> & (File & List<&2, P.Ans>) <- answers(rs, fai, fa, ref)
+            q : Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>) <- answers(rs, fai, fa, ref)
             loop.ref(q, vcf, ref, vpath, st)
 
-def loop.ref?(q: Map<&2, Maybe<&2, Fai>> & (File & List<&2, P.Ans>), vcf: File, +ref: String, +vpath: String, st: Norm.St) -> IO(Unit):
+def loop.ref?(q: Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>), vcf: File, +ref: String, +vpath: String, st: Norm.St) -> IO(Unit):
   match q:
     case (fai, (fa, as)):
       emit(Io{vcf, fa, ref, fai}, vpath, Norm.step(st, P.Ref{as}))
 
-def loop.more?(p: File & Result<&1, &1, U32 & String, String>, fa: File, +ref: String, +vpath: String, fai: Map<&2, Maybe<&2, Fai>>, st: Norm.St) -> IO(Unit):
+def loop.more?(p: File & Result<&1, &1, U32 & String, U32 & Array<U32>>, fa: File, +ref: String, +vpath: String, fai: Map<&2, Maybe<&2, Fai>>, st: Norm.St) -> IO(Unit):
   match p:
-    case (vcf, r):
-      do IO<Unit>:
-        s : String <- or_die(String, r, "cannot read " ++ vpath)
-        emit(Io{vcf, fa, ref, fai}, vpath, loop.input(s, st))
+    case (vcf, Fail{e}):
+      die(Unit, "cannot read " ++ vpath)
+    case (vcf, Done{(n, blk)}):
+      emit(Io{vcf, fa, ref, fai}, vpath, loop.input(n, blk, st))
 
 # Write what a step wrote, then go on with what it wants next.
 def emit?(io: Io, +vpath: String, s: Norm.Step) -> IO(Unit):
   match s:
     case Norm.Step{st, o, ns, next}:
       do IO<Unit>:
-        put(1, o)
+        put_bytes(o)
         put(2, notes_text(ns))
         loop(io, vpath, st, next)
 

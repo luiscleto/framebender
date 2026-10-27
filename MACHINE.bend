@@ -124,12 +124,12 @@ def args_len(xs: List<&2, String>) -> Nat:
 
 # How many driver steps the machine may take, and how many reference reads it
 # may make in all (a step is one input given to Norm.step: a piece, the end of
-# the file, or one batch of reference answers): the pieces, plus 3, plus the command
-# line's length (it is echoed in the header, and one step writes at most 2^31
-# bytes), plus (VCF
-# length + 1) times (FASTA length + 3), as if each of at most VCF length + 1
-# lines needed up to FASTA length + 3 reads. A bound for the proof (the
-# machine must stop and cannot read without end); not a speed target.
+# the file, or one batch of reference answers): the pieces, plus 3, plus the
+# command line's length (run echoes it in the header, and one step writes at
+# most 2^31 bytes), plus (VCF length + 1) times (FASTA length + 3), as if each
+# of at most VCF length + 1 lines needed up to FASTA length + 3 reads. A bound
+# for the proof (the machine must stop and cannot read without end); not a
+# speed target.
 def bound(argv: List<&2, String>, fasta: String, vcf: String, cs: List<&2, String>) -> Nat:
   Nat.add(Nat.add(Nat.add(pieces_len(cs), 3n), args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n)))
 
