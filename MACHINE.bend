@@ -183,12 +183,18 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 # - For a FASTA file that is not P.Fasta.plain the law says nothing.
 # - The driver's own errors, each one line on stderr and exit code 2: a usage
 #   error (law usage; prints B.usage), "error: cannot read <path>", "error:
-#   cannot write", "error: bad .fai index <path>.fai", "error: unsupported FASTA
-#   <path>" (a byte read that the .fai layout does not explain), "error: .fai
-#   index does not match <path>" (fewer letters than the index promises),
-#   "error: FASTA read too large <path>" (never for a window the law allows: the
-#   program asks for at most 2^31 letters per read, and the driver reads any
-#   physical span, line breaks included, in parts).
+#   cannot write", "error: out of memory", "error: bad .fai index
+#   <path>.fai", "error: unsupported FASTA <path>" (a byte read that the
+#   .fai layout does not explain), "error: .fai index does not match <path>"
+#   (fewer letters than the index promises), "error: FASTA read too large
+#   <path>" (never for a window the law allows: the program asks for at most
+#   2^31 letters per read, and the driver reads any physical span, line
+#   breaks included, in parts). A <path> has each backslash, LF and CR
+#   written as \\, \n and \r.
+# - Bend's runtime, also trusted, which can stop a run outside this law, with
+#   one line "bend: ..." on stderr and exit code 1: when the heap is exhausted
+#   ("bend: out of memory: ...") and on any number of 2^48 or more, such as a
+#   VCF POS that large ("bend: a Nat past the largest immediate 2^48-1").
 law machine:
   for argv: List<&2, String>
   for o: B.Opts

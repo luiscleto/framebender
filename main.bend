@@ -3,6 +3,7 @@ import ./types.bend as B
 import ./protocol.bend as P
 import ./norm.bend as Norm
 import ../lawful-bytes/defs.bend as D
+import ../lawful-bytes/bytes.bend as BY
 
 # framebender: the driver (trusted, not proven; see the comment on law machine
 # in MACHINE.bend).
@@ -15,16 +16,25 @@ import ../lawful-bytes/defs.bend as D
 # writes, and exits with the machine's code. Every error of its own prints one
 # line "error: ..." and exits with code 2:
 #   usage (B.usage), "cannot read <path>", "cannot write" (stdout/stderr),
-#   "bad .fai index <path>.fai" (a line that is not a name and four numbers,
-#   or a contig whose line layout samtools would not write; a line with an
-#   empty name is checked and then ignored, as B.Fasta.parse ignores ">"), "unsupported FASTA <path>"
-#   (a byte the .fai layout does not explain: a space or tab, a CR not just
-#   before LF, a line break out of place), ".fai index does not match <path>"
-#   (fewer letters read than the .fai promises), "FASTA read too large <path>"
+#   "out of memory" (no room for a block of a piece or an answer, or for a
+#   read's buffer), "bad .fai index <path>.fai" (a line that is not a name
+#   and four numbers of at most 14 digits, a contig whose line layout
+#   samtools would not write, or a contig's length or offset of 2^45 or
+#   more; a line with an empty name is checked and then ignored, as
+#   B.Fasta.parse ignores ">"), "unsupported FASTA <path>" (a byte the .fai
+#   layout does not explain: a space or tab, a CR not just before LF, a line
+#   break out of place), ".fai index does not match <path>" (fewer letters
+#   read than the .fai promises), "FASTA read too large <path>"
 #   (a read of more than 2^31 letters, which the program never asks for: a
 #   packed buffer holds at most 2^31 bytes; any smaller window is read, its
 #   bytes on disk, line breaks included, in parts).
-# Arguments, paths and all output are bytes, copied exactly.
+# Arguments, paths and all output are bytes, copied exactly, except that a
+# path in an error has each backslash, LF and CR written as \\, \n and \r, so
+# the error stays one line.
+# Bend's runtime, also trusted, can stop a run with one line "bend: ..." and
+# exit code 1: when the heap is exhausted ("bend: out of memory: ...") and on
+# any number of 2^48 or more, such as a VCF POS that large ("bend: a Nat past
+# the largest immediate 2^48-1").
 
 type Fai is Data:
   Fai{len: Nat, off: Nat, lb: Nat, lw: Nat}
@@ -46,16 +56,16 @@ def Io.read_block(file: File, max: U32) -> IO(File & Result<&1, &1, U32 & String
 
 # Read the shi * 2^32 + slo bytes of the FASTA at offset hi * 2^32 + lo (in
 # parts), whose first byte is at column col of a line layout of lb letters
-# per line, lw bytes per line;
+# per line, lw bytes per line (col, lb and lw also as 64-bit halves);
 # answers (code, (n, block)): code 0 when every byte fits the layout and
 # exactly want letters were read (packed as enc), 1 when a byte does not
 # fit, 2 when the count differs.
-def Io.fa_read(file: File, hi: U32, lo: U32, shi: U32, slo: U32, col: U32, lb: U32, lw: U32, want: U32) -> IO(File & Result<&1, &1, U32 & String, U32 & (U32 & Array<U32>)>):
+def Io.fa_read(file: File, hi: U32, lo: U32, shi: U32, slo: U32, chi: U32, clo: U32, bhi: U32, blo: U32, whi: U32, wlo: U32, want: U32) -> IO(File & Result<&1, &1, U32 & String, U32 & (U32 & Array<U32>)>):
   import "./io64.c"
   import "./io64.js"
 
 # Write the first n bytes of a block to an inherited descriptor (1: stdout);
-# answers 0 or an errno.
+# answers 0 or an errno (EINVAL if the block is not a packed buffer).
 def Io.write_block(fd: U32, n: U32, a: Array<U32>) -> IO(U32):
   import "./io64.c"
   import "./io64.js"
@@ -113,6 +123,46 @@ def or_die?(-A: Type, r: Result<&1, &1, U32 & String, A>, what: String) -> IO(A)
     case Fail{e}:
       die(A, what)
 
+# A path as it appears in an error: backslash, LF and CR as \\, \n and \r.
+def esc?(s: String) -> String:
+  match s:
+    case SNil{}:
+      SNil{}
+    case SCon{+c, t}:
+      esc.char(Char.is_eq(c, '\\'), Char.is_eq(c, '\n'), Char.is_eq(c, '\r'), c) ++ esc(t)
+
+def esc.char?(bs: Bool, lf: Bool, cr: Bool, c: Char) -> String:
+  match bs lf cr:
+    case True{} _ _:
+      "\\\\"
+    case False{} True{} _:
+      "\\n"
+    case False{} False{} True{}:
+      "\\r"
+    case False{} False{} False{}:
+      SCon{c, SNil{}}
+
+# A failed read of the file at path: "out of memory" for ENOMEM (12), else
+# "cannot read <path>".
+def read_fail?(-A: Type, +e: U32 & String, +path: String) -> IO(A):
+  match e:
+    case (+code, msg):
+      read_fail.go(A, U32.is_eq(code, 12), path)
+
+def read_fail.go?(-A: Type, oom: Bool, +path: String) -> IO(A):
+  match oom:
+    case True{}:
+      die(A, "out of memory")
+    case False{}:
+      die(A, "cannot read " ++ esc(path))
+
+def or_die_read?(-A: Type, r: Result<&1, &1, U32 & String, A>, +path: String) -> IO(A):
+  match r:
+    case Done{x}:
+      IO.pure(A, x)
+    case Fail{+e}:
+      read_fail(A, e, path)
+
 def put?(fd: U32, s: String) -> IO(Unit):
   do IO<Unit>:
     r : Result<&1, &1, U32 & String, Unit> <- Io.write_fd(fd, str_bytes(s))
@@ -150,27 +200,35 @@ def notes_text?(ns: List<&2, B.Note>) -> String:
 def open?(+path: String) -> IO(File):
   do IO<File>:
     r : Result<&1, &1, U32 & String, File> <- File.open_bytes(str_bytes(path), "r")
-    or_die(File, r, "cannot read " ++ path)
+    or_die_read(File, r, path)
 
+# The pieces of a whole file, last first, each read with Io.read_block (which
+# retries an interrupted read) and taken as its bytes (BY.to_list, which is
+# D.view: law to_list_view).
 def read_all?(f: File, +path: String, acc: List<&2, List<&2, U32>>) -> IO(List<&2, List<&2, U32>>):
   do IO<List<&2, List<&2, U32>>>:
-    p : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_bytes(f, 4194304)
+    p : File & Result<&1, &1, U32 & String, U32 & Array<U32>> <- Io.read_block(f, piece())
     read_all.k(p, path, acc)
 
-def read_all.k?(p: File & Result<&1, &1, U32 & String, List<&2, U32>>, +path: String, acc: List<&2, List<&2, U32>>) -> IO(List<&2, List<&2, U32>>):
+def read_all.k?(p: File & Result<&1, &1, U32 & String, U32 & Array<U32>>, +path: String, acc: List<&2, List<&2, U32>>) -> IO(List<&2, List<&2, U32>>):
   match p:
-    case (f, r):
-      do IO<List<&2, List<&2, U32>>>:
-        bs : List<&2, U32> <- or_die(List<&2, U32>, r, "cannot read " ++ path)
-        read_all.more(f, path, bs, acc)
+    case (f, Fail{+e}):
+      read_fail(List<&2, List<&2, U32>>, e, path)
+    case (f, Done{(+n, blk)}):
+      read_all.more(U32.is_zero(n), f, path, n, blk, acc)
 
-def read_all.more?(f: File, +path: String, +bs: List<&2, U32>, acc: List<&2, List<&2, U32>>) -> IO(List<&2, List<&2, U32>>):
-  match bs:
-    case Nil{}:
+def read_all.more?(eof: Bool, f: File, +path: String, +n: U32, blk: Array<U32>, acc: List<&2, List<&2, U32>>) -> IO(List<&2, List<&2, U32>>):
+  match eof:
+    case True{}:
       do IO<List<&2, List<&2, U32>>>:
         File.close(f)
         return acc
-    case _:
+    case False{}:
+      read_all.cons(BY.to_list(D.Bytes{n, blk}, 0, n), f, path, acc)
+
+def read_all.cons?(r: D.Bytes & List<&2, U32>, f: File, +path: String, acc: List<&2, List<&2, U32>>) -> IO(List<&2, List<&2, U32>>):
+  match r:
+    case (b, bs):
       read_all(f, path, bs <> acc)
 
 def concat_rev?(cs: List<&2, List<&2, U32>>, acc: List<&2, U32>) -> List<&2, U32>:
@@ -191,13 +249,17 @@ def fai_entry.ok?(ok: Bool, f: Fai) -> Maybe<&2, Fai>:
     case False{}:
       None{}
 
-# A .fai entry; None unless all four are numbers and a contig with letters
+# A .fai entry; None unless all four are numbers, a contig with letters
 # has a line layout samtools writes (letters per line > 0, bytes per line =
-# letters per line + 1 for LF or + 2 for CR LF).
+# letters per line + 1 for LF or + 2 for CR LF), and its length and offset
+# are below 2^45 (32 TiB). Then every byte offset of the contig is below
+# offset + 3 * length < 2^47: every number the driver computes stays below
+# the runtime's 2^48 and every number it passes to Io.fa_read is exact in
+# 64 bits.
 def fai_entry?(n: Maybe<&2, Nat>, o: Maybe<&2, Nat>, lb: Maybe<&2, Nat>, lw: Maybe<&2, Nat>) -> Maybe<&2, Fai>:
   match n o lb lw:
-    case Some{+a} Some{b} Some{+c} Some{+d}:
-      fai_entry.ok(Nat.is_eq(a, 0n) || (Bool.not(Nat.is_eq(c, 0n)) && (Nat.is_eq(d, Nat.add(c, 1n)) || Nat.is_eq(d, Nat.add(c, 2n)))), Fai{a, b, c, d})
+    case Some{+a} Some{+b} Some{+c} Some{+d}:
+      fai_entry.ok((Nat.is_eq(a, 0n) || (Bool.not(Nat.is_eq(c, 0n)) && (Nat.is_eq(d, Nat.add(c, 1n)) || Nat.is_eq(d, Nat.add(c, 2n))))) && Nat.is_lt(a, two45()) && Nat.is_lt(b, two45()), Fai{a, b, c, d})
     case _ _ _ _:
       None{}
 
@@ -207,6 +269,19 @@ def fai_load.keep?(empty: Bool, name: String, f: Fai, m: Map<&2, Maybe<&2, Fai>>
       m
     case False{}:
       Map.set(&2, Maybe<&2, Fai>, m, name, Some{f})
+
+# A number of at most 14 characters: below 10^14, so B.Pos.read stays below
+# the runtime's 2^48 (a longer one stops the runtime). Every number of an
+# entry fai_entry keeps (below 2^45) has at most 14 digits.
+def fai_num?(+s: String) -> Maybe<&2, Nat>:
+  fai_num.go(Nat.is_le(String.length(s), 14n), s)
+
+def fai_num.go?(short: Bool, +s: String) -> Maybe<&2, Nat>:
+  match short:
+    case True{}:
+      B.Pos.read(s)
+    case False{}:
+      None{}
 
 # A line must be exactly five tab-separated fields.
 def fai_entry.shape?(ok: Bool, e: Maybe<&2, Fai>) -> Maybe<&2, Fai>:
@@ -232,7 +307,7 @@ def fai_load.line?(empty: Bool, +l: String, t: List<&2, String>, m: Map<&2, Mayb
     case False{}:
       +fs = B.Rec.fields(l)
       +shape = Nat.is_eq(List.length(&2, String, fs), 5n)
-      fai_load.add(fai_entry.shape(shape, fai_entry(B.Pos.read(B.Rec.field(fs, 1n)), B.Pos.read(B.Rec.field(fs, 2n)), B.Pos.read(B.Rec.field(fs, 3n)), B.Pos.read(B.Rec.field(fs, 4n)))), B.Rec.field(fs, 0n), t, m)
+      fai_load.add(fai_entry.shape(shape, fai_entry(fai_num(B.Rec.field(fs, 1n)), fai_num(B.Rec.field(fs, 2n)), fai_num(B.Rec.field(fs, 3n)), fai_num(B.Rec.field(fs, 4n)))), B.Rec.field(fs, 0n), t, m)
 
 # The .fai lines as entries; None if a line is not a name and four numbers.
 def fai_load?(ls: List<&2, String>, m: Map<&2, Maybe<&2, Fai>>) -> Maybe<&2, Map<&2, Maybe<&2, Fai>>>:
@@ -246,6 +321,17 @@ def fai_load?(ls: List<&2, String>, m: Map<&2, Maybe<&2, Fai>>) -> Maybe<&2, Map
 def two32?() -> Nat:
   Nat.add(4294967295n, 1n)
 
+# 2^45.
+def two45?() -> Nat:
+  Nat.mul(two32(), 8192n)
+
+# A number below 2^64 as its high and low 32 bits.
+def hi?(+x: Nat) -> U32:
+  U32.from_nat(Nat.div(x, two32()))
+
+def lo?(+x: Nat) -> U32:
+  U32.from_nat(Nat.mod(x, two32()))
+
 # The byte offset of 0-based letter i of a contig.
 def fai_at?(+e: Fai, +i: Nat) -> Nat:
   match e:
@@ -258,8 +344,8 @@ def fai_at?(+e: Fai, +i: Nat) -> Nat:
 
 def answer.k?(p: File & Result<&1, &1, U32 & String, U32 & (U32 & Array<U32>)>, +ref: String, +n: Nat, +a: Nat) -> IO(File & P.Ans):
   match p:
-    case (fa, Fail{e}):
-      die(File & P.Ans, "cannot read " ++ ref)
+    case (fa, Fail{+e}):
+      read_fail(File & P.Ans, e, ref)
     case (fa, Done{(c, (k, blk))}):
       answer.check(c, ref, fa, P.Known{n, a, D.Bytes{k, blk}})
 
@@ -271,17 +357,17 @@ def answer.check.go?(ok: Bool, bad: Bool, +ref: String, fa: File, ans: P.Ans) ->
     case True{} _:
       IO.pure(File & P.Ans, (fa, ans))
     case False{} True{}:
-      die(File & P.Ans, "unsupported FASTA " ++ ref)
+      die(File & P.Ans, "unsupported FASTA " ++ esc(ref))
     case False{} False{}:
-      die(File & P.Ans, ".fai index does not match " ++ ref)
+      die(File & P.Ans, ".fai index does not match " ++ esc(ref))
 
 def answer.read.go?(small: Bool, fa: File, +ref: String, +f: Fai, +a2: Nat, +b2: Nat, +o0: Nat, +span: Nat) -> IO(File & P.Ans):
   match small f:
     case False{} _:
-      die(File & P.Ans, "FASTA read too large " ++ ref)
+      die(File & P.Ans, "FASTA read too large " ++ esc(ref))
     case True{} Fai{+n, off, +lb, +lw}:
       do IO<File & P.Ans>:
-        p : File & Result<&1, &1, U32 & String, U32 & (U32 & Array<U32>)> <- Io.fa_read(fa, U32.from_nat(Nat.div(o0, two32())), U32.from_nat(Nat.mod(o0, two32())), U32.from_nat(Nat.div(span, two32())), U32.from_nat(Nat.mod(span, two32())), U32.from_nat(Nat.mod(a2, lb)), U32.from_nat(lb), U32.from_nat(lw), U32.from_nat(Nat.sub(b2, a2)))
+        p : File & Result<&1, &1, U32 & String, U32 & (U32 & Array<U32>)> <- Io.fa_read(fa, hi(o0), lo(o0), hi(span), lo(span), hi(Nat.mod(a2, lb)), lo(Nat.mod(a2, lb)), hi(lb), lo(lb), hi(lw), lo(lw), U32.from_nat(Nat.sub(b2, a2)))
         answer.k(p, ref, n, a2)
 
 # Read letters a2 .. b2 - 1 of contig f (a2 < b2 <= its length, at most 2^31
@@ -378,8 +464,8 @@ def loop.ref?(q: Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>), vcf: File, 
 
 def loop.more?(p: File & Result<&1, &1, U32 & String, U32 & Array<U32>>, fa: File, +ref: String, +vpath: String, fai: Map<&2, Maybe<&2, Fai>>, st: Norm.St) -> IO(Unit):
   match p:
-    case (vcf, Fail{e}):
-      die(Unit, "cannot read " ++ vpath)
+    case (vcf, Fail{+e}):
+      read_fail(Unit, e, vpath)
     case (vcf, Done{(n, blk)}):
       emit(Io{vcf, fa, ref, fai}, vpath, loop.input(n, blk, st))
 
@@ -395,7 +481,7 @@ def emit?(io: Io, +vpath: String, s: Norm.Step) -> IO(Unit):
 def run.fai?(m: Maybe<&2, Map<&2, Maybe<&2, Fai>>>, st: Norm.St, +ref: String, +vcf: String) -> IO(Unit):
   match m:
     case None{}:
-      die(Unit, "bad .fai index " ++ ref ++ ".fai")
+      die(Unit, "bad .fai index " ++ esc(ref ++ ".fai"))
     case Some{fai}:
       do IO<Unit>:
         fa : File <- open(ref)

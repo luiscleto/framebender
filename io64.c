@@ -11,6 +11,13 @@
 // i >> 2 (little-endian). The blocks these effects make are exactly
 // bytes_enc.bend's enc: the smallest d with 4 * 2^d >= n (d = 0 for n = 0),
 // every byte past n zero.
+//
+// Out of memory (a heap block or a read buffer) fails with ENOMEM; the driver
+// reports it as "out of memory".
+
+#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+#error "io64.c packs blocks little-endian: byte i in byte i & 3 of word i >> 2"
+#endif
 
 #ifdef CID(Io.write_fd)
 static void io_write_fd_call(IoWork* w) {
@@ -59,9 +66,11 @@ static int io64_block(Env e, u32 d, u64* loc) {
   return 1;
 }
 
-// Every byte of the block from n on set to 0.
+// Every byte of the block from n on set to 0, to the end of its heap cells
+// (a block of depth 0 takes a whole 8-byte cell).
 static void io64_pad(Env e, u32 d, u64 loc, uint64_t n) {
-  memset((char*)(e.mem + loc) + n, 0, ((size_t)4 << d) - n);
+  size_t cells = d == 0 ? 8 : (size_t)4 << d;
+  memset((char*)(e.mem + loc) + n, 0, cells - n);
 }
 
 #ifdef CID(Io.read_block)
@@ -96,6 +105,7 @@ Term io_read_block_run(Env e, Term* f, IoWork* w) {
     // A short last piece: move it to the smallest block (enc's).
     u64 loc2;
     if (!io64_block(e, d2, &loc2)) {
+      heap_free(e, blk_wcls(0, d), loc);
       return io_tup(e, io_hand(fd), io_fail(e, ENOMEM, NULL));
     }
     memcpy((char*)(e.mem + loc2), p, (size_t)got);
@@ -112,24 +122,31 @@ static void __attribute__((constructor)) io_read_block_use(void) {
 #endif
 
 #ifdef CID(Io.fa_read)
-// Io.fa_read(file, hi, lo, shi, slo, col, lb, lw, want): read the span of
-// shi * 2^32 + slo bytes of the FASTA file at offset hi * 2^32 + lo, in
-// parts of at most 16 MiB, where the first byte is at column col of the
-// contig's line layout (lb letters, then LF, or CR LF when lw = lb + 2;
-// col < lw). Every byte must be where the layout puts it: an LF at column
-// lw - 1; a CR at column lb, only when lw = lb + 2; any other byte at a
-// column below lb, and not a space or tab. The letters (the bytes that are
+// Io.fa_read(file, hi, lo, shi, slo, chi, clo, bhi, blo, whi, wlo, want):
+// read the span of shi * 2^32 + slo bytes of the FASTA file at offset
+// hi * 2^32 + lo, in parts of at most 16 MiB, where the first byte is at
+// column col = chi * 2^32 + clo of the contig's line layout (lb = bhi * 2^32
+// + blo letters, then LF, or CR LF when lw = whi * 2^32 + wlo = lb + 2;
+// col < lw). The driver keeps offsets and spans below 2^47. Every byte must
+// be where the layout puts it: an LF at column lw - 1; a CR at column lb,
+// only when lw = lb + 2; any other byte at a column below lb, and not a
+// space or tab. The letters (the bytes that are
 // not LF or CR; want <= 2^31) are packed as enc. Answers (code, (n, block)):
 // code 0 when every byte fits and exactly want letters were read; 1 when a
 // byte does not fit the layout; 2 when fewer (or more) than want letters
 // were read (the file ends early). A read error fails with errno.
 #define IO64_PART ((uint64_t)1 << 24)
+static uint64_t io64_wide(Term hi, Term lo) {
+  return ((uint64_t)(u32)hi << 32) | (uint64_t)(u32)lo;
+}
 Term io_fa_read_run(Env e, Term* f, IoWork* w) {
   int fd = io_hand_v(f[0]);
-  uint64_t off = ((uint64_t)(u32)f[1] << 32) | (uint64_t)(u32)f[2];
-  uint64_t span = ((uint64_t)(u32)f[3] << 32) | (uint64_t)(u32)f[4];
-  uint64_t col = (u32)f[5], lb = (u32)f[6], lw = (u32)f[7];
-  uint64_t want = (u32)f[8];
+  uint64_t off = io64_wide(f[1], f[2]);
+  uint64_t span = io64_wide(f[3], f[4]);
+  uint64_t col = io64_wide(f[5], f[6]);
+  uint64_t lb = io64_wide(f[7], f[8]);
+  uint64_t lw = io64_wide(f[9], f[10]);
+  uint64_t want = (u32)f[11];
   if (want > ((uint64_t)1 << 31)) want = (uint64_t)1 << 31;
   char* buf = malloc(IO64_PART);
   if (buf == NULL) return io_tup(e, io_hand(fd), io_fail(e, ENOMEM, NULL));
@@ -211,11 +228,14 @@ static void __attribute__((constructor)) io_fa_read_use(void) {
 #ifdef CID(Io.write_block)
 // Io.write_block(fd, n, block): write the block's first n bytes (n at most
 // its size) to the inherited descriptor fd, all of them; frees the block.
-// Answers 0, or the errno of a failed write (EIO for a write of 0 bytes).
+// Answers 0, or the errno of a failed write (EIO for a write of 0 bytes);
+// EINVAL, writing nothing, if the block is not a packed buffer of at most
+// 2^31 bytes (depth 29).
 Term io_write_block_run(Env e, Term* f, IoWork* w) {
   int fd = (int)(u32)f[0];
   uint64_t n = (u32)f[1];
   Term a = f[2];
+  if (term_tag(a) != TAG_BUF || blk_cls(a) > 29) return (Term)EINVAL;
   uint64_t cap = (uint64_t)4 << blk_cls(a);
   if (n > cap) n = cap;
   const char* p = (const char*)(e.mem + blk_loc(e.mem, a));
