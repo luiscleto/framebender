@@ -115,14 +115,23 @@ def result(d: DSt, +limit: Nat) -> Maybe<&2, R.Report>:
 def pieces_len(cs: List<&2, String>) -> Nat:
   List.length(&2, String, cs)
 
+def args_len(xs: List<&2, String>) -> Nat:
+  match xs:
+    case Nil{}:
+      0n
+    case Con{x, t}:
+      Nat.add(Nat.add(String.length(x), 1n), args_len(t))
+
 # How many driver steps the machine may take, and how many reference reads it
 # may make in all (a step is one input given to Norm.step: a piece, the end of
-# the file, or one batch of reference answers): the pieces, plus 3, plus (VCF
+# the file, or one batch of reference answers): the pieces, plus 3, plus the command
+# line's length (it is echoed in the header, and one step writes at most 2^31
+# bytes), plus (VCF
 # length + 1) times (FASTA length + 3), as if each of at most VCF length + 1
 # lines needed up to FASTA length + 3 reads. A bound for the proof (the
 # machine must stop and cannot read without end); not a speed target.
-def bound(fasta: String, vcf: String, cs: List<&2, String>) -> Nat:
-  Nat.add(Nat.add(pieces_len(cs), 3n), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n)))
+def bound(argv: List<&2, String>, fasta: String, vcf: String, cs: List<&2, String>) -> Nat:
+  Nat.add(Nat.add(Nat.add(pieces_len(cs), 3n), args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n)))
 
 # What a started program produces: the FASTA and VCF paths it opens, and its
 # report.
@@ -136,12 +145,12 @@ def launch.of(m: Maybe<&2, R.Report>, r: String, v: String) -> Maybe<&2, Launch>
     case Some{rep}:
       Some{Launch{r, v, rep}}
 
-def launch(b: Norm.Begin, +fasta: String, +vcf: String, +cs: List<&2, String>) -> Maybe<&2, Launch>:
+def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, +cs: List<&2, String>) -> Maybe<&2, Launch>:
   match b:
     case Norm.Usage{}:
       None{}
     case Norm.Begin{st, r, v}:
-      +n = bound(fasta, vcf, cs)
+      +n = bound(argv, fasta, vcf, cs)
       launch.of(result(drive(n, B.Fasta.parse(fasta), DSt{st, P.More{}, cs, False{}, 0n, True{}, "", Nil{}, None{}}), n), r, v)
 
 # The inputs are bytes (E.texts_ok): the command line, the FASTA and the VCF
@@ -149,6 +158,8 @@ def launch(b: Norm.Begin, +fasta: String, +vcf: String, +cs: List<&2, String>) -
 # per character, and each piece has at most 2^31 bytes, as the driver chooses
 # its piece size. The program must write well-formed buffers and ask for
 # windows of at most 2^31 letters, or the run has no result (result's good).
+# A program with more than 2^31 bytes to write at once may ask for no reads
+# (P.Ask{[]}) to get another step: the driver answers it like any Ask.
 #
 # The program: started with a command line B.Args.parse accepts, it opens the
 # FASTA and VCF files it names and, for a FASTA file whose sequence lines hold
@@ -190,7 +201,7 @@ law machine:
   for hf: {P.Fasta.plain(fasta) == True{} : Bool}
   for h: {String.concat(cs) == vcf : String}
   for hb: {E.texts_ok(argv, fasta, cs) == True{} : Bool}
-  {launch(Norm.start(argv), fasta, vcf, cs) == Some{Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, Launch>}
+  {launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, Launch>}
 
 # A command line B.Args.parse does not accept is a usage error.
 law usage:

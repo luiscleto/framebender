@@ -1,0 +1,119 @@
+
+  master ~/W/bend-projects/lawful-arrays             170K / 256K │ [Dashboard]
+
+
+     ❯ Next: please review framebender's implementation contract     9:42 PM
+       change. Read ../framebender/notes/briefs/CONTRACT_REVIEW.md
+       (on its git branch bytes; do not switch branches) and do …
+
+
+        Problem: The quantifiers are unchanged, so the law still
+     claims launch equals run for every command line, every plain
+     FASTA, and every cut of every VCF string. launch only ever
+     builds its stdout with E.text, and E.text is chars of D.view.
+     D.view takes bytes with W.byte, which masks each byte with
+     255, so that string's codes are all below 256. run copies
+     header characters through as they are (head_line appends
+     Line.text, and clean.char keeps every code at or above 128,
+     including codes at or above 256). A code of 256 or more in a
+     header is in run's stdout and cannot appear in launch's
+     stdout. Separately, enc stores
+     U32.from_nat(String.length(s)), and
+     U32.to_nat(U32.from_nat(n)) is n modulo 2^32, so a piece of
+     length 2^32 has length 0. Norm reads pieces with BY.len, so
+     it sees an empty piece. The equality fails for both inputs.
+     On inputs whose codes are all below 256 and whose pieces are
+     shorter than 2^32, text(enc(s)) is s, the driver writes
+     D.view, and a program that meets the law writes those bytes.
+        Example: argv is ["norm", "-f", "r.fa", "in.vcf"], fasta
+     is ">c\nA\n", and vcf is "##A" followed by the character of
+     code 256, then
+     "\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n", with cs
+     that one string. Args.parse accepts the command, Fasta.plain
+     accepts the FASTA, and run writes the ##A line, character 256
+     included, before the added lines and the #CHROM line.
+     launch's stdout has no character 256. A second input is the
+     same files with one piece whose length is 2^32 and whose
+     prefix is that same VCF text with the character 256 replaced
+     by A: enc labels it length 0, the machine follows the empty
+     file to NoHeader and an empty stdout, and run writes the
+     header.
+        Fix: Hypothesize in law machine that every character code
+     in argv, fasta, vcf, and each piece is below 256, and that
+     each piece has length below 2^32. The same bound covers a
+     reference window, because truth.of encodes a slice of
+     Contig.raw. test/enc_spot.bend should include one character
+     of code 256 and a length that wraps modulo 2^32.
+
+     2. Where: the header comment of main.bend (the FASTA read too
+     large line); the check is answer.read.
+        Severity: minor.
+        Problem: That comment still says the driver reports FASTA
+     read too large for one read of 4 GiB or more. answer.read
+     refuses a file span of 2^31 bytes or more (Nat.is_lt(...,
+     2147483648n)), which is what the comment above law machine
+     says. The pieces the driver chooses are 3670016 bytes, and a
+     window of chr1 is about 250 MB, so both stay under that
+     check.
+        Example: A reference read whose .fai span is 2^31 bytes
+     takes the die(..., "FASTA read too large " ++ ref) branch.
+     The header of main.bend describes that error as 4 GiB.
+        Fix: Change the main.bend header to one read of 2^31 bytes
+     or more.
+
+     Context compacted: 208.3k → 25.8k tokens (180.1s)
+
+     Worked for 22m19s
+
+
+     ❯ Round 2 of the framebender contract review. On the bytes     10:08 PM
+       branch (do not switch), the contract was revised after your
+       round 1: see ../framebender/reviews/responses-contract- …
+
+
+     ◆ Thought for 0.5s
+
+     The contract was revised after round 1. I am reading the       10:08 PM
+     response note and the last two commits of the law, then
+     checking whether the revised statement is satisfiable for
+     every input a byte-reading driver can give.
+
+     ◈ Explored 6 files, 1 search, ran 1 command
+
+     ACCEPT                                                         10:14 PM
+
+     Worked for 5m30s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                               █
+                                                                               █
+                                                                               █
+                                                                               █
+                                                                               █
+
+  ╭──────────────────────────────────────────────────────────────────────────╮
+  │ ❯                                                                        │
+  ╰──────────────────────────────── Grok 4.7 (high) · plan · always-approve ─╯
+
+  Shift+Tab:mode  │  Ctrl+.:shortcuts
