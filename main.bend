@@ -1,15 +1,16 @@
 import Base
 import ./types.bend as B
+import ./protocol.bend as P
 import ./norm.bend as Norm
 
 # framebender: the driver (trusted, not proven; see the comment on law machine
-# in LAWS.bend).
+# in MACHINE.bend).
 #
 #   framebender norm -f ref.fa [-c e|w] [-w N] in.vcf > out.vcf
 #
 # It only runs the proven machine (Norm.start, Norm.step): it reads the VCF
 # file in pieces, answers each reference read with the contig's letters at the
-# .fai offsets (line breaks removed), writes what the machine writes, and exits
+# .fai offsets (line breaks removed; all reads of an Ask, in order), writes what the machine writes, and exits
 # with the machine's code. Usage errors and unreadable files exit with code 2.
 
 type Fai is Data:
@@ -159,24 +160,24 @@ def notes_text?(ns: List<&2, B.Note>) -> String:
 # Answering a reference read
 # ---------------------------------------------------------------------------
 
-def answer.k?(p: File & Result<&1, &1, U32 & String, List<&2, U32>>, +n: Nat, +a: Nat) -> IO(File & B.Ans):
+def answer.k?(p: File & Result<&1, &1, U32 & String, List<&2, U32>>, +n: Nat, +a: Nat) -> IO(File & P.Ans):
   match p:
     case (fa, r):
-      do IO<File & B.Ans>:
+      do IO<File & P.Ans>:
         +bs : List<&2, U32> <- or_die(List<&2, U32>, r, "cannot read the FASTA file")
-        answer.check(has_blank(bs), fa, B.Known{n, a, letters(bs)})
+        answer.check(has_blank(bs), fa, P.Known{n, a, letters(bs)})
 
-def answer.check?(blank: Bool, fa: File, ans: B.Ans) -> IO(File & B.Ans):
+def answer.check?(blank: Bool, fa: File, ans: P.Ans) -> IO(File & P.Ans):
   match blank:
     case True{}:
-      IO.die(File & B.Ans, 2, "error: unsupported FASTA (spaces or tabs in sequence lines)\n")
+      IO.die(File & P.Ans, 2, "error: unsupported FASTA (spaces or tabs in sequence lines)\n")
     case False{}:
-      IO.pure(File & B.Ans, (fa, ans))
+      IO.pure(File & P.Ans, (fa, ans))
 
-def answer.go?(unknown: Bool, fa: File, +fe: Fai, +a: Nat, +b: Nat) -> IO(File & B.Ans):
+def answer.go?(unknown: Bool, fa: File, +fe: Fai, +a: Nat, +b: Nat) -> IO(File & P.Ans):
   match unknown:
     case True{}:
-      IO.pure(File & B.Ans, (fa, B.Unknown{}))
+      IO.pure(File & P.Ans, (fa, P.Unknown{}))
     case False{}:
       match fe:
         case Fai{+n, off, lb, lw}:
@@ -184,47 +185,69 @@ def answer.go?(unknown: Bool, fa: File, +fe: Fai, +a: Nat, +b: Nat) -> IO(File &
           +b2 = Nat.min(Nat.max(a2, b), n)
           +o0 = fai_at(Fai{n, off, lb, lw}, a2)
           +o1 = fai_at(Fai{n, off, lb, lw}, b2)
-          do IO<File & B.Ans>:
+          do IO<File & P.Ans>:
             p : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_at(fa, U32.from_nat(o0), U32.from_nat(Nat.sub(o1, o0)))
             answer.k(p, n, a2)
 
-def answer.got?(got: Map<&2, Fai> & Fai, fa: File, +a: Nat, +b: Nat) -> IO(Map<&2, Fai> & (File & B.Ans)):
+def answer.got?(got: Map<&2, Fai> & Fai, fa: File, +a: Nat, +b: Nat) -> IO(Map<&2, Fai> & (File & P.Ans)):
   match got:
     case (m, +fe):
       match fe:
         case Fai{+n, off, +lb, lw}:
-          do IO<Map<&2, Fai> & (File & B.Ans)>:
-            q : File & B.Ans <- answer.go(Nat.is_eq(lb, 0n), fa, Fai{n, off, lb, lw}, a, b)
+          do IO<Map<&2, Fai> & (File & P.Ans)>:
+            q : File & P.Ans <- answer.go(Nat.is_eq(lb, 0n), fa, Fai{n, off, lb, lw}, a, b)
             return (m, q)
+
+def answers.cons?(+ans: P.Ans, r: Map<&2, Fai> & (File & List<&2, P.Ans>)) -> IO(Map<&2, Fai> & (File & List<&2, P.Ans>)):
+  match r:
+    case (m, (fa, as)):
+      IO.pure(Map<&2, Fai> & (File & List<&2, P.Ans>), (m, (fa, ans <> as)))
+
+def answers.k?(q: Map<&2, Fai> & (File & P.Ans), t: List<&2, P.Req>) -> IO(Map<&2, Fai> & (File & List<&2, P.Ans>)):
+  match q:
+    case (m, (fa, ans)):
+      do IO<Map<&2, Fai> & (File & List<&2, P.Ans>)>:
+        r : Map<&2, Fai> & (File & List<&2, P.Ans>) <- answers(t, m, fa)
+        answers.cons(ans, r)
+
+# The answers to the reads rs, in order.
+def answers?(rs: List<&2, P.Req>, fai: Map<&2, Fai>, fa: File) -> IO(Map<&2, Fai> & (File & List<&2, P.Ans>)):
+  match rs:
+    case Nil{}:
+      IO.pure(Map<&2, Fai> & (File & List<&2, P.Ans>), (fai, (fa, Nil{})))
+    case P.Req{c, a, b} <> t:
+      do IO<Map<&2, Fai> & (File & List<&2, P.Ans>)>:
+        q : Map<&2, Fai> & (File & P.Ans) <- answer.got(Map.get(Fai, Fai{0n, 0n, 0n, 0n}, fai, c), fa, a, b)
+        answers.k(q, t)
 
 # ---------------------------------------------------------------------------
 # The loop
 # ---------------------------------------------------------------------------
 
-def loop?(io: Io, st: Norm.St, next: B.Next) -> IO(Unit):
+def loop?(io: Io, st: Norm.St, next: P.Next) -> IO(Unit):
   match io:
     case Io{vcf, fa, out, err, fai}:
       match next:
-        case B.Finish{code}:
+        case P.Finish{code}:
           do IO<Unit>:
             File.close(vcf)
             File.close(fa)
             File.close(out)
             File.close(err)
             IO.exit(U32.from_nat(code))
-        case B.More{}:
+        case P.More{}:
           do IO<Unit>:
             p : File & Result<&1, &1, U32 & String, List<&2, U32>> <- File.read_bytes(vcf, 65536)
             loop.more(p, fa, out, err, fai, st)
-        case B.Ask{c, a, b}:
+        case P.Ask{rs}:
           do IO<Unit>:
-            q : Map<&2, Fai> & (File & B.Ans) <- answer.got(Map.get(Fai, Fai{0n, 0n, 0n, 0n}, fai, c), fa, a, b)
+            q : Map<&2, Fai> & (File & List<&2, P.Ans>) <- answers(rs, fai, fa)
             loop.ref(q, vcf, out, err, st)
 
-def loop.ref?(q: Map<&2, Fai> & (File & B.Ans), vcf: File, out: File, err: File, st: Norm.St) -> IO(Unit):
+def loop.ref?(q: Map<&2, Fai> & (File & List<&2, P.Ans>), vcf: File, out: File, err: File, st: Norm.St) -> IO(Unit):
   match q:
-    case (fai, (fa, ans)):
-      emit(Io{vcf, fa, out, err, fai}, Norm.step(st, B.Ref{ans}))
+    case (fai, (fa, as)):
+      emit(Io{vcf, fa, out, err, fai}, Norm.step(st, P.Ref{as}))
 
 def loop.more?(p: File & Result<&1, &1, U32 & String, List<&2, U32>>, fa: File, out: File, err: File, fai: Map<&2, Fai>, st: Norm.St) -> IO(Unit):
   match p:
@@ -236,9 +259,9 @@ def loop.more?(p: File & Result<&1, &1, U32 & String, List<&2, U32>>, fa: File, 
 def loop.input?(bs: List<&2, U32>, st: Norm.St) -> Norm.Step:
   match bs:
     case Nil{}:
-      Norm.step(st, B.Eof{})
+      Norm.step(st, P.Eof{})
     case b <> t:
-      Norm.step(st, B.Chunk{bytes_str(b <> t)})
+      Norm.step(st, P.Chunk{bytes_str(b <> t)})
 
 # Write what a step wrote, then go on with what it wants next.
 def emit?(io: Io, s: Norm.Step) -> IO(Unit):
@@ -258,7 +281,7 @@ def run?(st: Norm.St, +ref: String, +vcf: String) -> IO(Unit):
     v : File <- open(vcf, "r")
     out : File <- open("/dev/stdout", "a")
     err : File <- open("/dev/stderr", "a")
-    loop(Io{v, fa, out, err, fai}, st, B.More{})
+    loop(Io{v, fa, out, err, fai}, st, P.More{})
 
 def main.k?(b: Norm.Begin) -> IO(Unit):
   match b:

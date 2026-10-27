@@ -1,5 +1,7 @@
 import Base
 import ./types.bend as B
+import ./protocol.bend as Pr
+import ./proof_window_defs.bend as WD
 import ./norm.bend as Norm
 import ./run.bend as R
 import ./LAWS.bend as L
@@ -67,7 +69,7 @@ def wupto(+l: B.Line) -> Nat:
   Nat.add(lpos(l), String.length(B.Rec.field(lfs(l), 3n)))
 
 def clen_of(+fa: List<&2, B.Contig>, +l: B.Line) -> Nat:
-  PFa.mlen(B.Fasta.find(fa, L.chrom_of(B.Line.body(l))))
+  PFa.mlen(B.Fasta.find(fa, WD.chrom_of(B.Line.body(l))))
 
 # Reads a waiting line may still need after the one asked for: none once the
 # window starts at the contig's first letter.
@@ -553,7 +555,7 @@ law askle:
 
 def askle(fasta, l, back):
   askle.k(Nat.is_le(lpos(l), back), clen_of(B.Fasta.parse(fasta), l), back, String.length(fasta),
-    PFa.clen_le(fasta, L.chrom_of(B.Line.body(l))))
+    PFa.clen_le(fasta, WD.chrom_of(B.Line.body(l))))
 
 # The end of the run
 # ==================
@@ -707,11 +709,11 @@ law TL:
   for +fasta: String
   for +T: R.Report
   for +o: B.Opts
-  for +A: B.Ans
+  for +A: Maybe<&2, Pr.Ans>
   for +l: B.Line
   for +m: Maybe<&2, B.Res>
   for +hm: {Norm.judge_in(A, B.Line.body(l)) == m : Maybe<&2, B.Res>}
-  for +htr: {L.truthful(B.Fasta.parse(fasta), L.chrom_of(B.Line.body(l)), A) == True{} : Bool}
+  for +htr: {WD.truthful(B.Fasta.parse(fasta), WD.chrom_of(B.Line.body(l)), A) == True{} : Bool}
   for +back: Nat
   for +t: List<&2, B.Line>
   for +S: R.RunSt
@@ -852,18 +854,18 @@ def PL(q, fasta, T, o, S, f, outs, ns, pend, cs, e, O, N, hf, hO, hN, hg, hp, hT
           R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, S2)), hT,
           Equal.cong(R.RunSt, R.Report, x => R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, x)), L.line_step(fa, o, Sl, l), S2,
             LS_body(fa, o, Sl, l, {==}, {==}))))
-      +jm = Norm.judge_in(B.NoAns{}, B.Line.body(l))
+      +jm = Norm.judge_in(None{}, B.Line.body(l))
       ok_weaken(fasta, T, L.absorb(Norm.pump(1n+g, Norm.try_line(jm, o, Norm.RunSt.clear(Sl), l, B.Rec.fields(B.Line.body(l)), 100n, pend, t, e), outs, ns), cs, e, O, N),
         Nat.add(cc, bud(cc, t, e, pend, cs)), bud(cc, l <> t, e, pend, cs),
-        TL(fasta, T, o, B.NoAns{}, l, jm, {==}, {==}, 100n, t, Sl, g, outs, ns, pend, cs, e, O, N, hO, hN, hg, {==}, {==}, hp, hT, cc,
+        TL(fasta, T, o, None{}, l, jm, {==}, {==}, 100n, t, Sl, g, outs, ns, pend, cs, e, O, N, hO, hN, hg, {==}, {==}, hp, hT, cc,
           x => askle(fasta, l, 100n), ih),
         bud_assoc(cc, Nat.mul(List.length(&2, B.Line, t), cc), rest_need(cc, e, pend, cs)))
 
 # A failed read: the window was not enough, so the reads left go down
 # ==================================================================
 
-def A0(+fa: List<&2, B.Contig>, +l: B.Line, +back: Nat) -> B.Ans:
-  L.truth(fa, wchrom(l), wfrom(l, back), wupto(l))
+def A0(+fa: List<&2, B.Contig>, +l: B.Line, +back: Nat) -> Maybe<&2, Pr.Ans>:
+  Some{M.truth(fa, wchrom(l), wfrom(l, back), wupto(l))}
 
 law some_none:
   for +x: Maybe<&2, B.Res>
@@ -881,10 +883,10 @@ def some_none(x, hn, hs):
 law no_enough:
   for +fasta: String
   for +l: B.Line
-  for +A: B.Ans
+  for +A: Maybe<&2, Pr.Ans>
   for +hn: {Norm.judge_in(A, B.Line.body(l)) == None{} : Maybe<&2, B.Res>}
-  for +htr: {L.truthful(B.Fasta.parse(fasta), L.chrom_of(B.Line.body(l)), A) == True{} : Bool}
-  for +he: {L.enough(B.Fasta.parse(fasta), B.Line.body(l), A) == True{} : Bool}
+  for +htr: {WD.truthful(B.Fasta.parse(fasta), WD.chrom_of(B.Line.body(l)), A) == True{} : Bool}
+  for +he: {WD.enough(B.Fasta.parse(fasta), B.Line.body(l), A) == True{} : Bool}
   Empty
 
 def no_enough(fasta, l, A, hn, htr, he):
@@ -895,24 +897,24 @@ law okz:
   for +l: B.Line
   for +back: Nat
   for +hle: {Nat.is_le(lpos(l), back) == True{} : Bool}
-  {PA.ans_ok(B.Fasta.find(fa, L.chrom_of(B.Line.body(l))), A0(fa, l, back), wupto(l)) == True{} : Bool}
+  {PA.ans_ok(B.Fasta.find(fa, WD.chrom_of(B.Line.body(l))), A0(fa, l, back), wupto(l)) == True{} : Bool}
 
 def okz(fa, l, back, hle):
-  +m = B.Fasta.find(fa, L.chrom_of(B.Line.body(l)))
+  +m = B.Fasta.find(fa, WD.chrom_of(B.Line.body(l)))
   %Equal.sym(Nat, wfrom(l, back), 0n, PA.sub_le_zero(lpos(l), back, hle)) :
-    {PA.ans_ok(m, L.truth.of(m, _, wupto(l)), wupto(l)) == True{} : Bool}
+    {PA.ans_ok(m, Some{M.truth.of(m, _, wupto(l))}, wupto(l)) == True{} : Bool}
   PA.ok_zero(m, wupto(l))
 
 law okn:
   for +fa: List<&2, B.Contig>
   for +l: B.Line
   for +back: Nat
-  for +hm: {B.Fasta.find(fa, L.chrom_of(B.Line.body(l))) == None{} : Maybe<&2, String>}
-  {PA.ans_ok(B.Fasta.find(fa, L.chrom_of(B.Line.body(l))), A0(fa, l, back), wupto(l)) == True{} : Bool}
+  for +hm: {B.Fasta.find(fa, WD.chrom_of(B.Line.body(l))) == None{} : Maybe<&2, String>}
+  {PA.ans_ok(B.Fasta.find(fa, WD.chrom_of(B.Line.body(l))), A0(fa, l, back), wupto(l)) == True{} : Bool}
 
 def okn(fa, l, back, hm):
-  %Equal.sym(Maybe<&2, String>, B.Fasta.find(fa, L.chrom_of(B.Line.body(l))), None{}, hm) :
-    {PA.ans_ok(_, L.truth.of(_, wfrom(l, back), wupto(l)), wupto(l)) == True{} : Bool}
+  %Equal.sym(Maybe<&2, String>, B.Fasta.find(fa, WD.chrom_of(B.Line.body(l))), None{}, hm) :
+    {PA.ans_ok(_, Some{M.truth.of(_, wfrom(l, back), wupto(l))}, wupto(l)) == True{} : Bool}
   {==}
 
 law sub_gt:
@@ -1014,7 +1016,7 @@ law askdec.b:
   for +l: B.Line
   for +back: Nat
   for +mf: Maybe<&2, String>
-  for +hm: {B.Fasta.find(B.Fasta.parse(fasta), L.chrom_of(B.Line.body(l))) == mf : Maybe<&2, String>}
+  for +hm: {B.Fasta.find(B.Fasta.parse(fasta), WD.chrom_of(B.Line.body(l))) == mf : Maybe<&2, String>}
   for +hn: {Norm.judge_in(A0(B.Fasta.parse(fasta), l, back), B.Line.body(l)) == None{} : Maybe<&2, B.Res>}
   ADG(B.Fasta.parse(fasta), l, back)
 
@@ -1029,9 +1031,9 @@ def askdec.b(fasta, l, back, mf, hm, hn):
       +fa = B.Fasta.parse(fasta)
       +f = wfrom(l, back)
       +u = wupto(l)
-      %Equal.sym(Maybe<&2, String>, B.Fasta.find(fa, L.chrom_of(B.Line.body(l))), Some{r}, hm) :
-        {Nat.is_le(1n+Bool.pick(Nat, Nat.is_le(lpos(l), Norm.grow(L.truth.of(_, f, u), back, l)), 0n,
-          Nat.add(Nat.sub(PFa.mlen(_), Norm.grow(L.truth.of(_, f, u), back, l)), 1n)), Nat.add(Nat.sub(PFa.mlen(_), back), 1n)) == True{} : Bool}
+      %Equal.sym(Maybe<&2, String>, B.Fasta.find(fa, WD.chrom_of(B.Line.body(l))), Some{r}, hm) :
+        {Nat.is_le(1n+Bool.pick(Nat, Nat.is_le(lpos(l), Norm.grow(Some{M.truth.of(_, f, u)}, back, l)), 0n,
+          Nat.add(Nat.sub(PFa.mlen(_), Norm.grow(Some{M.truth.of(_, f, u)}, back, l)), 1n)), Nat.add(Nat.sub(PFa.mlen(_), back), 1n)) == True{} : Bool}
       askdec.c(l, back, String.length(r), Nat.is_le(String.length(r), back), {==})
 
 law askdec.a:
@@ -1052,7 +1054,7 @@ def askdec.a(fasta, l, back, le, hle, hn):
       Empty.absurd({Nat.is_le(1n+asks0(fa, l, Norm.grow(a, back, l)), 0n) == True{} : Bool},
         no_enough(fasta, l, a, hn, PA.truthful_truth(fa, wchrom(l), wfrom(l, back), wupto(l)), PA.E_main(fa, B.Line.body(l), a, okz(fa, l, back, hle))))
     case False{}:
-      askdec.b(fasta, l, back, B.Fasta.find(B.Fasta.parse(fasta), L.chrom_of(B.Line.body(l))), {==}, hn)
+      askdec.b(fasta, l, back, B.Fasta.find(B.Fasta.parse(fasta), WD.chrom_of(B.Line.body(l))), {==}, hn)
 
 # A read that gives no result leaves fewer reads to come.
 law askdec:
@@ -1073,7 +1075,7 @@ def AskG(+fasta: String, +T: R.Report, +o: B.Opts, +rs: R.RunSt, +pend: String, 
   +d = {L.DSt{Norm.St{o, rs, pend, q, e, Some{Norm.Pending{l, back, fs}}}, B.Ask{ch, a, b}, cs, e, O, N, None{}} : L.DSt}
   StepOK(fasta, T, L.dstep(B.Fasta.parse(fasta), d), need(B.Fasta.parse(fasta), cost(fasta), d))
 
-def AD(+f: Nat, +st: Norm.St, +a: B.Ans, +cs: List<&2, String>, +e: Bool, +O: String, +N: List<&2, B.Note>) -> L.DSt:
+def AD(+f: Nat, +st: Norm.St, +a: Maybe<&2, Pr.Ans>, +cs: List<&2, String>, +e: Bool, +O: String, +N: List<&2, B.Note>) -> L.DSt:
   L.absorb(Norm.pump(f, Norm.resolve(st, a), Nil{}, Nil{}), cs, e, O, N)
 
 law add2:

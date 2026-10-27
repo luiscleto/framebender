@@ -1,6 +1,6 @@
 import Base
 import ./types.bend as B
-import ./norm_var.bend as V
+import ./tan.bend as V
 import ./LAWS.bend as L
 import ./proof_base.bend as P
 import ./proof_var_lists.bend as Q

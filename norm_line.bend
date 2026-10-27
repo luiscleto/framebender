@@ -1,10 +1,11 @@
 import Base
 import ./types.bend as B
-import ./norm_var.bend as V
+import ./protocol.bend as P
+import ./tan.bend as V
 
 # framebender: the result for one body line, reading the reference through a
-# window (code, not spec). Reached from the laws through Norm.judge_in
-# (norm.bend).
+# window (code, not spec). The normalizer is the spec's (tan.bend, V.var_in on
+# the window).
 
 # ---------------------------------------------------------------------------
 # INFO/END (B.Info.end_ok, without splitting INFO into its entries)
@@ -157,19 +158,20 @@ def found(end_ok: Bool, r: Maybe<&2, List<&2, B.Base>>, a: Maybe<&2, List<&2, Li
     case True{} _ _:
       Some{mk(B.Problem{B.NonAcgtn{}}, fs, body)}
 
-def judge_in.ans(a: B.Ans, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
+# a: what the reference answered (None: nothing was read yet).
+def judge_in.ans(a: Maybe<&2, P.Ans>, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
   match a:
-    case B.NoAns{}:
+    case None{}:
       None{}
-    case B.Unknown{}:
+    case Some{P.Unknown{}}:
       Some{mk(B.NoContig{}, fs, body)}
-    case B.Known{+clen, +off, raw}:
+    case Some{P.Known{+clen, +off, raw}}:
       +bases = B.Bases.of_fasta(raw)
       +ref = B.Rec.field(fs, 3n)
       e = Nat.sub(Nat.add(B.Rec.pos(fs), String.length(ref)), 1n)
       found(end_ok(B.Rec.field(fs, 7n), e), B.Allele.read(ref), B.Alleles.read(B.Rec.alts(fs)), clen, off, bases, fs, body)
 
-def judge_in.go(bad: Bool, skip: Bool, a: B.Ans, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
+def judge_in.go(bad: Bool, skip: Bool, a: Maybe<&2, P.Ans>, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
   match bad skip:
     case True{} _:
       Some{mk(B.Broken{}, fs, body)}
@@ -179,11 +181,11 @@ def judge_in.go(bad: Bool, skip: Bool, a: B.Ans, +fs: List<&2, String>, +body: S
       judge_in.ans(a, fs, body)
 
 # judge_in with the line's fields already split (fs = B.Rec.fields(body)).
-def judge_fs(a: B.Ans, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
+def judge_fs(a: Maybe<&2, P.Ans>, +fs: List<&2, String>, +body: String) -> Maybe<&2, B.Res>:
   judge_in.go(B.Rec.malformed(fs), B.Rec.out_of_scope(fs), a, fs, body)
 
 # The result for one body line (its text without terminator), given what the
-# reference answered for the line's CHROM; None when the answer is not enough
-# (the machine then asks for more).
-def judge_in(a: B.Ans, +body: String) -> Maybe<&2, B.Res>:
+# reference answered for the line's CHROM (None: nothing read); None when the
+# answer is not enough (the machine then asks for more).
+def judge_in(a: Maybe<&2, P.Ans>, +body: String) -> Maybe<&2, B.Res>:
   judge_fs(a, B.Rec.fields(body), body)

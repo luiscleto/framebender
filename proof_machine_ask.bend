@@ -1,13 +1,15 @@
 import Base
 import ./types.bend as B
+import ./protocol.bend as Pr
+import ./proof_window_defs.bend as WD
 import ./norm.bend as Norm
 import ./LAWS.bend as L
 import ./proof_base.bend as P
 import ./proof_machine_nat.bend as PN
 
-# Lemmas for the machine proof: the driver's reference answers (L.truth) are
+# Lemmas for the machine proof: the driver's reference answers (M.truth) are
 # truthful, and an answer from the contig's first letter to the end of REF is
-# enough (L.enough) for every line.
+# enough (WD.enough) for every line.
 
 # Strings equal themselves
 # ========================
@@ -135,7 +137,7 @@ law truthful_of:
   for +u: Nat
   for +m: Maybe<&2, String>
   for +hm: {B.Fasta.find(fa, chrom) == m : Maybe<&2, String>}
-  {L.truthful(fa, chrom, L.truth.of(m, f, u)) == True{} : Bool}
+  {WD.truthful(fa, chrom, Some{M.truth.of(m, f, u)}) == True{} : Bool}
 
 def truthful_of(fa, chrom, f, u, m, hm):
   match m:
@@ -146,7 +148,7 @@ def truthful_of(fa, chrom, f, u, m, hm):
       +n = String.length(r)
       +raw = String.take(String.drop(r, f), Nat.sub(u, f))
       %Equal.sym(Maybe<&2, String>, B.Fasta.find(fa, chrom), Some{r}, hm) :
-        {L.known.ok(_, n, Nat.min(f, n), raw) == True{} : Bool}
+        {WD.known.ok(_, n, Nat.min(f, n), raw) == True{} : Bool}
       %Equal.sym(String, String.drop(r, Nat.min(f, n)), String.drop(r, f), drop_min(r, f)) : {Bool.and(Nat.is_eq(n, n), String.eq(raw, String.take(_, String.length(raw)))) == True{} : Bool}
       %Equal.sym(String, String.take(String.drop(r, f), String.length(raw)), raw, take_len_take(String.drop(r, f), Nat.sub(u, f))) : {Bool.and(Nat.is_eq(n, n), String.eq(raw, _)) == True{} : Bool}
       %Equal.sym(Bool, Nat.is_eq(n, n), True{}, P.eq_refl(n)) : {Bool.and(_, String.eq(raw, raw)) == True{} : Bool}
@@ -157,7 +159,7 @@ law truthful_truth:
   for +chrom: String
   for +f: Nat
   for +u: Nat
-  {L.truthful(fa, chrom, L.truth(fa, chrom, f, u)) == True{} : Bool}
+  {WD.truthful(fa, chrom, Some{M.truth(fa, chrom, f, u)}) == True{} : Bool}
 
 def truthful_truth(fa, chrom, f, u):
   truthful_of(fa, chrom, f, u, B.Fasta.find(fa, chrom), {==})
@@ -167,12 +169,12 @@ def truthful_truth(fa, chrom, f, u):
 
 # What an answer must hold for a line of contig m that reads up to hi: that
 # the contig is unknown, or its letters from the first up to hi.
-def ans_ok(m: Maybe<&2, String>, a: B.Ans, +hi: Nat) -> Bool:
+def ans_ok(m: Maybe<&2, String>, a: Maybe<&2, Pr.Ans>, +hi: Nat) -> Bool:
   match m:
     case None{}:
-      L.is_unknown(a)
+      WD.is_unknown(a)
     case Some{r}:
-      L.covers(a, 0n, hi)
+      WD.covers(a, 0n, hi)
 
 def rlen(+fs: List<&2, String>) -> Nat:
   String.length(B.Rec.field(fs, 3n))
@@ -181,48 +183,48 @@ def hi(+fs: List<&2, String>) -> Nat:
   Nat.add(Nat.sub(B.Rec.pos(fs), 1n), rlen(fs))
 
 law covers_lo:
-  for +a: B.Ans
+  for +a: Maybe<&2, Pr.Ans>
   for +lo: Nat
   for +h: Nat
-  for +e: {L.covers(a, 0n, h) == True{} : Bool}
-  {L.covers(a, lo, h) == True{} : Bool}
+  for +e: {WD.covers(a, 0n, h) == True{} : Bool}
+  {WD.covers(a, lo, h) == True{} : Bool}
 
 def covers_lo(a, lo, h, e):
   match a:
-    case B.NoAns{}:
-      Empty.absurd({L.covers(B.NoAns{}, lo, h) == True{} : Bool}, P.false_ne_true(e))
-    case B.Unknown{}:
-      Empty.absurd({L.covers(B.Unknown{}, lo, h) == True{} : Bool}, P.false_ne_true(e))
-    case B.Known{clen, off, raw}:
+    case None{}:
+      Empty.absurd({WD.covers(None{}, lo, h) == True{} : Bool}, P.false_ne_true(e))
+    case Some{Pr.Unknown{}}:
+      Empty.absurd({WD.covers(Some{Pr.Unknown{}}, lo, h) == True{} : Bool}, P.false_ne_true(e))
+    case Some{Pr.Known{clen, off, raw}}:
       match off:
         case 0n:
           +rest = Nat.is_le(Nat.min(h, clen), String.length(raw))
           PN.and_intro(Nat.is_le(0n, lo), rest, P.le_zero_l(lo), P.and_true_r(True{}, rest, e))
         case 1n+p:
-          Empty.absurd({L.covers(B.Known{clen, 1n+p, raw}, lo, h) == True{} : Bool}, P.false_ne_true(e))
+          Empty.absurd({WD.covers(Some{Pr.Known{clen, 1n+p, raw}}, lo, h) == True{} : Bool}, P.false_ne_true(e))
 
 law known_of_covers:
-  for +a: B.Ans
+  for +a: Maybe<&2, Pr.Ans>
   for +h: Nat
-  for +e: {L.covers(a, 0n, h) == True{} : Bool}
-  {L.is_known(a) == True{} : Bool}
+  for +e: {WD.covers(a, 0n, h) == True{} : Bool}
+  {WD.is_known(a) == True{} : Bool}
 
 def known_of_covers(a, h, e):
   match a:
-    case B.NoAns{}:
-      Empty.absurd({L.is_known(B.NoAns{}) == True{} : Bool}, P.false_ne_true(e))
-    case B.Unknown{}:
-      Empty.absurd({L.is_known(B.Unknown{}) == True{} : Bool}, P.false_ne_true(e))
-    case B.Known{clen, off, raw}:
+    case None{}:
+      Empty.absurd({WD.is_known(None{}) == True{} : Bool}, P.false_ne_true(e))
+    case Some{Pr.Unknown{}}:
+      Empty.absurd({WD.is_known(Some{Pr.Unknown{}}) == True{} : Bool}, P.false_ne_true(e))
+    case Some{Pr.Known{clen, off, raw}}:
       {==}
 
 law E_code:
   for +k: B.Code
   for +fs: List<&2, String>
   for +body: String
-  for +a: B.Ans
-  for +hc: {L.covers(a, 0n, hi(fs)) == True{} : Bool}
-  {L.enough.go(L.res(B.Problem{k}, fs, body), B.Rec.pos(fs), rlen(fs), a) == True{} : Bool}
+  for +a: Maybe<&2, Pr.Ans>
+  for +hc: {WD.covers(a, 0n, hi(fs)) == True{} : Bool}
+  {WD.enough.go(L.res(B.Problem{k}, fs, body), B.Rec.pos(fs), rlen(fs), a) == True{} : Bool}
 
 def E_code(k, fs, body, a, hc):
   match k:
@@ -253,9 +255,9 @@ law E_problem:
   for +body: String
   for +seq: List<&2, B.Base>
   for +v: B.Var
-  for +a: B.Ans
-  for +hc: {L.covers(a, 0n, hi(fs)) == True{} : Bool}
-  {L.enough.go(L.problem(c, fs, body, seq, v), B.Rec.pos(fs), rlen(fs), a) == True{} : Bool}
+  for +a: Maybe<&2, Pr.Ans>
+  for +hc: {WD.covers(a, 0n, hi(fs)) == True{} : Bool}
+  {WD.enough.go(L.problem(c, fs, body, seq, v), B.Rec.pos(fs), rlen(fs), a) == True{} : Bool}
 
 def E_problem(c, fs, body, seq, v, a, hc):
   match c:
@@ -271,9 +273,9 @@ law E_bases:
   for +fs: List<&2, String>
   for +body: String
   for +seq: List<&2, B.Base>
-  for +a: B.Ans
-  for +hc: {L.covers(a, 0n, hi(fs)) == True{} : Bool}
-  {L.enough.go(L.judge.bases(eo, r, al, fs, body, seq), B.Rec.pos(fs), rlen(fs), a) == True{} : Bool}
+  for +a: Maybe<&2, Pr.Ans>
+  for +hc: {WD.covers(a, 0n, hi(fs)) == True{} : Bool}
+  {WD.enough.go(L.judge.bases(eo, r, al, fs, body, seq), B.Rec.pos(fs), rlen(fs), a) == True{} : Bool}
 
 def E_bases(eo, r, al, fs, body, seq, a, hc):
   match eo r al:
@@ -293,9 +295,9 @@ law E_contig:
   for +m: Maybe<&2, String>
   for +fs: List<&2, String>
   for +body: String
-  for +a: B.Ans
+  for +a: Maybe<&2, Pr.Ans>
   for +h: {ans_ok(m, a, hi(fs)) == True{} : Bool}
-  {L.enough.go(L.judge.contig(m, fs, body), B.Rec.pos(fs), rlen(fs), a) == True{} : Bool}
+  {WD.enough.go(L.judge.contig(m, fs, body), B.Rec.pos(fs), rlen(fs), a) == True{} : Bool}
 
 def E_contig(m, fs, body, a, h):
   match m:
@@ -311,9 +313,9 @@ law E_shape:
   for +skip: Bool
   for +fa: List<&2, B.Contig>
   for +body: String
-  for +a: B.Ans
-  for +h: {ans_ok(B.Fasta.find(fa, L.chrom_of(body)), a, hi(B.Rec.fields(body))) == True{} : Bool}
-  {L.enough.go(L.judge.shape(bad, skip, fa, B.Rec.fields(body), body), B.Rec.pos(B.Rec.fields(body)), rlen(B.Rec.fields(body)), a) == True{} : Bool}
+  for +a: Maybe<&2, Pr.Ans>
+  for +h: {ans_ok(B.Fasta.find(fa, WD.chrom_of(body)), a, hi(B.Rec.fields(body))) == True{} : Bool}
+  {WD.enough.go(L.judge.shape(bad, skip, fa, B.Rec.fields(body), body), B.Rec.pos(B.Rec.fields(body)), rlen(B.Rec.fields(body)), a) == True{} : Bool}
 
 def E_shape(bad, skip, fa, body, a, h):
   match bad skip:
@@ -322,15 +324,15 @@ def E_shape(bad, skip, fa, body, a, h):
     case False{} True{}:
       {==}
     case False{} False{}:
-      E_contig(B.Fasta.find(fa, L.chrom_of(body)), B.Rec.fields(body), body, a, h)
+      E_contig(B.Fasta.find(fa, WD.chrom_of(body)), B.Rec.fields(body), body, a, h)
 
 # An answer that is ans_ok is enough.
 law E_main:
   for +fa: List<&2, B.Contig>
   for +body: String
-  for +a: B.Ans
-  for +h: {ans_ok(B.Fasta.find(fa, L.chrom_of(body)), a, hi(B.Rec.fields(body))) == True{} : Bool}
-  {L.enough(fa, body, a) == True{} : Bool}
+  for +a: Maybe<&2, Pr.Ans>
+  for +h: {ans_ok(B.Fasta.find(fa, WD.chrom_of(body)), a, hi(B.Rec.fields(body))) == True{} : Bool}
+  {WD.enough(fa, body, a) == True{} : Bool}
 
 def E_main(fa, body, a, h):
   +fs = B.Rec.fields(body)
@@ -340,7 +342,7 @@ def E_main(fa, body, a, h):
 law ok_zero:
   for +m: Maybe<&2, String>
   for +u: Nat
-  {ans_ok(m, L.truth.of(m, 0n, u), u) == True{} : Bool}
+  {ans_ok(m, Some{M.truth.of(m, 0n, u)}, u) == True{} : Bool}
 
 def ok_zero(m, u):
   match m:
@@ -348,8 +350,8 @@ def ok_zero(m, u):
       {==}
     case Some{r}:
       +n = String.length(r)
-      %Equal.sym(Nat, Nat.sub(u, 0n), u, P.sub_zero(u)) : {L.covers(B.Known{n, 0n, String.take(String.drop(r, 0n), _)}, 0n, u) == True{} : Bool}
-      %Equal.sym(String, String.drop(r, 0n), r, drop_zero(r)) : {L.covers(B.Known{n, 0n, String.take(_, u)}, 0n, u) == True{} : Bool}
+      %Equal.sym(Nat, Nat.sub(u, 0n), u, P.sub_zero(u)) : {WD.covers(Some{Pr.Known{n, 0n, String.take(String.drop(r, 0n), _)}}, 0n, u) == True{} : Bool}
+      %Equal.sym(String, String.drop(r, 0n), r, drop_zero(r)) : {WD.covers(Some{Pr.Known{n, 0n, String.take(_, u)}}, 0n, u) == True{} : Bool}
       %Equal.sym(Nat, String.length(String.take(r, u)), Nat.min(u, n), take_len(r, u)) : {Bool.and(Nat.is_le(0n, 0n), Nat.is_le(Nat.min(u, n), _)) == True{} : Bool}
       P.le_refl(Nat.min(u, n))
 
@@ -357,7 +359,7 @@ def ok_zero(m, u):
 law ok_none:
   for +f: Nat
   for +u: Nat
-  {ans_ok(None{}, L.truth.of(None{}, f, u), u) == True{} : Bool}
+  {ans_ok(None{}, Some{M.truth.of(None{}, f, u)}, u) == True{} : Bool}
 
 def ok_none(f, u):
   {==}

@@ -250,3 +250,17 @@ the 35 MB GIAB chr22 file read as bytes, counting LFs: 0.15 s; converting the by
 String first and then counting: 0.32 s. So Bend itself is not slow: the 22 s come from building
 Strings, splitting/joining fields and re-parsing each line several times. A single-pass
 implementation over the text could plausibly get within a few times of bcftools.
+
+## Two-layer restructure (2026-10-27, owner's request; branch `two-layer`)
+
+Science layer (`LAWS.bend`, `types.bend`, `run.bend`, `tan.bend`: no code mentioned, frozen once
+approved) and implementation layer (`protocol.bend`, `MACHINE.bend`: the program writes exactly what
+`run` says). Reviews: `reviews/DRAFT2_PROMPT.md`, `*-d2.md`, `responses-6.md`, `*-d3.md`.
+- Draft 2: all three agree with the restructure. Found: reads unbounded with batched requests
+  (Gemini, Claude, GPT), layers sharing files (Gemini, Claude), code calling spec definitions so
+  speedups had edited approved files (Claude), "unsupported FASTA" outcome depending on which reads
+  the code makes (Claude), an expert having to read the normalizer (Claude, Gemini), dead `NoAns`
+  and comment typos from a rename (Gemini).
+- Draft 3: GPT and Claude approve. Gemini's quota ran out mid-round ("resets in 152h"), so Grok 4.7
+  (xAI, a fourth model family) stands in for this confirmation round, with the full context; Gemini
+  returns for later rounds once its quota resets.

@@ -1,7 +1,9 @@
 import Base
 import ./types.bend as B
+import ./protocol.bend as Pr
+import ./proof_window_defs.bend as WD
 import ./norm.bend as Norm
-import ./norm_var.bend as V
+import ./tan.bend as V
 import ./norm_line.bend as J
 import ./run.bend as R
 import ./LAWS.bend as L
@@ -31,13 +33,13 @@ def VarSound() -> Type:
     @+hb: {bases == L.slice(seq, off, L.len(bases)) : List<&2, B.Base>} ->
     @+hv: {L.valid(seq, v) == True{} : Bool} ->
     @+hw: {V.var_in(off, bases, v) == Some{w} : Maybe<&2, B.Var>} ->
-    {w == Norm.var(seq, v) : B.Var})
+    {w == V.normal(seq, v) : B.Var})
 
 def VarEnough() -> Type:
   (@+seq: List<&2, B.Base> -> @+off: Nat -> @+bases: List<&2, B.Base> -> @+v: B.Var ->
     @+hb: {bases == L.slice(seq, off, L.len(bases)) : List<&2, B.Base>} ->
     @+hv: {L.valid(seq, v) == True{} : Bool} ->
-    @+hc: {PV.covers(off, L.len(bases), v, Norm.var(seq, v)) == True{} : Bool} ->
+    @+hc: {PV.covers(off, L.len(bases), v, V.normal(seq, v)) == True{} : Bool} ->
     {Maybe.is_some(&2, B.Var, V.var_in(off, bases, v)) == True{} : Bool})
 
 # ---------------------------------------------------------------------------
@@ -304,8 +306,8 @@ def win.found(sound: VarSound(), +fs: List<&2, String>, +body: String, +seq: Lis
 
 def win.known(sound: VarSound(), +fs: List<&2, String>, +body: String, +hm: {B.Rec.malformed(fs) == False{} : Bool},
   m: Maybe<&2, String>, +clen: Nat, +off: Nat, +raw: String, +r: B.Res,
-  +ht: {L.known.ok(m, clen, off, raw) == True{} : Bool},
-  +hr: {J.judge_in.ans(B.Known{clen, off, raw}, fs, body) == Some{r} : Maybe<&2, B.Res>}) ->
+  +ht: {WD.known.ok(m, clen, off, raw) == True{} : Bool},
+  +hr: {J.judge_in.ans(Some{Pr.Known{clen, off, raw}}, fs, body) == Some{r} : Maybe<&2, B.Res>}) ->
   {r == L.judge.contig(m, fs, body) : B.Res}:
   match m:
     case None{}:
@@ -335,21 +337,21 @@ def win.unknown(+fs: List<&2, String>, +body: String, m: Maybe<&2, String>,
       Empty.absurd({r == L.judge.contig(Some{x}, fs, body) : B.Res}, P.false_ne_true(ht))
 
 def win.ans(sound: VarSound(), +fa: List<&2, B.Contig>, +fs: List<&2, String>, +body: String,
-  +hm: {B.Rec.malformed(fs) == False{} : Bool}, a: B.Ans, +r: B.Res,
-  +ht: {L.truthful(fa, B.Rec.field(fs, 0n), a) == True{} : Bool},
+  +hm: {B.Rec.malformed(fs) == False{} : Bool}, a: Maybe<&2, Pr.Ans>, +r: B.Res,
+  +ht: {WD.truthful(fa, B.Rec.field(fs, 0n), a) == True{} : Bool},
   +hr: {J.judge_in.ans(a, fs, body) == Some{r} : Maybe<&2, B.Res>}) ->
   {r == L.judge.contig(B.Fasta.find(fa, B.Rec.field(fs, 0n)), fs, body) : B.Res}:
   match a:
-    case B.NoAns{}:
+    case None{}:
       Empty.absurd({r == L.judge.contig(B.Fasta.find(fa, B.Rec.field(fs, 0n)), fs, body) : B.Res}, W.none_ne_some(B.Res, r, hr))
-    case B.Unknown{}:
+    case Some{Pr.Unknown{}}:
       win.unknown(fs, body, B.Fasta.find(fa, B.Rec.field(fs, 0n)), ht, r, hr)
-    case B.Known{+clen, +off, +raw}:
+    case Some{Pr.Known{+clen, +off, +raw}}:
       win.known(sound, fs, body, hm, B.Fasta.find(fa, B.Rec.field(fs, 0n)), clen, off, raw, r, ht, hr)
 
 def win.shape(sound: VarSound(), +fa: List<&2, B.Contig>, +fs: List<&2, String>, +body: String,
-  +bad: Bool, +skip: Bool, +hm: {B.Rec.malformed(fs) == bad : Bool}, a: B.Ans, +r: B.Res,
-  +ht: {L.truthful(fa, B.Rec.field(fs, 0n), a) == True{} : Bool},
+  +bad: Bool, +skip: Bool, +hm: {B.Rec.malformed(fs) == bad : Bool}, a: Maybe<&2, Pr.Ans>, +r: B.Res,
+  +ht: {WD.truthful(fa, B.Rec.field(fs, 0n), a) == True{} : Bool},
   +hr: {J.judge_in.go(bad, skip, a, fs, body) == Some{r} : Maybe<&2, B.Res>}) ->
   {r == L.judge.shape(bad, skip, fa, fs, body) : B.Res}:
   match bad skip:
@@ -361,8 +363,8 @@ def win.shape(sound: VarSound(), +fa: List<&2, B.Contig>, +fs: List<&2, String>,
       win.ans(sound, fa, fs, body, hm, a, r, ht, hr)
 
 # window, given var_in_sound.
-def window.core(sound: VarSound(), +fa: List<&2, B.Contig>, +body: String, a: B.Ans, +r: B.Res,
-  +ht: {L.truthful(fa, L.chrom_of(body), a) == True{} : Bool},
+def window.core(sound: VarSound(), +fa: List<&2, B.Contig>, +body: String, a: Maybe<&2, Pr.Ans>, +r: B.Res,
+  +ht: {WD.truthful(fa, WD.chrom_of(body), a) == True{} : Bool},
   +hr: {Norm.judge_in(a, body) == Some{r} : Maybe<&2, B.Res>}) ->
   {r == L.judge(fa, body) : B.Res}:
   win.shape(sound, fa, B.Rec.fields(body), body, B.Rec.malformed(B.Rec.fields(body)), B.Rec.out_of_scope(B.Rec.fields(body)),
@@ -406,35 +408,35 @@ def cov_hi(+s: Nat, +n: Nat, +rlen: Nat, +clen: Nat, +off: Nat, +lb: Nat, +lr: N
   h
 
 # he with the REF check's value x in place of the equal y.
-def en.he(+fs: List<&2, String>, +body: String, +seq: List<&2, B.Base>, +v: B.Var, +p: Nat, +rlen: Nat, +a: B.Ans,
+def en.he(+fs: List<&2, String>, +body: String, +seq: List<&2, B.Base>, +v: B.Var, +p: Nat, +rlen: Nat, +a: Maybe<&2, Pr.Ans>,
   +x: Bool, +y: Bool, +hxy: {x == y : Bool},
-  +he: {L.enough.go(L.problem(L.first(Bool.not(y), B.RefMismatch{}, None{}), fs, body, seq, v), p, rlen, a) == True{} : Bool}) ->
-  {L.enough.go(L.problem(L.first(Bool.not(x), B.RefMismatch{}, None{}), fs, body, seq, v), p, rlen, a) == True{} : Bool}:
-  %Equal.sym(Bool, x, y, hxy) : {L.enough.go(L.problem(L.first(Bool.not(_), B.RefMismatch{}, None{}), fs, body, seq, v), p, rlen, a) == True{} : Bool}
+  +he: {WD.enough.go(L.problem(L.first(Bool.not(y), B.RefMismatch{}, None{}), fs, body, seq, v), p, rlen, a) == True{} : Bool}) ->
+  {WD.enough.go(L.problem(L.first(Bool.not(x), B.RefMismatch{}, None{}), fs, body, seq, v), p, rlen, a) == True{} : Bool}:
+  %Equal.sym(Bool, x, y, hxy) : {WD.enough.go(L.problem(L.first(Bool.not(_), B.RefMismatch{}, None{}), fs, body, seq, v), p, rlen, a) == True{} : Bool}
   he
 
 # What the line needs, as the two ends of covers, whichever outcome the REF
 # check c gives.
 def en.lo(+c: Bool, +fs: List<&2, String>, +body: String, +seq: List<&2, B.Base>, +v: B.Var, +p: Nat, +rlen: Nat,
   +clen: Nat, +off: Nat, +raw: String,
-  +he: {L.enough.go(L.problem(L.first(Bool.not(c), B.RefMismatch{}, None{}), fs, body, seq, v), p, rlen, B.Known{clen, off, raw}) == True{} : Bool}) ->
+  +he: {WD.enough.go(L.problem(L.first(Bool.not(c), B.RefMismatch{}, None{}), fs, body, seq, v), p, rlen, Some{Pr.Known{clen, off, raw}}) == True{} : Bool}) ->
   {Nat.is_le(off, Nat.sub(p, 1n)) == True{} : Bool}:
   match c:
     case False{}:
       P.and_true_l(Nat.is_le(off, Nat.sub(p, 1n)), Nat.is_le(Nat.min(Nat.add(Nat.sub(p, 1n), rlen), clen), Nat.add(off, String.length(raw))), he)
     case True{}:
-      +k = Nat.sub(L.pos_of(Norm.var(seq, v)), 2n)
+      +k = Nat.sub(L.pos_of(V.normal(seq, v)), 2n)
       W.le_min_l(off, Nat.sub(p, 1n), k, P.and_true_l(Nat.is_le(off, Nat.min(Nat.sub(p, 1n), k)), Nat.is_le(Nat.min(Nat.add(Nat.sub(p, 1n), rlen), clen), Nat.add(off, String.length(raw))), he))
 
 def en.hi(+c: Bool, +fs: List<&2, String>, +body: String, +seq: List<&2, B.Base>, +v: B.Var, +p: Nat, +rlen: Nat,
   +clen: Nat, +off: Nat, +raw: String,
-  +he: {L.enough.go(L.problem(L.first(Bool.not(c), B.RefMismatch{}, None{}), fs, body, seq, v), p, rlen, B.Known{clen, off, raw}) == True{} : Bool}) ->
+  +he: {WD.enough.go(L.problem(L.first(Bool.not(c), B.RefMismatch{}, None{}), fs, body, seq, v), p, rlen, Some{Pr.Known{clen, off, raw}}) == True{} : Bool}) ->
   {Nat.is_le(Nat.min(Nat.add(Nat.sub(p, 1n), rlen), clen), Nat.add(off, String.length(raw))) == True{} : Bool}:
   match c:
     case False{}:
       P.and_true_r(Nat.is_le(off, Nat.sub(p, 1n)), Nat.is_le(Nat.min(Nat.add(Nat.sub(p, 1n), rlen), clen), Nat.add(off, String.length(raw))), he)
     case True{}:
-      P.and_true_r(Nat.is_le(off, Nat.min(Nat.sub(p, 1n), Nat.sub(L.pos_of(Norm.var(seq, v)), 2n))), Nat.is_le(Nat.min(Nat.add(Nat.sub(p, 1n), rlen), clen), Nat.add(off, String.length(raw))), he)
+      P.and_true_r(Nat.is_le(off, Nat.min(Nat.sub(p, 1n), Nat.sub(L.pos_of(V.normal(seq, v)), 2n))), Nat.is_le(Nat.min(Nat.add(Nat.sub(p, 1n), rlen), clen), Nat.add(off, String.length(raw))), he)
 
 def en.norm(+fs: List<&2, String>, +v: B.Var, +mw: Maybe<&2, B.Var>, +hs: {Maybe.is_some(&2, B.Var, mw) == True{} : Bool}) ->
   {Maybe.is_some(&2, B.Res, J.found.norm(mw, fs, v)) == True{} : Bool}:
@@ -450,9 +452,9 @@ def en.covers(+seq: List<&2, B.Base>, +clen: Nat, +off: Nat, +raw: String, +base
   +hlr: {L.len(bases) == String.length(raw) : Nat},
   +hrl: {L.len(ref) == rlen : Nat},
   +hfit: {Nat.is_le(Nat.add(Nat.sub(p, 1n), L.len(ref)), clen) == True{} : Bool},
-  +he: {L.covers(B.Known{clen, off, raw}, Nat.min(Nat.sub(p, 1n), Nat.sub(L.pos_of(Norm.var(seq, B.Var{p, ref, alts})), 2n)), Nat.add(Nat.sub(p, 1n), rlen)) == True{} : Bool}) ->
-  {PV.covers(off, L.len(bases), B.Var{p, ref, alts}, Norm.var(seq, B.Var{p, ref, alts})) == True{} : Bool}:
-  +lo = Nat.is_le(off, Nat.min(Nat.sub(p, 1n), Nat.sub(L.pos_of(Norm.var(seq, B.Var{p, ref, alts})), 2n)))
+  +he: {WD.covers(Some{Pr.Known{clen, off, raw}}, Nat.min(Nat.sub(p, 1n), Nat.sub(L.pos_of(V.normal(seq, B.Var{p, ref, alts})), 2n)), Nat.add(Nat.sub(p, 1n), rlen)) == True{} : Bool}) ->
+  {PV.covers(off, L.len(bases), B.Var{p, ref, alts}, V.normal(seq, B.Var{p, ref, alts})) == True{} : Bool}:
+  +lo = Nat.is_le(off, Nat.min(Nat.sub(p, 1n), Nat.sub(L.pos_of(V.normal(seq, B.Var{p, ref, alts})), 2n)))
   +hi = Nat.is_le(Nat.min(Nat.add(Nat.sub(p, 1n), rlen), clen), Nat.add(off, String.length(raw)))
   and_tt(lo, Nat.is_le(Nat.add(Nat.sub(p, 1n), L.len(ref)), Nat.add(off, L.len(bases))),
     P.and_true_l(lo, hi, he),
@@ -471,7 +473,7 @@ def en.ref.b(enough: VarEnough(), +fs: List<&2, String>, +body: String, +seq: Li
   +ha: {L.all_nonempty(alts) == True{} : Bool},
   +hd: {B.Alleles.distinct(ref <> alts) == True{} : Bool},
   +b: Bool, +hbeq: {b == B.Bases.eq(L.slice(seq, Nat.sub(p, 1n), L.len(ref)), ref) : Bool},
-  +he: {L.enough.go(L.problem(L.first(Bool.not(b), B.RefMismatch{}, None{}), fs, body, seq, B.Var{p, ref, alts}), p, rlen, B.Known{clen, off, raw}) == True{} : Bool}) ->
+  +he: {WD.enough.go(L.problem(L.first(Bool.not(b), B.RefMismatch{}, None{}), fs, body, seq, B.Var{p, ref, alts}), p, rlen, Some{Pr.Known{clen, off, raw}}) == True{} : Bool}) ->
   {Maybe.is_some(&2, B.Res, J.found.ref(Some{b}, off, bases, fs, body, B.Var{p, ref, alts})) == True{} : Bool}:
   match b:
     case False{}:
@@ -491,12 +493,12 @@ def en.none(+fs: List<&2, String>, +body: String, +seq: List<&2, B.Base>, +clen:
   +hrl: {L.len(ref) == rlen : Nat},
   +hok: {J.ref_check(clen, off, bases, Nat.sub(p, 1n), ref) == None{} : Maybe<&2, Bool>},
   +c: Bool, +hq: {B.Bases.eq(L.slice(seq, Nat.sub(p, 1n), L.len(ref)), ref) == c : Bool},
-  +he: {L.enough.go(L.problem(L.first(Bool.not(B.Bases.eq(L.slice(seq, Nat.sub(p, 1n), L.len(ref)), ref)), B.RefMismatch{}, None{}), fs, body, seq, B.Var{p, ref, alts}), p, rlen, B.Known{clen, off, raw}) == True{} : Bool}) ->
+  +he: {WD.enough.go(L.problem(L.first(Bool.not(B.Bases.eq(L.slice(seq, Nat.sub(p, 1n), L.len(ref)), ref)), B.RefMismatch{}, None{}), fs, body, seq, B.Var{p, ref, alts}), p, rlen, Some{Pr.Known{clen, off, raw}}) == True{} : Bool}) ->
   Empty:
   +s = Nat.sub(p, 1n)
   +n = L.len(ref)
   +v = {B.Var{p, ref, alts} : B.Var}
-  +hc = en.he(fs, body, seq, v, p, rlen, B.Known{clen, off, raw}, c, B.Bases.eq(L.slice(seq, s, n), ref),
+  +hc = en.he(fs, body, seq, v, p, rlen, Some{Pr.Known{clen, off, raw}}, c, B.Bases.eq(L.slice(seq, s, n), ref),
     Equal.sym(Bool, B.Bases.eq(L.slice(seq, s, n), ref), c, hq), he)
   +fits = Nat.is_le(Nat.add(s, n), clen)
   +cov = Bool.and(Nat.is_le(off, s), Nat.is_le(Nat.add(s, n), Nat.add(off, L.len(bases))))
@@ -519,7 +521,7 @@ def en.ref(enough: VarEnough(), +fs: List<&2, String>, +body: String, +seq: List
   +ha: {L.all_nonempty(alts) == True{} : Bool},
   +hd: {B.Alleles.distinct(ref <> alts) == True{} : Bool},
   +ok: Maybe<&2, Bool>, +hok: {J.ref_check(clen, off, bases, Nat.sub(p, 1n), ref) == ok : Maybe<&2, Bool>},
-  +he: {L.enough.go(L.problem(L.first(Bool.not(B.Bases.eq(L.slice(seq, Nat.sub(p, 1n), L.len(ref)), ref)), B.RefMismatch{}, None{}), fs, body, seq, B.Var{p, ref, alts}), p, rlen, B.Known{clen, off, raw}) == True{} : Bool}) ->
+  +he: {WD.enough.go(L.problem(L.first(Bool.not(B.Bases.eq(L.slice(seq, Nat.sub(p, 1n), L.len(ref)), ref)), B.RefMismatch{}, None{}), fs, body, seq, B.Var{p, ref, alts}), p, rlen, Some{Pr.Known{clen, off, raw}}) == True{} : Bool}) ->
   {Maybe.is_some(&2, B.Res, J.found.ref(ok, off, bases, fs, body, B.Var{p, ref, alts})) == True{} : Bool}:
   match ok:
     case None{}:
@@ -529,7 +531,7 @@ def en.ref(enough: VarEnough(), +fs: List<&2, String>, +body: String, +seq: List
     case Some{+b}:
       +hbeq = ref_sound(seq, clen, off, bases, Nat.sub(p, 1n), ref, hclen, hb, hl, b, hok)
       en.ref.b(enough, fs, body, seq, clen, off, raw, bases, p, rlen, ref, alts, hclen, hb, hlr, hz, hl, hrl, hn, ha, hd, b, hbeq,
-        en.he(fs, body, seq, B.Var{p, ref, alts}, p, rlen, B.Known{clen, off, raw}, b, B.Bases.eq(L.slice(seq, Nat.sub(p, 1n), L.len(ref)), ref), hbeq, he))
+        en.he(fs, body, seq, B.Var{p, ref, alts}, p, rlen, Some{Pr.Known{clen, off, raw}}, b, B.Bases.eq(L.slice(seq, Nat.sub(p, 1n), L.len(ref)), ref), hbeq, he))
 
 def en.problem(enough: VarEnough(), +fs: List<&2, String>, +body: String, +seq: List<&2, B.Base>, +clen: Nat, +off: Nat, +raw: String, +bases: List<&2, B.Base>,
   +p: Nat, +rlen: Nat, +ref: List<&2, B.Base>, +alts: List<&2, List<&2, B.Base>>,
@@ -543,9 +545,9 @@ def en.problem(enough: VarEnough(), +fs: List<&2, String>, +body: String, +seq: 
   +zero: Bool, +dist: Bool,
   +hz: {Nat.is_eq(p, 0n) == zero : Bool},
   +hd: {B.Alleles.distinct(ref <> alts) == dist : Bool},
-  +he: {L.enough.go(L.problem(L.first(zero, B.BadPos{}, L.first(Bool.not(dist), B.AltDup{},
+  +he: {WD.enough.go(L.problem(L.first(zero, B.BadPos{}, L.first(Bool.not(dist), B.AltDup{},
     L.first(Bool.not(B.Bases.eq(L.slice(seq, Nat.sub(p, 1n), L.len(ref)), ref)), B.RefMismatch{}, None{}))), fs, body, seq, B.Var{p, ref, alts}),
-    p, rlen, B.Known{clen, off, raw}) == True{} : Bool}) ->
+    p, rlen, Some{Pr.Known{clen, off, raw}}) == True{} : Bool}) ->
   {Maybe.is_some(&2, B.Res, J.found.problem(zero, dist, clen, off, bases, fs, body, B.Var{p, ref, alts})) == True{} : Bool}:
   match zero dist:
     case True{} _:
@@ -564,7 +566,7 @@ def en.found(enough: VarEnough(), +fs: List<&2, String>, +body: String, +seq: Li
   +eok: Bool, +rr: Maybe<&2, List<&2, B.Base>>, +aa: Maybe<&2, List<&2, List<&2, B.Base>>>,
   +hrr: {B.Allele.read(B.Rec.field(fs, 3n)) == rr : Maybe<&2, List<&2, B.Base>>},
   +haa: {B.Alleles.read(B.Rec.alts(fs)) == aa : Maybe<&2, List<&2, List<&2, B.Base>>>},
-  +he: {L.enough.go(L.judge.bases(eok, rr, aa, fs, body, seq), B.Rec.pos(fs), String.length(B.Rec.field(fs, 3n)), B.Known{clen, off, raw}) == True{} : Bool}) ->
+  +he: {WD.enough.go(L.judge.bases(eok, rr, aa, fs, body, seq), B.Rec.pos(fs), String.length(B.Rec.field(fs, 3n)), Some{Pr.Known{clen, off, raw}}) == True{} : Bool}) ->
   {Maybe.is_some(&2, B.Res, J.found(eok, rr, aa, clen, off, bases, fs, body)) == True{} : Bool}:
   match eok rr aa:
     case False{} Some{ref} Some{alts}:
@@ -588,12 +590,12 @@ def en.found(enough: VarEnough(), +fs: List<&2, String>, +body: String, +seq: Li
 
 def en.known(enough: VarEnough(), +fs: List<&2, String>, +body: String, +hm: {B.Rec.malformed(fs) == False{} : Bool},
   m: Maybe<&2, String>, +clen: Nat, +off: Nat, +raw: String,
-  +ht: {L.known.ok(m, clen, off, raw) == True{} : Bool},
-  +he: {L.enough.go(L.judge.contig(m, fs, body), B.Rec.pos(fs), String.length(B.Rec.field(fs, 3n)), B.Known{clen, off, raw}) == True{} : Bool}) ->
-  {Maybe.is_some(&2, B.Res, J.judge_in.ans(B.Known{clen, off, raw}, fs, body)) == True{} : Bool}:
+  +ht: {WD.known.ok(m, clen, off, raw) == True{} : Bool},
+  +he: {WD.enough.go(L.judge.contig(m, fs, body), B.Rec.pos(fs), String.length(B.Rec.field(fs, 3n)), Some{Pr.Known{clen, off, raw}}) == True{} : Bool}) ->
+  {Maybe.is_some(&2, B.Res, J.judge_in.ans(Some{Pr.Known{clen, off, raw}}, fs, body)) == True{} : Bool}:
   match m:
     case None{}:
-      Empty.absurd({Maybe.is_some(&2, B.Res, J.judge_in.ans(B.Known{clen, off, raw}, fs, body)) == True{} : Bool}, P.false_ne_true(ht))
+      Empty.absurd({Maybe.is_some(&2, B.Res, J.judge_in.ans(Some{Pr.Known{clen, off, raw}}, fs, body)) == True{} : Bool}, P.false_ne_true(ht))
     case Some{+r0}:
       +hc = Nat.is_eq(clen, String.length(r0))
       +hs = String.eq(raw, String.take(String.drop(r0, off), String.length(raw)))
@@ -610,7 +612,7 @@ def en.known(enough: VarEnough(), +fs: List<&2, String>, +body: String, +hm: {B.
 
 # With no answer the line must need nothing.
 def en.noans.code(+k: B.Code, +fs: List<&2, String>, +body: String, +p: Nat, +rlen: Nat,
-  +he: {L.enough.go(L.res(B.Problem{k}, fs, body), p, rlen, B.NoAns{}) == True{} : Bool}) -> Empty:
+  +he: {WD.enough.go(L.res(B.Problem{k}, fs, body), p, rlen, None{}) == True{} : Bool}) -> Empty:
   match k:
     case B.Malformed{}:
       P.false_ne_true(he)
@@ -634,7 +636,7 @@ def en.noans.code(+k: B.Code, +fs: List<&2, String>, +body: String, +p: Nat, +rl
       P.false_ne_true(he)
 
 def en.noans.problem(+c: Maybe<&2, B.Code>, +fs: List<&2, String>, +body: String, +p: Nat, +rlen: Nat, +seq: List<&2, B.Base>, +v: B.Var,
-  +he: {L.enough.go(L.problem(c, fs, body, seq, v), p, rlen, B.NoAns{}) == True{} : Bool}) -> Empty:
+  +he: {WD.enough.go(L.problem(c, fs, body, seq, v), p, rlen, None{}) == True{} : Bool}) -> Empty:
   match c:
     case None{}:
       P.false_ne_true(he)
@@ -643,7 +645,7 @@ def en.noans.problem(+c: Maybe<&2, B.Code>, +fs: List<&2, String>, +body: String
 
 def en.noans.bases(+eok: Bool, +rr: Maybe<&2, List<&2, B.Base>>, +aa: Maybe<&2, List<&2, List<&2, B.Base>>>,
   +fs: List<&2, String>, +body: String, +p: Nat, +rlen: Nat, +seq: List<&2, B.Base>,
-  +he: {L.enough.go(L.judge.bases(eok, rr, aa, fs, body, seq), p, rlen, B.NoAns{}) == True{} : Bool}) -> Empty:
+  +he: {WD.enough.go(L.judge.bases(eok, rr, aa, fs, body, seq), p, rlen, None{}) == True{} : Bool}) -> Empty:
   match eok rr aa:
     case _ Some{+ref} Some{+alts}:
       +v = {B.Var{B.Rec.pos(fs), ref, alts} : B.Var}
@@ -658,7 +660,7 @@ def en.noans.bases(+eok: Bool, +rr: Maybe<&2, List<&2, B.Base>>, +aa: Maybe<&2, 
       P.false_ne_true(he)
 
 def en.noans(+fs: List<&2, String>, +body: String, +p: Nat, +rlen: Nat, m: Maybe<&2, String>,
-  +he: {L.enough.go(L.judge.contig(m, fs, body), p, rlen, B.NoAns{}) == True{} : Bool}) -> Empty:
+  +he: {WD.enough.go(L.judge.contig(m, fs, body), p, rlen, None{}) == True{} : Bool}) -> Empty:
   match m:
     case None{}:
       P.false_ne_true(he)
@@ -669,23 +671,23 @@ def en.noans(+fs: List<&2, String>, +body: String, +p: Nat, +rlen: Nat, m: Maybe
         B.Bases.of_fasta(raw), he)
 
 def en.ans(enough: VarEnough(), +fa: List<&2, B.Contig>, +fs: List<&2, String>, +body: String,
-  +hm: {B.Rec.malformed(fs) == False{} : Bool}, a: B.Ans,
-  +ht: {L.truthful(fa, B.Rec.field(fs, 0n), a) == True{} : Bool},
-  +he: {L.enough.go(L.judge.contig(B.Fasta.find(fa, B.Rec.field(fs, 0n)), fs, body), B.Rec.pos(fs), String.length(B.Rec.field(fs, 3n)), a) == True{} : Bool}) ->
+  +hm: {B.Rec.malformed(fs) == False{} : Bool}, a: Maybe<&2, Pr.Ans>,
+  +ht: {WD.truthful(fa, B.Rec.field(fs, 0n), a) == True{} : Bool},
+  +he: {WD.enough.go(L.judge.contig(B.Fasta.find(fa, B.Rec.field(fs, 0n)), fs, body), B.Rec.pos(fs), String.length(B.Rec.field(fs, 3n)), a) == True{} : Bool}) ->
   {Maybe.is_some(&2, B.Res, J.judge_in.ans(a, fs, body)) == True{} : Bool}:
   match a:
-    case B.NoAns{}:
+    case None{}:
       Empty.absurd({False{} == True{} : Bool},
         en.noans(fs, body, B.Rec.pos(fs), String.length(B.Rec.field(fs, 3n)), B.Fasta.find(fa, B.Rec.field(fs, 0n)), he))
-    case B.Unknown{}:
+    case Some{Pr.Unknown{}}:
       {==}
-    case B.Known{+clen, +off, +raw}:
+    case Some{Pr.Known{+clen, +off, +raw}}:
       en.known(enough, fs, body, hm, B.Fasta.find(fa, B.Rec.field(fs, 0n)), clen, off, raw, ht, he)
 
 def en.shape(enough: VarEnough(), +fa: List<&2, B.Contig>, +fs: List<&2, String>, +body: String,
-  +bad: Bool, +skip: Bool, +hm: {B.Rec.malformed(fs) == bad : Bool}, a: B.Ans,
-  +ht: {L.truthful(fa, B.Rec.field(fs, 0n), a) == True{} : Bool},
-  +he: {L.enough.go(L.judge.shape(bad, skip, fa, fs, body), B.Rec.pos(fs), String.length(B.Rec.field(fs, 3n)), a) == True{} : Bool}) ->
+  +bad: Bool, +skip: Bool, +hm: {B.Rec.malformed(fs) == bad : Bool}, a: Maybe<&2, Pr.Ans>,
+  +ht: {WD.truthful(fa, B.Rec.field(fs, 0n), a) == True{} : Bool},
+  +he: {WD.enough.go(L.judge.shape(bad, skip, fa, fs, body), B.Rec.pos(fs), String.length(B.Rec.field(fs, 3n)), a) == True{} : Bool}) ->
   {Maybe.is_some(&2, B.Res, J.judge_in.go(bad, skip, a, fs, body)) == True{} : Bool}:
   match bad skip:
     case True{} _:
@@ -696,9 +698,9 @@ def en.shape(enough: VarEnough(), +fa: List<&2, B.Contig>, +fs: List<&2, String>
       en.ans(enough, fa, fs, body, hm, a, ht, he)
 
 # window_enough, given var_in_enough.
-def window_enough.core(enough: VarEnough(), +fa: List<&2, B.Contig>, +body: String, a: B.Ans,
-  +ht: {L.truthful(fa, L.chrom_of(body), a) == True{} : Bool},
-  +he: {L.enough(fa, body, a) == True{} : Bool}) ->
+def window_enough.core(enough: VarEnough(), +fa: List<&2, B.Contig>, +body: String, a: Maybe<&2, Pr.Ans>,
+  +ht: {WD.truthful(fa, WD.chrom_of(body), a) == True{} : Bool},
+  +he: {WD.enough(fa, body, a) == True{} : Bool}) ->
   {Maybe.is_some(&2, B.Res, Norm.judge_in(a, body)) == True{} : Bool}:
   en.shape(enough, fa, B.Rec.fields(body), body, B.Rec.malformed(B.Rec.fields(body)), B.Rec.out_of_scope(B.Rec.fields(body)),
     {==}, a, ht, he)
@@ -706,9 +708,9 @@ def window_enough.core(enough: VarEnough(), +fa: List<&2, B.Contig>, +body: Stri
 law window:
   for +fa: List<&2, B.Contig>
   for +body: String
-  for +a: B.Ans
+  for +a: Maybe<&2, Pr.Ans>
   for +r: B.Res
-  for +ht: {L.truthful(fa, L.chrom_of(body), a) == True{} : Bool}
+  for +ht: {WD.truthful(fa, WD.chrom_of(body), a) == True{} : Bool}
   for +hr: {Norm.judge_in(a, body) == Some{r} : Maybe<&2, B.Res>}
   {r == L.judge(fa, body) : B.Res}
 
@@ -718,9 +720,9 @@ def window(fa, body, a, r, ht, hr):
 law window_enough:
   for +fa: List<&2, B.Contig>
   for +body: String
-  for +a: B.Ans
-  for +ht: {L.truthful(fa, L.chrom_of(body), a) == True{} : Bool}
-  for +he: {L.enough(fa, body, a) == True{} : Bool}
+  for +a: Maybe<&2, Pr.Ans>
+  for +ht: {WD.truthful(fa, WD.chrom_of(body), a) == True{} : Bool}
+  for +he: {WD.enough(fa, body, a) == True{} : Bool}
   {Maybe.is_some(&2, B.Res, Norm.judge_in(a, body)) == True{} : Bool}
 
 def window_enough(fa, body, a, ht, he):

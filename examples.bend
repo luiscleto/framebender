@@ -3,6 +3,9 @@ import ./types.bend as B
 import ./norm.bend as Norm
 import ./LAWS.bend as L
 import ./run.bend as R
+import ./tan.bend as Tan
+import ./protocol.bend as P
+import ./MACHINE.bend as M
 
 # Concrete cases, checked by evaluation (bend examples.bend --check-only).
 
@@ -10,7 +13,7 @@ def gaaaat() -> List<&2, B.Base>:
   [B.G{}, B.A{}, B.A{}, B.A{}, B.A{}, B.T{}]
 
 # Deleting one A from GAAAAT, written at the last A, moves to the G.
-def del_moves() -> {Norm.var(gaaaat(), B.Var{4n, [B.A{}, B.A{}], [[B.A{}]]}) == B.Var{1n, [B.G{}, B.A{}], [[B.G{}]]} : B.Var}:
+def del_moves() -> {Tan.normal(gaaaat(), B.Var{4n, [B.A{}, B.A{}], [[B.A{}]]}) == B.Var{1n, [B.G{}, B.A{}], [[B.G{}]]} : B.Var}:
   {==}
 
 def del_not_normal() -> {L.normalized(gaaaat(), B.Var{4n, [B.A{}, B.A{}], [[B.A{}]]}) == False{} : Bool}:
@@ -21,7 +24,7 @@ def del_normal() -> {L.normalized(gaaaat(), B.Var{1n, [B.G{}, B.A{}], [[B.G{}]]}
 
 # Multiallelic: on GAAAAT, at 2, REF AA with ALTs A (delete one A) and AAA
 # (insert one A) moves to the G for both.
-def multi_moves() -> {Norm.var(gaaaat(), B.Var{3n, [B.A{}, B.A{}], [[B.A{}], [B.A{}, B.A{}, B.A{}]]}) == B.Var{1n, [B.G{}, B.A{}], [[B.G{}], [B.G{}, B.A{}, B.A{}]]} : B.Var}:
+def multi_moves() -> {Tan.normal(gaaaat(), B.Var{3n, [B.A{}, B.A{}], [[B.A{}], [B.A{}, B.A{}, B.A{}]]}) == B.Var{1n, [B.G{}, B.A{}], [[B.G{}], [B.G{}, B.A{}, B.A{}]]} : B.Var}:
   {==}
 
 def multi_normal() -> {L.normalized(gaaaat(), B.Var{1n, [B.G{}, B.A{}], [[B.G{}], [B.G{}, B.A{}, B.A{}]]}) == True{} : Bool}:
@@ -30,18 +33,18 @@ def multi_normal() -> {L.normalized(gaaaat(), B.Var{1n, [B.G{}, B.A{}], [[B.G{}]
 # Multiallelic with a SNP: AAT at 4 -> (G, AAA) on GAAAAT... a substitution
 # and a deletion together: REF AT, ALTs GT and T. They share the last base T,
 # which is trimmed: REF A, ALTs G and empty; empty forces a shift left.
-def multi_snp() -> {Norm.var(gaaaat(), B.Var{5n, [B.A{}, B.T{}], [[B.G{}, B.T{}], [B.T{}]]}) == B.Var{4n, [B.A{}, B.A{}], [[B.A{}, B.G{}], [B.A{}]]} : B.Var}:
+def multi_snp() -> {Tan.normal(gaaaat(), B.Var{5n, [B.A{}, B.T{}], [[B.G{}, B.T{}], [B.T{}]]}) == B.Var{4n, [B.A{}, B.A{}], [[B.A{}, B.G{}], [B.A{}]]} : B.Var}:
   {==}
 
 # At the start of a contig: deleting the first base takes the base after it.
 def aat() -> List<&2, B.Base>:
   [B.A{}, B.A{}, B.T{}]
 
-def start_del() -> {Norm.var(aat(), B.Var{2n, [B.A{}, B.T{}], [[B.T{}]]}) == B.Var{1n, [B.A{}, B.A{}], [[B.A{}]]} : B.Var}:
+def start_del() -> {Tan.normal(aat(), B.Var{2n, [B.A{}, B.T{}], [[B.T{}]]}) == B.Var{1n, [B.A{}, B.A{}], [[B.A{}]]} : B.Var}:
   {==}
 
 # (1, A, CA,GA) on A is already normal: nothing can be trimmed at position 1.
-def start_multi() -> {Norm.var([B.A{}], B.Var{1n, [B.A{}], [[B.C{}, B.A{}], [B.G{}, B.A{}]]}) == B.Var{1n, [B.A{}], [[B.C{}, B.A{}], [B.G{}, B.A{}]]} : B.Var}:
+def start_multi() -> {Tan.normal([B.A{}], B.Var{1n, [B.A{}], [[B.C{}, B.A{}], [B.G{}, B.A{}]]}) == B.Var{1n, [B.A{}], [[B.C{}, B.A{}], [B.G{}, B.A{}]]} : B.Var}:
   {==}
 
 # --- Text ------------------------------------------------------------------
@@ -139,10 +142,10 @@ def run_blank() -> {R.Report.notes(L.run(fa(), hdr() ++ "\n", strict())) == [B.S
 
 # A reference read returns the letters without whitespace, clipped to the
 # contig.
-def truth_ws() -> {L.truth(B.Fasta.parse(">c\nA C\r\nGT\n"), "c", 1n, 9n) == B.Known{4n, 1n, "CGT"} : B.Ans}:
+def truth_ws() -> {M.truth(B.Fasta.parse(">c\nA C\r\nGT\n"), "c", 1n, 9n) == P.Known{4n, 1n, "CGT"} : P.Ans}:
   {==}
 
-def truth_unknown() -> {L.truth(B.Fasta.parse(">c\nAC\n"), "d", 0n, 2n) == B.Unknown{} : B.Ans}:
+def truth_unknown() -> {M.truth(B.Fasta.parse(">c\nAC\n"), "d", 0n, 2n) == P.Unknown{} : P.Ans}:
   {==}
 
 # --- The machine: cases of law machine -------------------------------------
@@ -156,29 +159,29 @@ def sopts() -> B.Opts:
 def body1() -> String:
   "c\t4\t.\tAA\tA\t.\t.\t.\nc\t5\t.\ta\tg\t.\t.\t.\n"
 
-def m_basic() -> {L.launch(Norm.start(argv()), fa(), hdr() ++ body1(), [hdr() ++ body1()]) == Some{L.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body1(), sopts())}} : Maybe<&2, L.Launch>}:
+def m_basic() -> {M.launch(Norm.start(argv()), fa(), hdr() ++ body1(), [hdr() ++ body1()]) == Some{M.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body1(), sopts())}} : Maybe<&2, M.Launch>}:
   {==}
 
 # The same file cut in odd places (inside a field, between CR and LF).
-def m_pieces() -> {L.launch(Norm.start(argv()), fa(), hdr() ++ body1(), ["##fileformat=VCF", "v4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\nc\t4\t.\tA", "", "A\tA\t.\t.\t.\nc\t5\t.\ta\tg\t.\t.\t.", "\n"]) == Some{L.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body1(), sopts())}} : Maybe<&2, L.Launch>}:
+def m_pieces() -> {M.launch(Norm.start(argv()), fa(), hdr() ++ body1(), ["##fileformat=VCF", "v4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\nc\t4\t.\tA", "", "A\tA\t.\t.\t.\nc\t5\t.\ta\tg\t.\t.\t.", "\n"]) == Some{M.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body1(), sopts())}} : Maybe<&2, M.Launch>}:
   {==}
 
 def body2() -> String:
   "c\t5\t.\tA\tG\t.\t.\t.\r\nc\t4\t.\tAA\tA\t.\t.\tEND=5\r\nzz\t1\t.\tA\t<DEL>\t.\t.\t.\r\nd\t2\t.\tC\tT\t.\t.\t.\r\nd\t3\t.\tGT\tG\t.\t.\t.\r\nd\t1\t.\tA\tA,G\t.\t.\t."
 
-def m_mixed_w() -> {L.launch(Norm.start(["norm", "-c", "w", "-f", "r.fa", "in.vcf"]), fa(), hdr() ++ body2(), [hdr(), body2()]) == Some{L.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body2(), B.Opts{False{}, 100000n, ["-c", "w", "-f", "r.fa", "in.vcf"]})}} : Maybe<&2, L.Launch>}:
+def m_mixed_w() -> {M.launch(Norm.start(["norm", "-c", "w", "-f", "r.fa", "in.vcf"]), fa(), hdr() ++ body2(), [hdr(), body2()]) == Some{M.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body2(), B.Opts{False{}, 100000n, ["-c", "w", "-f", "r.fa", "in.vcf"]})}} : Maybe<&2, M.Launch>}:
   {==}
 
-def m_mixed_e() -> {L.launch(Norm.start(argv()), fa(), hdr() ++ body2(), [hdr() ++ body2()]) == Some{L.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body2(), sopts())}} : Maybe<&2, L.Launch>}:
+def m_mixed_e() -> {M.launch(Norm.start(argv()), fa(), hdr() ++ body2(), [hdr() ++ body2()]) == Some{M.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body2(), sopts())}} : Maybe<&2, M.Launch>}:
   {==}
 
 def body3() -> String:
   "c\t2\t.\tA\tG\t.\t.\t.\nc\t3\t.\tA\tC\t.\t.\t.\nc\t4\t.\tAA\tA\t.\t.\t.\n"
 
-def m_unsorted() -> {L.launch(Norm.start(["norm", "-w", "1", "-f", "r.fa", "in.vcf"]), fa(), hdr() ++ body3(), [hdr() ++ body3()]) == Some{L.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body3(), B.Opts{True{}, 1n, ["-w", "1", "-f", "r.fa", "in.vcf"]})}} : Maybe<&2, L.Launch>}:
+def m_unsorted() -> {M.launch(Norm.start(["norm", "-w", "1", "-f", "r.fa", "in.vcf"]), fa(), hdr() ++ body3(), [hdr() ++ body3()]) == Some{M.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body3(), B.Opts{True{}, 1n, ["-w", "1", "-f", "r.fa", "in.vcf"]})}} : Maybe<&2, M.Launch>}:
   {==}
 
-def m_noheader() -> {L.launch(Norm.start(argv()), fa(), "##x\n", ["##x\n"]) == Some{L.Launch{"r.fa", "in.vcf", L.run(fa(), "##x\n", sopts())}} : Maybe<&2, L.Launch>}:
+def m_noheader() -> {M.launch(Norm.start(argv()), fa(), "##x\n", ["##x\n"]) == Some{M.Launch{"r.fa", "in.vcf", L.run(fa(), "##x\n", sopts())}} : Maybe<&2, M.Launch>}:
   {==}
 
 def m_usage() -> {Norm.start(["norm", "in.vcf"]) == Norm.Usage{} : Norm.Begin}:

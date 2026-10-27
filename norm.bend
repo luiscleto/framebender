@@ -1,19 +1,14 @@
 import Base
 import ./types.bend as B
+import ./protocol.bend as P
 import ./run.bend as R
-import ./norm_var.bend as V
 import ./norm_line.bend as J
 
-# framebender: the program (code, not spec). LAWS.bend states what it must do.
-# The laws reach the code through Norm.var, Norm.judge_in, Norm.start and
-# Norm.step.
-
-# The normalized variant (norm_var.bend).
-def var(+seq: List<&2, B.Base>, +v: B.Var) -> B.Var:
-  V.var(seq, v)
+# framebender: the program (code, not spec). MACHINE.bend states what it must
+# do; the law reaches the code through Norm.start and Norm.step.
 
 # The result for one body line through a reference answer (norm_line.bend).
-def judge_in(a: B.Ans, +body: String) -> Maybe<&2, B.Res>:
+def judge_in(a: Maybe<&2, P.Ans>, +body: String) -> Maybe<&2, B.Res>:
   J.judge_in(a, body)
 
 # ---------------------------------------------------------------------------
@@ -52,7 +47,7 @@ def start(argv: List<&2, String>) -> Begin:
 
 # One step: the new state, bytes for stdout, messages for stderr, what next.
 type Step is Data:
-  Step{st: St, out: String, notes: List<&2, B.Note>, next: B.Next}
+  Step{st: St, out: String, notes: List<&2, B.Note>, next: P.Next}
 
 # What handling the next line led to.
 #   Went: a line was handled, writing out and notes.
@@ -109,7 +104,7 @@ def next_line(inbody: Bool, +o: B.Opts, +rs: R.RunSt, +l: B.Line, +pend: String,
       went(o, R.head_line(R.is_chrom_line(B.Line.body(l)), R.tick(rs), o, l), pend, queue, eof)
     case True{}:
       +fs = B.Rec.fields(B.Line.body(l))
-      try_line(J.judge_fs(B.NoAns{}, fs, B.Line.body(l)), o, rs, l, fs, 100n, pend, queue, eof)
+      try_line(J.judge_fs(None{}, fs, B.Line.body(l)), o, rs, l, fs, 100n, pend, queue, eof)
 
 def advance.go(halted: Bool, st: St) -> Adv:
   match halted st:
@@ -138,16 +133,16 @@ def grow.if(whole: Bool, +back: Nat, +l: B.Line) -> Nat:
 
 # How far back the next window starts: twice as far, or (once the window is
 # as long as the contig) back to the contig's first letter.
-def grow(a: B.Ans, +back: Nat, +l: B.Line) -> Nat:
+def grow(a: Maybe<&2, P.Ans>, +back: Nat, +l: B.Line) -> Nat:
   match a:
-    case B.Known{clen, off, raw}:
+    case Some{P.Known{clen, off, raw}}:
       grow.if(Nat.is_le(clen, back), back, l)
     case _:
       Nat.add(Nat.mul(back, 2n), 1n)
 
 # A reference read arrived for the waiting line: handle the line, or ask
 # again with a window further back (grow).
-def resolve(st: St, +a: B.Ans) -> Adv:
+def resolve(st: St, +a: Maybe<&2, P.Ans>) -> Adv:
   match st:
     case St{o, rs, pend, queue, eof, None{}}:
       advance(St{o, rs, pend, queue, eof, None{}})
@@ -186,7 +181,7 @@ def notes_list(ns: List<&2, B.Note>) -> List<&2, B.Note>:
 def finish.of(rep: R.Report, st: St, outs: List<&2, String>, ns: List<&2, B.Note>) -> Step:
   match rep:
     case R.Report{out, notes, code}:
-      Step{st, outs_text(outs) ++ out, List.append(&2, B.Note, notes_list(ns), notes), B.Finish{code}}
+      Step{st, outs_text(outs) ++ out, List.append(&2, B.Note, notes_list(ns), notes), P.Finish{code}}
 
 # The end of the run: the buffer is written (R.finish) and the program stops.
 def finish(+st: St, outs: List<&2, String>, ns: List<&2, B.Note>) -> Step:
@@ -202,24 +197,24 @@ def idle(eof: Bool, st: St, outs: List<&2, String>, ns: List<&2, B.Note>) -> Ste
     case True{}:
       finish(st, outs, ns)
     case False{}:
-      Step{st, outs_text(outs), notes_list(ns), B.More{}}
+      Step{st, outs_text(outs), notes_list(ns), P.More{}}
 
 # Handle lines until one needs the reference, none is left, or the run stops.
 # outs and ns collect what was written, newest first.
 def pump(fuel: Nat, a: Adv, outs: List<&2, String>, ns: List<&2, B.Note>) -> Step:
   match fuel a:
     case 0n Went{st, o, n}:
-      Step{st, outs_text(o <> outs), notes_list(rev_onto(n, ns)), B.More{}}
+      Step{st, outs_text(o <> outs), notes_list(rev_onto(n, ns)), P.More{}}
     case 0n Want{st, c, f, u}:
-      Step{st, outs_text(outs), notes_list(ns), B.Ask{c, f, u}}
+      Step{st, outs_text(outs), notes_list(ns), P.Ask{[P.Req{c, f, u}]}}
     case 0n Idle{st}:
-      Step{st, outs_text(outs), notes_list(ns), B.More{}}
+      Step{st, outs_text(outs), notes_list(ns), P.More{}}
     case 0n Ended{st}:
       finish(st, outs, ns)
     case 1n+f Went{+st, o, n}:
       pump(f, advance(st), o <> outs, rev_onto(n, ns))
     case 1n+f Want{st, c, fr, u}:
-      Step{st, outs_text(outs), notes_list(ns), B.Ask{c, fr, u}}
+      Step{st, outs_text(outs), notes_list(ns), P.Ask{[P.Req{c, fr, u}]}}
     case 1n+f Idle{+st}:
       idle(St.eof(st), st, outs, ns)
     case 1n+f Ended{st}:
@@ -292,15 +287,23 @@ def St.fuel(st: St) -> Nat:
 def step.go(+st: St, a: Adv) -> Step:
   pump(St.fuel(st), a, Nil{}, Nil{})
 
+# The first answer (the machine asks one read at a time).
+def first(as: List<&2, P.Ans>) -> Maybe<&2, P.Ans>:
+  match as:
+    case Nil{}:
+      None{}
+    case a <> t:
+      Some{a}
+
 # One step of the program.
-def step(st: St, i: B.In) -> Step:
+def step(st: St, i: P.In) -> Step:
   match i:
-    case B.Chunk{s}:
+    case P.Chunk{s}:
       +st2 = feed(st, s)
       step.go(st2, advance(st2))
-    case B.Eof{}:
+    case P.Eof{}:
       +st2 = feed_eof(st)
       step.go(st2, advance(st2))
-    case B.Ref{a}:
+    case P.Ref{as}:
       +st2 = st
-      step.go(st2, resolve(st2, a))
+      step.go(st2, resolve(st2, first(as)))
