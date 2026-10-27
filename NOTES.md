@@ -264,3 +264,21 @@ approved) and implementation layer (`protocol.bend`, `MACHINE.bend`: the program
 - Draft 3: GPT and Claude approve. Gemini's quota ran out mid-round ("resets in 152h"), so Grok 4.7
   (xAI, a fourth model family) stands in for this confirmation round, with the full context; Gemini
   returns for later rounds once its quota resets.
+
+## Driver review (2026-10-27; GPT 6.1 Sol, Claude, Grok 4.7; `reviews/*-driver.md`, `driver-r2-r4.md`)
+
+The trusted driver (`main.bend`) had real bugs no law could catch, all found by the reviewers:
+- reads at file offsets of 4 GiB or more wrapped (`U32.from_nat`), and short reads were accepted
+  (all three);
+- a contig with no letters, or missing from the `.fai`, was answered "unknown" (Claude, Grok);
+- non-ASCII command-line arguments were mangled (`IO.args` decodes Unicode; GPT, by running it);
+- reopening `/dev/stdout` fails when stdout is a socket (GPT, by running it);
+- a CR inside a sequence line shifts `.fai` offsets (Grok).
+Fixes: a 70-line C effect file (`io64.c`: a full read at a 64-bit offset, raw writes to fds 1/2;
+justified because Base has neither), byte arguments and paths, a strict `.fai` parser, a check of
+every byte read against the `.fai` line layout, and one error line per driver failure.
+The FASTA premise of law `machine` (`P.Fasta.plain`) went through four rounds until it says exactly
+which files samtools faidx 1.24 indexes and serves as the spec reads them (preamble, line lengths,
+control bytes, header names, NUL, last header without sequence...); `test/plain_cases.bend` holds the
+23 cases checked against samtools. Lesson: the reviewers ran samtools and the binary themselves;
+the most useful findings came from testing, not reading.
