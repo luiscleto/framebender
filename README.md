@@ -51,7 +51,7 @@ uniform line lengths, no spaces or control characters in sequence lines, and no 
 
 ## Differences from bcftools norm 1.24
 
-Records: identical on GIAB HG002 (whole genome and chr22), on 20,739 scrambled indels, and on the
+Records: identical on GIAB HG002 chr22 (50,284 records), on 20,739 scrambled indels, and on the
 edge cases in `test/edge`, except where noted here (`test/compare.sh ref.fa in.vcf` runs both).
 - Symbolic `<DEL>`/`<DUP>` records are passed through (bcftools realigns them).
 - Already-normal records with lower-case alleles or leading zeros in POS are written canonically
