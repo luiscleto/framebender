@@ -171,3 +171,11 @@ responses `reviews/responses-5.md`):
 
 When bytes leave the process, peak memory, and how fast reference windows grow do not change any
 output and are not specified by the laws; benchmarks measure them.
+
+Where the time goes (2026-10-27): a Bend program that only reads GIAB chr22 in 64 KB pieces, splits
+it into lines (`B.Text.lines`) and fields (`B.Rec.fields`), joins them back and writes them to
+/dev/null takes 5.0 s. Text is a linked list of Chars, so every pass over the 20 MB file costs
+seconds; the tool splits each line's fields several times (`judge_in` twice per line, the machine's
+`want`/`body_done`, `R.body_line`). Planned after the proofs: split each line once and pass the
+fields along (a code change to re-prove, or prove equal to the old code as minebender's
+`proof_speed.bend` did). bcftools' 0.08 s is out of reach with list-based text.
