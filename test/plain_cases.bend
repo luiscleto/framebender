@@ -49,5 +49,6 @@ def midnoname() -> {P.Fasta.plain(">c\nACGT\n>\n>d\nTT\n") == True{} : Bool}:
   {==}
 def newline_only() -> {P.Fasta.plain("\n") == False{} : Bool}:
   {==}
-def bare() -> {P.Fasta.plain(">\nACGT\n>c\nAA\n") == True{} : Bool}:
+# samtools 1.24 indexes it (c 4 4 4 5): blank lines before the first header.
+def leadblank() -> {P.Fasta.plain("\n>c\nACGT\n") == True{} : Bool}:
   {==}

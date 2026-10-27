@@ -33,8 +33,9 @@ type Next is Data:
 
 # A FASTA file that samtools faidx 1.24 indexes and serves exactly as
 # B.Fasta.parse reads it (checked against samtools on each case):
-# - the file starts with a header line ('>'), and its last header has a
-#   non-empty sequence line (samtools refuses the file otherwise);
+# - after any empty lines, the file starts with a header line ('>'), and its
+#   last header has a non-empty sequence line (samtools refuses the file
+#   otherwise);
 # - no header line holds a NUL, vertical tab or form feed, nor a space, tab or
 #   CR right after the '>' followed by more bytes (samtools skips leading
 #   whitespace and ends a name at any whitespace or NUL; B.Fasta.name ends it
