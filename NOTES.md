@@ -333,3 +333,20 @@ Conclusion (Q5): framebender is about 60x slower than bcftools on chr22 and abou
 genome. The cost is Bend 2's text representation and allocator, not the laws. The laws held through
 every rewrite: seven implementation changes took chr22 from 31.7 s to 4.5 s, each proven, with
 byte-identical output.
+
+## Q1 and Q2 (2026-10-27)
+
+Q1, what the owner read beyond `LAWS.bend`: nothing so far, and not `LAWS.bend` either. The owner
+has no bioinformatics background and delegated the expert reading to three reviewers from
+different model families (Claude, GPT, Gemini; Grok stood in for Gemini once). Trust rests on the
+reviews, on the proofs checked by `--verdict`, and on bcftools giving the same records. The lead's
+walkthrough of the main laws comes at the end; a human bioinformatician's review is still to come.
+
+Q2, laws that passed while behaviour was wrong: none found inside the laws. The comparisons with
+bcftools differ only where a decision says they should (README, "Differences"). Every real bug came
+from outside the laws, in the trusted driver (`main.bend`, `io64.c`), and the driver reviewers found
+them all (see "Driver review"): file offsets past 4 GiB wrapped, short reads were accepted,
+non-ASCII arguments were mangled, contigs that are empty or missing from the `.fai` were answered
+"unknown". The law `machine` was proven throughout, because it assumes the reference arrives
+correctly. The gap was in what the laws cover, not in what they say. The FASTA premise
+`P.Fasta.plain` now states exactly which files the driver reads as the spec does.
