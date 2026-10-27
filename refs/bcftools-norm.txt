@@ -1,0 +1,497 @@
+bcftools norm [OPTIONS] file.vcf.gz
+
+Left-align and normalize indels, check if REF alleles match the reference,
+split multiallelic sites into multiple rows; recover multiallelics from
+multiple rows. Left-alignment and normalization will only be applied if
+the --fasta-ref option is supplied.
+
+-a, --atomize
+
+Decompose complex variants, e.g. split MNVs into consecutive SNVs.
+See also --atom-overlaps and --old-rec-tag.
+
+--atom-overlaps .|*
+
+Alleles missing because of an overlapping variant can be set either
+to missing (.) or to the star alele (*), as recommended by
+the VCF specification. IMPORTANT: Note that asterisk is expaneded
+by shell and must be put in quotes or escaped by a backslash:
+
+    # Before atomization:
+    100  CC  C,GG   1/2
+
+    # After:
+    #   bcftools norm -a --atom-overlaps .
+    100	 C	 G      ./1
+    100	 CC	 C      1/.
+    101	 C	 G      ./1
+
+    # After:
+    #   bcftools norm -a --atom-overlaps '*'
+    #   bcftools norm -a --atom-overlaps \*
+    100	 C	 G,*    2/1
+    100	 CC	 C,*    1/2
+    101	 C	 G,*    2/1
+
+-c, --check-ref e|w|x|s
+
+what to do when incorrect or missing REF allele is encountered:
+exit (e), warn (w), exclude (x), or set/fix (s) bad sites.
+The w option can be combined with x and s. Note that s
+can swap alleles and will update genotypes (GT) and AC counts,
+but will not attempt to fix PL or other fields. Also note, and this
+cannot be stressed enough, that s will NOT fix strand issues in
+your VCF, do NOT use it for that purpose!!! (Instead see
+http://samtools.github.io/bcftools/howtos/plugin.af-dist.html and
+http://samtools.github.io/bcftools/howtos/plugin.fixref.html.)
+
+-d, --rm-dup snps|indels|both|all|exact
+
+If a record is present multiple times, output only the first instance.
+See also --collapse in Common Options.
+
+-D, --remove-duplicates
+
+If a record is present in multiple files, output only the first instance.
+Alias for -d exact, deprecated.
+
+-e, --exclude EXPRESSION
+
+do not normalize input records for which EXPRESSION is true. For valid expressions see
+EXPRESSIONS. Note that duplicate removal ignores this option.
+
+-f, --fasta-ref FILE
+
+reference sequence. Supplying this option will turn on left-alignment
+and normalization, however, see also the --do-not-normalize
+option below.
+
+--force
+
+try to proceed with -m- even if malformed tags with incorrect number of fields
+are encountered, discarding such tags. (Experimental, use at your own risk.)
+
+-g, --gff-annot FILE
+
+when a GFF file is provided, follow HGVS 3’rule and right-align variants in transcripts on the forward
+strand.  In case of overlapping transcripts, the default mode is to left-align the variant. For a
+description of the supported GFF3 file format see bcftools csq.
+
+-i, --include EXPRESSION
+
+normalize only input records for which EXPRESSION is true. For valid expressions see
+EXPRESSIONS. Note that duplicate removal ignores this option.
+
+--keep-sum TAG[,…​]
+
+keep vector sum constant when splitting multiallelic sites. Only AD tag
+is currently supported. See also https://github.com/samtools/bcftools/issues/360
+
+-m, --multiallelics -|+[snps|indels|both|any]
+
+split multiallelic sites into biallelic records (-) or join
+biallelic sites into multiallelic records (+). An optional type string
+can follow which controls variant types which should be split or merged
+together: If only SNP records should be split or merged, specify snps; if
+both SNPs and indels should be merged separately into two records, specify
+both; if SNPs and indels should be merged into a single record, specify
+any.
+
+Note that multiallelic sites with both SNPs and indels will be split into
+biallelic sites with both -m -snps and -m -indels.
+
+--multi-overlaps 0|.
+
+use the reference (0) or missing (.) allele for overlapping alleles after
+splitting multiallelic sites
+
+--no-version
+
+see Common Options
+
+-N, --do-not-normalize
+
+the -c s option can be used to fix or set the REF allele from the
+reference -f. The -N option will not turn on indel normalisation
+as the -f option normally implies
+
+--old-rec-tag STR
+
+Add INFO/STR annotation with the original record. The format of the
+annotation is CHROM|POS|REF|ALT|USED_ALT_IDX.
+
+-o, --output FILE
+
+see Common Options
+
+-O, --output-type b|u|z|v[0-9]
+
+see Common Options
+
+-r, --regions chr|chr:pos|chr:from-to|chr:from-[,…​]
+
+see Common Options
+
+-R, --regions-file file
+
+see Common Options
+
+--regions-overlap 0|1|2
+
+see Common Options
+
+-s, --strict-filter
+
+when merging (-m+), merged site is PASS only if all sites being merged PASS
+
+-S, --sort pos|lex
+
+when splitting sites or processing duplicates, sort records on output by
+POS only (pos, the default) or by POS and lexicographically by REF+ALT (lex)
+
+-t, --targets LIST
+
+see Common Options
+
+-T, --targets-file FILE
+
+see Common Options
+
+--targets-overlap 0|1|2
+
+see Common Options
+
+--threads INT
+
+see Common Options
+
+-v, --verbosity INT
+
+see Common Options
+
+-w, --site-win INT
+
+maximum distance between two records to consider when locally
+sorting variants which changed position during the realignment
+
+-W[FMT], -W[=FMT], --write-index[=FMT]
+
+Automatically index the output file.  FMT is optional and can be
+one of "tbi" or "csi" depending on output file format.
+
+bcftools [plugin NAME|+NAME] [OPTIONS] FILE — [PLUGIN OPTIONS]
+
+A common framework for various utilities. The plugins can be used
+the same way as normal commands only their name is prefixed with "+".
+Most plugins accept two types of parameters: general options shared by all
+plugins followed by a separator, and a list of plugin-specific options.  There
+are some exceptions to this rule, some plugins do not accept the common
+options and implement their own parameters. Therefore please pay attention to
+the usage examples that each plugin comes with.
+
+VCF input options:
+
+-e, --exclude EXPRESSION
+
+exclude sites for which EXPRESSION is true. For valid expressions see
+EXPRESSIONS.
+
+-i, --include EXPRESSION
+
+include only sites for which EXPRESSION is true. For valid expressions see
+EXPRESSIONS.
+
+-r, --regions chr|chr:pos|chr:from-to|chr:from-[,…​]
+
+see Common Options
+
+-R, --regions-file file
+
+see Common Options
+
+--regions-overlap 0|1|2
+
+see Common Options
+
+-t, --targets chr|chr:pos|chr:from-to|chr:from-[,…​]
+
+see Common Options
+
+-T, --targets-file file
+
+see Common Options
+
+--targets-overlap 0|1|2
+
+see Common Options
+
+VCF output options:
+
+--no-version
+
+see Common Options
+
+-o, --output FILE
+
+see Common Options
+
+-O, --output-type b|u|z|v[0-9]
+
+see Common Options
+
+--threads INT
+
+see Common Options
+
+-W[FMT], -W[=FMT], --write-index[=FMT]
+
+Automatically index the output file.  FMT is optional and can be
+one of "tbi" or "csi" depending on output file format.
+
+Plugin options:
+
+-h, --help
+
+list plugin’s options
+
+-l, --list-plugins
+
+List all available plugins.
+
+By default, appropriate system directories are searched for installed plugins.
+    You can override this by setting the BCFTOOLS_PLUGINS environment variable
+    to a colon-separated list of directories to search.
+    If BCFTOOLS_PLUGINS begins with a colon, ends with a colon, or contains
+    adjacent colons, the system directories are also searched at that position
+    in the list of directories.
+
+-v, --verbosity INT
+
+see Common Options
+
+-V, --version
+
+print version string and exit
+
+List of plugins coming with the distribution:
+
+ad-bias
+
+find positions with wildly varying ALT allele frequency (Fisher test on FMT/AD)
+
+add-variantkey
+
+add VariantKey INFO fields VKX and RSX
+
+af-dist
+
+collect AF deviation stats and GT probability distribution given AF and assuming HWE
+
+vrfs
+
+assess site noisiness (variant read frequency score) from a large number of unaffected parental samples
+
+allele-length
+
+count the frequency of the length of REF, ALT and REF+ALT
+
+check-ploidy
+
+check if ploidy of samples is consistent for all sites
+
+check-sparsity
+
+print samples without genotypes in a region or chromosome
+
+color-chrs
+
+color shared chromosomal segments, requires trio VCF with phased GTs
+
+contrast
+
+runs a basic association test, per-site or in a region, and checks for novel alleles and
+genotypes in two groups of samples. Adds the following INFO annotations:
+
+PASSOC  .. Fisher’s exact test probability of genotypic association (REF vs non-REF allele)
+
+FASSOC  .. proportion of non-REF allele in controls and cases
+
+NASSOC  .. number of control-ref, control-alt, case-ref and case-alt alleles
+
+NOVELAL .. lists samples with a novel allele not observed in the control group
+
+NOVELGT .. lists samples with a novel genotype not observed in the control group
+
+counts
+
+a minimal plugin which counts number of SNPs, Indels, and total number of sites.
+
+dosage
+
+print genotype dosage. By default the plugin searches for PL, GL and GT, in
+that order.
+
+fill-from-fasta
+
+fill INFO or REF field based on values in a fasta file
+
+fill-tags
+
+set various INFO tags. The list of tags supported in this version:
+
+INFO/AC         Number:A  Type:Integer  ..  Allele count in genotypes
+
+INFO/AC_Hom     Number:A  Type:Integer  ..  Allele counts in homozygous genotypes
+
+INFO/AC_Het     Number:A  Type:Integer  ..  Allele counts in heterozygous genotypes
+
+INFO/AC_Hemi    Number:A  Type:Integer  ..  Allele counts in hemizygous genotypes
+
+INFO/AF         Number:A  Type:Float    ..  Allele frequency
+
+INFO/AN         Number:1  Type:Integer  ..  Total number of alleles in called genotypes
+
+INFO/ExcHet     Number:A  Type:Float    ..  Test excess heterozygosity; 1=good, 0=bad
+
+INFO/END        Number:1  Type:Integer  ..  End position of the variant
+
+INFO/F_MISSING  Number:1  Type:Float    ..  Fraction of missing genotypes
+
+INFO/HWE        Number:A  Type:Float    ..  HWE test (PMID:15789306); 1=good, 0=bad
+
+INFO/MAF        Number:A  Type:Float    ..  Minor Allele frequency
+
+INFO/NS         Number:1  Type:Integer  ..  Number of samples with data
+
+INFO/TYPE       Number:.  Type:String   ..  The record type (REF,SNP,MNP,INDEL,etc)
+
+FORMAT/VAF      Number:A  Type:Float    ..  The fraction of reads with the alternate allele, requires FORMAT/AD or ADF+ADR
+
+FORMAT/VAF1     Number:1  Type:Float    ..  The same as FORMAT/VAF but for all alternate alleles cumulatively
+
+TAG=func(TAG)   Number:1  Type:Integer  ..  Experimental support for user-defined expressions such as "DP=sum(DP)"
+
+fixploidy
+
+sets correct ploidy
+
+fixref
+
+determine and fix strand orientation
+
+frameshifts
+
+annotate frameshift indels
+
+GTisec
+
+count genotype intersections across all possible sample subsets in a vcf file
+
+GTsubset
+
+output only sites where the requested samples all exclusively share a genotype
+
+guess-ploidy
+
+determine sample sex by checking genotype likelihoods (GL,PL) or genotypes (GT)
+in the non-PAR region of chrX.
+
+gvcfz
+
+compress gVCF file by resizing non-variant blocks according to specified criteria
+
+impute-info
+
+add imputation information metrics to the INFO field based on selected FORMAT tags
+
+indel-stats
+
+calculates per-sample or de novo indels stats. The usage and format is similar
+to smpl-stats and trio-stats
+
+isecGT
+
+compare two files and set non-identical genotypes to missing
+
+mendelian
+
+count Mendelian consistent / inconsistent genotypes (deprecated, use +mendelian2 instead)
+
+mendelian2
+
+count Mendelian consistent / inconsistent genotypes.
+
+missing2ref
+
+sets missing genotypes ("./.") to ref allele ("0/0" or "0|0")
+
+parental-origin
+
+determine parental origin of a CNV region
+
+prune
+
+annotate sites with or prune sites by the number of variants within a window, Lewontin’s D
+(doi:10.1093/molbev/msz265), Ragsdale’s D (doi:10.1534/genetics.108.093153), or correlation
+coefficient r-squared.
+
+remove-overlaps
+
+remove overlapping variants and duplicate sites
+
+scatter
+
+intended as an inverse to bcftools concat, scatter VCF by chunks or regions, creating multiple VCFs.
+
+setGT
+
+general tool to set genotypes according to rules requested by the user
+
+smpl-stats
+
+calculates basic per-sample stats. The usage and format is similar to
+indel-stats and trio-stats.
+
+split
+
+split VCF by sample, creating single- or multi-sample VCFs
+
+split-vep
+
+extract fields from structured annotations such as INFO/CSQ created by VEP or INFO/BCSQ created by
+bcftools/csq. These can be added as a new INFO field to the VCF or in a custom text format. See
+http://samtools.github.io/bcftools/howtos/plugin.split-vep.html for more.
+
+tag2tag
+
+Convert between similar tags, such as GL,PL,GP or QR,QA,QS or tags with localized alleles e.g. LPL,LAD.
+See http://samtools.github.io/bcftools/howtos/plugin.tag2tag.html for more.
+
+trio-dnm2
+
+screen variants for possible de-novo mutations in trios
+
+trio-stats
+
+calculate transmission rate in trio children. The usage and format is similar to
+indel-stats and smpl-stats.
+
+trio-switch-rate
+
+calculate phase switch rate in trio samples, children samples must have phased GTs
+
+variant-distance
+
+annotate sites with the distance to the nearest variant
+
+variantkey-hex
+
+generate unsorted VariantKey-RSid index files in hexadecimal format
+
+vcf2table
+
+print the variants as a set of tables
+
+Examples:
+
+# List options common to all plugins

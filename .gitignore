@@ -1,0 +1,11 @@
+data/
+*.c
+/framebender
+*.bendtt
+# third-party documents kept locally only (copyright): the paper and the PDF/HTML originals
+refs/tan2015.html
+refs/tan2015.txt
+refs/VCFv4.3.pdf
+refs/bcftools.html
+# raw agent logs
+reviews/*.err
