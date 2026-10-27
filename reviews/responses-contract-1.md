@@ -12,3 +12,11 @@
 Not taken: a weaker requirement than the exact `E.enc` packing for inputs (GPT): it needs a driver
 relation quantified over all well-formed buffers with the right text, and representation-
 independence proofs; the exact packing is easy for C to build.
+
+## Rounds 2 and 3
+
+- Round 2: Claude and Grok accepted. GPT (blocker): the step bound ignored the command line, which
+  `run` echoes into the header, while one step now writes at most 2^31 bytes; a 146 GB argument made
+  the law unsatisfiable. `bound` now adds `args_len(argv)`, and `launch` takes `argv`. Claude: the
+  trust comment now says `P.Ask{[]}` gets another step (for output beyond 2^31 bytes).
+- Round 3: Claude, GPT and Grok accepted (2026-10-27, 10:16-10:18 PM).
