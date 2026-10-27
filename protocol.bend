@@ -1,5 +1,6 @@
 import Base
 import ./types.bend as B
+import ../lawful-bytes/defs.bend as D
 
 # framebender: the protocol between the program and its driver
 # (implementation layer, used by MACHINE.bend; not part of the science laws).
@@ -7,22 +8,24 @@ import ./types.bend as B
 # What the tool learns from one read of the reference.
 #   Unknown: the contig is not in the reference.
 #   Known: the contig has clen letters; raw holds its letters as written
-#     (Contig.raw) from 0-based index off: all of them, or a window.
-type Ans is Data:
+#     (Contig.raw) from 0-based index off, all of them or a window, packed
+#     (bytes_enc.bend: the driver gives exactly E.enc of the letters).
+type Ans is Type:
   Unknown{}
-  Known{clen: Nat, off: Nat, raw: String}
+  Known{clen: Nat, off: Nat, raw: D.Bytes}
 
 # A reference read: the letters of contig chrom from 0-based index from up to
 # (not including) upto.
 type Req is Data:
   Req{chrom: String, from: Nat, upto: Nat}
 
-# What the machine is given at each step: the next piece of the VCF file, the
-# end of the file, or the answers to its last reference reads (in order).
-type In is Data:
-  Chunk{s: String}
+# What the machine is given at each step: the next piece of the VCF file
+# (packed: exactly E.enc of the piece's text), the end of the file, or the
+# answers to its last reference reads (in order).
+type In is Type:
+  Chunk{b: D.Bytes}
   Eof{}
-  Ref{ans: List<&2, Ans>}
+  Ref{ans: List<&1, Ans>}
 
 # What the machine wants next: more of the VCF file; any number of reference
 # reads, all answered at once; or to stop with an exit code.

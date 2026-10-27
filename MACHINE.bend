@@ -4,6 +4,7 @@ import ./protocol.bend as P
 import ./run.bend as R
 import ./LAWS.bend as L
 import ./norm.bend as Norm
+import ./bytes_enc.bend as E
 
 # framebender: the law of the program (implementation layer).
 #
@@ -20,7 +21,7 @@ def truth.of(m: Maybe<&2, String>, +a: Nat, +b: Nat) -> P.Ans:
       P.Unknown{}
     case Some{+r}:
       +n = String.length(r)
-      P.Known{n, Nat.min(a, n), String.take(String.drop(r, a), Nat.sub(b, a))}
+      P.Known{n, Nat.min(a, n), E.enc(String.take(String.drop(r, a), Nat.sub(b, a)))}
 
 # The truthful answer to "the letters of contig chrom from index a up to b".
 def truth(+fa: List<&2, B.Contig>, +chrom: String, +a: Nat, +b: Nat) -> P.Ans:
@@ -32,7 +33,7 @@ def truths.one(+fa: List<&2, B.Contig>, r: P.Req) -> P.Ans:
       truth(fa, c, a, b)
 
 # The truthful answers to a list of reads, in order.
-def truths(+fa: List<&2, B.Contig>, rs: List<&2, P.Req>) -> List<&2, P.Ans>:
+def truths(+fa: List<&2, B.Contig>, rs: List<&2, P.Req>) -> List<&1, P.Ans>:
   match rs:
     case Nil{}:
       Nil{}
@@ -40,16 +41,17 @@ def truths(+fa: List<&2, B.Contig>, rs: List<&2, P.Req>) -> List<&2, P.Ans>:
       truths.one(fa, r) <> truths(fa, t)
 
 # The driver, as a definition: it feeds the machine the VCF file in the pieces
-# cs, then the end of the file (once), answers all reference reads truthfully,
-# and collects what the machine writes until it asks to stop.
+# cs (each packed by E.enc), then the end of the file (once), answers all
+# reference reads truthfully (packed by E.enc), and collects the text of what
+# the machine writes (E.text) until it asks to stop.
 #   eof: the end of the file was given; done: the exit code, once it stopped.
-type DSt is Data:
+type DSt is Type:
   DSt{st: Norm.St, next: P.Next, cs: List<&2, String>, eof: Bool, reads: Nat, out: String, notes: List<&2, B.Note>, done: Maybe<&2, Nat>}
 
 def absorb(s: Norm.Step, cs: List<&2, String>, eof: Bool, reads: Nat, +out: String, +notes: List<&2, B.Note>) -> DSt:
   match s:
     case Norm.Step{st, o, ns, nx}:
-      DSt{st, nx, cs, eof, reads, out ++ o, List.append(&2, B.Note, notes, ns), None{}}
+      DSt{st, nx, cs, eof, reads, out ++ E.text(o), List.append(&2, B.Note, notes, ns), None{}}
 
 def dstep.more(cs: List<&2, String>, eof: Bool, st: Norm.St, reads: Nat, +out: String, +notes: List<&2, B.Note>) -> DSt:
   match cs eof:
@@ -58,7 +60,7 @@ def dstep.more(cs: List<&2, String>, eof: Bool, st: Norm.St, reads: Nat, +out: S
     case Nil{} False{}:
       absorb(Norm.step(st, P.Eof{}), Nil{}, True{}, reads, out, notes)
     case c <> t _:
-      absorb(Norm.step(st, P.Chunk{c}), t, eof, reads, out, notes)
+      absorb(Norm.step(st, P.Chunk{E.enc(c)}), t, eof, reads, out, notes)
 
 # One step of the driver. Asking for more after the end of the file gets
 # nothing (so such a machine never stops). reads counts the reference reads.
@@ -136,8 +138,11 @@ def launch(b: Norm.Begin, +fasta: String, +vcf: String, +cs: List<&2, String>) -
 #
 # What this law does not cover (the trusted driver, main.bend, with its effects
 # in io64.c):
-# - Reading the files' bytes (the command line's bytes too) and writing every
-#   stdout byte and message (B.Note.render) exactly, then exiting with the code.
+# - Reading the files' bytes (the command line's bytes too), packing each VCF
+#   piece and each reference answer as exactly E.enc of its text (bytes four
+#   to a word, little-endian, zero-padded, in the smallest block), and writing
+#   every stdout byte (the bytes of each output buffer, D.view) and message
+#   (B.Note.render) exactly, then exiting with the code.
 # - Answering each reference read Req{chrom, a, b} of an Ask, in order, with
 #   exactly truth(B.Fasta.parse(fasta), chrom, a, b): Unknown when the .fai has
 #   no such contig, else Known with the contig's length String.length(Contig.raw)
@@ -150,7 +155,8 @@ def launch(b: Norm.Begin, +fasta: String, +vcf: String, +cs: List<&2, String>) -
 #   cannot write", "error: bad .fai index <path>.fai", "error: unsupported FASTA
 #   <path>" (a byte read that the .fai layout does not explain), "error: .fai
 #   index does not match <path>" (fewer letters than the index promises),
-#   "error: FASTA read too large <path>" (one read of 4 GiB or more).
+#   "error: FASTA read too large <path>" (one read of 2 GiB or more: a packed
+#   buffer holds at most 2^31 bytes).
 law machine:
   for argv: List<&2, String>
   for o: B.Opts
