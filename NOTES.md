@@ -239,6 +239,14 @@ fields, MALFORMED and scope checks) in parallel halves (`a b = par(..) par(..)`)
 - Short lines (INFO replaced by `.`, at most about 60 characters): GPU 1.0 s, CPU 1 thread 0.22 s,
   32 threads 0.11 s, same results. The GPU is about 10x slower than the CPU on this branchy
   linked-list work, as the Bend guide predicts ("divergent work ... stays faster on the CPU").
+Caveat: the speed agent was benchmarking at the same time (noticed by the user), so the multi-thread
+numbers may be pessimistic; re-time before relying on them.
 Conclusion: CPU threads can help (about 2x on the per-line work); the GPU does not fit text in
 linked lists. Using either in the tool needs the machine to judge many lines at once, which the
 current machine law's one-request-at-a-time protocol does not allow.
+
+Raw speed (single thread, overlapping with the speed agent's runs, so approximate): one pass over
+the 35 MB GIAB chr22 file read as bytes, counting LFs: 0.15 s; converting the bytes to a Bend
+String first and then counting: 0.32 s. So Bend itself is not slow: the 22 s come from building
+Strings, splitting/joining fields and re-parsing each line several times. A single-pass
+implementation over the text could plausibly get within a few times of bcftools.
