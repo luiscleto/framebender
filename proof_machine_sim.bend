@@ -15,6 +15,8 @@ import ./proof_machine_win.bend as W
 import ./MACHINE.bend as M
 import ./norm_line.bend as J
 import ./proof_fast.bend as PFs
+import ./norm_run.bend as NR
+import ./proof_fast_run.bend as PFr
 
 # The machine proof: driving the machine (M.drive) is the spec (L.run).
 #
@@ -215,13 +217,31 @@ def PD(+o: B.Opts, +rsm: R.RunSt, +pend: String, +q: List<&2, B.Line>, +e: Bool,
 def bl(+r: B.Res, +o: B.Opts, +S: R.RunSt, +l: B.Line) -> R.RunSt:
   +fs = J.pfs(B.Line.body(l))
   +rs1 = R.tick(Norm.RunSt.clear(S))
-  R.body_line(r, rs1, o, l, B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))
+  NR.body_line(r, rs1, o, l, B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))
 
 def mstep(+fa: List<&2, B.Contig>, +o: B.Opts, +S: R.RunSt, +l: B.Line) -> R.RunSt:
   bl(L.judge(fa, B.Line.body(l)), o, S, l)
 
+# The same with run.bend's body_line (the machine's is it with the last
+# item's text blanked, PFr.body_line_eq).
+def msp(+fa: List<&2, B.Contig>, +o: B.Opts, +S: R.RunSt, +l: B.Line) -> R.RunSt:
+  +fs = J.pfs(B.Line.body(l))
+  +rs1 = R.tick(Norm.RunSt.clear(S))
+  R.body_line(L.judge(fa, B.Line.body(l)), rs1, o, l, B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))
+
 # Small lemmas
 # ============
+
+# The machine's bookkeeping (norm_run.bend) keeps inbody, as run.bend's does.
+def ib_bst(+st: R.RunSt) -> {R.RunSt.inbody(NR.blank_st(st)) == R.RunSt.inbody(st) : Bool}:
+  match st:
+    case R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, +x}:
+      {==}
+
+def ibn(+r: B.Res, +st: R.RunSt, +o: B.Opts, +l: B.Line, +at: B.At, +inpos: Nat) -> {R.RunSt.inbody(NR.body_line(r, st, o, l, at, inpos)) == R.RunSt.inbody(st) : Bool}:
+  +X = R.body_line(r, st, o, l, at, inpos)
+  %Equal.sym(R.RunSt, NR.body_line(r, st, o, l, at, inpos), NR.blank_st(X), PFr.body_line_eq(r, st, o, l, at, inpos)) : {R.RunSt.inbody(_) == R.RunSt.inbody(st) : Bool}
+  Equal.trans(Bool, R.RunSt.inbody(NR.blank_st(X)), R.RunSt.inbody(X), R.RunSt.inbody(st), ib_bst(X), PF.ib_body_line(r, st, o, l, at, inpos))
 
 law ok_weaken:
   for +fasta: String
@@ -436,23 +456,23 @@ def ib_tc(S):
 
 # A body line: the spec state after it is the machine's, with what was
 # written before in front.
-law LS_body:
+law LS_spec:
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +S: R.RunSt
   for +l: B.Line
   for +hh: {R.RunSt.halt(S) == False{} : Bool}
   for +hi: {R.RunSt.inbody(S) == True{} : Bool}
-  {L.line_step(fa, o, S, l) == PF.pre(Norm.RunSt.out(S), Norm.RunSt.notes(S), mstep(fa, o, S, l)) : R.RunSt}
+  {L.line_step(fa, o, S, l) == PF.pre(Norm.RunSt.out(S), Norm.RunSt.notes(S), msp(fa, o, S, l)) : R.RunSt}
 
-def LS_body(fa, o, S, l, hh, hi):
+def LS_spec(fa, o, S, l, hh, hi):
   match S:
     case R.RunSt{n, i, h, c, ee, la, b, k, so, sns, True{}}:
       Empty.absurd({L.line_step(fa, o, R.RunSt{n, i, h, c, ee, la, b, k, so, sns, True{}}, l)
-        == PF.pre(so, sns, mstep(fa, o, R.RunSt{n, i, h, c, ee, la, b, k, so, sns, True{}}, l)) : R.RunSt}, P.true_ne_false(hh))
+        == PF.pre(so, sns, msp(fa, o, R.RunSt{n, i, h, c, ee, la, b, k, so, sns, True{}}, l)) : R.RunSt}, P.true_ne_false(hh))
     case R.RunSt{n, False{}, h, c, ee, la, b, k, so, sns, False{}}:
       Empty.absurd({L.line_step(fa, o, R.RunSt{n, False{}, h, c, ee, la, b, k, so, sns, False{}}, l)
-        == PF.pre(so, sns, mstep(fa, o, R.RunSt{n, False{}, h, c, ee, la, b, k, so, sns, False{}}, l)) : R.RunSt}, P.false_ne_true(hi))
+        == PF.pre(so, sns, msp(fa, o, R.RunSt{n, False{}, h, c, ee, la, b, k, so, sns, False{}}, l)) : R.RunSt}, P.false_ne_true(hi))
     case R.RunSt{n, True{}, h, c, ee, la, b, k, so, sns, False{}}:
       +fs = B.Rec.fields(B.Line.body(l))
       +r = L.judge(fa, B.Line.body(l))
@@ -461,6 +481,7 @@ def LS_body(fa, o, S, l, hh, hi):
       +Sx = {R.RunSt{n, True{}, h, c, ee, la, b, k, so, sns, False{}} : R.RunSt}
       +bd = B.Line.body(l)
       +Pf = J.pfs(bd)
+      +atP = {B.At{1n+n, B.Rec.field(Pf, 0n), B.Rec.field(Pf, 1n)} : B.At}
       %Equal.sym(String, B.Rec.field(Pf, 0n), B.Rec.field(fs, 0n), PFs.pfs_field(bd, 0n, {==})) :
         {L.line_step(fa, o, Sx, l) == PF.pre(so, sns, R.body_line(r, tc, o, l, B.At{1n+n, _, B.Rec.field(Pf, 1n)}, B.Rec.pos(Pf))) : R.RunSt}
       %Equal.sym(String, B.Rec.field(Pf, 1n), B.Rec.field(fs, 1n), PFs.pfs_field(bd, 1n, {==})) :
@@ -471,6 +492,36 @@ def LS_body(fa, o, S, l, hh, hi):
         PN.str_nil(so), P.append_nil(B.Note, sns)) :
         {R.body_line(r, _, o, l, at, B.Rec.pos(fs)) == PF.pre(so, sns, R.body_line(r, tc, o, l, at, B.Rec.pos(fs))) : R.RunSt}
       PF.fr_body_line(r, so, sns, tc, o, l, at, B.Rec.pos(fs))
+
+def bpre(+O: String, +N: List<&2, B.Note>, +st: R.RunSt) -> {NR.blank_st(PF.pre(O, N, st)) == PF.pre(O, N, NR.blank_st(st)) : R.RunSt}:
+  match st:
+    case R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, +x}:
+      {==}
+
+# A body line: the spec state after it, with the last item's text blanked,
+# is the machine's, with what was written before in front.
+law LS_body:
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +S: R.RunSt
+  for +l: B.Line
+  for +hh: {R.RunSt.halt(S) == False{} : Bool}
+  for +hi: {R.RunSt.inbody(S) == True{} : Bool}
+  {NR.blank_st(L.line_step(fa, o, S, l)) == PF.pre(Norm.RunSt.out(S), Norm.RunSt.notes(S), mstep(fa, o, S, l)) : R.RunSt}
+
+def LS_body(fa, o, S, l, hh, hi):
+  +O = Norm.RunSt.out(S)
+  +Nn = Norm.RunSt.notes(S)
+  +fs = J.pfs(B.Line.body(l))
+  +rs1 = R.tick(Norm.RunSt.clear(S))
+  +at = {B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
+  +r = L.judge(fa, B.Line.body(l))
+  Equal.trans(R.RunSt, NR.blank_st(L.line_step(fa, o, S, l)), NR.blank_st(PF.pre(O, Nn, msp(fa, o, S, l))), PF.pre(O, Nn, mstep(fa, o, S, l)),
+    Equal.cong(R.RunSt, R.RunSt, z => NR.blank_st(z), L.line_step(fa, o, S, l), PF.pre(O, Nn, msp(fa, o, S, l)), LS_spec(fa, o, S, l, hh, hi)),
+    Equal.trans(R.RunSt, NR.blank_st(PF.pre(O, Nn, msp(fa, o, S, l))), PF.pre(O, Nn, NR.blank_st(msp(fa, o, S, l))), PF.pre(O, Nn, mstep(fa, o, S, l)),
+      bpre(O, Nn, msp(fa, o, S, l)),
+      Equal.cong(R.RunSt, R.RunSt, z => PF.pre(O, Nn, z), NR.blank_st(msp(fa, o, S, l)), mstep(fa, o, S, l),
+        Equal.sym(R.RunSt, mstep(fa, o, S, l), NR.blank_st(msp(fa, o, S, l)), PFr.body_line_eq(r, rs1, o, l, at, B.Rec.pos(fs))))))
 
 law good_head:
   for +isc: Bool
@@ -895,12 +946,13 @@ def PL(q, fasta, T, o, S, f, outs, ns, pend, cs, e, rd, O, N, hf, hO, hN, hg, hp
           HN(N, ns, Norm.RunSt.notes(M1), sns, hN),
           Equal.sym(List<&2, B.Note>, Norm.RunSt.notes(S2), List.append(&2, B.Note, sns, Norm.RunSt.notes(M1)), PF.notes_pre(so, sns, M1))),
         PF.good_pre(so, sns, M1,
-          PF.ib_body_line(L.judge(fa, B.Line.body(l)), tc, o, l, B.At{R.RunSt.n(tc), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))),
+          ibn(L.judge(fa, B.Line.body(l)), tc, o, l, B.At{R.RunSt.n(tc), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))),
         hp,
         Equal.trans(R.Report, T, R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, L.line_step(fa, o, Sl, l))),
           R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, S2)), hT,
-          Equal.cong(R.RunSt, R.Report, x => R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, x)), L.line_step(fa, o, Sl, l), S2,
-            LS_body(fa, o, Sl, l, {==}, {==}))))
+          Equal.trans(R.Report, R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, L.line_step(fa, o, Sl, l))), R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, NR.blank_st(L.line_step(fa, o, Sl, l)))), R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, S2)),
+            Equal.sym(R.Report, R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, NR.blank_st(L.line_step(fa, o, Sl, l)))), R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, L.line_step(fa, o, Sl, l))), PFr.inv(List.append(&2, B.Line, t, rest), fa, o, L.line_step(fa, o, Sl, l))),
+            Equal.cong(R.RunSt, R.Report, x => R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, x)), NR.blank_st(L.line_step(fa, o, Sl, l)), S2, LS_body(fa, o, Sl, l, {==}, {==})))))
       +jm = J.judge_fs(None{}, J.pfs(B.Line.body(l)), B.Line.body(l))
       ok_weaken(fasta, T, M.absorb(Norm.pump(1n+g, Norm.try_line(jm, o, Norm.RunSt.clear(Sl), l, J.pfs(B.Line.body(l)), 100n, pend, t, e), outs, ns), cs, e, rd, O, N),
         Nat.add(cc, bud(cc, t, e, pend, cs)), bud(cc, l <> t, e, pend, cs),
@@ -1137,9 +1189,10 @@ def add2(x):
       %add2(p) : {1n+Nat.add(p, 2n) == 1n+_ : Nat}
       {==}
 
-# The read arrived: a record already in normal form (J.same) is handled as
-# body_done with judge's result; any other goes through try_line with
-# judge_in's result. kTL is the rest of the step for a result m.
+# The read arrived: J.fast judges the record once; Same is handled as
+# body_done with judge's result, Other{m} goes through try_line with m (both
+# judge_in's result, PFs.fast_judge). kTL is the rest of the step for a
+# result m.
 law ASs:
   for +fasta: String
   for +T: R.Report
@@ -1157,27 +1210,36 @@ law ASs:
   for +nq: Nat
   for +nb: Nat
   for +a0: Maybe<&2, Pr.Ans>
-  for +sm: Bool
-  for +hsm: {J.same(a0, J.pfs(B.Line.body(l))) == sm : Bool}
+  for +f: J.Fast
+  for +hf: {J.fast(a0, J.pfs(B.Line.body(l)), B.Line.body(l)) == f : J.Fast}
   for kTL: @m:Maybe<&2, B.Res> -> {Norm.judge_in(a0, B.Line.body(l)) == m : Maybe<&2, B.Res>} ->
     StepOK(fasta, T, M.absorb(Norm.pump(2n+nq, Norm.try_line(m, o, Norm.RunSt.clear(S), l, J.pfs(B.Line.body(l)), Norm.grow(a0, back, l), pend, q, e), Nil{}, Nil{}), cs, e, rd1, O, N), nb)
-  StepOK(fasta, T, M.absorb(Norm.pump(2n+nq, Norm.resolve.k(sm, a0, o, Norm.RunSt.clear(S), l, back, J.pfs(B.Line.body(l)), pend, q, e), Nil{}, Nil{}), cs, e, rd1, O, N), nb)
+  StepOK(fasta, T, M.absorb(Norm.pump(2n+nq, Norm.resolve.k(f, a0, o, Norm.RunSt.clear(S), l, back, J.pfs(B.Line.body(l)), pend, q, e), Nil{}, Nil{}), cs, e, rd1, O, N), nb)
 
-def ASs(fasta, T, o, S, pend, q, e, l, back, cs, rd1, O, N, nq, nb, a0, sm, hsm, kTL):
-  match sm:
-    case True{}:
+def ASs(fasta, T, o, S, pend, q, e, l, back, cs, rd1, O, N, nq, nb, a0, f, hf, kTL):
+  match f:
+    case J.Same{}:
       +bd = B.Line.body(l)
       +Pf = J.pfs(bd)
+      +p0 = B.Rec.pos(B.Rec.fields(bd))
       +r = {B.Res{B.Normalized{}, B.Rec.pos(Pf), bd, False{}} : B.Res}
-      +hm = Equal.trans(Maybe<&2, B.Res>, Norm.judge_in(a0, bd), PFs.RES(B.Rec.pos(B.Rec.fields(bd)), bd), Some{r}, PFs.same_judge(a0, bd, hsm),
-        Equal.cong(Nat, Maybe<&2, B.Res>, x => PFs.RES(x, bd), B.Rec.pos(B.Rec.fields(bd)), B.Rec.pos(Pf),
-          Equal.sym(Nat, B.Rec.pos(Pf), B.Rec.pos(B.Rec.fields(bd)), PFs.pfs_pos(bd))))
+      +h0 = Equal.trans(Maybe<&2, B.Res>, PFs.fr_res(J.Same{}, p0, bd), PFs.fr_res(J.fast(a0, Pf, bd), p0, bd), Norm.judge_in(a0, bd),
+        Equal.cong(J.Fast, Maybe<&2, B.Res>, x => PFs.fr_res(x, p0, bd), J.Same{}, J.fast(a0, Pf, bd), Equal.sym(J.Fast, J.fast(a0, Pf, bd), J.Same{}, hf)),
+        PFs.fast_judge(a0, bd))
+      +hm = Equal.trans(Maybe<&2, B.Res>, Norm.judge_in(a0, bd), PFs.RES(p0, bd), Some{r}, Equal.sym(Maybe<&2, B.Res>, PFs.RES(p0, bd), Norm.judge_in(a0, bd), h0),
+        Equal.cong(Nat, Maybe<&2, B.Res>, x => PFs.RES(x, bd), p0, B.Rec.pos(Pf),
+          Equal.sym(Nat, B.Rec.pos(Pf), p0, PFs.pfs_pos(bd))))
       %Equal.sym(Norm.Adv, Norm.same_done(o, Norm.RunSt.clear(S), l, Pf, pend, q, e), Norm.body_done(r, o, Norm.RunSt.clear(S), l, Pf, pend, q, e),
         PFs.same_done(o, Norm.RunSt.clear(S), l, Pf, pend, q, e)) :
         StepOK(fasta, T, M.absorb(Norm.pump(2n+nq, _, Nil{}, Nil{}), cs, e, rd1, O, N), nb)
       kTL(Some{r}, hm)
-    case False{}:
-      kTL(J.judge_fs(a0, B.Rec.fields(B.Line.body(l)), B.Line.body(l)), {==})
+    case J.Other{+m}:
+      +bd = B.Line.body(l)
+      +p0 = B.Rec.pos(B.Rec.fields(bd))
+      +hm = Equal.trans(Maybe<&2, B.Res>, Norm.judge_in(a0, bd), PFs.fr_res(J.fast(a0, J.pfs(bd), bd), p0, bd), m,
+        Equal.sym(Maybe<&2, B.Res>, PFs.fr_res(J.fast(a0, J.pfs(bd), bd), p0, bd), Norm.judge_in(a0, bd), PFs.fast_judge(a0, bd)),
+        Equal.cong(J.Fast, Maybe<&2, B.Res>, x => PFs.fr_res(x, p0, bd), J.fast(a0, J.pfs(bd), bd), J.Other{m}, hf))
+      kTL(m, hm)
 
 law AS.k:
   for +fasta: String
@@ -1230,17 +1292,18 @@ def AS.k(fasta, T, o, S, pend, q, e, l, back, cs, rd, O, N, hO, hN, hg, hh, hi, 
         PF.notes_pre(Norm.RunSt.out(S), Norm.RunSt.notes(S), M1))),
     PF.good_pre(Norm.RunSt.out(S), Norm.RunSt.notes(S), M1,
       Equal.trans(Bool, R.RunSt.inbody(M1), R.RunSt.inbody(tc), True{},
-        PF.ib_body_line(L.judge(fa, B.Line.body(l)), tc, o, l, B.At{R.RunSt.n(tc), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs)),
+        ibn(L.judge(fa, B.Line.body(l)), tc, o, l, B.At{R.RunSt.n(tc), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs)),
         Equal.trans(Bool, R.RunSt.inbody(tc), R.RunSt.inbody(S), True{}, ib_tc(S), hi))),
     hp,
     Equal.trans(R.Report, T, R.finish(L.run.go(List.append(&2, B.Line, q, rest), fa, o, L.line_step(fa, o, S, l))),
       R.finish(L.run.go(List.append(&2, B.Line, q, rest), fa, o, S2)), hT,
-      Equal.cong(R.RunSt, R.Report, x => R.finish(L.run.go(List.append(&2, B.Line, q, rest), fa, o, x)), L.line_step(fa, o, S, l), S2,
-        LS_body(fa, o, S, l, hh, hi))))
+      Equal.trans(R.Report, R.finish(L.run.go(List.append(&2, B.Line, q, rest), fa, o, L.line_step(fa, o, S, l))), R.finish(L.run.go(List.append(&2, B.Line, q, rest), fa, o, NR.blank_st(L.line_step(fa, o, S, l)))), R.finish(L.run.go(List.append(&2, B.Line, q, rest), fa, o, S2)),
+            Equal.sym(R.Report, R.finish(L.run.go(List.append(&2, B.Line, q, rest), fa, o, NR.blank_st(L.line_step(fa, o, S, l)))), R.finish(L.run.go(List.append(&2, B.Line, q, rest), fa, o, L.line_step(fa, o, S, l))), PFr.inv(List.append(&2, B.Line, q, rest), fa, o, L.line_step(fa, o, S, l))),
+            Equal.cong(R.RunSt, R.Report, x => R.finish(L.run.go(List.append(&2, B.Line, q, rest), fa, o, x)), NR.blank_st(L.line_step(fa, o, S, l)), S2, LS_body(fa, o, S, l, hh, hi)))))
   %Equal.sym(Nat, Nat.add(nq, 2n), 2n+nq, add2(nq)) : StepOK(fasta, T, AD(_, st, a0, cs, e, rd1, O, N), nb)
   +g2 = Norm.grow(a0, back, l)
   +k0 = asks0(fa, l, back)
-  ASs(fasta, T, o, S, pend, q, e, l, back, cs, rd1, O, N, nq, nb, a0, J.same(a0, J.pfs(B.Line.body(l))), {==},
+  ASs(fasta, T, o, S, pend, q, e, l, back, cs, rd1, O, N, nq, nb, a0, J.fast(a0, J.pfs(B.Line.body(l)), B.Line.body(l)), {==},
     +m => +hm => ok_step(fasta, T, M.absorb(Norm.pump(2n+nq, Norm.try_line(m, o, Norm.RunSt.clear(S), l, J.pfs(B.Line.body(l)), g2, pend, q, e), Nil{}, Nil{}), cs, e, rd1, O, N),
       Nat.add(k0, bud(cc, q, e, pend, cs)), nb,
       TL(fasta, T, o, a0, l, m, hm, PA.truthful_truth(fa, wchrom(l), wfrom(l, back), wupto(l)), g2, q, S, 1n+nq, Nil{}, Nil{}, pend, cs, e, rd1, O, N,

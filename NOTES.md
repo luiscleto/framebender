@@ -282,3 +282,32 @@ which files samtools faidx 1.24 indexes and serves as the spec reads them (pream
 control bytes, header names, NUL, last header without sequence...); `test/plain_cases.bend` holds the
 23 cases checked against samtools. Lesson: the reviewers ran samtools and the binary themselves;
 the most useful findings came from testing, not reading.
+
+## Speed so far and the whole genome (Q5; 2026-10-27)
+
+GIAB HG002 chr22 (50,284 records), framebender `-c w` to /dev/null, 32 threads, idle machine:
+31.7 s (first machine build) → 22.5 (lazy `Rec.stale`) → 14.0 (speed agent: parse once) → 13.2 →
+10.5 (fast agent pass 1: no shared state, unchanged records written as they came) → 9.3 (driver:
+VCF read and written as Strings by C effects) → 4.7 s (fast agent pass 2: buffer functions that do
+not share the buffer, proven equal to `run.bend`'s; each record judged once; INFO scanned in place).
+bcftools: 0.08 s. Every step kept `./check.sh` green and the output byte-identical (`notes/speed.md`,
+`notes/fast.md` record each change, its time and its proof cost).
+
+Whole genome (`data/hg002.all.vcf`: GIAB HG002 v4.2.1 benchmark calls, 4,048,342 records, 2.8 GB;
+`data/hg38.fa`), one run each, idle machine:
+
+| tool | time |
+|---|---|
+| bcftools 1.24, to /dev/null | 6.7 s |
+| bcftools 1.24, to a file | 7.4 s |
+| framebender, to a file | 595 s (147 µs per record; chr22: 94 µs) |
+
+Records: identical (0 differing of 4,048,342; 18 realigned by both). The only difference is
+formatting: 25,816 chr6 records list `GT:AD:PS` but give two values (`1/0:1,1`); htslib writes the
+missing value (`1/0:1,1:.`), framebender keeps the bytes. `test/compare.sh` now pads sample columns
+the same way before comparing. Its two temporary copies need about 6 GB, so set `TMPDIR` to a disk,
+not the RAM-backed /tmp (the first whole-genome compare ran /tmp out of space).
+
+Where chr22's 4.7 s goes (fast agent's profile): splitting into lines ~15%, copying output ~15%,
+scanning INFO ~15%, checking for CR ~8%, driver I/O per step ~15%; shared state no longer shows.
+Every remaining cost is a pass over text stored as a linked list of Chars.

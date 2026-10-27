@@ -79,3 +79,74 @@ and `J.same` then scans the copy, and resolve still matches the pending line sha
 5. Driver (the lead's): `bytes_str`/`str_bytes` are ~18% of the profile at 5.5 s. Batching reads
    (one `Ask` per piece) and parallel judging were not tried: at this point the per-line work is
    not the bottleneck; the shared-state costs above are.
+
+# Pass 2 (2026-10-27, after the lead's String driver, eb87ee4)
+
+Baseline for this pass: HEAD eb87ee4 built as is (`fb_h2`), chr22 9.2-10.1 s, scr 8.8-9.1 s.
+
+| step | change | chr22 | scr | proof work |
+|---|---|---|---|---|
+| g1 | `norm_run.bend`: linear `insert` (head's key passed on), `take_ready`+`drop_ready` in one pass (`ready`), `same_run`, `keyed`, `body_line` over them | 9.3 → 7.0 s | 9.1 → 8.3 s | `proof_fast_run.bend` (equal to run.bend's by induction); machine proof: `bl` uses it, one rewrite in `LS_body`, `ibn` for inbody |
+| g2 | `J.fast` replaces `J.same`: judged once, `Same` or `Other{judge_in's result}` | 7.0 s | 8.3 → 7.4 s | `fr_res(fast(a, pfs, body)) == judge_in(a, body)` (chain k_*), `ASs` splits on the result |
+| g3 | the machine keeps the last written item without its text (`N.blank`); `N.flush` moves each text into the output | 7.0 → 6.1 s | 7.4 → 7.0 s | the machine's bookkeeping is `blank_st` of run.bend's; `inv`: the report from a state is the report from it blanked (induction over lines through `line_step`, `body_line`, `keyed`, `same_run`, `new_run`, `flush`, `finish`); `LS_body` now says `blank_st(line_step(S)) == pre(.., mstep)`, its two uses go through `inv` |
+
+| g4 | INFO is not copied: `J.c7` cuts CHROM..FILTER (a fixed chain), `J.noend` scans INFO in place up to its tab; the machine keeps INFO as "" when it has no END entry (`J.info.if`) | 6.0 → 4.7 s | 7.0 → 6.6 s | `c7_split` (7 small lemmas), `ikeyT_cut` (the key read in place is the key of INFO cut at the tab), `noend_scan` (no END found ⇒ `J.scan` of INFO is Nil), `info_end`; agreement lemmas restated for the `Got` shape (`sh_mal`, `sh_jgo`, `sh_fgo`) |
+
+All four: `./check.sh` green, stdout/stderr/exit code identical to `fb_h2` on all test inputs (`-c e`, `-c w`).
+
+## Whole genome (g4 build, 15:58-16:08, nothing else running)
+
+`data/hg002.all.vcf` (4,048,342 records, 2.8 GB) with `data/hg38.fa`, `-c w`, `nice -n 19`:
+
+| tool | time |
+|---|---|
+| bcftools 1.24 to /dev/null | 6.7 s |
+| bcftools 1.24 to a file | 7.4 s |
+| framebender to a file | 595 s (exit 0; "4048342 records, 18 changed, 512 out of scope, 0 passed with a problem") |
+
+That is 147 µs per record against 94 µs on chr22; not investigated yet.
+`test/compare.sh` on it is **not valid yet**: it ran out of disk quota on /tmp (my two outputs above
+plus compare.sh's own two copies), bcftools exited 255 while writing, and the "218613 differing
+records" are bcftools' truncated output. To be rerun once the space is freed.
+
+## Proof cost (pass 2)
+
+- New: `norm_run.bend` (code, 190 lines), `proof_fast_run.bend` (about 640 lines). `proof_fast.bend`
+  reworked (the `take`-based lemmas replaced by the `c7` shape, the `same` chain by the `fast`
+  chain). `proof_machine_sim.bend`: `ASs` splits on `J.fast`; `LS_spec` (the old `LS_body`, with
+  run.bend's `body_line`) and `LS_body` (blanked) ; `ibn`, `bpre`, `ib_bst`; two uses of `LS_body`
+  go through `PFr.inv`.
+- The invariant change for g3 was cheaper than expected: the machine invariant stays
+  `rs == clear(S)`; only the spec state S carried by the proof now has its last item blanked, and
+  `inv` (the report from a state equals the report from it blanked) bridges it. The machine's
+  bookkeeping functions are proven to give exactly `blank_st` of run.bend's (rare paths, like a new
+  CHROM, just call run.bend's and blank), and independence (`*_bl`) follows from that without
+  re-proving anything about sorting.
+- Errors hit: rewrite direction about 15 times (always `Equal.sym`; the rule is `%e : G` with
+  `e : {new == old}` and G holding `_` where old is), a `match` after a rewrite statement (2), a
+  forward reference (2), a match on a computed value (1), binder order in a match (1), a bare
+  constructor in a let (1), one bad splice of my own (the file duplicated). The gate takes 3-4 s,
+  so each fix was a few seconds.
+
+## Where the time goes now (chr22, 4.7 s; profile of the g4 build)
+
+| | share |
+|---|---|
+| line split (`String.split` of each piece) | ~15% |
+| output copies (`Line.text` of each unchanged record, the step's output) | ~15% |
+| INFO walked in place for END (shared: the line is also held by the queue) | ~15% |
+| `Norm.line`'s CR check (a walk of each line, shared) | ~8% |
+| driver I/O per step (read, `pread` per record, write from String) | ~15% |
+| freeing, buffer insert, normalizer, rest | the rest |
+
+## Not done, and why
+
+- Batching reads per piece and judging lines in parallel: the remaining costs are per-character
+  passes over Strings and per-step driver I/O, not shared state. Batching would cut the per-record
+  `pread`/write steps (part of the ~15% driver share); parallel judging needs batching first. Both
+  need the machine proof's one-read-at-a-time Ask invariant (`Good`, `askdec`) redone: the largest
+  remaining proof change, not started.
+- Fusing the CR check and the INFO END scan into the line split (one linear pass instead of
+  three walks, two of them shared), and keeping each line's LF so an unchanged record needs no
+  `body ++ term` copy: both change the queue's representation (`B.Line`) and the pieces-to-lines
+  proofs (`proof_machine_lines.bend`). Estimated 20-30% on chr22.

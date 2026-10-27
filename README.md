@@ -51,20 +51,32 @@ uniform line lengths, no spaces or control characters in sequence lines, and no 
 
 ## Differences from bcftools norm 1.24
 
-Records: identical on GIAB HG002 chr22 (50,284 records), on 20,739 scrambled indels, and on the
-edge cases in `test/edge`, except where noted here (`test/compare.sh ref.fa in.vcf` runs both).
+Records: identical on the GIAB HG002 whole-genome benchmark calls (4,048,342 records, hg38), on
+20,739 scrambled indels, and on the edge cases in `test/edge`, except where noted here
+(`test/compare.sh ref.fa in.vcf` runs both).
 - Symbolic `<DEL>`/`<DUP>` records are passed through (bcftools realigns them).
 - Already-normal records with lower-case alleles or leading zeros in POS are written canonically
   (bcftools keeps them); bases taken from a soft-masked reference are written in upper case.
 - framebender stops (exit 1) on unsorted input, a CHROM that comes back, moves of `-w` or more,
   inconsistent INFO/END, duplicate ALTs and empty alleles; bcftools warns or continues.
 - An out-of-scope record on an unknown contig passes; bcftools stops.
+- Sample columns are kept as written; htslib pads one with fewer values than FORMAT lists
+  (`GT:AD:PS` with `1/0:1,1` becomes `1/0:1,1:.`).
 - The two added header lines carry no date, so the output is reproducible; bcftools also re-serializes
   the header through htslib (e.g. adds `##FILTER=<ID=PASS,...>`).
 
 ## Performance
 
-See `NOTES.md` (Q5) for measurements against bcftools on GIAB HG002.
+GIAB HG002, `-c w`, 32 threads (details and history in `NOTES.md`, Q5):
+
+| input | bcftools norm 1.24 | framebender |
+|---|---|---|
+| chr22 (50,284 records, 35 MB) | 0.08 s | 4.7 s |
+| whole genome (4,048,342 records, 2.8 GB), to a file | 7.4 s | 595 s |
+
+framebender is far slower: text is processed as linked lists of characters. The implementation is
+free to change as long as every law stays proven, which is how it went from 31.7 s to 4.7 s on chr22
+with byte-identical output.
 
 ## Building and checking
 

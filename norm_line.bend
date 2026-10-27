@@ -191,8 +191,8 @@ def judge_in(a: Maybe<&2, P.Ans>, +body: String) -> Maybe<&2, B.Res>:
   judge_fs(a, B.Rec.fields(body), body)
 
 # ---------------------------------------------------------------------------
-# The first fields of a line (proof_fast.bend: List.take(1 + n) of
-# B.Rec.fields), cut without copying the rest of the line
+# The first fields of a line (proof_fast.bend: as B.Rec.fields has them),
+# cut without copying the rest of the line
 # ---------------------------------------------------------------------------
 
 # A line cut at its first tab: the field before it, the text after it, and
@@ -226,21 +226,141 @@ def cut(s: String) -> Cut:
     case SCon{+h, t}:
       cut.go(t, Char.is_eq(h, '\t'), h)
 
-# The field of c and up to n more.
-def cuts(n: Nat, c: Cut) -> List<&2, String>:
-  match n c:
-    case 0n Cut{f, r, ok}:
-      [f]
-    case 1n+m Cut{f, r, True{}}:
-      f <> cuts(m, cut(r))
-    case 1n+m Cut{f, r, False{}}:
-      [f]
+def Cut.f(c: Cut) -> String:
+  match c:
+    case Cut{f, r, ok}:
+      f
 
-# The fields the machine keeps for a line: CHROM to INFO (all of them when
-# the line has fewer than 8); judging reads nothing else, except to rewrite a
-# record (which splits the whole line).
-def pfs(body: String) -> List<&2, String>:
-  cuts(7n, cut(body))
+# CHROM to FILTER cut off a line, and the text after FILTER's tab (Short:
+# the line has fewer than 8 fields).
+type C7 is Data:
+  Got{f0: String, f1: String, f2: String, f3: String, f4: String, f5: String, f6: String, r: String}
+  Short{}
+
+def c7.g(+f0: String, +f1: String, +f2: String, +f3: String, +f4: String, +f5: String, c: Cut) -> C7:
+  match c:
+    case Cut{f6, r, True{}}:
+      Got{f0, f1, f2, f3, f4, f5, f6, r}
+    case Cut{f6, r, False{}}:
+      Short{}
+
+def c7.f(+f0: String, +f1: String, +f2: String, +f3: String, +f4: String, c: Cut) -> C7:
+  match c:
+    case Cut{f5, r, True{}}:
+      c7.g(f0, f1, f2, f3, f4, f5, cut(r))
+    case Cut{f5, r, False{}}:
+      Short{}
+
+def c7.e(+f0: String, +f1: String, +f2: String, +f3: String, c: Cut) -> C7:
+  match c:
+    case Cut{f4, r, True{}}:
+      c7.f(f0, f1, f2, f3, f4, cut(r))
+    case Cut{f4, r, False{}}:
+      Short{}
+
+def c7.d(+f0: String, +f1: String, +f2: String, c: Cut) -> C7:
+  match c:
+    case Cut{f3, r, True{}}:
+      c7.e(f0, f1, f2, f3, cut(r))
+    case Cut{f3, r, False{}}:
+      Short{}
+
+def c7.c(+f0: String, +f1: String, c: Cut) -> C7:
+  match c:
+    case Cut{f2, r, True{}}:
+      c7.d(f0, f1, f2, cut(r))
+    case Cut{f2, r, False{}}:
+      Short{}
+
+def c7.b(+f0: String, c: Cut) -> C7:
+  match c:
+    case Cut{f1, r, True{}}:
+      c7.c(f0, f1, cut(r))
+    case Cut{f1, r, False{}}:
+      Short{}
+
+def c7.a(c: Cut) -> C7:
+  match c:
+    case Cut{f0, r, True{}}:
+      c7.b(f0, cut(r))
+    case Cut{f0, r, False{}}:
+      Short{}
+
+def c7(body: String) -> C7:
+  c7.a(cut(body))
+
+# ---------------------------------------------------------------------------
+# INFO's END entries, read in place (proof_fast.bend: noend says INFO, the
+# text up to the next tab, has no entry with key END)
+# ---------------------------------------------------------------------------
+
+def ikeyT.ok3(semi: Bool, eq: Bool, tab: Bool) -> Bool:
+  match semi eq tab:
+    case False{} False{} False{}:
+      True{}
+    case _ _ _:
+      False{}
+
+def ikeyT.ok(s: String) -> Bool:
+  match s:
+    case SNil{}:
+      False{}
+    case SCon{+h, t}:
+      ikeyT.ok3(Char.is_eq(h, ';'), Char.is_eq(h, '='), Char.is_eq(h, '\t'))
+
+def ikeyT.go(s: String, ok: Bool) -> String:
+  match s ok:
+    case SCon{h, +t} True{}:
+      SCon{h, ikeyT.go(t, ikeyT.ok(t))}
+    case _ _:
+      SNil{}
+
+# The key of the INFO entry s starts (ikey, also stopping at a tab).
+def ikeyT(+s: String) -> String:
+  ikeyT.go(s, ikeyT.ok(s))
+
+# h, then t; tab: h is a tab; start: h starts an entry.
+def noend.go(t: String, +h: Char, tab: Bool, start: Bool) -> Bool:
+  match t tab start:
+    case _ True{} _:
+      True{}
+    case SNil{} False{} True{}:
+      Bool.not(String.eq(ikeyT(SCon{h, SNil{}}), "END"))
+    case SCon{+h2, +t2} False{} True{}:
+      Bool.not(String.eq(ikeyT(SCon{h, SCon{h2, t2}}), "END")) && noend.go(t2, h2, Char.is_eq(h2, '\t'), Char.is_eq(h, ';'))
+    case SNil{} False{} False{}:
+      True{}
+    case SCon{+h2, t2} False{} False{}:
+      noend.go(t2, h2, Char.is_eq(h2, '\t'), Char.is_eq(h, ';'))
+
+def noend(s: String) -> Bool:
+  match s:
+    case SNil{}:
+      True{}
+    case SCon{+h, t}:
+      noend.go(t, h, Char.is_eq(h, '\t'), True{})
+
+# INFO as the machine keeps it: "" when it has no END entry (the END check
+# then reads the same), else a copy.
+def info.if(ne: Bool, r: String) -> String:
+  match ne:
+    case True{}:
+      ""
+    case False{}:
+      Cut.f(cut(r))
+
+def pfs.g(g: C7, body: String) -> List<&2, String>:
+  match g:
+    case Got{f0, f1, f2, f3, f4, f5, f6, +r}:
+      [f0, f1, f2, f3, f4, f5, f6, info.if(noend(r), r)]
+    case Short{}:
+      B.Rec.fields(body)
+
+# The fields the machine keeps for a line: CHROM to FILTER, and INFO as
+# info.if keeps it (all fields when the line has fewer than 8). Judging reads
+# nothing else, except to rewrite a record (which splits the whole line).
+def pfs(+body: String) -> List<&2, String>:
+  pfs.g(c7(body), body)
 
 # ---------------------------------------------------------------------------
 # A record already in normal form (proof_fast.bend: judge_in gives it
@@ -254,50 +374,77 @@ def same.text(+f1: String, +f3: String, +f4: String, +v: B.Var) -> Bool:
     case B.Var{+p, +r, +a}:
       String.eq(Nat.show(p), f1) && String.eq(B.Allele.show(r), f3) && String.eq(String.join(B.Alleles.show(a), ","), f4)
 
-def same.norm(m: Maybe<&2, B.Var>, +f1: String, +f3: String, +f4: String, +v: B.Var) -> Bool:
+# What judging a record gives, judged once: the record as it is
+# (Same: Some{B.Res{B.Normalized{}, POS, body, False{}}}, written without
+# rebuild), or judge_in's result (proof_fast.bend). fs: pfs(body); f1, f3,
+# f4, f7: its POS, REF, ALT and INFO fields.
+type Fast is Data:
+  Same{}
+  Other{m: Maybe<&2, B.Res>}
+
+def fast.res(o: B.Outcome, +pos: Nat, body: String) -> Fast:
+  Other{Some{B.Res{o, pos, body, False{}}}}
+
+def fast.norm.k(ok: Bool, +v: B.Var, +w: B.Var, +body: String) -> Fast:
+  match ok:
+    case True{}:
+      Same{}
+    case False{}:
+      +fs = B.Rec.fields(body)
+      Other{Some{B.Res{B.Normalized{}, B.Var.pos(w), B.Rec.rebuild(fs, v, w), B.Rec.stale(fs, v, w)}}}
+
+def fast.norm(m: Maybe<&2, B.Var>, +f1: String, +f3: String, +f4: String, +v: B.Var, +body: String) -> Fast:
   match m:
     case None{}:
-      False{}
-    case Some{w}:
-      B.Rec.same_var(v, w) && same.text(f1, f3, f4, v)
+      Other{None{}}
+    case Some{+w}:
+      fast.norm.k(B.Rec.same_var(v, w) && same.text(f1, f3, f4, v), v, w, body)
 
-def same.ref(ok: Maybe<&2, Bool>, +off: Nat, +bases: List<&2, B.Base>, +f1: String, +f3: String, +f4: String, +v: B.Var) -> Bool:
+def fast.ref(ok: Maybe<&2, Bool>, +off: Nat, +bases: List<&2, B.Base>, +f1: String, +f3: String, +f4: String, +v: B.Var, +pos: Nat, +body: String) -> Fast:
   match ok:
+    case None{}:
+      Other{None{}}
+    case Some{False{}}:
+      fast.res(B.Problem{B.RefMismatch{}}, pos, body)
     case Some{True{}}:
-      same.norm(V.var_in(off, bases, v), f1, f3, f4, v)
-    case _:
-      False{}
+      fast.norm(V.var_in(off, bases, v), f1, f3, f4, v, body)
 
-def same.problem(zero: Bool, distinct: Bool, +clen: Nat, +off: Nat, +bases: List<&2, B.Base>, +f1: String, +f3: String, +f4: String, +v: B.Var) -> Bool:
+def fast.problem(zero: Bool, distinct: Bool, +clen: Nat, +off: Nat, +bases: List<&2, B.Base>, +f1: String, +f3: String, +f4: String, +v: B.Var, +pos: Nat, +body: String) -> Fast:
   match zero distinct v:
+    case True{} _ _:
+      fast.res(B.Problem{B.BadPos{}}, pos, body)
+    case False{} False{} _:
+      fast.res(B.Problem{B.AltDup{}}, pos, body)
     case False{} True{} B.Var{+p, +r, +a}:
-      same.ref(ref_check(clen, off, bases, Nat.sub(p, 1n), r), off, bases, f1, f3, f4, B.Var{p, r, a})
-    case _ _ _:
-      False{}
+      fast.ref(ref_check(clen, off, bases, Nat.sub(p, 1n), r), off, bases, f1, f3, f4, B.Var{p, r, a}, pos, body)
 
-def same.found(end_ok: Bool, r: Maybe<&2, List<&2, B.Base>>, a: Maybe<&2, List<&2, List<&2, B.Base>>>, +clen: Nat, +off: Nat, +bases: List<&2, B.Base>, +pos: Nat, +f1: String, +f3: String, +f4: String) -> Bool:
+def fast.found(end_ok: Bool, r: Maybe<&2, List<&2, B.Base>>, a: Maybe<&2, List<&2, List<&2, B.Base>>>, +clen: Nat, +off: Nat, +bases: List<&2, B.Base>, +pos: Nat, +f1: String, +f3: String, +f4: String, +body: String) -> Fast:
   match end_ok r a:
+    case False{} _ _:
+      fast.res(B.Problem{B.BadEnd{}}, pos, body)
     case True{} Some{+ref} Some{+alts}:
-      same.problem(Nat.is_eq(pos, 0n), B.Alleles.distinct(ref <> alts), clen, off, bases, f1, f3, f4, B.Var{pos, ref, alts})
-    case _ _ _:
-      False{}
+      fast.problem(Nat.is_eq(pos, 0n), B.Alleles.distinct(ref <> alts), clen, off, bases, f1, f3, f4, B.Var{pos, ref, alts}, pos, body)
+    case True{} _ _:
+      fast.res(B.Problem{B.NonAcgtn{}}, pos, body)
 
-def same.ans(a: Maybe<&2, P.Ans>, +pos: Nat, +f1: String, +f3: String, +f4: String, f7: String, alts: List<&2, String>) -> Bool:
+def fast.ans(a: Maybe<&2, P.Ans>, +pos: Nat, +f1: String, +f3: String, +f4: String, f7: String, alts: List<&2, String>, +body: String) -> Fast:
   match a:
+    case None{}:
+      Other{None{}}
+    case Some{P.Unknown{}}:
+      fast.res(B.NoContig{}, pos, body)
     case Some{P.Known{+clen, +off, raw}}:
       e = Nat.sub(Nat.add(pos, String.length(f3)), 1n)
-      same.found(end_ok(f7, e), B.Allele.read(f3), B.Alleles.read(alts), clen, off, B.Bases.of_fasta(raw), pos, f1, f3, f4)
-    case _:
-      False{}
+      fast.found(end_ok(f7, e), B.Allele.read(f3), B.Alleles.read(alts), clen, off, B.Bases.of_fasta(raw), pos, f1, f3, f4, body)
 
-def same.go(bad: Bool, skip: Bool, a: Maybe<&2, P.Ans>, +fs: List<&2, String>) -> Bool:
+def fast.go(bad: Bool, skip: Bool, a: Maybe<&2, P.Ans>, +fs: List<&2, String>, +body: String) -> Fast:
   match bad skip:
+    case True{} _:
+      fast.res(B.Broken{}, B.Rec.pos(fs), body)
+    case False{} True{}:
+      fast.res(B.Skipped{}, B.Rec.pos(fs), body)
     case False{} False{}:
-      same.ans(a, B.Rec.pos(fs), B.Rec.field(fs, 1n), B.Rec.field(fs, 3n), B.Rec.field(fs, 4n), B.Rec.field(fs, 7n), B.Rec.alts(fs))
-    case _ _:
-      False{}
+      fast.ans(a, B.Rec.pos(fs), B.Rec.field(fs, 1n), B.Rec.field(fs, 3n), B.Rec.field(fs, 4n), B.Rec.field(fs, 7n), B.Rec.alts(fs), body)
 
-# judge_in(a, body) is Some{B.Res{B.Normalized{}, POS, body, False{}}}
-# (proof_fast.bend; fs: pfs(body)).
-def same(a: Maybe<&2, P.Ans>, +fs: List<&2, String>) -> Bool:
-  same.go(B.Rec.malformed(fs), B.Rec.out_of_scope(fs), a, fs)
+def fast(a: Maybe<&2, P.Ans>, +fs: List<&2, String>, +body: String) -> Fast:
+  fast.go(B.Rec.malformed(fs), B.Rec.out_of_scope(fs), a, fs, body)

@@ -3,6 +3,7 @@ import ./types.bend as B
 import ./protocol.bend as P
 import ./run.bend as R
 import ./norm_line.bend as J
+import ./norm_run.bend as NR
 
 # framebender: the program (code, not spec). MACHINE.bend states what it must
 # do; the law reaches the code through Norm.start and Norm.step.
@@ -83,7 +84,7 @@ def went(+o: B.Opts, +rs: R.RunSt, pend: String, queue: List<&2, B.Line>, eof: B
 def body_done(r: B.Res, +o: B.Opts, rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
   +rs1 = R.tick(rs)
   +at = {B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
-  went(o, R.body_line(r, rs1, o, l, at, B.Rec.pos(fs)), pend, queue, eof)
+  went(o, NR.body_line(r, rs1, o, l, at, B.Rec.pos(fs)), pend, queue, eof)
 
 # The window asked for a line: from back letters before its POS to the end of
 # its REF.
@@ -140,20 +141,20 @@ def grow(a: Maybe<&2, P.Ans>, +back: Nat, +l: B.Line) -> Nat:
     case _:
       Nat.add(Nat.mul(back, 2n), 1n)
 
-# A record already in normal form (J.same): written as it came, without
-# judging it again (proof_fast.bend: the same as body_done with judge's
+# A record already in normal form (J.fast gives Same): written as it came,
+# without rebuilding it (proof_fast.bend: the same as body_done with judge's
 # result).
 def same_done(+o: B.Opts, rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
   +rs1 = R.tick(rs)
   +at = {B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
-  went(o, R.keyed(rs1, R.Opts.w(o), R.Item{B.Rec.pos(fs), B.Rec.pos(fs), at, B.Line.text(l)}, Nil{}, R.bump(R.RunSt.cnt(rs1), False{}, False{}, False{})), pend, queue, eof)
+  went(o, NR.keyed(rs1, R.Opts.w(o), R.Item{B.Rec.pos(fs), B.Rec.pos(fs), at, B.Line.text(l)}, Nil{}, R.bump(R.RunSt.cnt(rs1), False{}, False{}, False{})), pend, queue, eof)
 
-def resolve.k(same: Bool, +a: Maybe<&2, P.Ans>, +o: B.Opts, rs: R.RunSt, +l: B.Line, +back: Nat, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
-  match same:
-    case True{}:
+def resolve.k(f: J.Fast, +a: Maybe<&2, P.Ans>, +o: B.Opts, rs: R.RunSt, +l: B.Line, +back: Nat, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
+  match f:
+    case J.Same{}:
       same_done(o, rs, l, fs, pend, queue, eof)
-    case False{}:
-      try_line(J.judge_fs(a, B.Rec.fields(B.Line.body(l)), B.Line.body(l)), o, rs, l, fs, grow(a, back, l), pend, queue, eof)
+    case J.Other{m}:
+      try_line(m, o, rs, l, fs, grow(a, back, l), pend, queue, eof)
 
 # A reference read arrived for the waiting line: handle the line, or ask
 # again with a window further back (grow). fs is J.pfs of the line.
@@ -162,7 +163,7 @@ def resolve(st: St, +a: Maybe<&2, P.Ans>) -> Adv:
     case St{o, rs, pend, queue, eof, None{}}:
       advance(St{o, rs, pend, queue, eof, None{}})
     case St{o, rs, pend, queue, eof, Some{Pending{+l, +back, +fs}}}:
-      resolve.k(J.same(a, fs), a, o, rs, l, back, fs, pend, queue, eof)
+      resolve.k(J.fast(a, fs, B.Line.body(l)), a, o, rs, l, back, fs, pend, queue, eof)
 
 def rev_onto(xs: List<&2, B.Note>, acc: List<&2, B.Note>) -> List<&2, B.Note>:
   match xs:
