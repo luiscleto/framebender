@@ -1,6 +1,7 @@
 import Base
 import ../lawful-words/defs.bend as W
 import ../lawful-bytes/defs.bend as D
+import ./protocol.bend as P
 
 # framebender: text as packed bytes (implementation layer, used by
 # protocol.bend and MACHINE.bend). The driver hands the program the VCF pieces
@@ -66,3 +67,89 @@ def tree(+d: Nat, +ws: List<&2, U32>) -> Array<U32>:
 def enc(+s: String) -> D.Bytes:
   +n = String.length(s)
   D.Bytes{U32.from_nat(n), tree(depth(n), words(codes(s)))}
+
+def shape.same(+d: Nat, +e: Nat) -> Maybe<&2, Nat>:
+  Bool.pick(Maybe<&2, Nat>, Nat.is_eq(d, e), Some{Nat.add(d, 1n)}, None{})
+
+def shape.depth(l: Maybe<&2, Nat>, r: Maybe<&2, Nat>) -> Maybe<&2, Nat>:
+  match l r:
+    case Some{d} Some{e}:
+      shape.same(d, e)
+    case _ _:
+      None{}
+
+# The depth of a perfect tree, with its words left to right; None for a tree
+# that is not perfect.
+def shape.join(l: Maybe<&2, Nat> & List<&2, U32>, r: Maybe<&2, Nat> & List<&2, U32>) -> Maybe<&2, Nat> & List<&2, U32>:
+  (ld, lw) = l
+  (rd, rw) = r
+  (shape.depth(ld, rd), List.append(&2, U32, lw, rw))
+
+def shape(a: Array<U32>) -> Maybe<&2, Nat> & List<&2, U32>:
+  match a:
+    case ALeaf{x}:
+      (Some{0n}, [x])
+    case ANode{xs, ys}:
+      shape.join(shape(xs), shape(ys))
+
+def out.if(ok: Bool, xs: List<&2, U32>) -> Maybe<&2, String>:
+  match ok:
+    case True{}:
+      Some{chars(xs)}
+    case False{}:
+      None{}
+
+def out.depth(m: Maybe<&2, Nat>, +len: U32, ws: List<&2, U32>) -> Maybe<&2, String>:
+  match m:
+    case Some{+d}:
+      out.if(Nat.is_le(d, 29n) && Nat.is_le(U32.to_nat(len), Nat.mul(4n, Nat.pow(2n, d))), List.take(&2, U32, D.unpack(ws), U32.to_nat(len)))
+    case None{}:
+      None{}
+
+def out.of(+len: U32, s: Maybe<&2, Nat> & List<&2, U32>) -> Maybe<&2, String>:
+  (m, ws) = s
+  out.depth(m, len, ws)
+
+# The text an output buffer holds, if it is well formed: a perfect block of
+# depth at most 29 holding len bytes (so the driver can write len bytes from
+# its flat block). None otherwise.
+def out(b: D.Bytes) -> Maybe<&2, String>:
+  D.Bytes{+len, buf} = b
+  out.of(len, shape(buf))
+
+# Every character is a byte (code below 256): what the driver reads from a
+# file, one Char per byte.
+def is_bytes(s: String) -> Bool:
+  match s:
+    case SNil{}:
+      True{}
+    case SCon{c, t}:
+      U32.is_lt(Char.to_u32(c), 256) && is_bytes(t)
+
+def all_bytes(ss: List<&2, String>) -> Bool:
+  match ss:
+    case Nil{}:
+      True{}
+    case Con{s, t}:
+      is_bytes(s) && all_bytes(t)
+
+# Every piece has at most 2^31 bytes (what a buffer holds).
+def pieces_ok(cs: List<&2, String>) -> Bool:
+  match cs:
+    case Nil{}:
+      True{}
+    case Con{c, t}:
+      Nat.is_le(String.length(c), Nat.pow(2n, 31n)) && pieces_ok(t)
+
+# The inputs a packed driver can hand over: the command line, the FASTA and
+# every VCF piece are bytes, and every piece fits a buffer.
+def texts_ok(argv: List<&2, String>, fasta: String, +cs: List<&2, String>) -> Bool:
+  all_bytes(argv) && (is_bytes(fasta) && (all_bytes(cs) && pieces_ok(cs)))
+
+# Every reference read asks for at most 2^31 letters (what a buffer holds).
+def reqs_ok(rs: List<&2, P.Req>) -> Bool:
+  match rs:
+    case Nil{}:
+      True{}
+    case Con{P.Req{c, a, b}, t}:
+      Nat.is_le(Nat.sub(b, a), Nat.pow(2n, 31n)) && reqs_ok(t)

@@ -46,34 +46,47 @@ def truths(+fa: List<&2, B.Contig>, rs: List<&2, P.Req>) -> List<&1, P.Ans>:
 # the machine writes (E.text) until it asks to stop.
 #   eof: the end of the file was given; done: the exit code, once it stopped.
 type DSt is Type:
-  DSt{st: Norm.St, next: P.Next, cs: List<&2, String>, eof: Bool, reads: Nat, out: String, notes: List<&2, B.Note>, done: Maybe<&2, Nat>}
+  DSt{st: Norm.St, next: P.Next, cs: List<&2, String>, eof: Bool, reads: Nat, good: Bool, out: String, notes: List<&2, B.Note>, done: Maybe<&2, Nat>}
 
-def absorb(s: Norm.Step, cs: List<&2, String>, eof: Bool, reads: Nat, +out: String, +notes: List<&2, B.Note>) -> DSt:
+def absorb.out(m: Maybe<&2, String>, +out: String) -> String & Bool:
+  match m:
+    case Some{t}:
+      (out ++ t, True{})
+    case None{}:
+      (out, False{})
+
+def absorb.k(st: Norm.St, nx: P.Next, cs: List<&2, String>, eof: Bool, reads: Nat, good: Bool, r: String & Bool, +notes: List<&2, B.Note>, ns: List<&2, B.Note>) -> DSt:
+  (out, ok) = r
+  DSt{st, nx, cs, eof, reads, good && ok, out, List.append(&2, B.Note, notes, ns), None{}}
+
+# A step's output is added as the text it holds (E.out); an output buffer that
+# is not well formed clears good, and the run then has no result.
+def absorb(s: Norm.Step, cs: List<&2, String>, eof: Bool, reads: Nat, good: Bool, +out: String, +notes: List<&2, B.Note>) -> DSt:
   match s:
     case Norm.Step{st, o, ns, nx}:
-      DSt{st, nx, cs, eof, reads, out ++ E.text(o), List.append(&2, B.Note, notes, ns), None{}}
+      absorb.k(st, nx, cs, eof, reads, good, absorb.out(E.out(o), out), notes, ns)
 
-def dstep.more(cs: List<&2, String>, eof: Bool, st: Norm.St, reads: Nat, +out: String, +notes: List<&2, B.Note>) -> DSt:
+def dstep.more(cs: List<&2, String>, eof: Bool, st: Norm.St, reads: Nat, good: Bool, +out: String, +notes: List<&2, B.Note>) -> DSt:
   match cs eof:
     case Nil{} True{}:
-      DSt{st, P.More{}, Nil{}, True{}, reads, out, notes, None{}}
+      DSt{st, P.More{}, Nil{}, True{}, reads, good, out, notes, None{}}
     case Nil{} False{}:
-      absorb(Norm.step(st, P.Eof{}), Nil{}, True{}, reads, out, notes)
+      absorb(Norm.step(st, P.Eof{}), Nil{}, True{}, reads, good, out, notes)
     case c <> t _:
-      absorb(Norm.step(st, P.Chunk{E.enc(c)}), t, eof, reads, out, notes)
+      absorb(Norm.step(st, P.Chunk{E.enc(c)}), t, eof, reads, good, out, notes)
 
 # One step of the driver. Asking for more after the end of the file gets
 # nothing (so such a machine never stops). reads counts the reference reads.
 def dstep(+fa: List<&2, B.Contig>, d: DSt) -> DSt:
   match d:
-    case DSt{st, nx, cs, e, k, out, notes, Some{c}}:
-      DSt{st, nx, cs, e, k, out, notes, Some{c}}
-    case DSt{st, P.Finish{+c}, cs, e, k, out, notes, None{}}:
-      DSt{st, P.Finish{c}, cs, e, k, out, notes, Some{c}}
-    case DSt{st, P.Ask{+rs}, cs, e, k, out, notes, None{}}:
-      absorb(Norm.step(st, P.Ref{truths(fa, rs)}), cs, e, Nat.add(k, List.length(&2, P.Req, rs)), out, notes)
-    case DSt{st, P.More{}, cs, e, k, out, notes, None{}}:
-      dstep.more(cs, e, st, k, out, notes)
+    case DSt{st, nx, cs, e, k, g, out, notes, Some{c}}:
+      DSt{st, nx, cs, e, k, g, out, notes, Some{c}}
+    case DSt{st, P.Finish{+c}, cs, e, k, g, out, notes, None{}}:
+      DSt{st, P.Finish{c}, cs, e, k, g, out, notes, Some{c}}
+    case DSt{st, P.Ask{+rs}, cs, e, k, g, out, notes, None{}}:
+      absorb(Norm.step(st, P.Ref{truths(fa, rs)}), cs, e, Nat.add(k, List.length(&2, P.Req, rs)), g && E.reqs_ok(rs), out, notes)
+    case DSt{st, P.More{}, cs, e, k, g, out, notes, None{}}:
+      dstep.more(cs, e, st, k, g, out, notes)
 
 def drive(fuel: Nat, +fa: List<&2, B.Contig>, d: DSt) -> DSt:
   match fuel:
@@ -89,13 +102,14 @@ def result.if(ok: Bool, r: R.Report) -> Maybe<&2, R.Report>:
     case False{}:
       None{}
 
-# The report, if the machine stopped within the steps and made at most
-# limit reference reads.
+# The report, if the machine stopped within the steps, made at most limit
+# reference reads, wrote only well-formed buffers and asked for no window of
+# more than 2^31 letters (good).
 def result(d: DSt, +limit: Nat) -> Maybe<&2, R.Report>:
   match d:
-    case DSt{st, nx, cs, e, k, out, notes, Some{c}}:
-      result.if(Nat.is_le(k, limit), R.Report{out, notes, c})
-    case DSt{st, nx, cs, e, k, out, notes, None{}}:
+    case DSt{st, nx, cs, e, k, g, out, notes, Some{c}}:
+      result.if(g && Nat.is_le(k, limit), R.Report{out, notes, c})
+    case DSt{st, nx, cs, e, k, g, out, notes, None{}}:
       None{}
 
 def pieces_len(cs: List<&2, String>) -> Nat:
@@ -128,8 +142,14 @@ def launch(b: Norm.Begin, +fasta: String, +vcf: String, +cs: List<&2, String>) -
       None{}
     case Norm.Begin{st, r, v}:
       +n = bound(fasta, vcf, cs)
-      launch.of(result(drive(n, B.Fasta.parse(fasta), DSt{st, P.More{}, cs, False{}, 0n, "", Nil{}, None{}}), n), r, v)
+      launch.of(result(drive(n, B.Fasta.parse(fasta), DSt{st, P.More{}, cs, False{}, 0n, True{}, "", Nil{}, None{}}), n), r, v)
 
+# The inputs are bytes (E.texts_ok): the command line, the FASTA and the VCF
+# pieces hold only characters below 256, as the driver reads files one byte
+# per character, and each piece has at most 2^31 bytes, as the driver chooses
+# its piece size. The program must write well-formed buffers and ask for
+# windows of at most 2^31 letters, or the run has no result (result's good).
+#
 # The program: started with a command line B.Args.parse accepts, it opens the
 # FASTA and VCF files it names and, for a FASTA file whose sequence lines hold
 # no spaces or tabs (P.Fasta.plain), however the VCF file is cut into pieces,
@@ -155,8 +175,9 @@ def launch(b: Norm.Begin, +fasta: String, +vcf: String, +cs: List<&2, String>) -
 #   cannot write", "error: bad .fai index <path>.fai", "error: unsupported FASTA
 #   <path>" (a byte read that the .fai layout does not explain), "error: .fai
 #   index does not match <path>" (fewer letters than the index promises),
-#   "error: FASTA read too large <path>" (one read of 2 GiB or more: a packed
-#   buffer holds at most 2^31 bytes).
+#   "error: FASTA read too large <path>" (never for a window the law allows: the
+#   program asks for at most 2^31 letters per read, and the driver reads any
+#   physical span, line breaks included, in parts).
 law machine:
   for argv: List<&2, String>
   for o: B.Opts
@@ -168,6 +189,7 @@ law machine:
   for ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>}
   for hf: {P.Fasta.plain(fasta) == True{} : Bool}
   for h: {String.concat(cs) == vcf : String}
+  for hb: {E.texts_ok(argv, fasta, cs) == True{} : Bool}
   {launch(Norm.start(argv), fasta, vcf, cs) == Some{Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, Launch>}
 
 # A command line B.Args.parse does not accept is a usage error.
