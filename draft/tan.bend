@@ -8,8 +8,8 @@ import ./types.bend as B
 # left; never before position 1); then, while every allele starts with the same
 # base and all have at least two bases, drop that first base (moving one
 # position right). An expert need not read it: LAWS.bend's laws same_change,
-# stays_valid, standard_form and unique fix its result (the one valid,
-# normalized variant making the same change). It reads the contig through a
+# stays_valid, standard_form and unique fix its result for valid variants
+# (the one valid, normalized variant making the same change). It reads the contig through a
 # window (var_in, with a step budget) only so that implementations can reuse
 # its proofs; the spec uses the whole contig (normal).
 
