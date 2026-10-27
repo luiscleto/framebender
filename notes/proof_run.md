@@ -1,87 +1,87 @@
 # Proof notes: run area (`sorted`, `grouped_in`, `no_unsorted`, `twice_run`)
 
-## Status (2026-10-27)
+## Status (2026-10-27): complete
 
-- Proven: `sorted`, `grouped_in`, `no_unsorted` (in `proof_run.bend`, which calls the helper
-  files). `bend proof_run.bend --check-only` shows only the TODOs of other areas' open laws and
-  `twice_run`. `--verdict` (Lean kernel) accepts all three, checked on a scratch copy with the open
-  law statements of other areas removed (the kernel refuses to run while any TODO is open).
-- Open: `twice_run` (plan below; it needs the var laws).
-- No code change (this area owns no code).
+- All four laws proven in `proof_run.bend` (restated with `+`, statements unchanged).
+  `bend proof_run.bend --check-only` shows only the 15 TODOs of `LAWS.bend`'s own statements.
+- `PROOF.bend` still needs `def L.twice_run(fasta, vcf, o, h): PR.twice_run(fasta, vcf, o, h)`
+  (lead's file). Checked on a scratch copy with that line added: `bend PROOF.bend --check-only`
+  and `--verdict` both print ALL PROOFS CHECK (whole project).
+- No code change (this area owns no code). `examples.bend` unchanged and still checks.
+- `twice_run` uses the var laws `PV.twice` and `PV.stays_valid` (one call each, per normalized
+  line, in `proof_run_line.bend`), and this area's own `sorted` / `grouped_in` lemmas.
 
-## Files
+## Files (about 7,900 lines)
 
-- `proof_run_base.bend`: Nat order (le_trans, le_flip, cancellation of `+ w`, `<` to `+1 <=`),
-  String append (assoc, `++ ""`), String.eq is equality (`str_eq_sound` through Word.cmp, refl,
-  symmetry).
-- `proof_run_sort.bend`: the buffer (`insert`, `take_ready`/`drop_ready`, `flush`) and the spec's
-  sort (`isort`, `texts`): a flush of sorted items writes them all; a flush that does not break had
-  sorted items; inserting keeps "sorted from k"; `isort(xs ++ [e]) == insert(e, isort(xs))` (the
-  spec's insert-before-first-not-lower and the buffer's insert-after-last-not-higher commute);
-  "some key below k" (`any_below`) survives insert and non-breaking flushes; ready items and the
-  bound on the last key.
-- `proof_run_steps.bend`: judge never answers UNSORTED; eliminators for one body line
-  (`BL`: stops with a non-UNSORTED message, or goes on as its item), `SR` (same_run: breaks or
-  writes), `NR` (new_run: breaks, CHROM came back, or starts the run); a stopped run stays stopped
-  (exit 1, messages kept); the items of the body lines (`nitems_cons`).
-- `proof_run_sorted.bend`: `doomed` (an item below the last key in the buffer: the run ends with
-  exit 1) and `sorted_body` / `sorted_head`.
-- `proof_run_grouped.bend`: `grouped_run` / `grouped_first` / `grouped_head`.
-- `proof_run_nounsorted.bend`: `nu_run` / `nu_first` / `nu_head`.
+- `proof_run_base.bend`: Nat order and `+ w` cancellation, String append, String.eq is equality.
+- `proof_run_sort.bend`: buffer (`insert`, `take_ready`/`drop_ready`, `flush`) and spec sort lemmas.
+- `proof_run_steps.bend`: judge never says UNSORTED; eliminators `BL`, `SR`, `NR`; stopped runs.
+- `proof_run_sorted.bend`, `proof_run_grouped.bend`, `proof_run_nounsorted.bend`: the first three laws.
+- For `twice_run`:
+  - `proof_run_text.bend`: a good line's text splits back into that line; every line of
+    `B.Text.lines` is good (no LF in the body; CR LF, or LF after a body not ending in CR).
+  - `proof_run_dec.bend`: `Pos.read(Nat.show(n)) == Some{n}` (divmod invariant, accumulator of
+    `Nat.show.go`, strong induction through fuel) and `Nat.show` writes only digits.
+  - `proof_run_rec.bend`: split/join round trips, `Rec.put` field facts, last field, allele text
+    round trips, INFO/END after `Info.set_end`, "ends with CR" through joins.
+  - `proof_run_rejudge.bend`: a rebuilt normalized record is judged normalized again, as itself
+    (`rejudge`), and its line stays good (`good_re`).
+  - `proof_run_line.bend`: per line of run 1 that goes on, its item is "read back" by run 2
+    (`line_qi`): text is a good line, run 2 judges it so the run goes on, same key/CHROM/text.
+  - `proof_run_two.bend`: run 2: lines that all go on, items grouped and key-sorted per CHROM,
+    exit 0 and output = header ++ items in input order, for any w (including 0).
+  - `proof_run_head.bend`: split at the first #CHROM line (run state, items, header string,
+    `body()`), the two added lines are good and not #CHROM, code 0 => #CHROM line and every
+    body line goes on.
+  - `proof_run_gsort.bend`: gsort keeps `qi`, keeps the CHROM sequence (so grouped), sorts keys
+    within each CHROM.
+  - `proof_run_twice.bend`: assembly (`twice_main`).
 
 ## How the proofs go
 
-- Every lemma is an induction over the lines with the state written out as a constructor
-  (`RunSt{n, True{}, h, cur, ended, last, buf, k, out, notes, False{}}`), so `line_step`,
-  `tick`, `keyed` compute; only `judge`'s answer, the Bool tests and the flush results are case
-  split (helpers that take the value and an equation, the "value + equation" pattern).
-- The goal after a line is a motive on the next state (`M: RunSt -> Type`), and `BL`/`SR`/`NR`
-  are eliminators taking one function per case; the induction hypothesis goes in as a function
-  argument (no forward references, so helpers cannot call the main lemma).
-- `sorted`: ghosts `gr` (items of the current CHROM run, input order), `gd` (earlier runs, sorted),
-  `W` (written part of the current run). Invariant: `isort(gr) == W ++ buf`,
-  `out == HD ++ (texts(gd) ++ texts(W))`, keys of `W` <= key(last), `buf` sorted from key(last),
-  `cur == cur_of(gr)`. An item inserted below key(last) makes the run "doomed": separate lemma
-  `doomed` shows exit code 1, so the `code == 0` hypothesis closes that branch.
-  The gsort side follows the machine exactly: `gsort.go` is the same left fold (same Bool test
-  `String.eq(chrom(first of run), chrom)` on both sides), so no reasoning about permutations.
-- `grouped_in`: machine `cur = Some{gc}`, `ended = ge` are exactly grouped.go's `cur`/`ended`
-  (after rewriting `c` to `gc` with String.eq soundness when the CHROM is the same).
-- `no_unsorted`: invariant "last written key + w <= input POS of the previous line" (`lbound`) and
-  `buf` sorted from key(last); a later line z of the run has key(last) <= key(z) because
-  `inpos(prev) <= inpos(z) < key(z) + w`. Flushes never break, a CHROM never comes back (grouped),
-  stops from judge are never UNSORTED (`judge_ok`).
+- Every run lemma is an induction over lines with the state written as a constructor, so
+  `line_step`/`keyed` compute; only judge's answer, Bool tests and flush results are case split
+  (helper takes the value and an equation). The next state goes into a motive `M: RunSt -> Type`;
+  `BL`/`SR`/`NR` (and variants `BLG`, `BLK`) are eliminators with one function per case; the
+  induction hypothesis is passed as a function (no forward references).
+- `sorted`: ghosts `gr` (current CHROM run, input order), `gd` (earlier runs sorted), `W` (written
+  part of `gr`): `isort(gr) == W ++ buf`, `out == HD ++ texts(gd) ++ texts(W)`, buffer sorted from
+  the last key. An item inserted below the last key: separate lemma `doomed` (exit 1).
+  gsort follows the machine (same left fold, same Bool test), so no permutation reasoning.
+- `grouped_in`: machine `cur`/`ended` are grouped.go's (String.eq soundness when same CHROM).
+- `no_unsorted`: invariant "last key + w <= input POS of the previous line".
+- `twice_run`: out1 = header lines ++ texts(gsort(items1)) (`sorted`); every item text is a good
+  line `l2` with `qi` (run 2 judges it as an item with the same key, CHROM, text, and goes on);
+  gsort keeps `qi`, groupedness and sorts keys; so run 2 over `lns(gsort(items1))` exits 0 and
+  writes them in order; `body()` of both outputs is that same text. Header: the added lines are
+  not #CHROM lines (they start with "##"), and are good lines (args are `clean`ed: no LF/CR).
 
 ## Where it got hard (research data)
 
-- Rewrite direction, over and over: `%e : G` needs `e : {new == old}` with `old` in the goal;
-  nearly every lemma is stated "computed == simple", so most uses need `Equal.sym`. Cost ~10
-  failed checks. Rewriting a hypothesis instead of the goal: `{(%e : G; h) : T}` with `T = G[old]`.
-- `match` after a `let` is refused: lets moved into each branch (twice).
-- Lambda parameters are affine: `+x => ...` needed when the parameter is used twice.
-- Destructuring a pair in a let counts as a match on a computed value: needs a helper def.
-- Doomed states: the obvious invariant `W ++ buf == isort(run)` is false once an item lands below
-  the last key (it will break later, not now). Splitting that case into its own lemma
-  ("doomed => exit 1") kept the main invariant simple.
-- `sorted_from(k, xs)` with `k` first failed termination (the first argument that changes must
-  shrink): list argument moved first.
-- Spec observation: `no_unsorted`'s hypothesis `1 <= w` is not needed (unused in the proof). With
-  w = 0, small_moves forces key > inpos for every item, which the proof handles like any other w.
-
-## Plan for `twice_run`
-
-Needs the var laws (`twice` or `normal_unchanged` + `standard_form`, and `stays_valid`), taken as
-hypothesis arguments until proven. Pieces:
-1. `body(out(run(fa, X, o))) == texts(gsort(items(fa, X)))` when the run succeeds (from `sorted`,
-   the lines of `head ++ texts` split back into the same lines, the two added lines and the
-   original header lines are not `#CHROM` lines).
-2. The lines of `out1`'s body are the items' texts; re-judging each gives the same key, CHROM and
-   text: unchanged for out-of-scope / problem lines; a normalized line's rebuilt text is judged
-   normalized again with the same variant (`Pos.read(Nat.show(q)) == Some{q}`,
-   `Allele.read(Allele.show(s)) == Some{s}`, split/join round trips, END rewritten consistently),
-   and `Norm.var` leaves it (var law), and rebuild of it gives the same text.
-3. Run 2 never stops: no MALFORMED / UNKNOWN_CHROM / strict problem (same outcomes as run 1), and
-   no UNSORTED: within each CHROM run keys are sorted, so every insert goes last and flushes are
-   in order (for any w, including 0, so not via `no_unsorted`).
-4. `texts(gsort(items2)) == texts(gsort(items1))`: items2 agree with `gsort(items1)` on key, CHROM
-   and text, and `gsort` is idempotent.
+- Rewrite direction (`%e : G` needs `e : {new == old}`, `old` in the goal) was the most common
+  error by far, maybe 60 failed checks over the area. Rule I ended up applying: if the lemma is
+  `{goal_term == simpler}`, use `Equal.sym`; to rewrite a hypothesis instead, write
+  `{(%e : G; h) : G[old]}` where `h : G[new]`.
+- Affinity: function-typed hypotheses are usable once and erased ones cannot be used in proofs at
+  all, so the var laws could not be passed down as hypotheses; once proven, they are called
+  directly per line. Lambda parameters need `+x =>` when used twice; `+x` lets need Data types
+  (a `def T(...) -> Type` alias for an equality is not known to be Data: inline the type).
+- `match` after a `let` or after a rewrite is refused: lets moved into branches, rewrites into
+  helper defs. Matches must follow parameter order (reordered parameters several times).
+- Termination: the shrinking argument must be first (`sorted_from(xs, k)`, `lastp(t, h)`,
+  `hd_cr_rev(t, ...)`).
+- Text facts were the bulk of `twice_run`: decimal round trip, split/join, CR handling (a body
+  ending in CR with an LF terminator would split back differently, so "the rebuilt record ends
+  with CR only if the original did" had to be proven through `Rec.put`, `Info.set_end` and joins).
+- `||`/`&&` parse left-assoc, `++` right-assoc; mattered for the extraction lemmas.
+- Concrete strings and chars compute fine (`Base.of_letter(Base.letter(b))`, `Pos.digit` of
+  each digit, `is_chrom_line` of a literal), so many facts are `{==}` after a 10-way match.
+- Stuck terms: `String.order.go(F, "HROM", LT{})` needed both strings matched; `split.push` on an
+  abstract split needed a lemma (`field0_push`).
+- Spec observations:
+  - `no_unsorted`'s hypothesis `1 <= w` is not needed (the proof never uses it).
+  - `twice_run` holds for every w, including 0 (run 2's input is sorted per CHROM, so every
+    insert goes last), which is why run 2 is not proven through `no_unsorted` (its `small_moves`
+    hypothesis fails for w = 0 on run 2's items, whose key equals their input POS).
+  - `twice_run` depends on `Nat.show`/`Pos.read` agreeing and on `clean` removing CR and LF from
+    the command line: both true, both needed.

@@ -7,6 +7,7 @@ import ./proof_base.bend as P
 import ./proof_run_sorted.bend as PS
 import ./proof_run_grouped.bend as PG
 import ./proof_run_nounsorted.bend as PN
+import ./proof_run_twice.bend as PT
 
 # Proofs: what run guarantees (run.bend, LAWS.run).
 # Each law below restates the law of the same name in LAWS.bend with every
@@ -52,3 +53,6 @@ law twice_run:
   for +h: {R.Report.code(L.run(fasta, vcf, o)) == 0n : Nat}
   {(Nat.is_eq(R.Report.code(L.run(fasta, R.Report.out(L.run(fasta, vcf, o)), o)), 0n)
     && String.eq(L.body(R.Report.out(L.run(fasta, R.Report.out(L.run(fasta, vcf, o)), o))), L.body(R.Report.out(L.run(fasta, vcf, o))))) == True{} : Bool}
+
+def twice_run(fasta, vcf, o, h):
+  PT.twice_main(fasta, vcf, o, h)

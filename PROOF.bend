@@ -59,3 +59,6 @@ def L.grouped_in(fasta, vcf, o, h):
 
 def L.no_unsorted(fasta, vcf, o, hw, hg, ha, hm):
   PR.no_unsorted(fasta, vcf, o, hw, hg, ha, hm)
+
+def L.twice_run(fasta, vcf, o, h):
+  PR.twice_run(fasta, vcf, o, h)

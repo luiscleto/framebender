@@ -947,3 +947,168 @@ law set_end_noc:
 
 def set_end_noc(info, e, c, h, hend, hs):
   join_noc2(B.Info.set_end.go(String.split(info, ';'), e), ";", c, set_noc(String.split(info, ';'), e, c, pieces_sub_noc(info, ';', c, h), hend), hs)
+
+# valid and checks
+# ================
+
+def VC(+seq: List<&2, B.Base>, +q: Nat, +s: List<&2, B.Base>, +y: List<&2, List<&2, B.Base>>) -> Type:
+  {L.valid(seq, B.Var{q, s, y}) == True{} : Bool}
+
+def c1(+q: Nat) -> Bool:
+  Nat.is_le(1n, q)
+
+def c2(+s: List<&2, B.Base>) -> Bool:
+  Nat.is_le(1n, L.len(s))
+
+def c3(+y: List<&2, List<&2, B.Base>>) -> Bool:
+  Nat.is_le(1n, List.length(&2, List<&2, B.Base>, y))
+
+def c5(+s: List<&2, B.Base>, +y: List<&2, List<&2, B.Base>>) -> Bool:
+  B.Alleles.distinct(s <> y)
+
+def c6(+seq: List<&2, B.Base>, +q: Nat, +s: List<&2, B.Base>) -> Bool:
+  B.Bases.eq(L.slice(seq, Nat.sub(q, 1n), L.len(s)), s)
+
+def v5(+seq: List<&2, B.Base>, +q: Nat, +s: List<&2, B.Base>, +y: List<&2, List<&2, B.Base>>) -> Bool:
+  Bool.and(Bool.and(Bool.and(Bool.and(c1(q), c2(s)), c3(y)), L.all_nonempty(y)), c5(s, y))
+
+law valid_c6:
+  for +seq: List<&2, B.Base>
+  for +q: Nat
+  for +s: List<&2, B.Base>
+  for +y: List<&2, List<&2, B.Base>>
+  for +h: {L.valid(seq, B.Var{q, s, y}) == True{} : Bool}
+  {c6(seq, q, s) == True{} : Bool}
+
+def valid_c6(seq, q, s, y, h):
+  P.and_true_r(v5(seq, q, s, y), c6(seq, q, s), h)
+
+law valid_v5:
+  for +seq: List<&2, B.Base>
+  for +q: Nat
+  for +s: List<&2, B.Base>
+  for +y: List<&2, List<&2, B.Base>>
+  for +h: {L.valid(seq, B.Var{q, s, y}) == True{} : Bool}
+  {v5(seq, q, s, y) == True{} : Bool}
+
+def valid_v5(seq, q, s, y, h):
+  P.and_true_l(v5(seq, q, s, y), c6(seq, q, s), h)
+
+law valid_c5:
+  for +seq: List<&2, B.Base>
+  for +q: Nat
+  for +s: List<&2, B.Base>
+  for +y: List<&2, List<&2, B.Base>>
+  for +h: {L.valid(seq, B.Var{q, s, y}) == True{} : Bool}
+  {c5(s, y) == True{} : Bool}
+
+def valid_c5(seq, q, s, y, h):
+  P.and_true_r(Bool.and(Bool.and(Bool.and(c1(q), c2(s)), c3(y)), L.all_nonempty(y)), c5(s, y), valid_v5(seq, q, s, y, h))
+
+def v4(+q: Nat, +s: List<&2, B.Base>, +y: List<&2, List<&2, B.Base>>) -> Bool:
+  Bool.and(Bool.and(Bool.and(c1(q), c2(s)), c3(y)), L.all_nonempty(y))
+
+law valid_v4:
+  for +seq: List<&2, B.Base>
+  for +q: Nat
+  for +s: List<&2, B.Base>
+  for +y: List<&2, List<&2, B.Base>>
+  for +h: {L.valid(seq, B.Var{q, s, y}) == True{} : Bool}
+  {v4(q, s, y) == True{} : Bool}
+
+def valid_v4(seq, q, s, y, h):
+  P.and_true_l(v4(q, s, y), c5(s, y), valid_v5(seq, q, s, y, h))
+
+law valid_c4:
+  for +seq: List<&2, B.Base>
+  for +q: Nat
+  for +s: List<&2, B.Base>
+  for +y: List<&2, List<&2, B.Base>>
+  for +h: {L.valid(seq, B.Var{q, s, y}) == True{} : Bool}
+  {L.all_nonempty(y) == True{} : Bool}
+
+def valid_c4(seq, q, s, y, h):
+  P.and_true_r(Bool.and(Bool.and(c1(q), c2(s)), c3(y)), L.all_nonempty(y), valid_v4(seq, q, s, y, h))
+
+law valid_c3:
+  for +seq: List<&2, B.Base>
+  for +q: Nat
+  for +s: List<&2, B.Base>
+  for +y: List<&2, List<&2, B.Base>>
+  for +h: {L.valid(seq, B.Var{q, s, y}) == True{} : Bool}
+  {c3(y) == True{} : Bool}
+
+def valid_c3(seq, q, s, y, h):
+  P.and_true_r(Bool.and(c1(q), c2(s)), c3(y), P.and_true_l(Bool.and(Bool.and(c1(q), c2(s)), c3(y)), L.all_nonempty(y), valid_v4(seq, q, s, y, h)))
+
+law valid_c12:
+  for +seq: List<&2, B.Base>
+  for +q: Nat
+  for +s: List<&2, B.Base>
+  for +y: List<&2, List<&2, B.Base>>
+  for +h: {L.valid(seq, B.Var{q, s, y}) == True{} : Bool}
+  {Bool.and(c1(q), c2(s)) == True{} : Bool}
+
+def valid_c12(seq, q, s, y, h):
+  P.and_true_l(Bool.and(c1(q), c2(s)), c3(y), P.and_true_l(Bool.and(Bool.and(c1(q), c2(s)), c3(y)), L.all_nonempty(y), valid_v4(seq, q, s, y, h)))
+
+law some_ne_none_c:
+  for -c: B.Code
+  for e: {Some{c} == None{} : Maybe<&2, B.Code>}
+  Empty
+
+def mcdisc(m: Maybe<&2, B.Code>) -> Type:
+  match m:
+    case None{}:
+      Empty
+    case Some{x}:
+      Unit
+
+def some_ne_none_c(c, e):
+  %e : mcdisc(_)
+  Unit{}
+
+law first_none:
+  for +b: Bool
+  for +c: B.Code
+  for +rest: Maybe<&2, B.Code>
+  for e: {L.first(b, c, rest) == None{} : Maybe<&2, B.Code>}
+  {b == False{} : Bool} & {rest == None{} : Maybe<&2, B.Code>}
+
+def first_none(b, c, rest, e):
+  match b:
+    case True{}:
+      Empty.absurd({True{} == False{} : Bool} & {rest == None{} : Maybe<&2, B.Code>}, some_ne_none_c(c, e))
+    case False{}:
+      ({==}, e)
+
+law pos_ne0:
+  for +q: Nat
+  for +h: {Nat.is_le(1n, q) == True{} : Bool}
+  {Nat.is_eq(q, 0n) == False{} : Bool}
+
+def pos_ne0(q, h):
+  match q:
+    case 0n:
+      Empty.absurd({Nat.is_eq(0n, 0n) == False{} : Bool}, P.false_ne_true(h))
+    case 1n+p:
+      {==}
+
+# A valid variant passes the checks.
+law checks_valid:
+  for +seq: List<&2, B.Base>
+  for +q: Nat
+  for +s: List<&2, B.Base>
+  for +y: List<&2, List<&2, B.Base>>
+  for +h: {L.valid(seq, B.Var{q, s, y}) == True{} : Bool}
+  {L.checks(True{}, seq, B.Var{q, s, y}) == None{} : Maybe<&2, B.Code>}
+
+def checks_valid(seq, q, s, y, h):
+  +h1 = P.and_true_l(c1(q), c2(s), valid_c12(seq, q, s, y, h))
+  %Equal.sym(Bool, Nat.is_eq(q, 0n), False{}, pos_ne0(q, h1)) :
+    {L.first(False{}, B.BadEnd{}, L.first(_, B.BadPos{}, L.first(Bool.not(c5(s, y)), B.AltDup{}, L.first(Bool.not(c6(seq, q, s)), B.RefMismatch{}, None{})))) == None{} : Maybe<&2, B.Code>}
+  %Equal.sym(Bool, c5(s, y), True{}, valid_c5(seq, q, s, y, h)) :
+    {L.first(False{}, B.BadEnd{}, L.first(False{}, B.BadPos{}, L.first(Bool.not(_), B.AltDup{}, L.first(Bool.not(c6(seq, q, s)), B.RefMismatch{}, None{})))) == None{} : Maybe<&2, B.Code>}
+  %Equal.sym(Bool, c6(seq, q, s), True{}, valid_c6(seq, q, s, y, h)) :
+    {L.first(False{}, B.BadEnd{}, L.first(False{}, B.BadPos{}, L.first(False{}, B.AltDup{}, L.first(Bool.not(_), B.RefMismatch{}, None{})))) == None{} : Maybe<&2, B.Code>}
+  {==}
