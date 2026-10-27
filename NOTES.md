@@ -311,3 +311,25 @@ not the RAM-backed /tmp (the first whole-genome compare ran /tmp out of space).
 Where chr22's 4.7 s goes (fast agent's profile): splitting into lines ~15%, copying output ~15%,
 scanning INFO ~15%, checking for CR ~8%, driver I/O per step ~15%; shared state no longer shows.
 Every remaining cost is a pass over text stored as a linked list of Chars.
+
+### Pass 3: parallelism and long runs (fast agent; `notes/fast.md`)
+
+- Shipped (proven): a queue counter in the machine state, so the fuel no longer walks the queue on
+  every step. Neutral at 64 KB pieces; needed by any large-piece or batched design. Whole genome
+  rerun: 586 s, records identical to bcftools (`compare.sh` 0 differing).
+- Parallelism, prototypes without proofs (chr22, output identical): one batched Ask per piece and
+  judging in a balanced fork-join went from 3.7-3.9 s on 1 thread to 2.7-2.9 s on 4 and 2.5-3.0 s on
+  32. Scaling stops at about 4 threads; the rest is sequential: splitting a linked list into lines
+  (~12%), copying unchanged text to the output (25%), driver I/O per step (~15%). A proven version
+  (lines that keep their LF, batched reads) was estimated at 4-6 hours of proof work for under 2x on
+  chr22, so the speed work stops here.
+- Why the whole genome costs more per record: the cost grows with the number of records one run has
+  handled (62 µs per record at 50k, 86 at 160k, 116 at 319k on chr1), with flat memory (about 217 MB)
+  and an unchanged profile: heap locality degrades as the runtime's free lists recycle scattered
+  nodes. Not the reference, line lengths or positions. 4 MB pieces were faster on chr22 (3.2 s) but
+  far slower on the whole genome (1,747 s). A fix belongs in Bend's allocator.
+
+Conclusion (Q5): framebender is about 60x slower than bcftools on chr22 and about 80x on the whole
+genome. The cost is Bend 2's text representation and allocator, not the laws. The laws held through
+every rewrite: seven implementation changes took chr22 from 31.7 s to 4.5 s, each proven, with
+byte-identical output.

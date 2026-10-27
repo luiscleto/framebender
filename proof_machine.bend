@@ -31,7 +31,7 @@ law machine:
 def machine(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h):
   +T = L.run(fasta, vcf, o)
   +n = M.bound(fasta, vcf, cs)
-  +d0 = {M.DSt{Norm.St{o, R.start_st(), "", Nil{}, False{}, None{}}, Pr.More{}, cs, False{}, 0n, "", Nil{}, None{}} : M.DSt}
+  +d0 = {M.DSt{Norm.St{o, R.start_st(), "", Nil{}, 0n, False{}, None{}}, Pr.More{}, cs, False{}, 0n, "", Nil{}, None{}} : M.DSt}
   %Equal.sym(Maybe<&2, B.Cfg>, B.Args.parse(argv), Some{B.Cfg{o, ref, vcfpath}}, ha) :
     {M.launch(Norm.start.of(_), fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, T}} : Maybe<&2, M.Launch>}
   %Equal.sym(Maybe<&2, R.Report>, M.result(M.drive(n, B.Fasta.parse(fasta), d0), n), Some{T},

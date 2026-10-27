@@ -738,16 +738,17 @@ law same_done:
   for +fs: List<&2, String>
   for +pend: String
   for +q: List<&2, B.Line>
+  for +qn: Nat
   for +e: Bool
-  {Norm.same_done(o, rs, l, fs, pend, q, e) == Norm.body_done(B.Res{B.Normalized{}, B.Rec.pos(fs), B.Line.body(l), False{}}, o, rs, l, fs, pend, q, e) : Norm.Adv}
+  {Norm.same_done(o, rs, l, fs, pend, q, qn, e) == Norm.body_done(B.Res{B.Normalized{}, B.Rec.pos(fs), B.Line.body(l), False{}}, o, rs, l, fs, pend, q, qn, e) : Norm.Adv}
 
-def same_done(o, rs, l, fs, pend, q, e):
+def same_done(o, rs, l, fs, pend, q, qn, e):
   match l:
     case B.Line{+b, +t}:
       +rs1 = R.tick(rs)
       +at = {B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
       %Equal.sym(Bool, String.eq(b, b), True{}, Q.str_eq_refl(b)) :
-        {Norm.same_done(o, rs, B.Line{b, t}, fs, pend, q, e) ==
+        {Norm.same_done(o, rs, B.Line{b, t}, fs, pend, q, qn, e) ==
           Norm.went(o, NR.keyed(rs1, R.Opts.w(o), R.Item{B.Rec.pos(fs), B.Rec.pos(fs), at, String.append(b, t)}, R.stale_note(False{}, at),
-            R.bump(R.RunSt.cnt(rs1), Bool.not(_), False{}, False{})), pend, q, e) : Norm.Adv}
+            R.bump(R.RunSt.cnt(rs1), Bool.not(_), False{}, False{})), pend, q, qn, e) : Norm.Adv}
       {==}

@@ -150,3 +150,72 @@ records" are bcftools' truncated output. To be rerun once the space is freed.
   three walks, two of them shared), and keeping each line's LF so an unchanged record needs no
   `body ++ term` copy: both change the queue's representation (`B.Line`) and the pieces-to-lines
   proofs (`proof_machine_lines.bend`). Estimated 20-30% on chr22.
+
+# Pass 3 (2026-10-27, from 3af70a9)
+
+| step | change | chr22 | scr | proof work |
+|---|---|---|---|---|
+| h1 | the machine counts its queue (`St.qn`), so a step's fuel (`St.fuel`) needs no walk of the queue; with 4 MB driver pieces (tried, reverted, see below) | 4.48 → 3.19 s (4 MB); 4.46 → 4.49 s (64 KB, shipped) | 6.86 → 5.62 s (4 MB) | the 42 machine states in `proof_machine_sim.bend` gain the field; states the proof builds itself use `List.length(q)` (popping a line then reduces by computation); `GM`/`GA` carry `{qn == 0}` / `{qn == length(q)}`, rewritten away in `MS`/`AS` |
+
+**Reverted piece size.** With 4 MB pieces the whole genome took 1,747 s (exit 0, same summary),
+against 595 s with 64 KB pieces in pass 2, although chr22 was 29% faster and chr1 (319,349
+records) 35.6 s against 40.1 s. Large pieces lose on long runs (see the locality section below);
+I did not find why in time, so the driver keeps 64 KB (`main.bend` unchanged) and pass 3 ships
+only the counter, which is neutral at 64 KB (chr22 4.49 s against 4.46 s) and is what any
+large-piece or batched design needs. chr1 at 64 KB with the counter: 41.7 s; at 1 MB: 48.3 s.
+
+Why the counter: with large pieces the old `St.fuel` walked the whole queue (about 6,000 lines per 4 MB piece) at every step, i.e. at every reference read: quadratic per piece, and a shared walk. Measured on HEAD: 64 KB 4.55 s, 256 KB 4.17 s, 1 MB 3.84 s, 4 MB 4.0-4.15 s; with the counter 1 MB 3.5 s, 4 MB 3.2 s, 16 MB 2.9-3.1 s (4 MB chosen: memory). Gate green; compare 0/0/1; identical to HEAD on all test inputs.
+
+## Parallelism (pass 3, prototypes without proofs, chr22, output identical)
+
+All on the pass-2 code (`3af70a9`), 1 MB pieces, `+RTS --threads N`, `nice -n 19`, two runs each:
+
+| build | 1 thread | 2 | 4 | 8 | 16 | 32 |
+|---|---|---|---|---|---|---|
+| HEAD (sequential), 1 MB pieces | 3.8 s | | | | | 3.7-4.2 s |
+| parallel prep only: each piece's lines get their cut fields (`pfs`) in a balanced fork-join (`halves`, depth 5), reads still one per Ask | 4.1-4.2 s | | 3.5-4.6 s | | | 3.1-3.4 s |
+| + precomputed output text (`Line.text`) in the fork-join | 5.8 s | | 4.8 s | | 4.3 s | 4.3 s |
+| batched reads: one Ask per piece for every body line's first window, then `J.fast` for all lines in the fork-join, then the sequential pump | 3.7-3.9 s | 3.3-3.5 s | 2.7-2.9 s | 2.7-2.9 s | 2.8-3.0 s | 2.5-3.0 s |
+
+(The pass-3 counter, h1, then made the sequential build itself 3.2 s at 4 MB pieces, so the best
+parallel prototype would be about 20-30% faster than today's sequential binary at 4-32 threads.)
+
+What limits it (profile of the batched prototype at 32 threads): the work left on one core is the
+line split of each piece (a linked list cannot be cut in the middle without walking it: ~12%),
+the output copy of each unchanged record (`body ++ term`, 25%), the run's bookkeeping, and the
+driver's I/O per step (~15%). Precomputing more in the fork-join (the output text) made it
+slower: every line's data then stays alive for the whole piece and is freed cold. Scaling stops
+at about 4 threads.
+
+What a proven version needs, in order of value:
+1. Lines that keep their LF (the queue holds each line's text): removes the 25% copy, sequential
+   or parallel. Changes the queue's element type and `proof_machine_lines.bend`.
+2. Batched reads: a new Ask state carrying many reads (the invariant now says "Good is Empty for
+   any other Ask"), the read budget redone (a batch spends one read of each line's budget), and a
+   pump lemma that takes precomputed answers (TL already accepts any truthful answer).
+3. The fork-join itself is easy to prove (`pmap == map` by induction on the depth).
+Estimated 4-6 hours of proof work for 1+2; not attempted in this pass.
+
+## Why the whole genome costs more per record (pass 3)
+
+- Not the reference: chr22 against `hg38.fa` takes the same time as against `chr22.fa` (3.24 vs 3.40 s).
+- Not the line length (700 bytes per record in both) and not the positions: the first and the
+  last 50,000 records of chr1 (positions up to 248 M) take 3.10 and 3.09 s, as chr22's 50,284 do.
+- It grows with the length of one run: chr1's first 50,000 records 62 us per record, its first
+  160,000 86 us, all 319,349 116 us (37.0 s). Memory stays flat (peak RSS 216 MB at 50k, 218 MB at
+  160k), and the profile's mix is the same at 50k and 160k: everything is uniformly slower.
+- So it is locality, not an algorithm: the runtime's free lists are LIFO chains, so after
+  millions of allocations and frees a new String's nodes are scattered over the heap and every
+  pass over a line misses the cache more. Larger pieces help for the same reason (h1: 16 MB pieces
+  were faster still). A fix belongs in the runtime (allocate from address-ordered blocks, or reset
+  free chains); in the program, fewer passes over each line help most.
+
+## Whole genome, pass 3 (shipped build: counter, 64 KB pieces; 17:29-17:51, nothing else running)
+
+| run | time |
+|---|---|
+| bcftools 1.24 to a file (data/tmp) | 8.0 s |
+| framebender to a file (data/tmp) | 586 s (exit 0; 4048342 records, 18 changed, 512 out of scope) |
+| `TMPDIR=data/tmp test/compare.sh data/hg38.fa data/hg002.all.vcf` | exit codes 0 and 0, **0 differing records** (720 s in all) |
+
+Outputs deleted afterwards. With 4 MB pieces the same run took 1,747 s (see h1).

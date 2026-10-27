@@ -24,10 +24,11 @@ type Pending is Data:
 
 # The machine's state: the options; the run's bookkeeping (R.RunSt, shared
 # with the spec; its out and notes are emptied after every line); the end of
-# a line not yet complete; complete lines not yet handled; whether the file
-# ended; the line waiting for a reference read.
+# a line not yet complete; complete lines not yet handled, and how many (so a
+# step's fuel needs no walk of the queue); whether the file ended; the line
+# waiting for a reference read.
 type St is Data:
-  St{o: B.Opts, rs: R.RunSt, pend: String, queue: List<&2, B.Line>, eof: Bool, wait: Maybe<&2, Pending>}
+  St{o: B.Opts, rs: R.RunSt, pend: String, queue: List<&2, B.Line>, qn: Nat, eof: Bool, wait: Maybe<&2, Pending>}
 
 # How the program starts: with the state and the paths of the FASTA and VCF
 # files, or with a usage error.
@@ -40,7 +41,7 @@ def start.of(m: Maybe<&2, B.Cfg>) -> Begin:
     case None{}:
       Usage{}
     case Some{B.Cfg{o, r, v}}:
-      Begin{St{o, R.start_st(), "", Nil{}, False{}, None{}}, r, v}
+      Begin{St{o, R.start_st(), "", Nil{}, 0n, False{}, None{}}, r, v}
 
 # The command line after the program's name.
 def start(argv: List<&2, String>) -> Begin:
@@ -77,48 +78,50 @@ def RunSt.clear(rs: R.RunSt) -> R.RunSt:
     case R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}:
       R.RunSt{n, i, h, c, e, l, b, k, "", Nil{}, x}
 
-def went(+o: B.Opts, +rs: R.RunSt, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
-  Went{St{o, RunSt.clear(rs), pend, queue, eof, None{}}, RunSt.out(rs), RunSt.notes(rs)}
+def went(+o: B.Opts, +rs: R.RunSt, pend: String, queue: List<&2, B.Line>, qn: Nat, eof: Bool) -> Adv:
+  Went{St{o, RunSt.clear(rs), pend, queue, qn, eof, None{}}, RunSt.out(rs), RunSt.notes(rs)}
 
 # fs: the line's first fields (J.pfs of its body), cut once per visit.
-def body_done(r: B.Res, +o: B.Opts, rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
+def body_done(r: B.Res, +o: B.Opts, rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, qn: Nat, eof: Bool) -> Adv:
   +rs1 = R.tick(rs)
   +at = {B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
-  went(o, NR.body_line(r, rs1, o, l, at, B.Rec.pos(fs)), pend, queue, eof)
+  went(o, NR.body_line(r, rs1, o, l, at, B.Rec.pos(fs)), pend, queue, qn, eof)
 
 # The window asked for a line: from back letters before its POS to the end of
 # its REF.
-def want(+o: B.Opts, +rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, +back: Nat, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
+def want(+o: B.Opts, +rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, +back: Nat, pend: String, queue: List<&2, B.Line>, qn: Nat, eof: Bool) -> Adv:
   +p = Nat.sub(B.Rec.pos(fs), 1n)
-  Want{St{o, rs, pend, queue, eof, Some{Pending{l, back, fs}}}, B.Rec.field(fs, 0n), Nat.sub(p, back), Nat.add(p, String.length(B.Rec.field(fs, 3n)))}
+  Want{St{o, rs, pend, queue, qn, eof, Some{Pending{l, back, fs}}}, B.Rec.field(fs, 0n), Nat.sub(p, back), Nat.add(p, String.length(B.Rec.field(fs, 3n)))}
 
-def try_line(m: Maybe<&2, B.Res>, +o: B.Opts, +rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, +back: Nat, +pend: String, +queue: List<&2, B.Line>, +eof: Bool) -> Adv:
+def try_line(m: Maybe<&2, B.Res>, +o: B.Opts, +rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, +back: Nat, +pend: String, +queue: List<&2, B.Line>, +qn: Nat, +eof: Bool) -> Adv:
   match m:
     case Some{r}:
-      body_done(r, o, rs, l, fs, pend, queue, eof)
+      body_done(r, o, rs, l, fs, pend, queue, qn, eof)
     case None{}:
-      want(o, rs, l, fs, back, pend, queue, eof)
+      want(o, rs, l, fs, back, pend, queue, qn, eof)
 
-def next_line(inbody: Bool, +o: B.Opts, +rs: R.RunSt, +l: B.Line, +pend: String, +queue: List<&2, B.Line>, +eof: Bool) -> Adv:
+def next_line(inbody: Bool, +o: B.Opts, +rs: R.RunSt, +l: B.Line, +pend: String, +queue: List<&2, B.Line>, +qn: Nat, +eof: Bool) -> Adv:
   match inbody:
     case False{}:
-      went(o, R.head_line(R.is_chrom_line(B.Line.body(l)), R.tick(rs), o, l), pend, queue, eof)
+      went(o, R.head_line(R.is_chrom_line(B.Line.body(l)), R.tick(rs), o, l), pend, queue, qn, eof)
     case True{}:
       +fs = J.pfs(B.Line.body(l))
-      try_line(J.judge_fs(None{}, fs, B.Line.body(l)), o, rs, l, fs, 100n, pend, queue, eof)
+      try_line(J.judge_fs(None{}, fs, B.Line.body(l)), o, rs, l, fs, 100n, pend, queue, qn, eof)
 
 def advance.go(halted: Bool, st: St) -> Adv:
   match halted st:
     case True{} _:
       Ended{st}
-    case False{} St{o, +rs, pend, Nil{}, eof, w}:
-      Idle{St{o, rs, pend, Nil{}, eof, w}}
-    case False{} St{o, +rs, pend, l <> t, eof, w}:
-      next_line(R.RunSt.inbody(rs), o, rs, l, pend, t, eof)
+    case False{} St{o, +rs, pend, Nil{}, qn, eof, w}:
+      Idle{St{o, rs, pend, Nil{}, qn, eof, w}}
+    case False{} St{o, +rs, pend, l <> t, 1n+m, eof, w}:
+      next_line(R.RunSt.inbody(rs), o, rs, l, pend, t, m, eof)
+    case False{} St{o, +rs, pend, l <> t, 0n, eof, w}:
+      next_line(R.RunSt.inbody(rs), o, rs, l, pend, t, 0n, eof)
 
 def St.rs(st: St) -> R.RunSt:
   match st:
-    case St{o, rs, p, q, e, w}:
+    case St{o, rs, p, q, n, e, w}:
       rs
 
 # Handle the next complete line, if any.
@@ -144,26 +147,26 @@ def grow(a: Maybe<&2, P.Ans>, +back: Nat, +l: B.Line) -> Nat:
 # A record already in normal form (J.fast gives Same): written as it came,
 # without rebuilding it (proof_fast.bend: the same as body_done with judge's
 # result).
-def same_done(+o: B.Opts, rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
+def same_done(+o: B.Opts, rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, qn: Nat, eof: Bool) -> Adv:
   +rs1 = R.tick(rs)
   +at = {B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
-  went(o, NR.keyed(rs1, R.Opts.w(o), R.Item{B.Rec.pos(fs), B.Rec.pos(fs), at, B.Line.text(l)}, Nil{}, R.bump(R.RunSt.cnt(rs1), False{}, False{}, False{})), pend, queue, eof)
+  went(o, NR.keyed(rs1, R.Opts.w(o), R.Item{B.Rec.pos(fs), B.Rec.pos(fs), at, B.Line.text(l)}, Nil{}, R.bump(R.RunSt.cnt(rs1), False{}, False{}, False{})), pend, queue, qn, eof)
 
-def resolve.k(f: J.Fast, +a: Maybe<&2, P.Ans>, +o: B.Opts, rs: R.RunSt, +l: B.Line, +back: Nat, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
+def resolve.k(f: J.Fast, +a: Maybe<&2, P.Ans>, +o: B.Opts, rs: R.RunSt, +l: B.Line, +back: Nat, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, qn: Nat, eof: Bool) -> Adv:
   match f:
     case J.Same{}:
-      same_done(o, rs, l, fs, pend, queue, eof)
+      same_done(o, rs, l, fs, pend, queue, qn, eof)
     case J.Other{m}:
-      try_line(m, o, rs, l, fs, grow(a, back, l), pend, queue, eof)
+      try_line(m, o, rs, l, fs, grow(a, back, l), pend, queue, qn, eof)
 
 # A reference read arrived for the waiting line: handle the line, or ask
 # again with a window further back (grow). fs is J.pfs of the line.
 def resolve(st: St, +a: Maybe<&2, P.Ans>) -> Adv:
   match st:
-    case St{o, rs, pend, queue, eof, None{}}:
-      advance(St{o, rs, pend, queue, eof, None{}})
-    case St{o, rs, pend, queue, eof, Some{Pending{+l, +back, +fs}}}:
-      resolve.k(J.fast(a, fs, B.Line.body(l)), a, o, rs, l, back, fs, pend, queue, eof)
+    case St{o, rs, pend, queue, qn, eof, None{}}:
+      advance(St{o, rs, pend, queue, qn, eof, None{}})
+    case St{o, rs, pend, queue, qn, eof, Some{Pending{+l, +back, +fs}}}:
+      resolve.k(J.fast(a, fs, B.Line.body(l)), a, o, rs, l, back, fs, pend, queue, qn, eof)
 
 def rev_onto(xs: List<&2, B.Note>, acc: List<&2, B.Note>) -> List<&2, B.Note>:
   match xs:
@@ -205,7 +208,7 @@ def finish(+st: St, outs: List<&2, String>, ns: List<&2, B.Note>) -> Step:
 
 def St.eof(st: St) -> Bool:
   match st:
-    case St{o, rs, p, q, e, w}:
+    case St{o, rs, p, q, n, e, w}:
       e
 
 def idle(eof: Bool, st: St, outs: List<&2, String>, ns: List<&2, B.Note>) -> Step:
@@ -280,25 +283,26 @@ def feed.start(ps: List<&2, String>) -> Fed:
 
 def feed.put(f: Fed, st: St) -> St:
   match f st:
-    case Fed{ls, r} St{o, rs, p, q, e, w}:
-      St{o, rs, r, List.append(&2, B.Line, q, ls), e, w}
+    case Fed{+ls, r} St{o, rs, p, q, n, e, w}:
+      St{o, rs, r, List.append(&2, B.Line, q, ls), Nat.add(n, List.length(&2, B.Line, ls)), e, w}
 
 # A piece of the VCF file: the complete lines go to the queue.
 def feed(st: St, s: String) -> St:
   match st:
-    case St{o, rs, p, q, e, w}:
-      feed.put(feed.start(String.split(p ++ s, '\n')), St{o, rs, "", q, e, w})
+    case St{o, rs, p, q, n, e, w}:
+      feed.put(feed.start(String.split(p ++ s, '\n')), St{o, rs, "", q, n, e, w})
 
 # The end of the file: what is left after the last LF is the last line.
 def feed_eof(st: St) -> St:
   match st:
-    case St{o, rs, p, q, e, w}:
-      St{o, rs, "", List.append(&2, B.Line, q, B.Text.last(p)), True{}, w}
+    case St{o, rs, p, q, n, e, w}:
+      +ls = B.Text.last(p)
+      St{o, rs, "", List.append(&2, B.Line, q, ls), Nat.add(n, List.length(&2, B.Line, ls)), True{}, w}
 
 def St.fuel(st: St) -> Nat:
   match st:
-    case St{o, rs, p, q, e, w}:
-      Nat.add(List.length(&2, B.Line, q), 2n)
+    case St{o, rs, p, q, n, e, w}:
+      Nat.add(n, 2n)
 
 # The fuel is computed before the state is handled (an argument is evaluated
 # before the call), so no second reference to the state is alive while lines
