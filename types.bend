@@ -462,10 +462,18 @@ def Rec.same_var(v: Var, w: Var) -> Bool:
 # that describe the alleles' sequence or breakpoints: CIGAR, HOMLEN, HOMSEQ,
 # AA. The list is not exhaustive; other fields are copied without any claim
 # that they stay true.
+def Rec.stale.if(same: Bool, +fs: List<&2, String>) -> Bool:
+  match same:
+    case True{}:
+      False{}
+    case False{}:
+      +info = Rec.field(fs, 7n)
+      Info.has(info, "CIGAR") || Info.has(info, "HOMLEN") || Info.has(info, "HOMSEQ") || Info.has(info, "AA")
+
+# (Written as a match so INFO is only searched when the representation
+# changed; `&&` evaluates both sides.)
 def Rec.stale(+fs: List<&2, String>, v: Var, w: Var) -> Bool:
-  +info = Rec.field(fs, 7n)
-  Bool.not(Rec.same_var(v, w))
-    && (Info.has(info, "CIGAR") || Info.has(info, "HOMLEN") || Info.has(info, "HOMSEQ") || Info.has(info, "AA"))
+  Rec.stale.if(Rec.same_var(v, w), fs)
 
 # ===========================================================================
 # The reference (FASTA)
