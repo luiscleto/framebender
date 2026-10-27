@@ -16,8 +16,8 @@ def judge_in(a: Maybe<&2, P.Ans>, +body: String) -> Maybe<&2, B.Res>:
 # ---------------------------------------------------------------------------
 
 # A body line waiting for a reference read; the window starts back letters
-# before its POS; fs: its fields (B.Rec.fields of its body), kept so they are
-# split only once.
+# before its POS; fs: its first fields (J.pfs of its body), kept so they are
+# cut only once.
 type Pending is Data:
   Pending{line: B.Line, back: Nat, fs: List<&2, String>}
 
@@ -79,7 +79,7 @@ def RunSt.clear(rs: R.RunSt) -> R.RunSt:
 def went(+o: B.Opts, +rs: R.RunSt, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
   Went{St{o, RunSt.clear(rs), pend, queue, eof, None{}}, RunSt.out(rs), RunSt.notes(rs)}
 
-# fs: the line's fields (B.Rec.fields of its body), split once per visit.
+# fs: the line's first fields (J.pfs of its body), cut once per visit.
 def body_done(r: B.Res, +o: B.Opts, rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
   +rs1 = R.tick(rs)
   +at = {B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
@@ -103,7 +103,7 @@ def next_line(inbody: Bool, +o: B.Opts, +rs: R.RunSt, +l: B.Line, +pend: String,
     case False{}:
       went(o, R.head_line(R.is_chrom_line(B.Line.body(l)), R.tick(rs), o, l), pend, queue, eof)
     case True{}:
-      +fs = B.Rec.fields(B.Line.body(l))
+      +fs = J.pfs(B.Line.body(l))
       try_line(J.judge_fs(None{}, fs, B.Line.body(l)), o, rs, l, fs, 100n, pend, queue, eof)
 
 def advance.go(halted: Bool, st: St) -> Adv:
@@ -140,14 +140,29 @@ def grow(a: Maybe<&2, P.Ans>, +back: Nat, +l: B.Line) -> Nat:
     case _:
       Nat.add(Nat.mul(back, 2n), 1n)
 
+# A record already in normal form (J.same): written as it came, without
+# judging it again (proof_fast.bend: the same as body_done with judge's
+# result).
+def same_done(+o: B.Opts, rs: R.RunSt, +l: B.Line, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
+  +rs1 = R.tick(rs)
+  +at = {B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
+  went(o, R.keyed(rs1, R.Opts.w(o), R.Item{B.Rec.pos(fs), B.Rec.pos(fs), at, B.Line.text(l)}, Nil{}, R.bump(R.RunSt.cnt(rs1), False{}, False{}, False{})), pend, queue, eof)
+
+def resolve.k(same: Bool, +a: Maybe<&2, P.Ans>, +o: B.Opts, rs: R.RunSt, +l: B.Line, +back: Nat, +fs: List<&2, String>, pend: String, queue: List<&2, B.Line>, eof: Bool) -> Adv:
+  match same:
+    case True{}:
+      same_done(o, rs, l, fs, pend, queue, eof)
+    case False{}:
+      try_line(J.judge_fs(a, B.Rec.fields(B.Line.body(l)), B.Line.body(l)), o, rs, l, fs, grow(a, back, l), pend, queue, eof)
+
 # A reference read arrived for the waiting line: handle the line, or ask
-# again with a window further back (grow).
+# again with a window further back (grow). fs is J.pfs of the line.
 def resolve(st: St, +a: Maybe<&2, P.Ans>) -> Adv:
   match st:
     case St{o, rs, pend, queue, eof, None{}}:
       advance(St{o, rs, pend, queue, eof, None{}})
     case St{o, rs, pend, queue, eof, Some{Pending{+l, +back, +fs}}}:
-      try_line(J.judge_fs(a, fs, B.Line.body(l)), o, rs, l, fs, grow(a, back, l), pend, queue, eof)
+      resolve.k(J.same(a, fs), a, o, rs, l, back, fs, pend, queue, eof)
 
 def rev_onto(xs: List<&2, B.Note>, acc: List<&2, B.Note>) -> List<&2, B.Note>:
   match xs:
@@ -284,8 +299,15 @@ def St.fuel(st: St) -> Nat:
     case St{o, rs, p, q, e, w}:
       Nat.add(List.length(&2, B.Line, q), 2n)
 
-def step.go(+st: St, a: Adv) -> Step:
-  pump(St.fuel(st), a, Nil{}, Nil{})
+# The fuel is computed before the state is handled (an argument is evaluated
+# before the call), so no second reference to the state is alive while lines
+# are handled: matching a value that is referenced twice copies reference
+# counts into all its fields, which made every line's text shared.
+def step.go(fuel: Nat, st: St) -> Step:
+  pump(fuel, advance(st), Nil{}, Nil{})
+
+def step.ref(fuel: Nat, st: St, a: Maybe<&2, P.Ans>) -> Step:
+  pump(fuel, resolve(st, a), Nil{}, Nil{})
 
 # The first answer (the machine asks one read at a time).
 def first(as: List<&2, P.Ans>) -> Maybe<&2, P.Ans>:
@@ -300,10 +322,10 @@ def step(st: St, i: P.In) -> Step:
   match i:
     case P.Chunk{s}:
       +st2 = feed(st, s)
-      step.go(st2, advance(st2))
+      step.go(St.fuel(st2), st2)
     case P.Eof{}:
       +st2 = feed_eof(st)
-      step.go(st2, advance(st2))
+      step.go(St.fuel(st2), st2)
     case P.Ref{as}:
       +st2 = st
-      step.go(st2, resolve(st2, first(as)))
+      step.ref(St.fuel(st2), st2, first(as))

@@ -189,3 +189,115 @@ def judge_fs(a: Maybe<&2, P.Ans>, +fs: List<&2, String>, +body: String) -> Maybe
 # answer is not enough (the machine then asks for more).
 def judge_in(a: Maybe<&2, P.Ans>, +body: String) -> Maybe<&2, B.Res>:
   judge_fs(a, B.Rec.fields(body), body)
+
+# ---------------------------------------------------------------------------
+# The first fields of a line (proof_fast.bend: List.take(1 + n) of
+# B.Rec.fields), cut without copying the rest of the line
+# ---------------------------------------------------------------------------
+
+# A line cut at its first tab: the field before it, the text after it, and
+# whether there was a tab.
+type Cut is Data:
+  Cut{f: String, r: String, ok: Bool}
+
+def cut.k(+h: Char, c: Cut) -> Cut:
+  match c:
+    case Cut{f, r, ok}:
+      Cut{SCon{h, f}, r, ok}
+
+# The cut of SCon{h, t}; tab: h is a tab. (h is passed apart so the copy
+# stops at the tab: a strict helper taking the recursive call would cut the
+# whole line.)
+def cut.go(t: String, tab: Bool, +h: Char) -> Cut:
+  match t tab:
+    case SNil{} True{}:
+      Cut{SNil{}, SNil{}, True{}}
+    case SCon{c, t2} True{}:
+      Cut{SNil{}, SCon{c, t2}, True{}}
+    case SNil{} False{}:
+      Cut{SCon{h, SNil{}}, SNil{}, False{}}
+    case SCon{+c, t2} False{}:
+      cut.k(h, cut.go(t2, Char.is_eq(c, '\t'), c))
+
+def cut(s: String) -> Cut:
+  match s:
+    case SNil{}:
+      Cut{SNil{}, SNil{}, False{}}
+    case SCon{+h, t}:
+      cut.go(t, Char.is_eq(h, '\t'), h)
+
+# The field of c and up to n more.
+def cuts(n: Nat, c: Cut) -> List<&2, String>:
+  match n c:
+    case 0n Cut{f, r, ok}:
+      [f]
+    case 1n+m Cut{f, r, True{}}:
+      f <> cuts(m, cut(r))
+    case 1n+m Cut{f, r, False{}}:
+      [f]
+
+# The fields the machine keeps for a line: CHROM to INFO (all of them when
+# the line has fewer than 8); judging reads nothing else, except to rewrite a
+# record (which splits the whole line).
+def pfs(body: String) -> List<&2, String>:
+  cuts(7n, cut(body))
+
+# ---------------------------------------------------------------------------
+# A record already in normal form (proof_fast.bend: judge_in gives it
+# Normalized, unchanged, not stale), decided from its first 8 fields
+# ---------------------------------------------------------------------------
+
+# The record's POS, REF and ALT fields (f1, f3, f4) are written as
+# Rec.rebuild writes them.
+def same.text(+f1: String, +f3: String, +f4: String, +v: B.Var) -> Bool:
+  match v:
+    case B.Var{+p, +r, +a}:
+      String.eq(Nat.show(p), f1) && String.eq(B.Allele.show(r), f3) && String.eq(String.join(B.Alleles.show(a), ","), f4)
+
+def same.norm(m: Maybe<&2, B.Var>, +f1: String, +f3: String, +f4: String, +v: B.Var) -> Bool:
+  match m:
+    case None{}:
+      False{}
+    case Some{w}:
+      B.Rec.same_var(v, w) && same.text(f1, f3, f4, v)
+
+def same.ref(ok: Maybe<&2, Bool>, +off: Nat, +bases: List<&2, B.Base>, +f1: String, +f3: String, +f4: String, +v: B.Var) -> Bool:
+  match ok:
+    case Some{True{}}:
+      same.norm(V.var_in(off, bases, v), f1, f3, f4, v)
+    case _:
+      False{}
+
+def same.problem(zero: Bool, distinct: Bool, +clen: Nat, +off: Nat, +bases: List<&2, B.Base>, +f1: String, +f3: String, +f4: String, +v: B.Var) -> Bool:
+  match zero distinct v:
+    case False{} True{} B.Var{+p, +r, +a}:
+      same.ref(ref_check(clen, off, bases, Nat.sub(p, 1n), r), off, bases, f1, f3, f4, B.Var{p, r, a})
+    case _ _ _:
+      False{}
+
+def same.found(end_ok: Bool, r: Maybe<&2, List<&2, B.Base>>, a: Maybe<&2, List<&2, List<&2, B.Base>>>, +clen: Nat, +off: Nat, +bases: List<&2, B.Base>, +pos: Nat, +f1: String, +f3: String, +f4: String) -> Bool:
+  match end_ok r a:
+    case True{} Some{+ref} Some{+alts}:
+      same.problem(Nat.is_eq(pos, 0n), B.Alleles.distinct(ref <> alts), clen, off, bases, f1, f3, f4, B.Var{pos, ref, alts})
+    case _ _ _:
+      False{}
+
+def same.ans(a: Maybe<&2, P.Ans>, +pos: Nat, +f1: String, +f3: String, +f4: String, f7: String, alts: List<&2, String>) -> Bool:
+  match a:
+    case Some{P.Known{+clen, +off, raw}}:
+      e = Nat.sub(Nat.add(pos, String.length(f3)), 1n)
+      same.found(end_ok(f7, e), B.Allele.read(f3), B.Alleles.read(alts), clen, off, B.Bases.of_fasta(raw), pos, f1, f3, f4)
+    case _:
+      False{}
+
+def same.go(bad: Bool, skip: Bool, a: Maybe<&2, P.Ans>, +fs: List<&2, String>) -> Bool:
+  match bad skip:
+    case False{} False{}:
+      same.ans(a, B.Rec.pos(fs), B.Rec.field(fs, 1n), B.Rec.field(fs, 3n), B.Rec.field(fs, 4n), B.Rec.field(fs, 7n), B.Rec.alts(fs))
+    case _ _:
+      False{}
+
+# judge_in(a, body) is Some{B.Res{B.Normalized{}, POS, body, False{}}}
+# (proof_fast.bend; fs: pfs(body)).
+def same(a: Maybe<&2, P.Ans>, +fs: List<&2, String>) -> Bool:
+  same.go(B.Rec.malformed(fs), B.Rec.out_of_scope(fs), a, fs)

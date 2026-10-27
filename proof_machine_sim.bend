@@ -13,6 +13,8 @@ import ./proof_machine_fasta.bend as PFa
 import ./proof_machine_ask.bend as PA
 import ./proof_machine_win.bend as W
 import ./MACHINE.bend as M
+import ./norm_line.bend as J
+import ./proof_fast.bend as PFs
 
 # The machine proof: driving the machine (M.drive) is the spec (L.run).
 #
@@ -120,7 +122,7 @@ def GoodA(+fa: List<&2, B.Contig>, +T: R.Report, +o: B.Opts, +rs: R.RunSt, +pend
     & ({PF.good(S) == True{} : Bool}
     & ({R.RunSt.halt(S) == False{} : Bool}
     & ({R.RunSt.inbody(S) == True{} : Bool}
-    & ({fs == B.Rec.fields(B.Line.body(l)) : List<&2, String>}
+    & ({fs == J.pfs(B.Line.body(l)) : List<&2, String>}
     & ({ch == wchrom(l) : String}
     & ({a == wfrom(l, back) : Nat}
     & ({b == wupto(l) : Nat}
@@ -211,7 +213,7 @@ def PD(+o: B.Opts, +rsm: R.RunSt, +pend: String, +q: List<&2, B.Line>, +e: Bool,
 
 # The machine's bookkeeping after a body line whose result is r.
 def bl(+r: B.Res, +o: B.Opts, +S: R.RunSt, +l: B.Line) -> R.RunSt:
-  +fs = B.Rec.fields(B.Line.body(l))
+  +fs = J.pfs(B.Line.body(l))
   +rs1 = R.tick(Norm.RunSt.clear(S))
   R.body_line(r, rs1, o, l, B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))
 
@@ -456,6 +458,15 @@ def LS_body(fa, o, S, l, hh, hi):
       +r = L.judge(fa, B.Line.body(l))
       +at = {B.At{1n+n, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
       +tc = {R.RunSt{1n+n, True{}, h, c, ee, la, b, k, "", Nil{}, False{}} : R.RunSt}
+      +Sx = {R.RunSt{n, True{}, h, c, ee, la, b, k, so, sns, False{}} : R.RunSt}
+      +bd = B.Line.body(l)
+      +Pf = J.pfs(bd)
+      %Equal.sym(String, B.Rec.field(Pf, 0n), B.Rec.field(fs, 0n), PFs.pfs_field(bd, 0n, {==})) :
+        {L.line_step(fa, o, Sx, l) == PF.pre(so, sns, R.body_line(r, tc, o, l, B.At{1n+n, _, B.Rec.field(Pf, 1n)}, B.Rec.pos(Pf))) : R.RunSt}
+      %Equal.sym(String, B.Rec.field(Pf, 1n), B.Rec.field(fs, 1n), PFs.pfs_field(bd, 1n, {==})) :
+        {L.line_step(fa, o, Sx, l) == PF.pre(so, sns, R.body_line(r, tc, o, l, B.At{1n+n, B.Rec.field(fs, 0n), _}, B.Rec.pos(Pf))) : R.RunSt}
+      %Equal.sym(Nat, B.Rec.pos(Pf), B.Rec.pos(fs), PFs.pfs_pos(bd)) :
+        {L.line_step(fa, o, Sx, l) == PF.pre(so, sns, R.body_line(r, tc, o, l, at, _)) : R.RunSt}
       %PF.rs_eq(1n+n, True{}, h, c, ee, la, b, k, String.append(so, ""), so, List.append(&2, B.Note, sns, Nil{}), sns, False{},
         PN.str_nil(so), P.append_nil(B.Note, sns)) :
         {R.body_line(r, _, o, l, at, B.Rec.pos(fs)) == PF.pre(so, sns, R.body_line(r, tc, o, l, at, B.Rec.pos(fs))) : R.RunSt}
@@ -712,7 +723,7 @@ def fin_ok(fasta, T, o, S, pend, q, e, w, outs, ns, cs, rd, O, N, bd, hO, hN, hg
 
 def TLG(+fasta: String, +T: R.Report, +o: B.Opts, +m: Maybe<&2, B.Res>, +l: B.Line, +back: Nat, +t: List<&2, B.Line>, +S: R.RunSt, +g: Nat,
   +outs: List<&2, String>, +ns: List<&2, B.Note>, +pend: String, +cs: List<&2, String>, +e: Bool, +rd: Nat, +O: String, +N: List<&2, B.Note>, +K: Nat) -> Type:
-  Ok(fasta, T, M.absorb(Norm.pump(1n+g, Norm.try_line(m, o, Norm.RunSt.clear(S), l, B.Rec.fields(B.Line.body(l)), back, pend, t, e), outs, ns), cs, e, rd, O, N),
+  Ok(fasta, T, M.absorb(Norm.pump(1n+g, Norm.try_line(m, o, Norm.RunSt.clear(S), l, J.pfs(B.Line.body(l)), back, pend, t, e), outs, ns), cs, e, rd, O, N),
     Nat.add(K, bud(cost(fasta), t, e, pend, cs)))
 
 # The driver state after a body line handled with r: pump goes on with the
@@ -720,6 +731,22 @@ def TLG(+fasta: String, +T: R.Report, +o: B.Opts, +m: Maybe<&2, B.Res>, +l: B.Li
 def WD(+o: B.Opts, +rsm: R.RunSt, +M: R.RunSt, +pend: String, +t: List<&2, B.Line>, +e: Bool, +outs: List<&2, String>, +ns: List<&2, B.Note>,
   +cs: List<&2, String>, +rd: Nat, +O: String, +N: List<&2, B.Note>, +g: Nat) -> M.DSt:
   PD(o, rsm, pend, t, e, Norm.RunSt.out(M) <> outs, Norm.rev_onto(Norm.RunSt.notes(M), ns), cs, rd, O, N, g)
+
+# The window the machine asks for a line, from its cut fields, is the line's.
+def wch(+l: B.Line) -> {B.Rec.field(J.pfs(B.Line.body(l)), 0n) == wchrom(l) : String}:
+  PFs.pfs_field(B.Line.body(l), 0n, {==})
+
+def wfr(+l: B.Line, +back: Nat) -> {Nat.sub(Nat.sub(B.Rec.pos(J.pfs(B.Line.body(l))), 1n), back) == wfrom(l, back) : Nat}:
+  %Equal.sym(Nat, B.Rec.pos(J.pfs(B.Line.body(l))), B.Rec.pos(lfs(l)), PFs.pfs_pos(B.Line.body(l))) :
+    {Nat.sub(Nat.sub(_, 1n), back) == wfrom(l, back) : Nat}
+  {==}
+
+def wup(+l: B.Line) -> {Nat.add(Nat.sub(B.Rec.pos(J.pfs(B.Line.body(l))), 1n), String.length(B.Rec.field(J.pfs(B.Line.body(l)), 3n))) == wupto(l) : Nat}:
+  %Equal.sym(Nat, B.Rec.pos(J.pfs(B.Line.body(l))), B.Rec.pos(lfs(l)), PFs.pfs_pos(B.Line.body(l))) :
+    {Nat.add(Nat.sub(_, 1n), String.length(B.Rec.field(J.pfs(B.Line.body(l)), 3n))) == wupto(l) : Nat}
+  %Equal.sym(String, B.Rec.field(J.pfs(B.Line.body(l)), 3n), B.Rec.field(lfs(l), 3n), PFs.pfs_field(B.Line.body(l), 3n, {==})) :
+    {Nat.add(lpos(l), String.length(_)) == wupto(l) : Nat}
+  {==}
 
 # A body line: with a result (which the window law says is judge's), pump
 # goes on as the spec (ih); without one, the machine asks for the window.
@@ -773,11 +800,11 @@ def TL(fasta, T, o, A, l, m, hm, htr, back, t, S, g, outs, ns, pend, cs, e, rd, 
       match e:
         case True{}:
           +bt = bud(cost(fasta), t, True{}, pend, cs)
-          ((S, ({==}, (hO, (hN, (hg, (hh, (hi, ({==}, ({==}, ({==}, ({==}, (hp, hT)))))))))))),
+          ((S, ({==}, (hO, (hN, (hg, (hh, (hi, ({==}, (wch(l), (wfr(l, back), (wup(l), (hp, hT)))))))))))),
             P.le_add(1n+asks0(B.Fasta.parse(fasta), l, back), K, bt, bt, hnone(hm), P.le_refl(bt)))
         case False{}:
           +bt = bud(cost(fasta), t, False{}, pend, cs)
-          ((S, ({==}, (hO, (hN, (hg, (hh, (hi, ({==}, ({==}, ({==}, ({==}, (hp, hT)))))))))))),
+          ((S, ({==}, (hO, (hN, (hg, (hh, (hi, ({==}, (wch(l), (wfr(l, back), (wup(l), (hp, hT)))))))))))),
             P.le_add(1n+asks0(B.Fasta.parse(fasta), l, back), K, bt, bt, hnone(hm), P.le_refl(bt)))
 
 # The pump: lines handled within one step
@@ -856,7 +883,7 @@ def PL(q, fasta, T, o, S, f, outs, ns, pend, cs, e, rd, O, N, hf, hO, hN, hg, hp
       +S2 = PF.pre(so, sns, M1)
       +rest = rest_lines(e, pend, cs)
       +cc = cost(fasta)
-      +fs = B.Rec.fields(B.Line.body(l))
+      +fs = J.pfs(B.Line.body(l))
       +tc = R.tick(Norm.RunSt.clear(Sl))
       ih = PL(t, fasta, T, o, S2, g, Norm.RunSt.out(M1) <> outs, Norm.rev_onto(Norm.RunSt.notes(M1), ns), pend, cs, e, rd, O, N,
         hf,
@@ -874,10 +901,10 @@ def PL(q, fasta, T, o, S, f, outs, ns, pend, cs, e, rd, O, N, hf, hO, hN, hg, hp
           R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, S2)), hT,
           Equal.cong(R.RunSt, R.Report, x => R.finish(L.run.go(List.append(&2, B.Line, t, rest), fa, o, x)), L.line_step(fa, o, Sl, l), S2,
             LS_body(fa, o, Sl, l, {==}, {==}))))
-      +jm = Norm.judge_in(None{}, B.Line.body(l))
-      ok_weaken(fasta, T, M.absorb(Norm.pump(1n+g, Norm.try_line(jm, o, Norm.RunSt.clear(Sl), l, B.Rec.fields(B.Line.body(l)), 100n, pend, t, e), outs, ns), cs, e, rd, O, N),
+      +jm = J.judge_fs(None{}, J.pfs(B.Line.body(l)), B.Line.body(l))
+      ok_weaken(fasta, T, M.absorb(Norm.pump(1n+g, Norm.try_line(jm, o, Norm.RunSt.clear(Sl), l, J.pfs(B.Line.body(l)), 100n, pend, t, e), outs, ns), cs, e, rd, O, N),
         Nat.add(cc, bud(cc, t, e, pend, cs)), bud(cc, l <> t, e, pend, cs),
-        TL(fasta, T, o, None{}, l, jm, {==}, {==}, 100n, t, Sl, g, outs, ns, pend, cs, e, rd, O, N, hO, hN, hg, {==}, {==}, hp, hT, cc,
+        TL(fasta, T, o, None{}, l, jm, Equal.sym(Maybe<&2, B.Res>, jm, Norm.judge_in(None{}, B.Line.body(l)), PFs.judge_none(B.Line.body(l))), {==}, 100n, t, Sl, g, outs, ns, pend, cs, e, rd, O, N, hO, hN, hg, {==}, {==}, hp, hT, cc,
           x => askle(fasta, l, 100n), ih),
         bud_assoc(cc, Nat.mul(List.length(&2, B.Line, t), cc), rest_need(cc, e, pend, cs)))
 
@@ -1110,6 +1137,48 @@ def add2(x):
       %add2(p) : {1n+Nat.add(p, 2n) == 1n+_ : Nat}
       {==}
 
+# The read arrived: a record already in normal form (J.same) is handled as
+# body_done with judge's result; any other goes through try_line with
+# judge_in's result. kTL is the rest of the step for a result m.
+law ASs:
+  for +fasta: String
+  for +T: R.Report
+  for +o: B.Opts
+  for +S: R.RunSt
+  for +pend: String
+  for +q: List<&2, B.Line>
+  for +e: Bool
+  for +l: B.Line
+  for +back: Nat
+  for +cs: List<&2, String>
+  for +rd1: Nat
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +nq: Nat
+  for +nb: Nat
+  for +a0: Maybe<&2, Pr.Ans>
+  for +sm: Bool
+  for +hsm: {J.same(a0, J.pfs(B.Line.body(l))) == sm : Bool}
+  for kTL: @m:Maybe<&2, B.Res> -> {Norm.judge_in(a0, B.Line.body(l)) == m : Maybe<&2, B.Res>} ->
+    StepOK(fasta, T, M.absorb(Norm.pump(2n+nq, Norm.try_line(m, o, Norm.RunSt.clear(S), l, J.pfs(B.Line.body(l)), Norm.grow(a0, back, l), pend, q, e), Nil{}, Nil{}), cs, e, rd1, O, N), nb)
+  StepOK(fasta, T, M.absorb(Norm.pump(2n+nq, Norm.resolve.k(sm, a0, o, Norm.RunSt.clear(S), l, back, J.pfs(B.Line.body(l)), pend, q, e), Nil{}, Nil{}), cs, e, rd1, O, N), nb)
+
+def ASs(fasta, T, o, S, pend, q, e, l, back, cs, rd1, O, N, nq, nb, a0, sm, hsm, kTL):
+  match sm:
+    case True{}:
+      +bd = B.Line.body(l)
+      +Pf = J.pfs(bd)
+      +r = {B.Res{B.Normalized{}, B.Rec.pos(Pf), bd, False{}} : B.Res}
+      +hm = Equal.trans(Maybe<&2, B.Res>, Norm.judge_in(a0, bd), PFs.RES(B.Rec.pos(B.Rec.fields(bd)), bd), Some{r}, PFs.same_judge(a0, bd, hsm),
+        Equal.cong(Nat, Maybe<&2, B.Res>, x => PFs.RES(x, bd), B.Rec.pos(B.Rec.fields(bd)), B.Rec.pos(Pf),
+          Equal.sym(Nat, B.Rec.pos(Pf), B.Rec.pos(B.Rec.fields(bd)), PFs.pfs_pos(bd))))
+      %Equal.sym(Norm.Adv, Norm.same_done(o, Norm.RunSt.clear(S), l, Pf, pend, q, e), Norm.body_done(r, o, Norm.RunSt.clear(S), l, Pf, pend, q, e),
+        PFs.same_done(o, Norm.RunSt.clear(S), l, Pf, pend, q, e)) :
+        StepOK(fasta, T, M.absorb(Norm.pump(2n+nq, _, Nil{}, Nil{}), cs, e, rd1, O, N), nb)
+      kTL(Some{r}, hm)
+    case False{}:
+      kTL(J.judge_fs(a0, B.Rec.fields(B.Line.body(l)), B.Line.body(l)), {==})
+
 law AS.k:
   for +fasta: String
   for +T: R.Report
@@ -1131,20 +1200,20 @@ law AS.k:
   for +hi: {R.RunSt.inbody(S) == True{} : Bool}
   for +hp: {B.Text.lines(pend) == B.Text.last(pend) : List<&2, B.Line>}
   for +hT: {T == R.finish(L.run.go(l <> List.append(&2, B.Line, q, rest_lines(e, pend, cs)), B.Fasta.parse(fasta), o, S)) : R.Report}
-  AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, B.Rec.fields(B.Line.body(l)), wchrom(l), wfrom(l, back), wupto(l), cs, rd, O, N)
+  AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, J.pfs(B.Line.body(l)), wchrom(l), wfrom(l, back), wupto(l), cs, rd, O, N)
 
 def AS.k(fasta, T, o, S, pend, q, e, l, back, cs, rd, O, N, hO, hN, hg, hh, hi, hp, hT):
   +fa = B.Fasta.parse(fasta)
   +cc = cost(fasta)
   +a0 = A0(fa, l, back)
-  +st = {Norm.St{o, Norm.RunSt.clear(S), pend, q, e, Some{Norm.Pending{l, back, B.Rec.fields(B.Line.body(l))}}} : Norm.St}
+  +st = {Norm.St{o, Norm.RunSt.clear(S), pend, q, e, Some{Norm.Pending{l, back, J.pfs(B.Line.body(l))}}} : Norm.St}
   +d = {M.DSt{st, Pr.Ask{Pr.Req{wchrom(l), wfrom(l, back), wupto(l)} <> Nil{}}, cs, e, rd, O, N, None{}} : M.DSt}
   +nb = need(fa, cc, d)
   +nq = List.length(&2, B.Line, q)
   +M1 = mstep(fa, o, S, l)
   +S2 = PF.pre(Norm.RunSt.out(S), Norm.RunSt.notes(S), M1)
   +rest = rest_lines(e, pend, cs)
-  +fs = B.Rec.fields(B.Line.body(l))
+  +fs = J.pfs(B.Line.body(l))
   +tc = R.tick(Norm.RunSt.clear(S))
   +rd1 = Nat.add(rd, 1n)
   +hO1 = Equal.trans(String, String.append(O, ""), O, Norm.RunSt.out(S), PN.str_nil(O), hO)
@@ -1169,14 +1238,14 @@ def AS.k(fasta, T, o, S, pend, q, e, l, back, cs, rd, O, N, hO, hN, hg, hh, hi, 
       Equal.cong(R.RunSt, R.Report, x => R.finish(L.run.go(List.append(&2, B.Line, q, rest), fa, o, x)), L.line_step(fa, o, S, l), S2,
         LS_body(fa, o, S, l, hh, hi))))
   %Equal.sym(Nat, Nat.add(nq, 2n), 2n+nq, add2(nq)) : StepOK(fasta, T, AD(_, st, a0, cs, e, rd1, O, N), nb)
-  +jm = Norm.judge_in(a0, B.Line.body(l))
   +g2 = Norm.grow(a0, back, l)
   +k0 = asks0(fa, l, back)
-  ok_step(fasta, T, M.absorb(Norm.pump(2n+nq, Norm.try_line(jm, o, Norm.RunSt.clear(S), l, B.Rec.fields(B.Line.body(l)), g2, pend, q, e), Nil{}, Nil{}), cs, e, rd1, O, N),
-    Nat.add(k0, bud(cc, q, e, pend, cs)), nb,
-    TL(fasta, T, o, a0, l, jm, {==}, PA.truthful_truth(fa, wchrom(l), wfrom(l, back), wupto(l)), g2, q, S, 1n+nq, Nil{}, Nil{}, pend, cs, e, rd1, O, N,
-      hO1, hN1, hg, hh, hi, hp, hT, k0, hn => askdec(fasta, l, back, hn), ih),
-    P.le_refl(nb))
+  ASs(fasta, T, o, S, pend, q, e, l, back, cs, rd1, O, N, nq, nb, a0, J.same(a0, J.pfs(B.Line.body(l))), {==},
+    +m => +hm => ok_step(fasta, T, M.absorb(Norm.pump(2n+nq, Norm.try_line(m, o, Norm.RunSt.clear(S), l, J.pfs(B.Line.body(l)), g2, pend, q, e), Nil{}, Nil{}), cs, e, rd1, O, N),
+      Nat.add(k0, bud(cc, q, e, pend, cs)), nb,
+      TL(fasta, T, o, a0, l, m, hm, PA.truthful_truth(fa, wchrom(l), wfrom(l, back), wupto(l)), g2, q, S, 1n+nq, Nil{}, Nil{}, pend, cs, e, rd1, O, N,
+        hO1, hN1, hg, hh, hi, hp, hT, k0, hn => askdec(fasta, l, back, hn), ih),
+      P.le_refl(nb)))
 
 law AS:
   for +fasta: String
@@ -1203,10 +1272,10 @@ def AS(fasta, T, o, rs, pend, q, e, l, back, ch, a, b, cs, rd, O, N, fs, ga):
   match ga:
     case (S, (hrs, (hO, (hN, (hg, (hh, (hi, (hfs, (hch, (ha, (hb, (hp, hT)))))))))))):
       %Equal.sym(R.RunSt, rs, Norm.RunSt.clear(S), hrs) : AskG(fasta, T, o, _, pend, q, e, l, back, fs, ch, a, b, cs, rd, O, N)
-      %Equal.sym(List<&2, String>, fs, B.Rec.fields(B.Line.body(l)), hfs) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, _, ch, a, b, cs, rd, O, N)
-      %Equal.sym(String, ch, wchrom(l), hch) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, B.Rec.fields(B.Line.body(l)), _, a, b, cs, rd, O, N)
-      %Equal.sym(Nat, a, wfrom(l, back), ha) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, B.Rec.fields(B.Line.body(l)), wchrom(l), _, b, cs, rd, O, N)
-      %Equal.sym(Nat, b, wupto(l), hb) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, B.Rec.fields(B.Line.body(l)), wchrom(l), wfrom(l, back), _, cs, rd, O, N)
+      %Equal.sym(List<&2, String>, fs, J.pfs(B.Line.body(l)), hfs) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, _, ch, a, b, cs, rd, O, N)
+      %Equal.sym(String, ch, wchrom(l), hch) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, J.pfs(B.Line.body(l)), _, a, b, cs, rd, O, N)
+      %Equal.sym(Nat, a, wfrom(l, back), ha) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, J.pfs(B.Line.body(l)), wchrom(l), _, b, cs, rd, O, N)
+      %Equal.sym(Nat, b, wupto(l), hb) : AskG(fasta, T, o, Norm.RunSt.clear(S), pend, q, e, l, back, J.pfs(B.Line.body(l)), wchrom(l), wfrom(l, back), _, cs, rd, O, N)
       AS.k(fasta, T, o, S, pend, q, e, l, back, cs, rd, O, N, hO, hN, hg, hh, hi, hp, hT)
 
 # A driver step from a More state
