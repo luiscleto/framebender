@@ -14,8 +14,12 @@ implementation can then be rewritten freely: a change that breaks a law fails th
 You need [Bend 2](https://bend-lang.com) (2.0.39), clang, and
 [samtools](https://www.htslib.org/) to index the reference.
 
+framebender builds on four proven utility packages, which must sit next to it:
+
 ```
-git clone https://github.com/luiscleto/framebender
+for r in framebender lawful-words lawful-arrays lawful-bytes lawful-fields; do
+  git clone https://github.com/luiscleto/$r
+done
 cd framebender
 bend main.bend -o framebender
 ```
@@ -65,18 +69,20 @@ The intentional differences:
   (`1/0:1,1` for `GT:AD:PS` stays as is).
 - The header gets two added lines with no date, so the output is reproducible.
 
-Speed (32 CPU threads, writing to a file):
+Speed (wall clock, writing to a file, interleaved runs on the same machine):
 
 | GIAB HG002 | bcftools | framebender |
 |---|---|---|
-| chr22 | 0.08 s | 4.5 s |
-| whole genome (2.8 GB) | 7.4 s | 590 s |
+| chr22 | 0.12–0.14 s | 0.12–0.16 s |
+| whole genome (2.8 GB) | 8.5–8.6 s | 9.1–9.7 s |
+| 20,739 indels moved to random positions | 0.08 s | 5.2 s |
 
-framebender is 60–80× slower. Bend 2 stores text as linked lists of characters, so every pass over
-a line is expensive. Judging lines in parallel helped only up to about 4 threads, and long runs
-slow down as the runtime's memory loses locality. Even so, seven rewrites of the implementation
-took chr22 from 31.7 s to 4.5 s without touching a law. Each rewrite was re-proven and gave
-byte-identical output.
+On real data framebender keeps pace with bcftools. The first proven version stored text as
+linked lists of characters, as Bend 2's `String` does, and took 590 s on the whole genome. The
+current one works on bytes packed four to a word, using four packages written for it, each with
+its own proven laws (`lawful-words`, `lawful-arrays`, `lawful-bytes`, `lawful-fields`). The laws
+did not change in the rewrite; the proof was redone and the output is byte-identical. Records that
+need rewriting still take a slow path through `String`, which is why the last row lags.
 
 ## How it was made
 
@@ -86,9 +92,11 @@ wrote the code and the proofs. Nobody with a bioinformatics background has revie
 if you have one, the science files (`LAWS.bend`, `types.bend`, `run.bend`, `tan.bend`) are the
 place to start, and issues are welcome.
 
-Every real bug was found by the reviewers in the small trusted layer that reads files, never
-inside the laws. [`NOTES.md`](NOTES.md) is the full record: decisions, who caught what, where the
-proofs got hard, and the measurements.
+Every real bug in framebender was found by the reviewers in the small trusted layer that reads
+files, never inside the laws. Proving the packages did find one: the word-at-a-time byte search
+could report a wrong position in a case no test or genome comparison reached.
+[`NOTES.md`](NOTES.md) is the full record: decisions, who caught what, where the proofs got hard,
+and the measurements.
 
 ## Documentation
 

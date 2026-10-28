@@ -68,11 +68,11 @@ Time with `nice -n 19` and a `timeout`, one benchmark at a time, before/after ru
 | files | role |
 |---|---|
 | `LAWS.bend`, `types.bend`, `run.bend`, `tan.bend` | science layer: definitions and laws |
-| `protocol.bend`, `MACHINE.bend` | implementation contract: the machine law and the FASTA premise |
-| `norm.bend`, `norm_line.bend`, `norm_run.bend` | the program, a state machine |
+| `protocol.bend`, `MACHINE.bend`, `bytes_enc.bend` | implementation contract: the machine law, the FASTA premise, and how bytes encode the spec's text |
+| `norm.bend`, `norm_fast.bend`, `norm_line.bend`, `norm_run.bend` | the program, a state machine on packed bytes (`../lawful-*`) |
 | `main.bend`, `io64.c`, `io64.js` | the trusted driver: file I/O and the `.fai` reader |
-| `PROOF.bend`, `proof_*.bend` | the proofs; `PROOF.bend` proves every law by importing the rest |
-| `examples.bend` | concrete cases checked by evaluation |
+| `PROOF.bend`, `proof_*.bend` | the proofs; `PROOF.bend` proves every law by importing the rest (`proof_b_*`: the bytes machine, notes in `notes/bytes_proofs*.md`) |
+| `examples.bend`, `examples_machine.bend` | concrete cases checked by evaluation; the machine's cases are outside the gate (they pass 4 GB in the checker) |
 | `test/` | the bcftools comparison, the scrambler, edge cases, FASTA premise cases |
 | `reviews/` | every law and driver review, with the responses |
 | `refs/` | the sources the reviewers were given: the VCF 4.3 spec and the `bcftools norm` manual |

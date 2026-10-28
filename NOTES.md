@@ -350,3 +350,44 @@ non-ASCII arguments were mangled, contigs that are empty or missing from the `.f
 "unknown". The law `machine` was proven throughout, because it assumes the reference arrives
 correctly. The gap was in what the laws cover, not in what they say. The FASTA premise
 `P.Fasta.plain` now states exactly which files the driver reads as the spec does.
+
+## Packed bytes (2026-10-27/28; branch `bytes`, merged into `main`)
+
+The String machine could not get much below 4.5 s on chr22 (see "Speed so far"). The rewrite runs
+on bytes packed four to a `U32`, through four packages written for it, each with its own laws,
+proofs and three-model review (`../lawful-words`, `-arrays`, `-bytes`, `-fields`; cross-project
+notes in `../NOTES.md`). The science layer did not change.
+
+- **Contract** (`bytes_enc.bend`, `protocol.bend`, `MACHINE.bend`): input pieces and reference
+  answers are bytes, and decoding them gives the text the spec reads. Accepted by Claude, GPT and
+  Grok after three rounds (`reviews/responses-contract-1.md`).
+- **Phase A, the code** (`notes/bytes.md`): byte-identical to the String build on every test.
+- **Phase B, the proofs** (`notes/bytes_proofs*.md`): a coordinating agent and six area agents.
+  `PROOF.bend` checks with `bend` and `--verdict`; the 15 laws are unchanged.
+
+Q2 (laws that passed while behaviour was wrong): proving `lawful-bytes`' word-at-a-time search
+found a real bug that every test and the whole-genome comparison had missed (`../NOTES.md`).
+
+Q3 (where proofs got hard), new here:
+- Big numbers. Bend's `Nat` is unary and the checker compares terms by evaluating them, so a
+  constant such as 2^31 inside a definition cannot be proven about. Bounds are stated on 32-bit
+  words instead (`le31`), in the contract and the code.
+- Memory. One scratch proof closed `2^28 <= 2^29` by computation and grew to 22 GB. Checks now run
+  under a 4 GB cap (`test/bcheck.sh`).
+- The proofs needed code changes (C1, C5-C7 and others in `notes/bytes_proofs.md`), each from a
+  counterexample an agent found to an over-strong lemma. None changed the output.
+
+Q4 (what the reviewers caught): in the contract, all three found that the machine law quantified
+over text no byte buffer can carry (characters of 256 or more, pieces over 2^31 bytes); GPT alone
+found that a long enough command line broke the step bound.
+
+Q5 (speed), interleaved runs on 2026-10-28, wall clock, output to a file:
+
+| input | bcftools 1.24 | String build | bytes build |
+|---|---|---|---|
+| chr22 (50,284 records) | 0.124-0.135 s | 4.5-5.1 s | 0.119-0.162 s |
+| whole genome (4,048,342) | 8.55-8.59 s | ~590 s | 9.14-9.69 s |
+| `data/scr.vcf` (20,739 rewritten) | 0.076-0.091 s | 7.3 s | 5.21-5.33 s |
+
+`test/compare.sh` on this build: 0 differing records on chr22, `scr.vcf` and the whole genome.
+The rewritten records still go through a `String` slow path, which is why `scr.vcf` lags.

@@ -9,7 +9,7 @@ authority; each law below is named as it appears there.
 - **Science layer**: `LAWS.bend`, `types.bend`, `run.bend`, `tan.bend`. What normalization means
   and what the tool writes for a whole file. These files mention no implementation, and they are
   what a domain expert reviews.
-- **Implementation layer**: `protocol.bend`, `MACHINE.bend`. These say that the actual program
+- **Implementation layer**: `protocol.bend`, `MACHINE.bend`, `bytes_enc.bend`. These say that the actual program
   writes exactly what the science layer defines. The code (`norm*.bend`) can be rewritten freely
   as long as this stays proven.
 
@@ -93,6 +93,11 @@ lines) and then the records through a sorting buffer.
 asks for reference letters. However the VCF is split into chunks, the program's output, messages
 and exit code equal `run` on the whole file. The law assumes the arguments parse and the reference
 is a plain FASTA file (`P.Fasta.plain`). `usage` covers arguments that do not parse.
+
+The program works on bytes, while the science layer reads text. `bytes_enc.bend` connects them:
+each character is one byte, and the law assumes every character the driver passes is below 256,
+which holds for anything read from a file. Each piece is at most 2^31 bytes (2 GiB). The driver
+reads larger files in pieces.
 
 ## What the laws do not cover
 
