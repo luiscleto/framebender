@@ -1,0 +1,899 @@
+import Base
+import ./types.bend as B
+import ./protocol.bend as P
+import ./run.bend as R
+import ./norm.bend as Q
+import ./norm_run.bend as NR
+import ./norm_fast.bend as NF
+import ../lawful-bytes/defs.bend as D
+import ../lawful-bytes/bytes.bend as BY
+import ../lawful-bytes/fast.bend as F
+import ../lawful-halves/defs.bend as HD
+import ../lawful-halves/halves.bend as HH
+
+# framebender: the parallel machine (code; not yet proven, see
+# notes/parallel.md). It runs norm.bend's machine (Q) unchanged and, once Q
+# is in the body with nothing left to do, handles the VCF in batches:
+#
+# 1. Collect: up to kmax() pieces are taken without being read (each Chunk
+#    answers More); the end of the file closes a batch early.
+# 2. Plan: for each piece, the CHROM and POS of its first and last complete
+#    lines (after its first LF); one Ask with one or two windows per piece.
+# 3. Run: one task per piece (lawful-halves' H.all, in parallel). A task runs
+#    Q's pump on the piece's lines after its first LF, from a fresh run whose
+#    CHROM is the first line's and whose last written key is l (a phantom:
+#    the task stops, UNSORTED, if it writes a smaller key). It is clean when
+#    every complete line is handled on bytes, with no message, no stop and no
+#    read its windows do not answer.
+# 4. Combine, in order: the line across the boundary is handled by Q on the
+#    true state; then a clean task whose run fits the true one (merge.ok) is
+#    spliced in, the true run's output handed out in this step; any other
+#    piece is handled by Q itself, asking for reads as Q does. One piece per
+#    step: each P.Ask{[]} gets the next one.
+
+# ---------------------------------------------------------------------------
+# The state
+# ---------------------------------------------------------------------------
+
+# A clean task: its run, the end of its last line not complete, its last
+# window, the piece's first LF, the first line's CHROM and the phantom key.
+type Tc is Type:
+  Tc{run: NR.Run, pend: Q.Pd, win: Q.Win, k: U32, c0: String, l: Nat}
+
+type TRes is Type:
+  TDirty{}
+  TClean{c: Tc}
+
+# A task's result, with the piece (a copy, when the task ran on it).
+type TOut is Type:
+  TOut{b: D.Bytes, r: TRes}
+
+# A planned piece: its bytes, its two reads (one window each), whether it has a
+# complete line after its first LF (with a tab), that LF, the line's CHROM
+# and POS.
+type Pl is Type:
+  Pl{b: D.Bytes, rs: List<&2, P.Req>, ok: Bool, k: U32, c0: String, l: Nat}
+
+# The batch: none; collecting (pieces newest first, how many); waiting for
+# its answers; combining (seq: Q is in the middle of a piece); the line
+# across a boundary waiting for Q's reads (then the clean task c, with fuel
+# left for Q.advance).
+type Bat is Type:
+  BNone{}
+  BCol{ps: List<&1, D.Bytes>, k: Nat}
+  BAsk{pls: List<&1, Pl>, eofp: Bool}
+  BComb{pcs: List<&1, TOut>, eofp: Bool, seq: Bool}
+  BEdge{c: Tc, pcs: List<&1, TOut>, eofp: Bool, fuel: Nat}
+
+type St is Type:
+  St{q: Q.St, bat: Bat}
+
+type Begin is Type:
+  Begin{st: St, ref: String, vcf: String}
+  Usage{}
+
+type Step is Type:
+  Step{st: St, out: D.Bytes, notes: List<&2, B.Note>, next: P.Next}
+
+# A backward search: the buffer, where it is, whether to go on, whether the
+# byte at i is an LF.
+type Rl is Type:
+  Rl{b: D.Bytes, i: U32, more: Bool, hit: Bool}
+
+# A number read forward: the buffer, the next index, the value so far,
+# whether to go on.
+type Nm is Type:
+  Nm{b: D.Bytes, j: U32, acc: U32, more: Bool}
+
+# A line's CHROM and POS, if it has a tab.
+type Cp is Type:
+  Cp{b: D.Bytes, ok: Bool, c: String, p: Nat}
+
+# A task's loop: go on from st (spare: the windows not tried yet), or done.
+type Tk is Type:
+  TGo{st: Q.St, spare: List<&1, Q.Win>}
+  TEnd{r: TRes}
+
+# Q after an advance on the boundary line: at the piece from k+1 (ok: with
+# nothing else waiting), or not yet.
+type Ew is Type:
+  EHere{q: Q.St, c: Tc, ok: Bool}
+  EMore{q: Q.St, c: Tc}
+  EWant{st: Q.St, reqs: List<&2, P.Req>, c: Tc}
+  EOther{a: Q.Adv}
+
+type Mg is Type:
+  MOk{out: D.Bytes, notes: List<&2, B.Note>, run: NR.Run}
+  MNo{run: NR.Run}
+
+# ---------------------------------------------------------------------------
+# Start
+# ---------------------------------------------------------------------------
+
+def kmax() -> Nat:
+  32n
+
+def start.k(b: Q.Begin) -> Begin:
+  match b:
+    case Q.Begin{st, r, v}:
+      Begin{St{st, BNone{}}, r, v}
+    case Q.Usage{}:
+      Usage{}
+
+# The command line after the program's name.
+def start(argv: List<&2, String>) -> Begin:
+  start.k(Q.start(argv))
+
+def wrap(s: Q.Step, bat: Bat) -> Step:
+  match s:
+    case Q.Step{st, o, ns, nx}:
+      Step{St{st, bat}, o, ns, nx}
+
+# ---------------------------------------------------------------------------
+# Q's state, looked at
+# ---------------------------------------------------------------------------
+
+def is_nil.src(src: List<&1, Q.Src>) -> List<&1, Q.Src> & Bool:
+  match src:
+    case Nil{}:
+      (Nil{}, True{})
+    case h <> t:
+      (h <> t, False{})
+
+def is_pb(p: Q.Pd) -> Q.Pd & Bool:
+  match p:
+    case Q.PB{b}:
+      (Q.PB{b}, True{})
+    case Q.PS{s}:
+      (Q.PS{s}, False{})
+
+def is_none(m: Maybe<&2, List<&2, P.Req>>) -> Bool:
+  match m:
+    case None{}:
+      True{}
+    case Some{x}:
+      False{}
+
+def run.ok(r: NR.Run) -> NR.Run & Bool:
+  match r:
+    case NR.Run{n, +i, h, c, cb, e, l, f, b, bn, tl, k, ob, ow, ns, +x}:
+      (NR.Run{n, i, h, c, cb, e, l, f, b, bn, tl, k, ob, ow, ns, x}, i && Bool.not(x))
+
+def md.ok.k(p: NR.Run & Bool) -> Q.Md & Bool:
+  (r, +ok) = p
+  (Q.MB{r}, ok)
+
+def md.ok(md: Q.Md) -> Q.Md & Bool:
+  match md:
+    case Q.MB{r}:
+      md.ok.k(run.ok(r))
+    case Q.MS{s, qs, ql, c}:
+      (Q.MS{s, qs, ql, c}, False{})
+
+def quiet.k(+o: B.Opts, m: Q.Md & Bool, s: List<&1, Q.Src> & Bool, p: Q.Pd & Bool, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Bool:
+  (md, +b1) = m
+  (src, +b2) = s
+  (pend, +b3) = p
+  (Q.St{o, md, src, pend, eof, back, win, asked, fneed}, b1 && b2 && b3 && Bool.not(eof) && Bool.not(fneed) && is_none(asked))
+
+# Q is in the body, on bytes, not stopped, with no input left and no read
+# asked: a batch can start.
+def quiet(q: Q.St) -> Q.St & Bool:
+  match q:
+    case Q.St{+o, md, src, pend, +eof, +back, win, +asked, +fneed}:
+      quiet.k(o, md.ok(md), is_nil.src(src), is_pb(pend), eof, back, win, asked, fneed)
+
+def opts(q: Q.St) -> Q.St & B.Opts:
+  match q:
+    case Q.St{+o, md, src, pend, eof, back, win, asked, fneed}:
+      (Q.St{o, md, src, pend, eof, back, win, asked, fneed}, o)
+
+def rev_b(xs: List<&1, D.Bytes>, acc: List<&1, D.Bytes>) -> List<&1, D.Bytes>:
+  match xs:
+    case Nil{}:
+      acc
+    case x <> t:
+      rev_b(t, x <> acc)
+
+# ---------------------------------------------------------------------------
+# Plan: each piece's first and last complete lines, and its reads
+# ---------------------------------------------------------------------------
+
+def rlf.byte(r: D.Bytes & U32, +i: U32) -> Rl:
+  (b, +x) = r
+  Rl{b, i, Bool.not(U32.is_eq(x, 10)), U32.is_eq(x, 10)}
+
+def rlf.step.if(done: Bool, b: D.Bytes, +i: U32) -> Rl:
+  match done:
+    case True{}:
+      Rl{b, i, False{}, False{}}
+    case False{}:
+      rlf.byte(BY.at(b, (i - 1 : U32)), (i - 1 : U32))
+
+def rlf.step(b: D.Bytes, +i: U32, +lo: U32) -> Rl:
+  rlf.step.if(U32.is_le(i, lo), b, i)
+
+def rlf.go(fuel: Nat, r: Rl, +lo: U32) -> D.Bytes & (U32 & Bool):
+  match fuel r:
+    case 0n Rl{b, i, m, h}:
+      (b, (0, False{}))
+    case 1n+f Rl{b, +i, False{}, +h}:
+      (b, (i, h))
+    case 1n+f Rl{b, +i, True{}, h}:
+      rlf.go(f, rlf.step(b, i, lo), lo)
+
+# The largest i with lo <= i < j where byte i is an LF, if any.
+def rlf(b: D.Bytes, +j: U32, +lo: U32) -> D.Bytes & (U32 & Bool):
+  rlf.go(Nat.add(U32.to_nat((j - lo : U32)), 2n), rlf.step(b, j, lo), lo)
+
+def num.byte(r: D.Bytes & U32, +j: U32, +acc: U32) -> Nm:
+  (b, +x) = r
+  +dig = U32.is_le(48, x) && U32.is_le(x, 57)
+  Nm{b, (j + 1 : U32), Bool.pick(U32, dig, ((acc * 10 : U32) + (x - 48 : U32) : U32), acc), dig}
+
+def num.step.if(more: Bool, b: D.Bytes, +j: U32, +acc: U32) -> Nm:
+  match more:
+    case True{}:
+      num.byte(BY.at(b, j), j, acc)
+    case False{}:
+      Nm{b, j, acc, False{}}
+
+def num.step(b: D.Bytes, +j: U32, +e: U32, +acc: U32) -> Nm:
+  num.step.if(U32.is_lt(j, e), b, j, acc)
+
+def num.go(fuel: Nat, r: Nm, +e: U32) -> D.Bytes & U32:
+  match fuel r:
+    case 0n Nm{b, j, +acc, m}:
+      (b, acc)
+    case 1n+f Nm{b, j, +acc, False{}}:
+      (b, acc)
+    case 1n+f Nm{b, +j, +acc, True{}}:
+      num.go(f, num.step(b, j, e, acc), e)
+
+# The digits from j up to e (a POS), as a number (0 if none; a planning
+# guess only: any value is correct, see merge.ok).
+def num(b: D.Bytes, +j: U32, +e: U32) -> D.Bytes & U32:
+  num.go(10n, num.step(b, j, e, 0), e)
+
+def cp.num(+c: String, r: D.Bytes & U32) -> Cp:
+  (b, +p) = r
+  Cp{b, True{}, c, U32.to_nat(p)}
+
+def cp.text(+t: U32, +e: U32, r: D.Bytes & String) -> Cp:
+  (b, +c) = r
+  cp.num(c, num(b, (t + 1 : U32), e))
+
+def cp.tab.if(found: Bool, +s: U32, +t: U32, +e: U32, b: D.Bytes) -> Cp:
+  match found:
+    case True{}:
+      cp.text(t, e, Q.text(b, s, (t - s : U32)))
+    case False{}:
+      Cp{b, False{}, "", 0n}
+
+def cp.tab(+s: U32, +e: U32, r: D.Bytes & U32) -> Cp:
+  (b, +t) = r
+  cp.tab.if(U32.is_lt(t, e), s, t, e, b)
+
+# The CHROM (the bytes before the first tab) and POS of the line s .. e-1
+# (e: its LF); not ok without a tab.
+def cp(b: D.Bytes, +s: U32, +e: U32) -> Cp:
+  cp.tab(s, e, F.find(b, s, e, 9))
+
+# The reads for a piece whose first complete line is at c1:p1 and last at
+# c2:p2 (POS 1-based): one window from margin() letters before the smaller
+# POS to margin() past the larger, when both are on one CHROM and it fits one
+# read (and an empty one); else a window ahead() letters on from the first,
+# and one ahead() letters back from the last. Every piece has two reads.
+def plan.reqs.if(one: Bool, +c1: String, +p1: Nat, +c2: String, +p2: Nat, +a: Nat, +e: Nat) -> List<&2, P.Req>:
+  match one:
+    case True{}:
+      [P.Req{c1, a, e}, P.Req{c1, e, e}]
+    case False{}:
+      [P.Req{c1, Nat.sub(Nat.sub(p1, 1n), Q.margin()), Nat.add(p1, Q.ahead())},
+       P.Req{c2, Nat.sub(Nat.sub(p2, 1n), Q.ahead()), Nat.add(p2, Q.margin())}]
+
+def plan.reqs(+c1: String, +p1: Nat, +c2: String, +p2: Nat) -> List<&2, P.Req>:
+  +a = Nat.sub(Nat.sub(Nat.min(p1, p2), 1n), Q.margin())
+  +e = Nat.add(Nat.max(p1, p2), Q.margin())
+  plan.reqs.if(String.eq(c1, c2) && Q.le31(Nat.sub(e, a)), c1, p1, c2, p2, a, e)
+
+def plan.last.cp(+k: U32, +c1: String, +p1: Nat, c: Cp) -> Pl:
+  match c:
+    case Cp{b, True{}, +c2, +p2}:
+      Pl{b, plan.reqs(c1, p1, c2, p2), True{}, k, c1, p1}
+    case Cp{b, False{}, c2, p2}:
+      Pl{b, plan.reqs(c1, p1, c1, p1), True{}, k, c1, p1}
+
+def plan.last.at2(+k: U32, +c1: String, +p1: Nat, +el: U32, +s1: U32, b: D.Bytes, q: U32 & Bool) -> Pl:
+  (+e0, f0) = q
+  plan.last.cp(k, c1, p1, cp(b, Bool.pick(U32, f0, (e0 + 1 : U32), s1), el))
+
+def plan.last.at(+k: U32, +c1: String, +p1: Nat, +el: U32, +s1: U32, r: D.Bytes & (U32 & Bool)) -> Pl:
+  (b, q) = r
+  plan.last.at2(k, c1, p1, el, s1, b, q)
+
+def plan.last.k2(+k: U32, +c1: String, +p1: Nat, +s1: U32, b: D.Bytes, q: U32 & Bool) -> Pl:
+  (+el, fl) = q
+  plan.last.at(k, c1, p1, el, s1, rlf(b, el, s1))
+
+def plan.last.k(+k: U32, +c1: String, +p1: Nat, +s1: U32, r: D.Bytes & (U32 & Bool)) -> Pl:
+  (b, q) = r
+  plan.last.k2(k, c1, p1, s1, b, q)
+
+def plan.first(+len: U32, +k: U32, +s1: U32, c: Cp) -> Pl:
+  match c:
+    case Cp{b, True{}, +c1, +p1}:
+      plan.last.k(k, c1, p1, s1, rlf(b, len, s1))
+    case Cp{b, False{}, c1, p1}:
+      Pl{b, [P.Req{"", 0n, 0n}, P.Req{"", 0n, 0n}], False{}, k, "", 0n}
+
+def plan.e1.if(line: Bool, +len: U32, +k: U32, +e1: U32, b: D.Bytes) -> Pl:
+  match line:
+    case True{}:
+      plan.first(len, k, (k + 1 : U32), cp(b, (k + 1 : U32), e1))
+    case False{}:
+      Pl{b, [P.Req{"", 0n, 0n}, P.Req{"", 0n, 0n}], False{}, k, "", 0n}
+
+def plan.e1(+len: U32, +k: U32, r: D.Bytes & U32) -> Pl:
+  (b, +e1) = r
+  plan.e1.if(U32.is_lt(e1, len), len, k, e1, b)
+
+def plan.k.if(more: Bool, +len: U32, +k: U32, b: D.Bytes) -> Pl:
+  match more:
+    case True{}:
+      plan.e1(len, k, F.find(b, (k + 1 : U32), len, 10))
+    case False{}:
+      Pl{b, [P.Req{"", 0n, 0n}, P.Req{"", 0n, 0n}], False{}, k, "", 0n}
+
+def plan.k(+len: U32, r: D.Bytes & U32) -> Pl:
+  (b, +k) = r
+  plan.k.if(U32.is_lt(k, len) && U32.is_lt((k + 1 : U32), len), len, k, b)
+
+def plan.len(r: D.Bytes & U32) -> Pl:
+  (b, +len) = r
+  plan.k(len, F.find(b, 0, len, 10))
+
+# A piece: its first LF k; the first complete line after it (k+1 up to its
+# LF) and the last one.
+def plan.piece(b: D.Bytes) -> Pl:
+  plan.len(BY.len(b))
+
+def plan.all(ps: List<&1, D.Bytes>) -> List<&1, Pl>:
+  match ps:
+    case Nil{}:
+      Nil{}
+    case b <> t:
+      plan.piece(b) <> plan.all(t)
+
+def plan.reqs_cons(p: Pl, +rs: List<&2, P.Req>, r: List<&1, Pl> & List<&2, P.Req>) -> List<&1, Pl> & List<&2, P.Req>:
+  (t, +rt) = r
+  (p <> t, List.append(&2, P.Req, rs, rt))
+
+def plan.reqs_all(pls: List<&1, Pl>) -> List<&1, Pl> & List<&2, P.Req>:
+  match pls:
+    case Nil{}:
+      (Nil{}, Nil{})
+    case Pl{b, +rs, ok, +k, +c0, +l} <> t:
+      plan.reqs_cons(Pl{b, rs, ok, k, c0, l}, rs, plan.reqs_all(t))
+
+def plan.ask(q: Q.St, r: List<&1, Pl> & List<&2, P.Req>, +eofp: Bool) -> Step:
+  (pls, +reqs) = r
+  wrap(Q.out(q, P.Ask{reqs}), BAsk{pls, eofp})
+
+# A batch is complete (ps in order): its reads are asked, all at once.
+def plan(q: Q.St, ps: List<&1, D.Bytes>, +eofp: Bool) -> Step:
+  plan.ask(q, plan.reqs_all(plan.all(ps)), eofp)
+
+# ---------------------------------------------------------------------------
+# Run: one task per piece
+# ---------------------------------------------------------------------------
+
+def swap_win(st: Q.St, w: Q.Win) -> Q.St:
+  match st:
+    case Q.St{o, md, src, pend, eof, back, win, asked, fneed}:
+      Q.St{o, md, src, pend, eof, back, w, None{}, fneed}
+
+def task.done(st: Q.St, +k: U32, +c0: String, +l: Nat) -> TRes:
+  match st:
+    case Q.St{o, Q.MB{run}, src, pend, eof, back, win, asked, fneed}:
+      TClean{Tc{run, pend, win, k, c0, l}}
+    case Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed}:
+      TDirty{}
+
+def task.want(st: Q.St, spare: List<&1, Q.Win>) -> Tk:
+  match spare:
+    case Nil{}:
+      TEnd{TDirty{}}
+    case w <> ws:
+      TGo{swap_win(st, w), ws}
+
+def task.adv(a: Q.Adv, spare: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat) -> Tk:
+  match a:
+    case Q.Went{st}:
+      TGo{st, spare}
+    case Q.Want{st, r}:
+      task.want(st, spare)
+    case Q.Idle{st}:
+      TEnd{task.done(st, k, c0, l)}
+    case Q.Ended{st}:
+      TEnd{TDirty{}}
+    case Q.Yield{st}:
+      TEnd{TDirty{}}
+
+# Q's pump on the task's lines: a read its window does not answer tries the
+# next window, then makes the task dirty.
+def task.loop(fuel: Nat, t: Tk, +k: U32, +c0: String, +l: Nat) -> TRes:
+  match fuel t:
+    case 0n TGo{st, sp}:
+      TDirty{}
+    case 1n+f TGo{st, sp}:
+      task.loop(f, task.adv(Q.advance(st), sp, k, c0, l), k, c0, l)
+    case _ TEnd{r}:
+      r
+
+def task.wins(ws: List<&1, Q.Win>) -> Q.Win & List<&1, Q.Win>:
+  match ws:
+    case Nil{}:
+      (Q.WNone{}, Nil{})
+    case w <> t:
+      (w, t)
+
+# The task's run: in the body, the current CHROM c0, the phantom as the last
+# item written (key and input POS l, line 0, length 0), room for the piece.
+def task.run0(+c0: String, +l: Nat, +len: U32) -> NR.Run:
+  NR.reserve(NR.Run{0n, True{}, "", Some{c0}, NR.of_str(c0), Nil{}, Some{NR.Ck{l, l, 0n, None{}, 0}}, Nil{}, Nil{}, 0n, 0n, R.Cnt{0n, 0n, 0n, 0n}, BY.empty(0n), 0, Nil{}, False{}}, len)
+
+def task.start(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, p: Q.Win & List<&1, Q.Win>, +c0: String, +l: Nat) -> TRes:
+  (w, spare) = p
+  task.loop(Nat.add(U32.to_nat(len), 8n), TGo{Q.St{o, Q.MB{task.run0(c0, l, len)}, [Q.SB{b, (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, w, None{}, False{}}, spare}, k, c0, l)
+
+def task.copy(+o: B.Opts, p: D.Bytes & D.Bytes, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat) -> TOut:
+  (copy, b) = p
+  TOut{copy, task.start(o, b, len, k, task.wins(ws), c0, l)}
+
+def task.len(+o: B.Opts, r: D.Bytes & U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat) -> TOut:
+  (b, +len) = r
+  task.copy(o, NR.put_bytes(BY.empty(NR.depth((len + 8 : U32))), b, 0, len), len, ws, k, c0, l)
+
+# The windows of a piece's reads (the answers a1 and a2).
+def task.wins2(rs: List<&2, P.Req>, a1: P.Ans, a2: P.Ans) -> List<&1, Q.Win>:
+  match rs:
+    case Nil{}:
+      Nil{}
+    case r1 <> t:
+      match t:
+        case Nil{}:
+          [Q.win_of([r1], [a1])]
+        case r2 <> t2:
+          [Q.win_of([r1], [a1]), Q.win_of([r2], [a2])]
+
+# A piece's task: the piece is copied (for the combine), and the task runs
+# on it; a piece with no complete line after its first LF is left to Q.
+def task(+o: B.Opts, b: D.Bytes, ok: Bool, rs: List<&2, P.Req>, a1: P.Ans, a2: P.Ans, +k: U32, +c0: String, +l: Nat) -> TOut:
+  match ok:
+    case True{}:
+      task.len(o, BY.len(b), task.wins2(rs, a1, a2), k, c0, l)
+    case False{}:
+      TOut{b, TDirty{}}
+
+def task.mk(+o: B.Opts, b: D.Bytes, ok: Bool, rs: List<&2, P.Req>, a1: P.Ans, a2: P.Ans, +k: U32, +c0: String, +l: Nat) -> HD.Task<&1, TOut>:
+  HD.Task{u => task(o, b, ok, rs, a1, a2, k, c0, l)}
+
+# The answers, two at a time (each piece has two reads).
+def pairs(as: List<&1, P.Ans>) -> List<&1, P.Ans & P.Ans>:
+  match as:
+    case Nil{}:
+      Nil{}
+    case a1 <> t:
+      match t:
+        case Nil{}:
+          Nil{}
+        case a2 <> r:
+          (a1, a2) <> pairs(r)
+
+def task.of.k(+o: B.Opts, b: D.Bytes, ok: Bool, rs: List<&2, P.Req>, +k: U32, +c0: String, +l: Nat, x: P.Ans & P.Ans) -> HD.Task<&1, TOut>:
+  (a1, a2) = x
+  task.mk(o, b, ok, rs, a1, a2, k, c0, l)
+
+def task.of(+o: B.Opts, p: Pl, x: P.Ans & P.Ans) -> HD.Task<&1, TOut>:
+  match p:
+    case Pl{b, rs, ok, +k, +c0, +l}:
+      task.of.k(o, b, ok, rs, k, c0, l, x)
+
+# One task per piece, with its answers.
+def tasks(+o: B.Opts, pls: List<&1, Pl>, ps: List<&1, P.Ans & P.Ans>) -> List<&1, HD.Task<&1, TOut>>:
+  match pls ps:
+    case Nil{} x:
+      Nil{}
+    case p <> t Nil{}:
+      task.of(o, p, (P.Unknown{}, P.Unknown{})) <> tasks(o, t, Nil{})
+    case p <> t x <> pt:
+      task.of(o, p, x) <> tasks(o, t, pt)
+
+# ---------------------------------------------------------------------------
+# Merge: a clean task's run spliced after the true run
+# ---------------------------------------------------------------------------
+
+def ck_shift(+d: Nat, c: NR.Ck) -> NR.Ck:
+  match c:
+    case NR.Ck{k, ip, ln, p, n}:
+      NR.Ck{k, ip, Nat.add(ln, d), p, n}
+
+def cks_shift(+d: Nat, xs: List<&2, NR.Ck>) -> List<&2, NR.Ck>:
+  match xs:
+    case Nil{}:
+      Nil{}
+    case x <> t:
+      ck_shift(d, x) <> cks_shift(d, t)
+
+def ck_inpos(c: NR.Ck) -> Nat:
+  match c:
+    case NR.Ck{k, ip, ln, p, n}:
+      ip
+
+# The phantom (line 0, length 0; every real item has a line number and a
+# text).
+def ck_phantom(c: NR.Ck) -> Bool:
+  match c:
+    case NR.Ck{k, ip, ln, p, n}:
+      U32.is_zero(n) && Nat.is_eq(ln, 0n)
+
+def max_inpos(xs: List<&2, NR.Ck>, +m: Nat) -> Nat:
+  match xs:
+    case Nil{}:
+      m
+    case +x <> t:
+      max_inpos(t, Nat.max(m, ck_inpos(x)))
+
+def real_inpos.k(ph: Bool, +c: NR.Ck) -> Nat:
+  match ph:
+    case True{}:
+      0n
+    case False{}:
+      ck_inpos(c)
+
+# The input POS of T's last written item (0 for none or the phantom).
+def real_inpos(m: Maybe<&2, NR.Ck>) -> Nat:
+  match m:
+    case None{}:
+      0n
+    case Some{+c}:
+      real_inpos.k(ck_phantom(c), c)
+
+def cnt_add(a: R.Cnt, b: R.Cnt) -> R.Cnt:
+  match a b:
+    case R.Cnt{a1, a2, a3, a4} R.Cnt{b1, b2, b3, b4}:
+      R.Cnt{Nat.add(a1, b1), Nat.add(a2, b2), Nat.add(a3, b3), Nat.add(a4, b4)}
+
+def last_ck(xs: List<&2, NR.Ck>) -> Maybe<&2, NR.Ck>:
+  match xs:
+    case Nil{}:
+      None{}
+    case +x <> t:
+      Maybe.or(&2, NR.Ck, last_ck(t), Some{x})
+
+def first_ck(xs: List<&2, NR.Ck>) -> Maybe<&2, NR.Ck>:
+  match xs:
+    case Nil{}:
+      None{}
+    case x <> t:
+      Some{x}
+
+# A buffer front ++ reverse(back): its first item, and its last.
+def buf_first(+f: List<&2, NR.Ck>, +b: List<&2, NR.Ck>) -> Maybe<&2, NR.Ck>:
+  Maybe.or(&2, NR.Ck, first_ck(f), last_ck(b))
+
+def buf_last(+f: List<&2, NR.Ck>, +b: List<&2, NR.Ck>) -> Maybe<&2, NR.Ck>:
+  Maybe.or(&2, NR.Ck, first_ck(b), last_ck(f))
+
+def key_or(m: Maybe<&2, NR.Ck>, +d: Nat) -> Nat:
+  match m:
+    case None{}:
+      d
+    case Some{c}:
+      NR.Ck.key(c)
+
+def ck_ge(m: Maybe<&2, NR.Ck>, +l: Nat) -> Bool:
+  match m:
+    case None{}:
+      True{}
+    case Some{c}:
+      Nat.is_le(l, NR.Ck.key(c))
+
+# T's CHROMs other than c0 are neither among the CHROMs the true run has
+# ended nor its current one.
+def chroms_ok(xs: List<&2, String>, +c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>) -> Bool:
+  match xs:
+    case Nil{}:
+      True{}
+    case +x <> t:
+      (String.eq(x, c0) || (Bool.not(R.has(x, se)) && Bool.not(R.is_cur(sc, x)))) && chroms_ok(t, c0, se, sc)
+
+def cur_list(m: Maybe<&2, String>) -> List<&2, String>:
+  match m:
+    case None{}:
+      Nil{}
+    case Some{c}:
+      [c]
+
+def last_of.k(ph: Bool, +c: NR.Ck, +same: Bool, +sl: Maybe<&2, NR.Ck>, +elast: Maybe<&2, NR.Ck>, +sn: Nat) -> Maybe<&2, NR.Ck>:
+  match ph same:
+    case False{} _:
+      Some{ck_shift(sn, c)}
+    case True{} True{}:
+      Maybe.or(&2, NR.Ck, elast, sl)
+    case True{} False{}:
+      None{}
+
+# T's last, as the true run's: the phantom (nothing written in T's first
+# CHROM run) stands for what the true run wrote last before T's lines: the
+# last of S's buffer (all of it written) or S's last, in the same CHROM run;
+# nothing after a new CHROM run.
+def last_of(+tl: Maybe<&2, NR.Ck>, +same: Bool, +sl: Maybe<&2, NR.Ck>, +elast: Maybe<&2, NR.Ck>, +sn: Nat) -> Maybe<&2, NR.Ck>:
+  match tl:
+    case None{}:
+      None{}
+    case Some{+c}:
+      last_of.k(ck_phantom(c), c, same, sl, elast, sn)
+
+# Whether the true run S, given T's lines, does what T did from its phantom
+# state, with S's buffered items E all written first (notes/parallel.md,
+# "merge"):
+# - both in the body and not stopped; T read lines and wrote no message;
+# - c0 has not ended in S; T's other CHROMs neither ended in S nor are S's;
+# - E (sorted) starts no lower than S's last;
+# - if S's CHROM is c0 (else T's first line writes E and starts a new run):
+#   E's keys and S's last are at most l; and unless T left c0 (which writes
+#   E), T's buffer starts at l or above and a line of T had an input POS at
+#   least max(E) + w (so E was written).
+def merge.ok(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool) -> Bool:
+  +same = R.is_cur(sc, c0)
+  +eempty = Nat.is_eq(sbn, 0n)
+  +maxe = Nat.max(Bool.pick(Nat, eempty, 0n, stl), key_or(sl, 0n))
+  +changed = Bool.not(List.is_empty(&2, String, te))
+  +mlow = max_inpos(tf, max_inpos(tb, Bool.pick(Nat, changed, 0n, real_inpos(tl))))
+  si && ti && Bool.not(sx) && Bool.not(tx) && List.is_empty(&2, B.Note, tns) && Nat.is_lt(0n, tn) && Bool.not(R.has(c0, se)) && chroms_ok(List.append(&2, String, cur_list(tc), te), c0, se, sc) && (eempty || NR.last_le(sl, key_or(buf_first(sf, sb), 0n))) && (Bool.not(same) || (Nat.is_le(maxe, l) && (changed || ck_ge(buf_first(tf, tb), l)) && (changed || eempty || Nat.is_le(Nat.add(maxe, w), mlow))))
+
+# The run after S and T: S's output (its written bytes, then E) handed out
+# now; T's state, its line numbers shifted by S's, the counts added, ended
+# T's then S's (S's current pushed when T's first line started a new run).
+def merge.if(ok: Bool, s: NR.Run, t: NR.Run, +same: Bool) -> Mg:
+  match ok s t:
+    case True{} NR.Run{+sn, si, +sh, +sc, scb, +se, +sl, +sf, +sb, sbn, stl, +sk, sob, sow, +sns, sx} NR.Run{+tn, ti, th, +tc, tcb, +te, +tl, +tf, +tb, +tbn, +ttl, +tk, tob, +tow, tns, tx}:
+      MOk{sob, List.reverse(&2, B.Note, sns), NR.Run{Nat.add(sn, tn), True{}, sh, tc, tcb, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, NR.push_cur(sc, se))), last_of(tl, same, sl, buf_last(sf, sb), sn), cks_shift(sn, tf), cks_shift(sn, tb), tbn, ttl, cnt_add(sk, tk), tob, tow, Nil{}, False{}}}
+    case False{} r t2:
+      MNo{r}
+
+def merge(s: NR.Run, t: NR.Run, +l: Nat, +w: Nat, +c0: String) -> Mg:
+  match s t:
+    case NR.Run{sn, +si, sh, +sc, scb, +se, +sl, +sf, +sb, +sbn, +stl, sk, sob, sow, sns, +sx} NR.Run{+tn, +ti, th, +tc, tcb, +te, +tl, +tf, +tb, tbn, ttl, tk, tob, tow, +tns, +tx}:
+      merge.if(merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx), NR.Run{sn, si, sh, sc, scb, se, sl, sf, sb, sbn, stl, sk, sob, sow, sns, sx}, NR.Run{tn, ti, th, tc, tcb, te, tl, tf, tb, tbn, ttl, tk, tob, tow, tns, tx}, R.is_cur(sc, c0))
+
+# ---------------------------------------------------------------------------
+# Combine, in order
+# ---------------------------------------------------------------------------
+
+def list_nil(xs: List<&1, TOut>) -> List<&1, TOut> & Bool:
+  match xs:
+    case Nil{}:
+      (Nil{}, True{})
+    case h <> t:
+      (h <> t, False{})
+
+def seq.more(p: List<&1, TOut> & Bool, +eofp: Bool, st: Q.St, o: D.Bytes, +ns: List<&2, B.Note>) -> Step:
+  (rest, +none) = p
+  match none eofp:
+    case True{} False{}:
+      Step{St{st, BNone{}}, o, ns, P.More{}}
+    case _ _:
+      Step{St{st, BComb{rest, eofp, False{}}}, o, ns, P.Ask{Nil{}}}
+
+def seq.k(nx: P.Next, st: Q.St, o: D.Bytes, +ns: List<&2, B.Note>, rest: List<&1, TOut>, +eofp: Bool) -> Step:
+  match nx:
+    case P.More{}:
+      seq.more(list_nil(rest), eofp, st, o, ns)
+    case P.Ask{+r}:
+      Step{St{st, BComb{rest, eofp, True{}}}, o, ns, P.Ask{r}}
+    case P.Finish{+c}:
+      Step{St{st, BNone{}}, o, ns, P.Finish{c}}
+
+# A step of Q while combining: when Q wants more input, the batch goes on
+# with its next piece (in the next step).
+def seq_out(s: Q.Step, rest: List<&1, TOut>, +eofp: Bool) -> Step:
+  match s:
+    case Q.Step{st, o, +ns, +nx}:
+      seq.k(nx, st, o, ns, rest, eofp)
+
+def comb.mg(m: Mg, +o: B.Opts, tp: Q.Pd, tw: Q.Win, src: List<&1, Q.Src>, pend: Q.Pd, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, rest: List<&1, TOut>, +eofp: Bool) -> Step:
+  match m:
+    case MOk{out, +ns, run}:
+      Step{St{Q.St{o, Q.MB{run}, Nil{}, tp, False{}, 0n, tw, None{}, False{}}, BComb{rest, eofp, False{}}}, out, ns, P.Ask{Nil{}}}
+    case MNo{run}:
+      seq_out(Q.go(Q.St{o, Q.MB{run}, src, pend, False{}, back, win, asked, fneed}), rest, eofp)
+
+def comb.splice(q2: Q.St, c: Tc, rest: List<&1, TOut>, +eofp: Bool) -> Step:
+  match q2 c:
+    case Q.St{+o, Q.MB{s}, src, pend, eof, +back, win, +asked, +fneed} Tc{t, tp, tw, k, +c0, +l}:
+      comb.mg(merge(s, t, l, R.Opts.w(o), c0), o, tp, tw, src, pend, back, win, asked, fneed, rest, eofp)
+    case Q.St{o, Q.MS{s, qs, ql, cd}, src, pend, eof, back, win, asked, fneed} _:
+      seq_out(Q.go(Q.St{o, Q.MS{s, qs, ql, cd}, src, pend, eof, back, win, asked, fneed}), rest, eofp)
+
+# The input left: one buffer (and where in it), or more.
+def one_src(src: List<&1, Q.Src>) -> List<&1, Q.Src> & (U32 & Bool):
+  match src:
+    case Nil{}:
+      (Nil{}, (0, False{}))
+    case Q.SB{b, +at} <> Nil{}:
+      ([Q.SB{b, at}], (at, True{}))
+    case Q.SB{b, at} <> (h <> t):
+      (Q.SB{b, at} <> (h <> t), (0, False{}))
+    case Q.SL{p} <> t:
+      (Q.SL{p} <> t, (0, False{}))
+
+def tc.k(c: Tc) -> Tc & U32:
+  match c:
+    case Tc{t, tp, tw, +k, c0, l}:
+      (Tc{t, tp, tw, k, c0, l}, k)
+
+def edge.where.if(here: Bool, +ok: Bool, q: Q.St, c: Tc) -> Ew:
+  match here:
+    case True{}:
+      EHere{q, c, ok}
+    case False{}:
+      EMore{q, c}
+
+def edge.where.q(+o: B.Opts, md: Q.Md, src: List<&1, Q.Src>, q: U32 & Bool, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, c: Tc, +k: U32) -> Ew:
+  (+at, one) = q
+  edge.where.if(one && U32.is_eq(at, (k + 1 : U32)), Bool.not(eof) && is_none(asked) && Bool.not(fneed), Q.St{o, md, src, pend, eof, back, win, asked, fneed}, c)
+
+def edge.where.k(+o: B.Opts, md: Q.Md, r: List<&1, Q.Src> & (U32 & Bool), pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, p: Tc & U32) -> Ew:
+  (src, q) = r
+  (c, +k) = p
+  edge.where.q(o, md, src, q, pend, eof, back, win, asked, fneed, c, k)
+
+# Where Q is: at the piece from k+1 on (the line across the boundary
+# handled), and whether nothing else waits; or not yet.
+def edge.where(q2: Q.St, c: Tc) -> Ew:
+  match q2:
+    case Q.St{+o, md, src, pend, +eof, +back, win, +asked, +fneed}:
+      edge.where.k(o, md, one_src(src), pend, eof, back, win, asked, fneed, tc.k(c))
+
+def edge.of(a: Q.Adv, c: Tc) -> Ew:
+  match a:
+    case Q.Went{q2}:
+      edge.where(q2, c)
+    case Q.Want{st, r}:
+      EWant{st, r, c}
+    case a2:
+      EOther{a2}
+
+# The line across the boundary (and the end of a joined buffer) handled by
+# Q, with fuel for its advances; a read it needs is asked (BEdge). Then the
+# task is spliced in (or the piece left to Q).
+def edge(fuel: Nat, e: Ew, rest: List<&1, TOut>, +eofp: Bool) -> Step:
+  match fuel e:
+    case _ EHere{q3, c2, True{}}:
+      comb.splice(q3, c2, rest, eofp)
+    case _ EHere{q3, c2, False{}}:
+      seq_out(Q.go(q3), rest, eofp)
+    case 0n EMore{q3, c2}:
+      seq_out(Q.go(q3), rest, eofp)
+    case 1n+g EMore{q3, c2}:
+      edge(g, edge.of(Q.advance(q3), c2), rest, eofp)
+    case +f EWant{st, +r, c2}:
+      wrap(Q.pump(0n, Q.Want{st, r}), BEdge{c2, rest, eofp, f})
+    case _ EOther{a}:
+      seq_out(Q.pump(0n, a), rest, eofp)
+
+# Q.feed without room for the whole piece (Q handles only its first line).
+def feed_line(q: Q.St, b: D.Bytes) -> Q.St:
+  match q:
+    case Q.St{+o, md, src, pend, eof, +back, win, asked, +fneed}:
+      Q.feed.k(o, md, src, b, Q.Pd.len(pend), eof, back, win, asked, fneed)
+
+def comb.piece(r: TRes, q: Q.St, b: D.Bytes, rest: List<&1, TOut>, +eofp: Bool) -> Step:
+  match r:
+    case TDirty{}:
+      seq_out(Q.step(q, P.Chunk{b}), rest, eofp)
+    case TClean{c}:
+      edge(3n, edge.of(Q.advance(feed_line(q, b)), c), rest, eofp)
+
+def comb.end(eofp: Bool, q: Q.St) -> Step:
+  match eofp:
+    case True{}:
+      wrap(Q.step(q, P.Eof{}), BNone{})
+    case False{}:
+      wrap(Q.out(q, P.More{}), BNone{})
+
+def comb.next(pcs: List<&1, TOut>, q: Q.St, +eofp: Bool) -> Step:
+  match pcs:
+    case Nil{}:
+      comb.end(eofp, q)
+    case TOut{b, r} <> rest:
+      comb.piece(r, q, b, rest, eofp)
+
+# ---------------------------------------------------------------------------
+# One step
+# ---------------------------------------------------------------------------
+
+def none.chunk(p: Q.St & Bool, b: D.Bytes) -> Step:
+  (q, +ok) = p
+  match ok:
+    case True{}:
+      wrap(Q.out(q, P.More{}), BCol{[b], 1n})
+    case False{}:
+      wrap(Q.step(q, P.Chunk{b}), BNone{})
+
+def none.step(i: P.In, q: Q.St) -> Step:
+  match i:
+    case P.Chunk{b}:
+      none.chunk(quiet(q), b)
+    case P.Eof{}:
+      wrap(Q.step(q, P.Eof{}), BNone{})
+    case P.Ref{as}:
+      wrap(Q.step(q, P.Ref{as}), BNone{})
+
+def col.add(full: Bool, q: Q.St, ps: List<&1, D.Bytes>, +k: Nat) -> Step:
+  match full:
+    case True{}:
+      plan(q, rev_b(ps, Nil{}), False{})
+    case False{}:
+      wrap(Q.out(q, P.More{}), BCol{ps, k})
+
+def col.step(i: P.In, q: Q.St, ps: List<&1, D.Bytes>, +k: Nat) -> Step:
+  match i:
+    case P.Chunk{b}:
+      col.add(Nat.is_le(kmax(), 1n+k), q, b <> ps, 1n+k)
+    case P.Eof{}:
+      plan(q, rev_b(ps, Nil{}), True{})
+    case P.Ref{as}:
+      wrap(Q.out(q, P.More{}), BCol{ps, k})
+
+def ask.run(p: Q.St & B.Opts, pls: List<&1, Pl>, as: List<&1, P.Ans>, +eofp: Bool) -> Step:
+  (q, +o) = p
+  comb.next(HH.all(&1, TOut, tasks(o, pls, pairs(as))), q, eofp)
+
+def ask.step(i: P.In, q: Q.St, pls: List<&1, Pl>, +eofp: Bool) -> Step:
+  match i:
+    case P.Ref{as}:
+      ask.run(opts(q), pls, as, eofp)
+    case P.Chunk{b}:
+      wrap(Q.out(q, P.Ask{Nil{}}), BAsk{pls, eofp})
+    case P.Eof{}:
+      wrap(Q.out(q, P.Ask{Nil{}}), BAsk{pls, eofp})
+
+def comb.step(i: P.In, seq: Bool, q: Q.St, pcs: List<&1, TOut>, +eofp: Bool) -> Step:
+  match seq:
+    case True{}:
+      seq_out(Q.step(q, i), pcs, eofp)
+    case False{}:
+      comb.next(pcs, q, eofp)
+
+# The answers to the boundary line's reads: Q goes on with it.
+def edge.step(i: P.In, q: Q.St, c: Tc, pcs: List<&1, TOut>, +eofp: Bool, fuel: Nat) -> Step:
+  match i:
+    case P.Ref{as}:
+      edge(fuel, edge.of(Q.advance(Q.set_win(q, as)), c), pcs, eofp)
+    case P.Chunk{b}:
+      wrap(Q.out(q, P.Ask{Nil{}}), BEdge{c, pcs, eofp, fuel})
+    case P.Eof{}:
+      wrap(Q.out(q, P.Ask{Nil{}}), BEdge{c, pcs, eofp, fuel})
+
+def step.bat(b: Bat, q: Q.St, i: P.In) -> Step:
+  match b:
+    case BNone{}:
+      none.step(i, q)
+    case BCol{ps, +k}:
+      col.step(i, q, ps, k)
+    case BAsk{pls, +e}:
+      ask.step(i, q, pls, e)
+    case BComb{pcs, +e, +s}:
+      comb.step(i, s, q, pcs, e)
+    case BEdge{c, pcs, +e, f}:
+      edge.step(i, q, c, pcs, e, f)
+
+# One step of the program.
+def step(st: St, i: P.In) -> Step:
+  match st:
+    case St{q, b}:
+      step.bat(b, q, i)

@@ -109,3 +109,123 @@ machine was started and then set aside, unchecked. It is in `data/tmp/parallel/n
   piece boundary, a record moving left across one, unsorted input, `-c e` mid-batch, warnings
   under `-c w`, files shorter than a batch); then `same.sh`, `compare.sh`, the gz suites and the
   tiny-piece builds; then timings.
+
+## Step 3: the code, resumed (2026-10-28)
+
+`norm_par.bend` (new, about 900 lines) wraps `norm.bend` (`Q`) unchanged; `main.bend` imports
+it as `Norm` for the code phase (one line; `MACHINE.bend` still names `norm.bend`). It passes
+`test/bcheck.sh norm_par.bend --check-only`. Changes from the paused draft:
+- **The line across a boundary** may need two of Q's advances: with a non-empty `pend`, Q first
+  handles the joined line, then drops the joined buffer (`[SB{joined, end}, SB{piece, k+1}]`, then
+  `[SB{piece, k+1}]`). `edge` advances up to 3 times until Q's input is exactly the piece from
+  `k+1`. If the line needs reads, they are asked (`BEdge`) and the splice is still tried after the
+  answer; the draft dropped the task then (every piece after a window miss went sequential).
+- **After a merge, Q's window is the task's last window**, not the true run's (which is the one
+  before the batch); the next boundary line is then usually answered from it.
+- **`c0` comes from the first complete line only** (the bytes before the first tab before its LF);
+  a piece without such a line is left to Q. The draft's search ran past the LF.
+- **Exactly two reads per piece**: one window (`margin()` before the smaller of the first and last
+  POS to `margin()` past the larger, when both are on one CHROM and it fits one read) and an empty
+  read; else `ahead()` letters on from the first line and `ahead()` back from the last. So each
+  piece's answers are the next two (`pairs`), with no splitting walk (Bend refuses mutual
+  recursion and a computed scrutinee, and its termination check wants a structural argument).
+  At most 2 reads per piece, each at most 2^31 letters: the read bound is not at risk.
+- The task builds its windows itself (in parallel). The phantom is recognised by line 0 and
+  length 0.
+
+Why `merge.ok` is enough (to become the segment lemma; S: the true run after the boundary line,
+E: its buffer, T: the task's run from the phantom state on the piece's lines L):
+- Any `l` is correct; it only has to make T strict. Every item T writes or keeps in its first
+  CHROM run has key at least `l`: a written one passed the check against the phantom or a later
+  one, and the buffer left at the end is checked (`ck_ge`).
+- Same CHROM (S's is `c0`), with max(E) and S's last at most `l`: in the true run the buffer is
+  always (E not yet written) ++ (T's buffer). An item is inserted after every E item (its key is at
+  least `l`). At each line the ready prefix is E's ready prefix, then T's ready items only if all of
+  E is ready: an E item that is not ready has a key at most every T item's. So the output is S's,
+  then E's written items, then T's; the UNSORTED checks pass whenever T's do (E starts at or
+  above S's last, and T's first written key is at least `l`, which is at least E's keys and S's last).
+  All of E is written when T leaves `c0` (a new run writes the whole buffer) or when a line of T has
+  an input POS of at least max(E) + w; T's buffered items and its last real item carry such POS
+  values (`mlow`).
+- New CHROM (S's is not `c0`): T's first line writes all of E (it starts at or above S's last),
+  `c0` must not have ended in S, and from then on the two runs differ only in `ended` (S's current
+  pushed onto S's list, under T's) and in the phantom, which only makes T stricter.
+- T's later CHROMs are checked against S's ended list and S's current one (`chroms_ok`). Notes,
+  stops, String mode, reads the windows cannot answer: the piece goes to Q.
+
+Checks so far (each against `data/tmp/parallel/fb_seq`, main's machine built from this tree):
+- `test/same.sh`: ALL IDENTICAL (128 runs) for the normal build and the builds with `piece()` of
+  1,000, 70,001 and 300 bytes.
+- New `test/gen_par.py` and `test/par.sh` (the brief's batch-boundary cases; 39 files on a 4-contig
+  FASTA): CHROM changes exactly at, straddling and just after piece boundaries of 300, 1,000 and
+  70,001 bytes; indels in long repeats right after boundaries that normalize far left; POS back
+  within and beyond the window; swaps; a CHROM revisited; a REF mismatch, a malformed line and an
+  unknown CHROM in the middle of a batch; many warnings; header only, one record, fewer than a
+  batch of pieces, exactly 31/32/33/64 pieces of 1,000 bytes and a few bytes more, a long header,
+  no final LF, CRLF; and SNP-only variants (no left moves, so `-w 1` runs to the end). Under `-c e`
+  and `-c w`, `-w` 1, 50, 10,000 and the default: ALL IDENTICAL (312 runs) for each of the four
+  builds.
+- An instrumented build (tags on stderr; scratch) shows the paths are exercised: chr22 at the normal
+  size merges 9 of 9 pieces; at 1,000-byte pieces `snp_sorted -w 1` merges 1,063 of 1,063, and the
+  suite hits every fallback (dirty for a stop, a window miss, no complete line; no merge for notes
+  or an unflushed buffer; a boundary line asking for reads, then merging).
+- Limitation seen: a piece merges only if the true run's buffer is written within it, so pieces
+  spanning fewer than `w` bases (tiny test pieces, or very dense regions) go to Q. At 3.5 MB a piece
+  spans megabases.
+
+Whole genome and the rest of the brief's checks (normal build unless said):
+- Whole genome, `-c w` and `-c e`, plain and the GIAB `.vcf.gz` (same relative path): stdout
+  (2,836,801,740 bytes), stderr and exit code identical to `fb_seq` on the plain file. The
+  instrumented build merges 772 of the 772 batched pieces (the first piece runs in Q), with no
+  fallback.
+- `test/compare.sh` (bcftools 1.24): chr22 0, scr 0, `test/edge/sorted.vcf` 1 (the `<DEL>`
+  record, as before), whole genome 0, whole genome from the `.vcf.gz` 0.
+- `data/tmp/speed/gztest.sh` on the four builds (normal, 70,001, 1,000, 300): ALL IDENTICAL (1,008
+  comparisons).
+- `data/tmp/speed/eoftest.sh` (BGZF files without their end block): as expected for the normal,
+  70,001 and 1,000 builds. The 300 build fails 6 checks (`edge_in`, `edge_in2`, `-c e`): it stops
+  with REF_MISMATCH at line 10 before the driver reads the last piece, so the missing end block is
+  never reported. Main's machine built with 300-byte pieces (`fb_seq_300`) does the same and fails
+  4 more (`-c w`, UNSORTED at line 21); the parallel build collects ahead and meets the driver's
+  error sooner. Damaged BGZF is outside the law; both stop with a prefix of the output. Not a
+  regression; the suite was only ever run at 70,001 and 1,000.
+- The gate, each through `test/bcheck.sh`: `examples.bend` 15 TODOs, `main.bend` 62 defs rely on
+  unsafe or foreign code, `PROOF.bend --check-only` and `--verdict` ALL PROOFS CHECK, `MACHINE.bend`
+  15 TODOs. All as before.
+
+Timings (whole genome, `-c w`, 4,048,342 records; `data/tmp/parallel/bench.sh`, bench4's protocol:
+`nice -n 19`, interleaved, inputs in the page cache, nothing else running; 3 rounds each; seq:
+main's machine, par: this one):
+
+| input, output | pinned 0-15: seq / par / bcftools | unpinned: seq / par / bcftools |
+|---|---|---|
+| plain, /dev/null | 4.26-4.45 / **1.80-1.81** / 5.67-5.76 s | 4.86-6.52 / 2.22-2.54 / 5.55-5.81 s |
+| plain, file | 4.83-4.92 / **2.37-2.42** / 7.77-7.88 s | 6.02-6.45 / 3.00-3.19 / 7.81-7.85 s |
+| `.vcf.gz`, /dev/null | 4.37-4.43 / **2.13-2.19** / 5.78-6.07 s | 5.04-6.15 / 2.73-2.88 / 5.72-6.08 s |
+| `.vcf.gz`, file | 4.80-4.96 / **2.79-2.81** / 7.90-8.00 s | 5.53-7.21 / 3.72-3.86 / 7.96-8.20 s |
+
+To a file, pinned: 3.3x bcftools on the plain file (2.0x main's machine), 2.8x on the `.vcf.gz`.
+chr22 (pinned, /dev/null, 5 rounds): seq 0.077-0.087, par 0.058-0.063, bcftools 0.075-0.077 s.
+Peak memory, whole genome: 782 MB (main's machine 141 MB; the plan said about 400 MB).
+
+Where the time goes now (driver effects timed in the generated C, `patch.py`; pinned, /dev/null,
+1.82-1.89 s wall): FASTA windows `Io.fa_read` 0.67-0.73 s (794 reads, one after another), VCF
+pieces `Io.read_block` 0.35-0.37 s (waiting: the read-ahead thread reads one piece ahead, but a
+batch takes 32 at once), the machine 0.76-0.78 s. So the driver is now more than half the time:
+step 4 (the batch's reads answered in parallel, reading several pieces ahead) is the next lever,
+toward the plan's 1.0-1.3 s to /dev/null.
+
+Open points for the lead:
+1. Memory 782 MB at K = 32 (the lead accepted about 400 MB). The big items per piece: the window
+   block (a whole piece's span, about 8 M letters, in a power-of-two block), the task's output
+   buffer, the piece and its copy. K = 16, or dropping the copy, would roughly halve it.
+2. The copy of each piece (made in the task, in parallel) is kept so a piece that does not merge
+   can go to Q. Q drops the piece at its end, so the task cannot hand it back without stopping
+   just before the last partial line; that saves the copy but adds a proof obligation (the piece
+   is still in Q's input at every dirty exit). Left as is for now.
+3. A piece merges only if the true run's buffer is written within it (or a CHROM change writes
+   it). Fine at 3.5 MB; with pieces spanning fewer than `w` bases, every piece goes to Q.
+
+Next (after the lead's look): the proofs (segment lemma, `merge.ok`, the machine), then step 4.
+Scratch: `data/tmp/parallel` (builds `fb_seq`, `fb_par`, `fb_par_{300,1000,70001}`, `fb_seq_300`,
+the instrumented `norm_pdbg.bend` and `fb_dbg_*`, the timed `fb_par_t`, `bench.sh`, `wg/`).

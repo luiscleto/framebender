@@ -1,7 +1,7 @@
 import Base
 import ./types.bend as B
 import ./protocol.bend as P
-import ./norm.bend as Norm
+import ./norm_par.bend as Norm
 import ../lawful-bytes/defs.bend as D
 import ../lawful-bytes/bytes.bend as BY
 
