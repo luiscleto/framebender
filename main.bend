@@ -11,16 +11,21 @@ import ../lawful-bytes/bytes.bend as BY
 #   framebender norm -f ref.fa [-c e|w] [-w N] in.vcf > out.vcf
 #
 # It only runs the proven machine (Norm.start, Norm.step): it reads the VCF
-# file in pieces, answers the reads of each Ask in order with the contig's
+# file in pieces (its bytes, or for a BGZF file the bytes its blocks
+# decompress to), answers the reads of each Ask in order with the contig's
 # letters at the .fai offsets (line breaks removed), writes what the machine
 # writes, and exits with the machine's code. Every error of its own prints one
 # line "error: ..." and exits with code 2:
 #   usage (B.usage), "cannot read <path>", "cannot write" (stdout/stderr),
 #   "out of memory" (no room for a block of a piece or an answer, or for a
-#   read's buffer), "bad .fai index <path>.fai" (a line that is not a name
-#   and four numbers of at most 14 digits, a contig whose line layout
-#   samtools would not write, or a contig's length or offset of 2^45 or
-#   more; a line with an empty name is checked and then ignored, as
+#   read's buffer), "unsupported gzip <path> (not BGZF; use gzip -dc
+#   <path> | framebender ... /dev/stdin)" (a VCF that starts as gzip but not
+#   with a BGZF block header), "bad BGZF <path>" (a BGZF block of the VCF that
+#   is damaged or cut short), "no BGZF in this build <path>" (a BGZF VCF and
+#   a binary built without libdeflate: see build.sh), "bad .fai index
+#   <path>.fai" (a line that is not a name and four numbers of at most 14
+#   digits, a contig whose line layout samtools would not write, or a
+#   contig's length or offset of 2^45 or more; a line with an empty name is checked and then ignored, as
 #   B.Fasta.parse ignores ">"), "unsupported FASTA <path>" (a byte the .fai
 #   layout does not explain: a space or tab, a CR not just before LF, a line
 #   break out of place), ".fai index does not match <path>" (fewer letters
@@ -48,9 +53,13 @@ type Io is Type:
 # of bytes to an inherited descriptor (1: stdout, 2: stderr)
 # ---------------------------------------------------------------------------
 
-# Read the next piece of a file, up to max bytes, packed (n, block) as
-# bytes_enc.bend's enc; n = 0 at the end of the file.
-def Io.read_block(file: File, max: U32) -> IO(File & Result<&1, &1, U32 & String, U32 & Array<U32>>):
+# Read the next piece of a file's text, up to max bytes, packed (n, block) as
+# bytes_enc.bend's enc; n = 0 at the end of the file. The text is the file's
+# bytes; with gz = 1, for a file that starts with a BGZF block header, the
+# bytes its BGZF blocks decompress to. Fails with an errno, or with 1001 (gzip
+# but not BGZF), 1002 (a damaged or cut BGZF block), 1003 (BGZF, but this
+# build has no libdeflate).
+def Io.read_block(file: File, max: U32, gz: U32) -> IO(File & Result<&1, &1, U32 & String, U32 & Array<U32>>):
   import "./io64.c"
   import "./io64.js"
 
@@ -142,18 +151,24 @@ def esc.char?(bs: Bool, lf: Bool, cr: Bool, c: Char) -> String:
     case False{} False{} False{}:
       SCon{c, SNil{}}
 
-# A failed read of the file at path: "out of memory" for ENOMEM (12), else
-# "cannot read <path>".
+# A failed read of the file at path: "out of memory" for ENOMEM (12), the
+# BGZF errors for 1001-1003 (Io.read_block), else "cannot read <path>".
 def read_fail?(-A: Type, +e: U32 & String, +path: String) -> IO(A):
   match e:
     case (+code, msg):
-      read_fail.go(A, U32.is_eq(code, 12), path)
+      read_fail.go(A, U32.is_eq(code, 12), U32.is_eq(code, 1001), U32.is_eq(code, 1002), U32.is_eq(code, 1003), path)
 
-def read_fail.go?(-A: Type, oom: Bool, +path: String) -> IO(A):
-  match oom:
-    case True{}:
+def read_fail.go?(-A: Type, oom: Bool, gz: Bool, bad: Bool, nolib: Bool, +path: String) -> IO(A):
+  match oom gz bad nolib:
+    case True{} _ _ _:
       die(A, "out of memory")
-    case False{}:
+    case False{} True{} _ _:
+      die(A, "unsupported gzip " ++ esc(path) ++ " (not BGZF; use gzip -dc " ++ esc(path) ++ " | framebender ... /dev/stdin)")
+    case False{} False{} True{} _:
+      die(A, "bad BGZF " ++ esc(path))
+    case False{} False{} False{} True{}:
+      die(A, "no BGZF in this build " ++ esc(path))
+    case False{} False{} False{} False{}:
       die(A, "cannot read " ++ esc(path))
 
 def or_die_read?(-A: Type, r: Result<&1, &1, U32 & String, A>, +path: String) -> IO(A):
@@ -207,7 +222,7 @@ def open?(+path: String) -> IO(File):
 # D.view: law to_list_view).
 def read_all?(f: File, +path: String, acc: List<&2, List<&2, U32>>) -> IO(List<&2, List<&2, U32>>):
   do IO<List<&2, List<&2, U32>>>:
-    p : File & Result<&1, &1, U32 & String, U32 & Array<U32>> <- Io.read_block(f, piece())
+    p : File & Result<&1, &1, U32 & String, U32 & Array<U32>> <- Io.read_block(f, piece(), 0)
     read_all.k(p, path, acc)
 
 def read_all.k?(p: File & Result<&1, &1, U32 & String, U32 & Array<U32>>, +path: String, acc: List<&2, List<&2, U32>>) -> IO(List<&2, List<&2, U32>>):
@@ -450,7 +465,7 @@ def loop?(io: Io, +vpath: String, st: Norm.St, next: P.Next) -> IO(Unit):
             IO.exit(U32.from_nat(code))
         case P.More{}:
           do IO<Unit>:
-            p : File & Result<&1, &1, U32 & String, U32 & Array<U32>> <- Io.read_block(vcf, piece())
+            p : File & Result<&1, &1, U32 & String, U32 & Array<U32>> <- Io.read_block(vcf, piece(), 1)
             loop.more(p, fa, ref, vpath, fai, st)
         case P.Ask{rs}:
           do IO<Unit>:

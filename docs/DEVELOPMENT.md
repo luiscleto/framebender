@@ -3,11 +3,20 @@
 ## Build
 
 ```
-bend main.bend -o framebender
+./build.sh
 ```
 
-Building needs Bend 2.0.39 and clang. Set `BEND_NO_TELEMETRY=1` to turn off Bend's telemetry. The
-binary reads `+RTS --threads N` to set the number of threads.
+Building needs Bend 2.0.39, clang and libdeflate (headers and library: the `libdeflate` package on
+Arch, `libdeflate-dev` on Debian and Ubuntu, `libdeflate` in Homebrew). `build.sh` builds in two
+steps: `bend main.bend -o framebender.c` writes the program as C (with the driver's effects from
+`io64.c`), then `clang -std=c11 -O3 -DFB_LIBDEFLATE ... -ldeflate` compiles it, as `bend -o` would
+plus libdeflate, which reads BGZF (`.vcf.gz`) input. `./build.sh out` writes the binary to `out`.
+
+`bend main.bend -o framebender` still builds in one step, without libdeflate. That binary reads
+plain VCF only and stops on a `.vcf.gz` with `error: no BGZF in this build <path>`.
+
+Set `BEND_NO_TELEMETRY=1` to turn off Bend's telemetry (`build.sh` sets it). The binary reads
+`+RTS --threads N` to set the number of threads.
 
 ## Check the proofs
 
@@ -78,6 +87,7 @@ code. Use it after any change to the implementation, together with the gate.
 | `protocol.bend`, `MACHINE.bend`, `bytes_enc.bend` | implementation contract: the machine law, the FASTA premise, and how bytes encode the spec's text |
 | `norm.bend`, `norm_fast.bend`, `norm_line.bend`, `norm_run.bend` | the program, a state machine on packed bytes (`../lawful-*`) |
 | `main.bend`, `io64.c`, `io64.js` | the trusted driver: file I/O and the `.fai` reader |
+| `build.sh` | the two-step build with libdeflate |
 | `PROOF.bend`, `proof_*.bend` | the proofs; `PROOF.bend` proves every law by importing the rest (`proof_b_*`: the bytes machine, notes in `notes/bytes_proofs*.md`) |
 | `examples.bend`, `examples_machine.bend` | concrete cases checked by evaluation; the machine's cases are outside the gate (they pass 4 GB in the checker) |
 | `test/` | the bcftools comparison, the scrambler, edge cases, FASTA premise cases |

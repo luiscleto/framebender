@@ -169,7 +169,9 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 #
 # What this law does not cover (the trusted driver, main.bend, with its effects
 # in io64.c):
-# - Reading the files' bytes (the command line's bytes too), packing each VCF
+# - Reading the files' bytes (the command line's bytes too; for a VCF that is
+#   BGZF, the bytes its blocks decompress to, each block's CRC32 and length
+#   checked; any other gzip VCF is refused), packing each VCF
 #   piece and each reference answer as exactly E.enc of its text (bytes four
 #   to a word, little-endian, zero-padded, in the smallest block), and writing
 #   every stdout byte (the bytes of each output buffer, D.view) and message
@@ -183,7 +185,9 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 # - For a FASTA file that is not P.Fasta.plain the law says nothing.
 # - The driver's own errors, each one line on stderr and exit code 2: a usage
 #   error (law usage; prints B.usage), "error: cannot read <path>", "error:
-#   cannot write", "error: out of memory", "error: bad .fai index
+#   cannot write", "error: out of memory", "error: unsupported gzip <path>
+#   (not BGZF; ...)", "error: bad BGZF <path>", "error: no BGZF in this build
+#   <path>", "error: bad .fai index
 #   <path>.fai", "error: unsupported FASTA <path>" (a byte read that the
 #   .fai layout does not explain), "error: .fai index does not match <path>"
 #   (fewer letters than the index promises), "error: FASTA read too large

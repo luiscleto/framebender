@@ -3,6 +3,15 @@
 Brief: `notes/briefs/SPEED.md`. Build measured: `main` at c7f046d (phase C). No tracked file was
 edited; every prototype is scratch C in `data/tmp/speed` (file list at the end).
 
+**Status (2026-10-28):**
+- Steps 1 and 2 (A1 + A2, then `.vcf.gz`) are written on branch `driver`, checked and timed:
+  `notes/speed_driver.md`. They await the three-model driver review.
+- Lead's decisions on section 4: (1) pinned timings, unpinned ranges beside them; (2) libdeflate
+  through a two-step build (`build.sh`), BGZF only; (3) the `MACHINE.bend` trust comment goes to
+  the driver review; (4) the boundary lemma stays inside the proofs; (5) write-behind dropped;
+  (6) 400 MB batches are fine; (7) no upstream comments without the owner; (8) the README is the
+  lead's.
+
 ## Summary
 
 - **Profile (whole genome, to /dev/null, one sequential run of about 4.8-5.1 s):** the driver
