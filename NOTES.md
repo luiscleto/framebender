@@ -410,3 +410,28 @@ About 13,800 lines of proofs; no law, contract or driver change.
 The whole genome's rounds vary by about 3 s for both builds (the disk), so the two are the same
 within noise. Checks: bcftools 0 differing records on chr22, scr, a second scramble and the whole
 genome; `test/same.sh`, 128 runs identical to the previous build, also with a build of tiny limits.
+
+## Faster driver and `.vcf.gz` (2026-10-28; branch `driver`, merged into `main`)
+
+The speed agent profiled the whole genome (`notes/speed_plan.md`): the driver took 1.6 s, 1.3 s
+of it reading the FASTA, and the machine about 3.9 s. Trusted code only, no proofs
+(`notes/speed_driver.md`): a fast path for whole FASTA lines, the next VCF piece read ahead by a
+helper thread, and BGZF read through libdeflate (`build.sh` links it).
+
+Whole genome, to a file, both tools pinned to the performance cores (`taskset -c 0-15`; unpinned
+runs vary by about 3 s on this hybrid CPU):
+
+| input | bcftools 1.24 | before | after |
+|---|---|---|---|
+| plain VCF | 7.69-7.90 s | 5.38-5.54 s | 4.84-4.99 s |
+| `.vcf.gz` | 7.91-8.08 s | 6.15-6.57 s (`bgzip -dc \|`) | 4.83-5.15 s |
+
+Unpinned, to a file: 5.75-6.38 s (5.37-6.57 s on `.vcf.gz`) against bcftools' 7.75-8.04 s.
+Before pinning, the earlier tables in this file compared unpinned runs.
+
+Driver review 4 (`reviews/*-driver4*.md`, Q4): GPT and Grok accepted. Claude alone found that a
+`.vcf.gz` cut at a block boundary was read as complete (19,422 of chr22's 50,284 records, exit 0);
+it now has to end with BGZF's empty end block. GPT had cut files only inside the first block;
+Grok had removed the end block from a complete file and accepted the result. The author had
+found and fixed a similar early end of its own (an empty block mid-stream read as the end) before
+the review.
