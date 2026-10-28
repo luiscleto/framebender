@@ -51,7 +51,7 @@ Files (all new, mine):
     `ow + lens(items) == |ob|` (RunInv part 5) and the ob text is a `take` of its own length
     (`ctake`);
   - notes: `note_app_nil`.
-- `proof_e_merge_cex.bend`: the counterexample, kept as a record. It is a runnable program, not a
+- `notes/cex/proof_e_merge_cex.bend`: the counterexample, kept as a record. It is a runnable program, not a
   proof file. With the new test it prints okP False.
 
 ### last_eq (the merged run's last against shiftS's)
