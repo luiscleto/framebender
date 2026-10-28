@@ -393,7 +393,7 @@ def sh_jgo(+b: Bool, +s: Bool, +P0: List<&2, String>, +F0: List<&2, String>, +bo
     case False{} False{}:
       {==}
 
-def sh_fgo(+b: Bool, +s: Bool, +a: Maybe<&2, Pr.Ans>, +f0: String, +f1: String, +f2: String, +f3: String, +f4: String, +f5: String, +f6: String, +x: String, +y: String,
+def sh_fgo(+b: Bool, +s: Bool, +a: Maybe<&2, J.Ans>, +f0: String, +f1: String, +f2: String, +f3: String, +f4: String, +f5: String, +f6: String, +x: String, +y: String,
   +T: List<&2, String>, +body: String,
   +hx: {J.end_ok(x, Nat.sub(Nat.add(Maybe.default(&2, Nat, B.Pos.read(f1), 0n), String.length(f3)), 1n)) == J.end_ok(y, Nat.sub(Nat.add(Maybe.default(&2, Nat, B.Pos.read(f1), 0n), String.length(f3)), 1n)) : Bool}) ->
   {J.fast.go(b, s, a, PG(f0, f1, f2, f3, f4, f5, f6, x), body) == J.fast.go(b, s, a, FG(f0, f1, f2, f3, f4, f5, f6, y, T), body) : J.Fast}:
@@ -404,9 +404,9 @@ def sh_fgo(+b: Bool, +s: Bool, +a: Maybe<&2, Pr.Ans>, +f0: String, +f1: String, 
       {==}
     case False{} False{} None{}:
       {==}
-    case False{} False{} Some{Pr.Unknown{}}:
+    case False{} False{} Some{J.Unknown{}}:
       {==}
-    case False{} False{} Some{Pr.Known{+clen, +off, +raw}}:
+    case False{} False{} Some{J.Known{+clen, +off, +raw}}:
       +e = Nat.sub(Nat.add(Maybe.default(&2, Nat, B.Pos.read(f1), 0n), String.length(f3)), 1n)
       +pos = Maybe.default(&2, Nat, B.Pos.read(f1), 0n)
       %Equal.sym(Bool, J.end_ok(x, e), J.end_ok(y, e), hx) : {J.fast.found(_, B.Allele.read(f3), B.Alleles.read(String.split(f4, ',')), clen, off, B.Bases.of_fasta(raw), pos, f1, f3, f4, body)
@@ -679,7 +679,7 @@ def k_found(e, rr, aa, clen, off, bases, body):
 law k_go:
   for +b: Bool
   for +s: Bool
-  for +a: Maybe<&2, Pr.Ans>
+  for +a: Maybe<&2, J.Ans>
   for +body: String
   {fr_res(J.fast.go(b, s, a, Fs(body), body), B.Rec.pos(Fs(body)), body) == J.judge_in.go(b, s, a, Fs(body), body) : Maybe<&2, B.Res>}
 
@@ -691,15 +691,15 @@ def k_go(b, s, a, body):
       {==}
     case False{} False{} None{}:
       {==}
-    case False{} False{} Some{Pr.Unknown{}}:
+    case False{} False{} Some{J.Unknown{}}:
       {==}
-    case False{} False{} Some{Pr.Known{+clen, +off, +raw}}:
+    case False{} False{} Some{J.Known{+clen, +off, +raw}}:
       +F = Fs(body)
       +ref = B.Rec.field(F, 3n)
       +e = Nat.sub(Nat.add(B.Rec.pos(F), String.length(ref)), 1n)
       k_found(J.end_ok(B.Rec.field(F, 7n), e), B.Allele.read(ref), B.Alleles.read(B.Rec.alts(F)), clen, off, B.Bases.of_fasta(raw), body)
 
-def fj.k(+g: J.C7, +a: Maybe<&2, Pr.Ans>, +body: String, +hg: {gsplit(g, B.Rec.fields(body)) == B.Rec.fields(body) : List<&2, String>}) ->
+def fj.k(+g: J.C7, +a: Maybe<&2, J.Ans>, +body: String, +hg: {gsplit(g, B.Rec.fields(body)) == B.Rec.fields(body) : List<&2, String>}) ->
   {J.fast(a, J.pfs.g(g, body), body) == J.fast(a, B.Rec.fields(body), body) : J.Fast}:
   match g:
     case J.Short{}:
@@ -720,7 +720,7 @@ def fj.k(+g: J.C7, +a: Maybe<&2, Pr.Ans>, +body: String, +hg: {gsplit(g, B.Rec.f
 
 # J.fast on the machine's fields says what judge_in gives.
 law fast_judge:
-  for +a: Maybe<&2, Pr.Ans>
+  for +a: Maybe<&2, J.Ans>
   for +body: String
   {fr_res(J.fast(a, J.pfs(body), body), B.Rec.pos(B.Rec.fields(body)), body) == J.judge_in(a, body) : Maybe<&2, B.Res>}
 
@@ -729,26 +729,3 @@ def fast_judge(a, body):
   %Equal.sym(J.Fast, J.fast(a, J.pfs(body), body), J.fast(a, F, body), fj.k(J.c7(body), a, body, c7_split(body))) :
     {fr_res(_, B.Rec.pos(F), body) == J.judge_in(a, body) : Maybe<&2, B.Res>}
   k_go(B.Rec.malformed(F), B.Rec.out_of_scope(F), a, body)
-
-# Norm.same_done is body_done with judge's result for a record left as it is.
-law same_done:
-  for +o: B.Opts
-  for +rs: R.RunSt
-  for +l: B.Line
-  for +fs: List<&2, String>
-  for +pend: String
-  for +q: List<&2, B.Line>
-  for +qn: Nat
-  for +e: Bool
-  {Norm.same_done(o, rs, l, fs, pend, q, qn, e) == Norm.body_done(B.Res{B.Normalized{}, B.Rec.pos(fs), B.Line.body(l), False{}}, o, rs, l, fs, pend, q, qn, e) : Norm.Adv}
-
-def same_done(o, rs, l, fs, pend, q, qn, e):
-  match l:
-    case B.Line{+b, +t}:
-      +rs1 = R.tick(rs)
-      +at = {B.At{R.RunSt.n(rs1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
-      %Equal.sym(Bool, String.eq(b, b), True{}, Q.str_eq_refl(b)) :
-        {Norm.same_done(o, rs, B.Line{b, t}, fs, pend, q, qn, e) ==
-          Norm.went(o, NR.keyed(rs1, R.Opts.w(o), R.Item{B.Rec.pos(fs), B.Rec.pos(fs), at, String.append(b, t)}, R.stale_note(False{}, at),
-            R.bump(R.RunSt.cnt(rs1), Bool.not(_), False{}, False{})), pend, q, qn, e) : Norm.Adv}
-      {==}

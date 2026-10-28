@@ -19,11 +19,11 @@ import ../lawful-bytes/fast.bend as F
 #   notes is the reverse of notes,
 # and every other field is the same. Every item of buf and last has CHROM cur.
 
-# An item waiting in the buffer (or the last one written): its key, its line
-# number, its POS as written (None: Nat.show(key), as for an unchanged
-# record) and the length of its text.
+# An item waiting in the buffer (or the last one written): its key, its input
+# POS, its line number, its POS as written (None: Nat.show(key), as for an
+# unchanged record) and the length of its text.
 type Ck is Data:
-  Ck{key: Nat, line: Nat, pos: Maybe<&2, String>, len: U32}
+  Ck{key: Nat, inpos: Nat, line: Nat, pos: Maybe<&2, String>, len: U32}
 
 # The run.
 #   n, inbody, head, cur, ended, cnt, halt: as RunSt's.
@@ -53,12 +53,12 @@ type Fl is Type:
 
 def Ck.key(c: Ck) -> Nat:
   match c:
-    case Ck{k, l, p, n}:
+    case Ck{k, ip, l, p, n}:
       k
 
 def Ck.len(c: Ck) -> U32:
   match c:
-    case Ck{k, l, p, n}:
+    case Ck{k, ip, l, p, n}:
       n
 
 def pos_text(m: Maybe<&2, String>, +k: Nat) -> String:
@@ -71,7 +71,7 @@ def pos_text(m: Maybe<&2, String>, +k: Nat) -> String:
 # Where an item came from (its CHROM is the run's).
 def Ck.at(c: Ck, +chrom: String) -> B.At:
   match c:
-    case Ck{+k, l, p, n}:
+    case Ck{+k, ip, l, p, n}:
       B.At{l, chrom, pos_text(p, k)}
 
 def at_of(m: Maybe<&2, Ck>, +chrom: String) -> Maybe<&2, B.At>:
@@ -193,7 +193,7 @@ def last_le(m: Maybe<&2, Ck>, +k: Nat) -> Bool:
   match m:
     case None{}:
       True{}
-    case Some{Ck{lk, l, p, n}}:
+    case Some{Ck{lk, ip, l, p, n}}:
       Nat.is_le(lk, k)
 
 def rev_ck(xs: List<&2, Ck>, acc: List<&2, Ck>) -> List<&2, Ck>:
@@ -432,10 +432,10 @@ def keyed(r: Run, +w: Nat, +chrom: String, +x: Ck, +inpos: Nat, t: Txt, src: D.B
 # s .. s+n-1 of src (the line as it came, with its terminator)
 # ---------------------------------------------------------------------------
 
-def item(+k: Nat, +at: B.At, +n: U32) -> Ck:
+def item(+k: Nat, +inpos: Nat, +at: B.At, +n: U32) -> Ck:
   match at:
     case B.At{line, c, p}:
-      Ck{k, line, Some{p}, n}
+      Ck{k, inpos, line, Some{p}, n}
 
 def At.chrom(at: B.At) -> String:
   match at:
@@ -447,7 +447,7 @@ def problem_line(strict: Bool, r: Run, +w: Nat, +c: B.Code, +at: B.At, +inpos: N
     case True{}:
       (stop(r, B.Stop{c, Some{at}, None{}}), src)
     case False{}:
-      keyed(r, w, At.chrom(at), item(inpos, at, n), inpos, Raw{}, src, s, n, [B.Warning{c, at}], False{}, False{}, True{})
+      keyed(r, w, At.chrom(at), item(inpos, inpos, at, n), inpos, Raw{}, src, s, n, [B.Warning{c, at}], False{}, False{}, True{})
 
 def own.if(same: Bool, +t: String, +term: String) -> Txt:
   match same:
@@ -461,7 +461,7 @@ def own.if(same: Bool, +t: String, +term: String) -> Txt:
 def normalized(r: Run, +w: Nat, +k: Nat, +t: String, +stale: Bool, +l: B.Line, +at: B.At, +inpos: Nat, src: D.Bytes, +s: U32, +n: U32) -> Run & D.Bytes:
   +same = String.eq(t, B.Line.body(l))
   +tx = own.if(same, t, B.Line.term(l))
-  keyed(r, w, At.chrom(at), item(k, at, txt_len(tx, n)), inpos, tx, src, s, n, R.stale_note(stale, at), Bool.not(same), False{}, False{})
+  keyed(r, w, At.chrom(at), item(k, inpos, at, txt_len(tx, n)), inpos, tx, src, s, n, R.stale_note(stale, at), Bool.not(same), False{}, False{})
 
 def body_line(res: B.Res, r: Run, +o: B.Opts, +l: B.Line, +at: B.At, +inpos: Nat, src: D.Bytes, +s: U32, +n: U32) -> Run & D.Bytes:
   match res:
@@ -472,13 +472,13 @@ def body_line(res: B.Res, r: Run, +o: B.Opts, +l: B.Line, +at: B.At, +inpos: Nat
     case B.Res{B.Problem{+c}, k, t, st}:
       problem_line(R.Opts.strict(o), r, R.Opts.w(o), c, at, inpos, src, s, n)
     case B.Res{B.Skipped{}, k, t, st}:
-      keyed(r, R.Opts.w(o), At.chrom(at), item(inpos, at, n), inpos, Raw{}, src, s, n, Nil{}, False{}, True{}, False{})
+      keyed(r, R.Opts.w(o), At.chrom(at), item(inpos, inpos, at, n), inpos, Raw{}, src, s, n, Nil{}, False{}, True{}, False{})
     case B.Res{B.Normalized{}, +k, +t, +st}:
       normalized(r, R.Opts.w(o), k, t, st, l, at, inpos, src, s, n)
 
 # A record already in normal form (J.fast gives Same): written as it came.
 def same_done(r: Run, +o: B.Opts, +at: B.At, +inpos: Nat, src: D.Bytes, +s: U32, +n: U32) -> Run & D.Bytes:
-  keyed(r, R.Opts.w(o), At.chrom(at), item(inpos, at, n), inpos, Raw{}, src, s, n, Nil{}, False{}, False{}, False{})
+  keyed(r, R.Opts.w(o), At.chrom(at), item(inpos, inpos, at, n), inpos, Raw{}, src, s, n, Nil{}, False{}, False{}, False{})
 
 def bump(r: Run, changed: Bool, skipped: Bool, warned: Bool) -> Run:
   match r:
@@ -488,7 +488,7 @@ def bump(r: Run, changed: Bool, skipped: Bool, warned: Bool) -> Run:
 # The fast path's record (norm_fast.bend): in the current run, in normal
 # form, written as it came; its POS is written as Nat.show(pos).
 def fast_done(r: Run, +w: Nat, +line: Nat, +pos: Nat, src: D.Bytes, +s: U32, +n: U32) -> Run & D.Bytes:
-  same_run(bump(r, False{}, False{}, False{}), w, Ck{pos, line, None{}, n}, pos, Raw{}, src, s, n)
+  same_run(bump(r, False{}, False{}, False{}), w, Ck{pos, pos, line, None{}, n}, pos, Raw{}, src, s, n)
 
 # The header is written at once (the buffer is empty before the first body
 # line): ow covers all of ob.
@@ -593,3 +593,51 @@ def reserve(r: Run, +k: U32) -> Run:
   match r:
     case Run{nn, i, h, c, cb, e, l, f, b, bn, tl, kk, ob, ow, ns, hl}:
       Run{nn, i, h, c, cb, e, l, f, b, bn, tl, kk, reserve.len(k, BY.len(ob)), ow, ns, hl}
+
+# ---------------------------------------------------------------------------
+# The run as run.bend's state (for the String mode, norm.bend)
+# ---------------------------------------------------------------------------
+
+def chars(xs: List<&2, U32>) -> String:
+  match xs:
+    case Nil{}:
+      SNil{}
+    case Con{x, t}:
+      SCon{Chr{x}, chars(t)}
+
+def spec.item(c: Ck, +chrom: String, +t: String) -> R.Item:
+  match c:
+    case Ck{+k, ip, l, p, n}:
+      R.Item{k, ip, B.At{l, chrom, pos_text(p, k)}, t}
+
+# The items with their texts, taken in order from t.
+def spec.items(cs: List<&2, Ck>, +chrom: String, +t: String) -> List<&2, R.Item>:
+  match cs:
+    case Nil{}:
+      Nil{}
+    case +c <> rest:
+      +n = U32.to_nat(Ck.len(c))
+      spec.item(c, chrom, String.take(t, n)) <> spec.items(rest, chrom, String.drop(t, n))
+
+def spec.last(m: Maybe<&2, Ck>, +chrom: String) -> Maybe<&2, R.Item>:
+  match m:
+    case None{}:
+      None{}
+    case Some{c}:
+      Some{spec.item(c, chrom, "")}
+
+def spec.k(+n: Nat, +i: Bool, h: String, +c: Maybe<&2, String>, e: List<&2, String>, l: Maybe<&2, Ck>, f: List<&2, Ck>, b: List<&2, Ck>, k: R.Cnt, +ow: U32, ns: List<&2, B.Note>, x: Bool, r: D.Bytes & List<&2, U32>) -> R.RunSt:
+  (ob, xs) = r
+  +t = chars(xs)
+  +chrom = Maybe.default(&2, String, c, "")
+  R.RunSt{n, i, h, c, e, spec.last(l, chrom), spec.items(append_ck(f, rev_ck(b, Nil{})), chrom, String.drop(t, U32.to_nat(ow))), k, String.take(t, U32.to_nat(ow)), List.reverse(&2, B.Note, ns), x}
+
+# The run as run.bend's RunSt: out is what was written this step, notes this
+# step's messages in order, the buffer's items with their texts from ob, and
+# the last item written with an empty text (run.bend reads only its key and
+# where it came from).
+def to_spec(r: Run) -> R.RunSt:
+  match r:
+    case Run{nn, i, h, c, cb, e, l, f, b, bn, tl, k, ob, ow, ns, x}:
+      D.Bytes{+len, buf} = ob
+      spec.k(nn, i, h, c, e, l, f, b, k, ow, ns, x, BY.to_list(D.Bytes{len, buf}, 0, len))

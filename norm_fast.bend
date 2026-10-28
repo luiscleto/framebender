@@ -60,10 +60,11 @@ type B4 is Type:
 # A record line, all tests on its own bytes
 # ---------------------------------------------------------------------------
 
-# Pass: the record passed every test on its own bytes; pos: its POS; lf: its
-# LF; e0: CHROM's end (CHROM is s .. e0-1); rs, rl: REF's start and length.
+# Pass: the record passed every test on its own bytes; pos: its POS; e0 ..
+# e7: the ends of CHROM .. INFO (field i is from e(i-1) + 1, CHROM from s, to
+# ei - 1); lf: its LF.
 type Pre is Data:
-  Pass{pos: U32, lf: U32, e0: U32, rs: U32, rl: U32}
+  Pass{pos: U32, e0: U32, e1: U32, e2: U32, e3: U32, e4: U32, e5: U32, e6: U32, e7: U32, lf: U32}
   Slow{}
   Incomplete{}
 
@@ -394,9 +395,9 @@ def pre.if(ok: Bool, b: D.Bytes, +p: Pre) -> Pr:
 
 def pre.cr(+pos: U32, +c: Cut, r: D.Bytes & U32) -> Pr:
   match c:
-    case Cut8{+e0, e1, +e2, +e3, e4, e5, e6, +e7, +lf}:
+    case Cut8{+e0, +e1, +e2, +e3, +e4, +e5, +e6, +e7, +lf}:
       (b, +x) = r
-      pre.if(Bool.not(U32.is_eq(e7, lf) && U32.is_eq(x, 13)), b, Pass{pos, lf, e0, (e2 + 1 : U32), (e3 - e2 - 1 : U32)})
+      pre.if(Bool.not(U32.is_eq(e7, lf) && U32.is_eq(x, 13)), b, Pass{pos, e0, e1, e2, e3, e4, e5, e6, e7, lf})
     case _:
       (b, x) = r
       Pr{b, Slow{}}

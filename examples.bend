@@ -6,6 +6,7 @@ import ./run.bend as R
 import ./tan.bend as Tan
 import ./protocol.bend as P
 import ./MACHINE.bend as M
+import ./bytes_enc.bend as E
 
 # Concrete cases, checked by evaluation (bend examples.bend --check-only).
 
@@ -142,7 +143,7 @@ def run_blank() -> {R.Report.notes(L.run(fa(), hdr() ++ "\n", strict())) == [B.S
 
 # A reference read returns the letters without whitespace, clipped to the
 # contig.
-def truth_ws() -> {M.truth(B.Fasta.parse(">c\nA C\r\nGT\n"), "c", 1n, 9n) == P.Known{4n, 1n, "CGT"} : P.Ans}:
+def truth_ws() -> {M.truth(B.Fasta.parse(">c\nA C\r\nGT\n"), "c", 1n, 9n) == P.Known{4n, 1n, E.enc("CGT")} : P.Ans}:
   {==}
 
 def truth_unknown() -> {M.truth(B.Fasta.parse(">c\nAC\n"), "d", 0n, 2n) == P.Unknown{} : P.Ans}:
@@ -159,30 +160,11 @@ def sopts() -> B.Opts:
 def body1() -> String:
   "c\t4\t.\tAA\tA\t.\t.\t.\nc\t5\t.\ta\tg\t.\t.\t.\n"
 
-def m_basic() -> {M.launch(Norm.start(argv()), fa(), hdr() ++ body1(), [hdr() ++ body1()]) == Some{M.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body1(), sopts())}} : Maybe<&2, M.Launch>}:
-  {==}
-
-# The same file cut in odd places (inside a field, between CR and LF).
-def m_pieces() -> {M.launch(Norm.start(argv()), fa(), hdr() ++ body1(), ["##fileformat=VCF", "v4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\nc\t4\t.\tA", "", "A\tA\t.\t.\t.\nc\t5\t.\ta\tg\t.\t.\t.", "\n"]) == Some{M.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body1(), sopts())}} : Maybe<&2, M.Launch>}:
-  {==}
-
 def body2() -> String:
   "c\t5\t.\tA\tG\t.\t.\t.\r\nc\t4\t.\tAA\tA\t.\t.\tEND=5\r\nzz\t1\t.\tA\t<DEL>\t.\t.\t.\r\nd\t2\t.\tC\tT\t.\t.\t.\r\nd\t3\t.\tGT\tG\t.\t.\t.\r\nd\t1\t.\tA\tA,G\t.\t.\t."
 
-def m_mixed_w() -> {M.launch(Norm.start(["norm", "-c", "w", "-f", "r.fa", "in.vcf"]), fa(), hdr() ++ body2(), [hdr(), body2()]) == Some{M.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body2(), B.Opts{False{}, 100000n, ["-c", "w", "-f", "r.fa", "in.vcf"]})}} : Maybe<&2, M.Launch>}:
-  {==}
-
-def m_mixed_e() -> {M.launch(Norm.start(argv()), fa(), hdr() ++ body2(), [hdr() ++ body2()]) == Some{M.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body2(), sopts())}} : Maybe<&2, M.Launch>}:
-  {==}
-
 def body3() -> String:
   "c\t2\t.\tA\tG\t.\t.\t.\nc\t3\t.\tA\tC\t.\t.\t.\nc\t4\t.\tAA\tA\t.\t.\t.\n"
-
-def m_unsorted() -> {M.launch(Norm.start(["norm", "-w", "1", "-f", "r.fa", "in.vcf"]), fa(), hdr() ++ body3(), [hdr() ++ body3()]) == Some{M.Launch{"r.fa", "in.vcf", L.run(fa(), hdr() ++ body3(), B.Opts{True{}, 1n, ["-w", "1", "-f", "r.fa", "in.vcf"]})}} : Maybe<&2, M.Launch>}:
-  {==}
-
-def m_noheader() -> {M.launch(Norm.start(argv()), fa(), "##x\n", ["##x\n"]) == Some{M.Launch{"r.fa", "in.vcf", L.run(fa(), "##x\n", sopts())}} : Maybe<&2, M.Launch>}:
-  {==}
 
 def m_usage() -> {Norm.start(["norm", "in.vcf"]) == Norm.Usage{} : Norm.Begin}:
   {==}

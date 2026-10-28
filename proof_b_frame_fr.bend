@@ -1,29 +1,21 @@
 import Base
 import ./types.bend as B
 import ./run.bend as R
-import ./norm.bend as Norm
+import ./LAWS.bend as L
 import ./proof_base.bend as P
 import ./proof_machine_nat.bend as PN
 
-# Lemmas for the machine proof: the run's bookkeeping (run.bend) only ever
-# appends to out and notes, so a state whose out and notes were handed on
-# (Norm.RunSt.clear) goes on exactly as the full state, with the bytes and
-# messages written before in front (pre).
+# Helpers for proof_b_frame.bend (adapted from proof_machine_frame.bend and
+# proof_machine_sim.bend): run.bend's bookkeeping only ever appends to out
+# and notes, so the spec goes on the same with what was collected before in
+# front (pre); and a stopped run stays as it is.
 
+# The same definition as proof_b_sim.bend's S.pre (proof_b_frame.bend
+# bridges the two).
 def pre(+O: String, +N: List<&2, B.Note>, rs: R.RunSt) -> R.RunSt:
   match rs:
     case R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}:
       R.RunSt{n, i, h, c, e, l, b, k, String.append(O, o), List.append(&2, B.Note, N, ns), x}
-
-# Before the #CHROM line, nothing is written yet.
-def good(st: R.RunSt) -> Bool:
-  match st:
-    case R.RunSt{n, True{}, h, c, e, l, b, k, o, ns, x}:
-      True{}
-    case R.RunSt{n, False{}, h, c, e, l, b, k, SNil{}, Nil{}, x}:
-      True{}
-    case _:
-      False{}
 
 law rs_eq:
   for +n: Nat
@@ -47,68 +39,6 @@ def rs_eq(n, i, h, c, e, l, b, k, o1, o2, n1, n2, x, eo, en):
   %eo : {R.RunSt{n, i, h, c, e, l, b, k, o1, n1, x} == R.RunSt{n, i, h, c, e, l, b, k, _, n2, x} : R.RunSt}
   %en : {R.RunSt{n, i, h, c, e, l, b, k, o1, n1, x} == R.RunSt{n, i, h, c, e, l, b, k, o1, _, x} : R.RunSt}
   {==}
-
-# Projections
-# ===========
-
-law out_pre:
-  for +O: String
-  for +N: List<&2, B.Note>
-  for +st: R.RunSt
-  {Norm.RunSt.out(pre(O, N, st)) == String.append(O, Norm.RunSt.out(st)) : String}
-
-def out_pre(O, N, st):
-  match st:
-    case R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}:
-      {==}
-
-law notes_pre:
-  for +O: String
-  for +N: List<&2, B.Note>
-  for +st: R.RunSt
-  {Norm.RunSt.notes(pre(O, N, st)) == List.append(&2, B.Note, N, Norm.RunSt.notes(st)) : List<&2, B.Note>}
-
-def notes_pre(O, N, st):
-  match st:
-    case R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}:
-      {==}
-
-law clear_pre:
-  for +O: String
-  for +N: List<&2, B.Note>
-  for +st: R.RunSt
-  {Norm.RunSt.clear(pre(O, N, st)) == Norm.RunSt.clear(st) : R.RunSt}
-
-def clear_pre(O, N, st):
-  match st:
-    case R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}:
-      {==}
-
-# Every state is its cleared state with its out and notes in front.
-law split_st:
-  for +st: R.RunSt
-  {st == pre(Norm.RunSt.out(st), Norm.RunSt.notes(st), Norm.RunSt.clear(st)) : R.RunSt}
-
-def split_st(st):
-  match st:
-    case R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}:
-      rs_eq(n, i, h, c, e, l, b, k, o, String.append(o, ""), ns, List.append(&2, B.Note, ns, Nil{}), x,
-        Equal.sym(String, String.append(o, ""), o, PN.str_nil(o)),
-        Equal.sym(List<&2, B.Note>, List.append(&2, B.Note, ns, Nil{}), ns, P.append_nil(B.Note, ns)))
-
-law good_pre:
-  for +O: String
-  for +N: List<&2, B.Note>
-  for +st: R.RunSt
-  for +hi: {R.RunSt.inbody(st) == True{} : Bool}
-  {good(pre(O, N, st)) == True{} : Bool}
-
-def good_pre(O, N, st, hi):
-  match st:
-    case R.RunSt{n, True{}, h, c, e, l, b, k, o, ns, x}:
-      {==}
-    case R.RunSt{n, False{}, h, c, e, l, b, k, o, ns, x}:
-      Empty.absurd({good(pre(O, N, R.RunSt{n, False{}, h, c, e, l, b, k, o, ns, x})) == True{} : Bool}, P.false_ne_true(hi))
 
 # Frame: the bookkeeping commutes with pre
 # ========================================
@@ -446,3 +376,226 @@ def ib_body_line(r, st, o, l, at, inpos):
     case B.Res{B.Normalized{}, k, t, s} R.RunSt{n, i, h, cu, e, la, b, kk, so, ns, x}:
       ib_keyed(R.RunSt{n, i, h, cu, e, la, b, kk, so, ns, x}, R.Opts.w(o), R.Item{k, inpos, at, String.append(t, B.Line.term(l))},
         R.stale_note(s, at), R.bump(kk, Bool.not(String.eq(t, B.Line.body(l))), False{}, False{}))
+
+# One line, and the whole run
+# ===========================
+
+# Before the #CHROM line nothing has been written (O empty).
+law head_pre:
+  for +isc: Bool
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +st: R.RunSt
+  for +o: B.Opts
+  for +l: B.Line
+  for +he: {String.is_empty(O) && List.is_empty(&2, B.Note, N) == True{} : Bool}
+  {R.head_line(isc, pre(O, N, st), o, l) == pre(O, N, R.head_line(isc, st, o, l)) : R.RunSt}
+
+def head_pre(isc, O, N, st, o, l, he):
+  match O:
+    case SNil{}:
+      fr_head_line(isc, N, st, o, l)
+    case SCon{ch, t}:
+      Empty.absurd({R.head_line(isc, pre(SCon{ch, t}, N, st), o, l) == pre(SCon{ch, t}, N, R.head_line(isc, st, o, l)) : R.RunSt},
+        P.false_ne_true(he))
+
+law step_pre:
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +st: R.RunSt
+  for +l: B.Line
+  for +hg: {R.RunSt.inbody(st) || (String.is_empty(O) && List.is_empty(&2, B.Note, N)) == True{} : Bool}
+  {L.line_step(fa, o, pre(O, N, st), l) == pre(O, N, L.line_step(fa, o, st, l)) : R.RunSt}
+
+def step_pre(fa, o, O, N, st, l, hg):
+  match st:
+    case R.RunSt{n, i, h, c, e, la, b, k, so, ns, True{}}:
+      {==}
+    case R.RunSt{n, False{}, h, c, e, la, b, k, so, ns, False{}}:
+      head_pre(R.is_chrom_line(B.Line.body(l)), O, N, R.RunSt{1n+n, False{}, h, c, e, la, b, k, so, ns, False{}}, o, l, hg)
+    case R.RunSt{n, True{}, h, c, e, la, b, k, so, ns, False{}}:
+      +fs = B.Rec.fields(B.Line.body(l))
+      fr_body_line(L.judge(fa, B.Line.body(l)), O, N, R.RunSt{1n+n, True{}, h, c, e, la, b, k, so, ns, False{}}, o, l,
+        B.At{1n+n, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))
+
+# A line read in the body leaves the run in the body.
+law ib_step:
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +st: R.RunSt
+  for +l: B.Line
+  for +hi: {R.RunSt.inbody(st) == True{} : Bool}
+  {R.RunSt.inbody(L.line_step(fa, o, st, l)) == True{} : Bool}
+
+def ib_step(fa, o, st, l, hi):
+  match st:
+    case R.RunSt{n, i, h, c, e, la, b, k, so, ns, True{}}:
+      hi
+    case R.RunSt{n, False{}, h, c, e, la, b, k, so, ns, False{}}:
+      Empty.absurd({R.RunSt.inbody(L.line_step(fa, o, R.RunSt{n, False{}, h, c, e, la, b, k, so, ns, False{}}, l)) == True{} : Bool},
+        P.false_ne_true(hi))
+    case R.RunSt{n, True{}, h, c, e, la, b, k, so, ns, False{}}:
+      +fs = B.Rec.fields(B.Line.body(l))
+      ib_body_line(L.judge(fa, B.Line.body(l)), R.RunSt{1n+n, True{}, h, c, e, la, b, k, so, ns, False{}}, o, l,
+        B.At{1n+n, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))
+
+law or_true_r:
+  for +a: Bool
+  {Bool.or(a, True{}) == True{} : Bool}
+
+def or_true_r(a):
+  match a:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+law hg_go:
+  for +c: Bool
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +E: Bool
+  for +st: R.RunSt
+  for +l: B.Line
+  for +hc: {R.RunSt.inbody(st) == c : Bool}
+  for +hg: {Bool.or(c, E) == True{} : Bool}
+  {Bool.or(R.RunSt.inbody(L.line_step(fa, o, st, l)), E) == True{} : Bool}
+
+def hg_go(c, fa, o, E, st, l, hc, hg):
+  match c:
+    case True{}:
+      %Equal.sym(Bool, R.RunSt.inbody(L.line_step(fa, o, st, l)), True{}, ib_step(fa, o, st, l, hc)) :
+        {Bool.or(_, E) == True{} : Bool}
+      {==}
+    case False{}:
+      %Equal.sym(Bool, E, True{}, hg) : {Bool.or(R.RunSt.inbody(L.line_step(fa, o, st, l)), _) == True{} : Bool}
+      or_true_r(R.RunSt.inbody(L.line_step(fa, o, st, l)))
+
+# The guard of step_pre holds after a line.
+law hg_step:
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +st: R.RunSt
+  for +l: B.Line
+  for +hg: {R.RunSt.inbody(st) || (String.is_empty(O) && List.is_empty(&2, B.Note, N)) == True{} : Bool}
+  {R.RunSt.inbody(L.line_step(fa, o, st, l)) || (String.is_empty(O) && List.is_empty(&2, B.Note, N)) == True{} : Bool}
+
+def hg_step(fa, o, O, N, st, l, hg):
+  hg_go(R.RunSt.inbody(st), fa, o, String.is_empty(O) && List.is_empty(&2, B.Note, N), st, l, {==}, hg)
+
+law run_pre:
+  for +ls: List<&2, B.Line>
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +st: R.RunSt
+  for +hg: {R.RunSt.inbody(st) || (String.is_empty(O) && List.is_empty(&2, B.Note, N)) == True{} : Bool}
+  {L.run.go(ls, fa, o, pre(O, N, st)) == pre(O, N, L.run.go(ls, fa, o, st)) : R.RunSt}
+
+def run_pre(ls, fa, o, O, N, st, hg):
+  match ls:
+    case Nil{}:
+      {==}
+    case +l <> +t:
+      %Equal.sym(R.RunSt, L.line_step(fa, o, pre(O, N, st), l), pre(O, N, L.line_step(fa, o, st, l)), step_pre(fa, o, O, N, st, l, hg)) :
+        {L.run.go(t, fa, o, _) == pre(O, N, L.run.go(t, fa, o, L.line_step(fa, o, st, l))) : R.RunSt}
+      run_pre(t, fa, o, O, N, L.line_step(fa, o, st, l), hg_step(fa, o, O, N, st, l, hg))
+
+# The end of the run
+# ==================
+
+law rep_eq:
+  for +o1: String
+  for +o2: String
+  for +n1: List<&2, B.Note>
+  for +n2: List<&2, B.Note>
+  for +c: Nat
+  for eo: {o1 == o2 : String}
+  for en: {n1 == n2 : List<&2, B.Note>}
+  {R.Report{o1, n1, c} == R.Report{o2, n2, c} : R.Report}
+
+def rep_eq(o1, o2, n1, n2, c, eo, en):
+  %eo : {R.Report{o1, n1, c} == R.Report{_, n2, c} : R.Report}
+  %en : {R.Report{o1, n1, c} == R.Report{o1, _, c} : R.Report}
+  {==}
+
+law ff_pre:
+  for +f: R.Flush
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +o: String
+  for +ns: List<&2, B.Note>
+  for +k: R.Cnt
+  {R.finish.flush(f, String.append(O, o), List.append(&2, B.Note, N, ns), k) == R.Report{String.append(O, R.Report.out(R.finish.flush(f, o, ns, k))), List.append(&2, B.Note, N, R.Report.notes(R.finish.flush(f, o, ns, k))), R.Report.code(R.finish.flush(f, o, ns, k))} : R.Report}
+
+def ff_pre(f, O, N, o, ns, k):
+  match f k:
+    case R.Broke{o2, bad, prev} _:
+      +nt = {B.Stop{B.Unsorted{}, Some{bad}, prev} : B.Note}
+      rep_eq(String.append(String.append(O, o), o2), String.append(O, String.append(o, o2)),
+        List.append(&2, B.Note, List.append(&2, B.Note, N, ns), [nt]), List.append(&2, B.Note, N, List.append(&2, B.Note, ns, [nt])), 1n,
+        PN.str_assoc(O, o, o2), P.append_assoc(B.Note, N, ns, [nt]))
+    case R.Flushed{o2, l2} R.Cnt{a, ch, sk, wa}:
+      +nt = {B.Summary{a, ch, sk, wa} : B.Note}
+      rep_eq(String.append(String.append(O, o), o2), String.append(O, String.append(o, o2)),
+        List.append(&2, B.Note, List.append(&2, B.Note, N, ns), [nt]), List.append(&2, B.Note, N, List.append(&2, B.Note, ns, [nt])), 0n,
+        PN.str_assoc(O, o, o2), P.append_assoc(B.Note, N, ns, [nt]))
+
+law nh_pre:
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +he: {String.is_empty(O) && List.is_empty(&2, B.Note, N) == True{} : Bool}
+  {R.Report{"", [B.Stop{B.NoHeader{}, None{}, None{}}], 1n} == R.Report{String.append(O, ""), List.append(&2, B.Note, N, [B.Stop{B.NoHeader{}, None{}, None{}}]), 1n} : R.Report}
+
+def nh_pre(O, N, he):
+  match O N:
+    case SNil{} Nil{}:
+      {==}
+    case SNil{} Con{x, t}:
+      Empty.absurd({R.Report{"", [B.Stop{B.NoHeader{}, None{}, None{}}], 1n} == R.Report{"", List.append(&2, B.Note, x <> t, [B.Stop{B.NoHeader{}, None{}, None{}}]), 1n} : R.Report},
+        P.false_ne_true(he))
+    case SCon{ch, t} _:
+      Empty.absurd({R.Report{"", [B.Stop{B.NoHeader{}, None{}, None{}}], 1n} == R.Report{String.append(SCon{ch, t}, ""), List.append(&2, B.Note, N, [B.Stop{B.NoHeader{}, None{}, None{}}]), 1n} : R.Report},
+        P.false_ne_true(he))
+
+law finish_pre:
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +st: R.RunSt
+  for +hg: {R.RunSt.inbody(st) || (String.is_empty(O) && List.is_empty(&2, B.Note, N)) == True{} : Bool}
+  {R.finish(pre(O, N, st)) == R.Report{String.append(O, R.Report.out(R.finish(st))), List.append(&2, B.Note, N, R.Report.notes(R.finish(st))), R.Report.code(R.finish(st))} : R.Report}
+
+def finish_pre(O, N, st, hg):
+  match st:
+    case R.RunSt{n, i, h, c, e, la, b, k, so, ns, True{}}:
+      {==}
+    case R.RunSt{n, False{}, h, c, e, la, b, k, so, ns, False{}}:
+      nh_pre(O, N, hg)
+    case R.RunSt{n, True{}, h, c, e, la, b, k, so, ns, False{}}:
+      ff_pre(R.flush(b, la), O, N, so, ns, k)
+
+# A stopped run
+# =============
+
+law run_halted:
+  for +ls: List<&2, B.Line>
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +st: R.RunSt
+  for +hh: {R.RunSt.halt(st) == True{} : Bool}
+  {L.run.go(ls, fa, o, st) == st : R.RunSt}
+
+def run_halted(ls, fa, o, st, hh):
+  match ls st:
+    case Nil{} _:
+      {==}
+    case l <> t R.RunSt{n, i, h, c, e, la, b, k, so, sns, True{}}:
+      run_halted(t, fa, o, R.RunSt{n, i, h, c, e, la, b, k, so, sns, True{}}, hh)
+    case l <> t R.RunSt{n, i, h, c, e, la, b, k, so, sns, False{}}:
+      Empty.absurd({L.run.go(l <> t, fa, o, R.RunSt{n, i, h, c, e, la, b, k, so, sns, False{}}) == R.RunSt{n, i, h, c, e, la, b, k, so, sns, False{}} : R.RunSt},
+        P.false_ne_true(hh))

@@ -2,11 +2,12 @@ import Base
 import ./types.bend as B
 import ./protocol.bend as P
 import ./LAWS.bend as L
+import ./norm_line.bend as J
 
 # The definitions of the former window laws (LAWS.bend before the two-layer
 # spec), now used only by the implementation proof: proof_window.bend proves
 # the lemmas window and window_enough about J.judge_in with them, and the
-# machine proof uses those lemmas. An answer is a Maybe<&2, P.Ans>: None when
+# machine proof uses those lemmas. An answer is a Maybe<&2, J.Ans>: None when
 # nothing was read (the former NoAns).
 
 def known.ok(m: Maybe<&2, String>, clen: Nat, +off: Nat, +raw: String) -> Bool:
@@ -19,13 +20,13 @@ def known.ok(m: Maybe<&2, String>, clen: Nat, +off: Nat, +raw: String) -> Bool:
 # An answer that tells the truth about contig chrom: nothing; "unknown" when
 # the reference has no such contig; or its real length and some of its real
 # letters, as written in the FASTA file.
-def truthful(+fa: List<&2, B.Contig>, +chrom: String, a: Maybe<&2, P.Ans>) -> Bool:
+def truthful(+fa: List<&2, B.Contig>, +chrom: String, a: Maybe<&2, J.Ans>) -> Bool:
   match a:
     case None{}:
       True{}
-    case Some{P.Unknown{}}:
+    case Some{J.Unknown{}}:
       Maybe.is_none(&2, String, B.Fasta.find(fa, chrom))
-    case Some{P.Known{clen, off, raw}}:
+    case Some{J.Known{clen, off, raw}}:
       known.ok(B.Fasta.find(fa, chrom), clen, off, raw)
 
 def chrom_of(body: String) -> String:
@@ -33,28 +34,28 @@ def chrom_of(body: String) -> String:
 
 # The answer holds the letters lo .. hi - 1 (0-based), or up to the contig's
 # end.
-def covers(a: Maybe<&2, P.Ans>, +lo: Nat, +hi: Nat) -> Bool:
+def covers(a: Maybe<&2, J.Ans>, +lo: Nat, +hi: Nat) -> Bool:
   match a:
-    case Some{P.Known{+clen, +off, raw}}:
+    case Some{J.Known{+clen, +off, raw}}:
       Nat.is_le(off, lo) && Nat.is_le(Nat.min(hi, clen), Nat.add(off, String.length(raw)))
     case _:
       False{}
 
-def is_known(a: Maybe<&2, P.Ans>) -> Bool:
+def is_known(a: Maybe<&2, J.Ans>) -> Bool:
   match a:
-    case Some{P.Known{c, o, b}}:
+    case Some{J.Known{c, o, b}}:
       True{}
     case _:
       False{}
 
-def is_unknown(a: Maybe<&2, P.Ans>) -> Bool:
+def is_unknown(a: Maybe<&2, J.Ans>) -> Bool:
   match a:
-    case Some{P.Unknown{}}:
+    case Some{J.Unknown{}}:
       True{}
     case _:
       False{}
 
-def enough.go(r: B.Res, +p: Nat, +rlen: Nat, a: Maybe<&2, P.Ans>) -> Bool:
+def enough.go(r: B.Res, +p: Nat, +rlen: Nat, a: Maybe<&2, J.Ans>) -> Bool:
   match r:
     case B.Res{B.Broken{}, k, t, s}:
       True{}
@@ -75,6 +76,6 @@ def enough.go(r: B.Res, +p: Nat, +rlen: Nat, a: Maybe<&2, P.Ans>) -> Bool:
 # letters (up to the contig's end); normalized, every letter from the input
 # POS, or from one before the new POS (or the contig's first letter) when that
 # is earlier, to the end of the input REF.
-def enough(+fa: List<&2, B.Contig>, +body: String, a: Maybe<&2, P.Ans>) -> Bool:
+def enough(+fa: List<&2, B.Contig>, +body: String, a: Maybe<&2, J.Ans>) -> Bool:
   +fs = B.Rec.fields(body)
   enough.go(L.judge(fa, body), B.Rec.pos(fs), String.length(B.Rec.field(fs, 3n)), a)

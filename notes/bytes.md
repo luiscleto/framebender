@@ -262,12 +262,21 @@ shifted-word lemma for `append` (`view` only reads `len` bytes, so the bytes pas
 8. Termination and budgets: `slow.go` is bounded by 64 tries; the pump's fuel is `4 * (2^32 - 1)`
    steps (a piece is at most 2^31 bytes); the read and step counts must fit `bound`.
 
-## Limits (cases the law covers that this code may not meet)
+## Limits (phase A) and how phase B removed them
 
-- **Lines longer than about 2^30 bytes.** `pend` or one step's output could pass 2^31 bytes.
-  No VCF has such lines, but the law quantifies over every input.
-- **Contigs longer than 2^31 letters.** A slow record that must read back to such a contig's start
-  needs a window larger than a read may ask for; the line is asked for again without end. Such
-  contigs do not exist in practice (`P.Fasta.plain` does not exclude them).
-- **POS of 2^31 or more.** The cache's U32 fields (`offu`, `clenu`) disable the fast path, so
-  such records take the slow path: correct, but slow.
+Phase A could fail the law on inputs no real file has:
+- a line, or more waiting records, than a 2^31-byte buffer holds;
+- a record whose normalization needs more than 2^31 reference letters of context.
+
+Phase B changed the program so the law holds for every input. Details and timings are in
+`notes/bytes_proofs.md`, "Code changes for the proofs":
+- the String mode (`MS`): run.bend's own state, output handed out at most 2^30 bytes a
+  step;
+- a line end kept as text past 2^28 bytes;
+- reads in parts of at most 2^31 letters;
+- at most one fast-path read per line;
+- a computed pump fuel that ends a step with `Ask{[]}` if it runs out;
+- size checks before writing the header (held header and added lines at most 2^28 bytes
+  each) and before putting a rewritten text in the output buffer.
+
+Output is unchanged on every test input, and chr22's time is the same.

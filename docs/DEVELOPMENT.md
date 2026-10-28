@@ -26,6 +26,10 @@ binary reads `+RTS --threads N` to set the number of threads.
 It prints `ALL PROOFS CHECK` twice when everything holds. A change to the code is acceptable when
 `check.sh` passes; a change to the science layer needs a new law review (`refs/REVIEW_PROMPT.md`).
 
+To check one proof file while working, use `test/bcheck.sh file.bend [--check-only|--verdict]`. It
+runs at most two checks at once, each capped at 4 GB. A proof that evaluates a big number, such as
+`Nat.pow(2n, 29n)` closed by `{==}`, builds it in unary and can otherwise fill the machine's memory.
+
 ## Compare with bcftools
 
 ```
