@@ -12,9 +12,11 @@ import ../lawful-bytes/bytes.bend as BY
 #
 # It only runs the proven machine (Norm.start, Norm.step): it reads the VCF
 # file in pieces (its bytes, or for a BGZF file the bytes its blocks
-# decompress to), answers the reads of each Ask in order with the contig's
-# letters at the .fai offsets (line breaks removed), writes what the machine
-# writes, and exits with the machine's code. Every error of its own prints one
+# decompress to; up to 16 pieces are read ahead, in order, by a helper
+# thread), answers the reads of each Ask in order with the contig's letters at
+# the .fai offsets (line breaks removed; up to 32 reads at a time are read in
+# parallel, then taken in order), writes what the machine writes, and exits
+# with the machine's code. Every error of its own prints one
 # line "error: ..." and exits with code 2:
 #   usage (B.usage), "cannot read <path>", "cannot write" (stdout/stderr),
 #   "out of memory" (no room for a read's buffer or for libdeflate's
@@ -66,13 +68,19 @@ def Io.read_block(file: File, max: U32, gz: U32) -> IO(File & Result<&1, &1, U32
   import "./io64.c"
   import "./io64.js"
 
-# Read the shi * 2^32 + slo bytes of the FASTA at offset hi * 2^32 + lo (in
-# parts), whose first byte is at column col of a line layout of lb letters
-# per line, lw bytes per line (col, lb and lw also as 64-bit halves);
-# answers (code, (n, block)): code 0 when every byte fits the layout and
-# exactly want letters were read (packed as enc), 1 when a byte does not
-# fit, 2 when the count differs.
-def Io.fa_read(file: File, hi: U32, lo: U32, shi: U32, slo: U32, chi: U32, clo: U32, bhi: U32, blo: U32, whi: U32, wlo: U32, want: U32) -> IO(File & Result<&1, &1, U32 & String, U32 & (U32 & Array<U32>)>):
+# Start a read of the shi * 2^32 + slo bytes of the FASTA at offset
+# hi * 2^32 + lo (in parts), whose first byte is at column col of a line
+# layout of lb letters per line, lw bytes per line (col, lb and lw also as
+# 64-bit halves), on a helper thread; answers its ticket. At most 32 are
+# started before each is waited for.
+def Io.fa_start(file: File, hi: U32, lo: U32, shi: U32, slo: U32, chi: U32, clo: U32, bhi: U32, blo: U32, whi: U32, wlo: U32, want: U32) -> IO(File & U32):
+  import "./io64.c"
+  import "./io64.js"
+
+# Wait for the read with ticket t; answers (code, (n, block)): code 0 when
+# every byte fits the layout and exactly want letters were read (packed as
+# enc), 1 when a byte does not fit, 2 when the count differs.
+def Io.fa_wait(file: File, t: U32) -> IO(File & Result<&1, &1, U32 & String, U32 & (U32 & Array<U32>)>):
   import "./io64.c"
   import "./io64.js"
 
@@ -272,7 +280,7 @@ def fai_entry.ok?(ok: Bool, f: Fai) -> Maybe<&2, Fai>:
 # letters per line + 1 for LF or + 2 for CR LF), and its length and offset
 # are below 2^45 (32 TiB). Then every byte offset of the contig is below
 # offset + 3 * length < 2^47: every number the driver computes stays below
-# the runtime's 2^48 and every number it passes to Io.fa_read is exact in
+# the runtime's 2^48 and every number it passes to Io.fa_start is exact in
 # 64 bits.
 def fai_entry?(n: Maybe<&2, Nat>, o: Maybe<&2, Nat>, lb: Maybe<&2, Nat>, lw: Maybe<&2, Nat>) -> Maybe<&2, Fai>:
   match n o lb lw:
@@ -379,64 +387,162 @@ def answer.check.go?(ok: Bool, bad: Bool, +ref: String, fa: File, ans: P.Ans) ->
     case False{} False{}:
       die(File & P.Ans, ".fai index does not match " ++ esc(ref))
 
-def answer.read.go?(small: Bool, fa: File, +ref: String, +f: Fai, +a2: Nat, +b2: Nat, +o0: Nat, +span: Nat) -> IO(File & P.Ans):
+# A read of an Ask, once started: the contig is unknown; an empty span (the
+# contig's length n, from a2); too large (the driver stops when it comes to
+# it); a read started with ticket t.
+type Pend is Data:
+  PUnk{}
+  PEmpty{n: Nat, a: Nat}
+  PBig{}
+  PRead{t: U32, n: Nat, a: Nat}
+
+def start.k?(p: File & U32, +n: Nat, +a2: Nat) -> IO(File & Pend):
+  match p:
+    case (fa, t):
+      IO.pure(File & Pend, (fa, PRead{t, n, a2}))
+
+def start.read.go?(small: Bool, fa: File, +f: Fai, +a2: Nat, +b2: Nat, +o0: Nat, +span: Nat) -> IO(File & Pend):
   match small f:
     case False{} _:
-      die(File & P.Ans, "FASTA read too large " ++ esc(ref))
+      IO.pure(File & Pend, (fa, PBig{}))
     case True{} Fai{+n, off, +lb, +lw}:
-      do IO<File & P.Ans>:
-        p : File & Result<&1, &1, U32 & String, U32 & (U32 & Array<U32>)> <- Io.fa_read(fa, hi(o0), lo(o0), hi(span), lo(span), hi(Nat.mod(a2, lb)), lo(Nat.mod(a2, lb)), hi(lb), lo(lb), hi(lw), lo(lw), U32.from_nat(Nat.sub(b2, a2)))
-        answer.k(p, ref, n, a2)
+      do IO<File & Pend>:
+        p : File & U32 <- Io.fa_start(fa, hi(o0), lo(o0), hi(span), lo(span), hi(Nat.mod(a2, lb)), lo(Nat.mod(a2, lb)), hi(lb), lo(lb), hi(lw), lo(lw), U32.from_nat(Nat.sub(b2, a2)))
+        start.k(p, n, a2)
 
-# Read letters a2 .. b2 - 1 of contig f (a2 < b2 <= its length, at most 2^31
-# letters): the bytes from the .fai offset of letter a2 up to that of letter
-# b2.
-def answer.read?(fa: File, +ref: String, +f: Fai, +a2: Nat, +b2: Nat) -> IO(File & P.Ans):
+# Start reading letters a2 .. b2 - 1 of contig f (as answer.read reads them).
+def start.read?(fa: File, +f: Fai, +a2: Nat, +b2: Nat) -> IO(File & Pend):
   +o0 = fai_at(f, a2)
   +o1 = fai_at(f, b2)
-  answer.read.go(Nat.is_le(Nat.sub(b2, a2), 2147483648n), fa, ref, f, a2, b2, o0, Nat.sub(o1, o0))
+  start.read.go(Nat.is_le(Nat.sub(b2, a2), 2147483648n), fa, f, a2, b2, o0, Nat.sub(o1, o0))
 
-def answer.span?(some: Bool, fa: File, +ref: String, +f: Fai, +a2: Nat, +b2: Nat) -> IO(File & P.Ans):
+def start.span?(some: Bool, fa: File, +f: Fai, +a2: Nat, +b2: Nat) -> IO(File & Pend):
   match some f:
     case False{} Fai{n, off, lb, lw}:
-      IO.pure(File & P.Ans, (fa, P.Known{n, a2, D.Bytes{0, Array.new(U32, 0n, 0)}}))
+      IO.pure(File & Pend, (fa, PEmpty{n, a2}))
     case True{} _:
-      answer.read(fa, ref, f, a2, b2)
+      start.read(fa, f, a2, b2)
 
-# The truthful answer: Unknown when the .fai has no such contig; else the
-# contig's length and its letters from a2 = min(a, n) up to min(max(a2, b), n).
-def answer.got?(got: Map<&2, Maybe<&2, Fai>> & Maybe<&2, Fai>, fa: File, +ref: String, +a: Nat, +b: Nat) -> IO(Map<&2, Maybe<&2, Fai>> & (File & P.Ans)):
+# A read started (as answer.got answers it).
+def start.got?(got: Map<&2, Maybe<&2, Fai>> & Maybe<&2, Fai>, fa: File, +a: Nat, +b: Nat) -> IO(Map<&2, Maybe<&2, Fai>> & (File & Pend)):
   match got:
     case (m, None{}):
-      IO.pure(Map<&2, Maybe<&2, Fai>> & (File & P.Ans), (m, (fa, P.Unknown{})))
+      IO.pure(Map<&2, Maybe<&2, Fai>> & (File & Pend), (m, (fa, PUnk{})))
     case (m, Some{Fai{+n, +off, +lb, +lw}}):
       +a2 = Nat.min(a, n)
       +b2 = Nat.min(Nat.max(a2, b), n)
-      do IO<Map<&2, Maybe<&2, Fai>> & (File & P.Ans)>:
-        q : File & P.Ans <- answer.span(Nat.is_lt(a2, b2), fa, ref, Fai{n, off, lb, lw}, a2, b2)
+      do IO<Map<&2, Maybe<&2, Fai>> & (File & Pend)>:
+        q : File & Pend <- start.span(Nat.is_lt(a2, b2), fa, Fai{n, off, lb, lw}, a2, b2)
         return (m, q)
 
-def answers.cons?(+ans: P.Ans, r: Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
+def starts.cons?(+p: Pend, r: Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>)) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>)):
   match r:
-    case (m, (fa, as)):
-      IO.pure(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>), (m, (fa, ans <> as)))
+    case (m, (fa, ps)):
+      IO.pure(Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>), (m, (fa, p <> ps)))
 
-def answers.k?(q: Map<&2, Maybe<&2, Fai>> & (File & P.Ans), t: List<&2, P.Req>, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
+def starts.k?(q: Map<&2, Maybe<&2, Fai>> & (File & Pend), t: List<&2, P.Req>) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>)):
   match q:
-    case (m, (fa, ans)):
-      do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)>:
-        r : Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>) <- answers(t, m, fa, ref)
-        answers.cons(ans, r)
+    case (m, (fa, p)):
+      do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>)>:
+        r : Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>) <- starts(t, m, fa)
+        starts.cons(p, r)
 
-# The answers to the reads rs, in order.
+# Every read of rs started, in order.
+def starts?(rs: List<&2, P.Req>, fai: Map<&2, Maybe<&2, Fai>>, fa: File) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>)):
+  match rs:
+    case Nil{}:
+      IO.pure(Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>), (fai, (fa, Nil{})))
+    case P.Req{c, a, b} <> t:
+      do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>)>:
+        q : Map<&2, Maybe<&2, Fai>> & (File & Pend) <- start.got(Map.get(Maybe<&2, Fai>, None{}, fai, c), fa, a, b)
+        starts.k(q, t)
+
+# A started read's answer (as answer.got gives it, its errors included).
+def wait1?(p: Pend, fa: File, +ref: String) -> IO(File & P.Ans):
+  match p:
+    case PUnk{}:
+      IO.pure(File & P.Ans, (fa, P.Unknown{}))
+    case PEmpty{n, a2}:
+      IO.pure(File & P.Ans, (fa, P.Known{n, a2, D.Bytes{0, Array.new(U32, 0n, 0)}}))
+    case PBig{}:
+      die(File & P.Ans, "FASTA read too large " ++ esc(ref))
+    case PRead{t, +n, +a2}:
+      do IO<File & P.Ans>:
+        q : File & Result<&1, &1, U32 & String, U32 & (U32 & Array<U32>)> <- Io.fa_wait(fa, t)
+        answer.k(q, ref, n, a2)
+
+def waits.cons?(+ans: P.Ans, r: File & List<&1, P.Ans>) -> IO(File & List<&1, P.Ans>):
+  match r:
+    case (fa, as):
+      IO.pure(File & List<&1, P.Ans>, (fa, ans <> as))
+
+def waits.k?(q: File & P.Ans, t: List<&2, Pend>, +ref: String) -> IO(File & List<&1, P.Ans>):
+  match q:
+    case (fa, ans):
+      do IO<File & List<&1, P.Ans>>:
+        r : File & List<&1, P.Ans> <- waits(t, fa, ref)
+        waits.cons(ans, r)
+
+# The answers of the started reads, in order (the first failing one stops the
+# driver).
+def waits?(ps: List<&2, Pend>, fa: File, +ref: String) -> IO(File & List<&1, P.Ans>):
+  match ps:
+    case Nil{}:
+      IO.pure(File & List<&1, P.Ans>, (fa, Nil{}))
+    case p <> t:
+      do IO<File & List<&1, P.Ans>>:
+        q : File & P.Ans <- wait1(p, fa, ref)
+        waits.k(q, t, ref)
+
+# The first k reads, and the rest.
+def split?(+k: Nat, rs: List<&2, P.Req>) -> List<&2, P.Req> & List<&2, P.Req>:
+  match k rs:
+    case 0n rs:
+      (Nil{}, rs)
+    case 1n+j Nil{}:
+      (Nil{}, Nil{})
+    case 1n+j +r <> t:
+      split.cons(r, split(j, t))
+
+def split.cons?(+r: P.Req, p: List<&2, P.Req> & List<&2, P.Req>) -> List<&2, P.Req> & List<&2, P.Req>:
+  match p:
+    case (a, b):
+      (r <> a, b)
+
+def answers.app?(+as: List<&1, P.Ans>, r: Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
+  match r:
+    case (m, (fa, bs)):
+      IO.pure(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>), (m, (fa, List.append(&1, P.Ans, as, bs))))
+
+def answers.w?(w: File & List<&1, P.Ans>, m: Map<&2, Maybe<&2, Fai>>, rest: List<&2, P.Req>, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
+  match w:
+    case (fa, as):
+      do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)>:
+        r : Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>) <- answers(rest, m, fa, ref)
+        answers.app(as, r)
+
+def answers.s?(q: Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>), rest: List<&2, P.Req>, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
+  match q:
+    case (m, (fa, ps)):
+      do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)>:
+        w : File & List<&1, P.Ans> <- waits(ps, fa, ref)
+        answers.w(w, m, rest, ref)
+
+def answers.g?(p: List<&2, P.Req> & List<&2, P.Req>, fai: Map<&2, Maybe<&2, Fai>>, fa: File, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
+  match p:
+    case (g, rest):
+      do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)>:
+        q : Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>) <- starts(g, fai, fa)
+        answers.s(q, rest, ref)
+
+# The answers to the reads rs, in order: up to 32 at a time, each group's
+# reads started at once (in parallel) and then taken in order.
 def answers?(rs: List<&2, P.Req>, fai: Map<&2, Maybe<&2, Fai>>, fa: File, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
   match rs:
     case Nil{}:
       IO.pure(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>), (fai, (fa, Nil{})))
-    case P.Req{c, a, b} <> t:
-      do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)>:
-        q : Map<&2, Maybe<&2, Fai>> & (File & P.Ans) <- answer.got(Map.get(Maybe<&2, Fai>, None{}, fai, c), fa, ref, a, b)
-        answers.k(q, t, ref)
+    case +r <> +t:
+      answers.g(split(32n, r <> t), fai, fa, ref)
 
 # ---------------------------------------------------------------------------
 # The loop

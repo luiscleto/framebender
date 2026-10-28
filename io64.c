@@ -5,7 +5,8 @@
 // to them). Used for messages.
 // Io.read_block: read the next piece of a file's text straight into a packed
 // block (a BGZF VCF is decompressed; the next piece is read ahead).
-// Io.fa_read: read a FASTA range at a 64-bit offset and pack its letters.
+// Io.fa_start, Io.fa_wait: read a FASTA range at a 64-bit offset and pack
+// its letters, on a helper thread (a batch's reads at once).
 // Io.write_block: write the first n bytes of a packed block to a descriptor.
 //
 // A packed block is an Array<U32> of 2^d words, byte i in byte i & 3 of word
@@ -90,11 +91,14 @@ static void io64_pad(Env e, u32 d, u64 loc, uint64_t n) {
 // in a build without libdeflate with IO64_NO_DEFLATE.
 //
 // The driver reads one such stream at a time (the .fai to its end, then the
-// VCF). After a full piece, the next piece of the same stream is read ahead
-// by a helper thread into a block allocated here, through its own duplicate
-// of the descriptor (which shares the file position), and handed out by the
-// next call. Heap blocks are allocated and freed only on the calling thread;
-// a block being filled is referenced by no term until it is handed out.
+// VCF). After a full piece, the next pieces of the same stream (up to
+// IO64_AHEAD of them) are read ahead, in order, by one helper thread into
+// blocks allocated here, through its own duplicate of the descriptor (which
+// shares the file position), and handed out one per call, in order. The
+// helper stops after a piece that is short (the end) or failed; that piece's
+// answer (its error, if any) is handed out when its turn comes. Heap blocks
+// are allocated and freed only on the calling thread; a block being filled
+// is referenced by no term until it is handed out.
 
 #define IO64_NOT_BGZF 1001
 #define IO64_BAD_BGZF 1002
@@ -120,16 +124,26 @@ typedef struct {
 #endif
 } Io64In;
 
-// The next piece, read ahead: live while its block is not handed out,
-// running while the helper thread is not joined; the helper's descriptor
-// (a duplicate), the block (depth d at loc, p its bytes), how many bytes were
-// asked and read, the read's error code (0 if none).
+// The pieces read ahead: a ring of IO64_AHEAD slots, each free, holding a
+// block to fill (want), or a filled one (full: got bytes read, code its
+// error, 0 if none). The helper fills slot fi, the calling thread hands out
+// slot ti and gives blocks to the free slots from ai on (ti <= fi <= ai <=
+// ti + IO64_AHEAD, as counts). on: a helper was started and not joined; done:
+// it stopped (after a short or failed piece, or when asked: stop); the
+// helper's descriptor (a duplicate); the size of every piece (max), the
+// depth of their blocks (d).
+#define IO64_AHEAD 16
+enum { IO64_FREE, IO64_WANT, IO64_FULL };
+typedef struct { int state; u64 loc; char* p; uint64_t got; u32 code; } Io64Slot;
 typedef struct {
-  int live, running; pthread_t th; int fd; u32 d; u64 loc; char* p; uint64_t max, got; u32 code;
+  int on, done, stop; pthread_t th; int fd; uint64_t max; u32 d;
+  uint64_t ti, fi, ai;
+  Io64Slot q[IO64_AHEAD];
+  pthread_mutex_t mu; pthread_cond_t cv;
 } Io64Ahead;
 
 static Io64In io64_in = {.fd = -1};
-static Io64Ahead io64_ahead;
+static Io64Ahead io64_ahead = {.mu = PTHREAD_MUTEX_INITIALIZER, .cv = PTHREAD_COND_INITIALIZER};
 
 // Exactly n bytes from fd, fewer only at the end of the file; the count, or
 // -errno.
@@ -252,34 +266,112 @@ static int64_t io64_text(Io64In* s, int fd, char* p, uint64_t max) {
 
 static void* io64_ahead_run(void* x) {
   Io64Ahead* a = x;
-  int64_t r = io64_text(&io64_in, a->fd, a->p, a->max);
-  a->code = r < 0 ? (u32)-r : 0;
-  a->got = r < 0 ? 0 : (uint64_t)r;
+  pthread_mutex_lock(&a->mu);
+  for (;;) {
+    Io64Slot* sl = &a->q[a->fi % IO64_AHEAD];
+    while (sl->state != IO64_WANT && !a->stop) pthread_cond_wait(&a->cv, &a->mu);
+    if (a->stop) break;
+    pthread_mutex_unlock(&a->mu);
+    int64_t r = io64_text(&io64_in, a->fd, sl->p, a->max);
+    pthread_mutex_lock(&a->mu);
+    sl->code = r < 0 ? (u32)-r : 0;
+    sl->got = r < 0 ? 0 : (uint64_t)r;
+    sl->state = IO64_FULL;
+    a->fi += 1;
+    pthread_cond_broadcast(&a->cv);
+    if (sl->code != 0 || sl->got < a->max) break;
+  }
+  a->done = 1;
+  pthread_cond_broadcast(&a->cv);
+  pthread_mutex_unlock(&a->mu);
   return NULL;
 }
 
-// Wait for the helper (if it runs) and close its descriptor.
-static void io64_ahead_join(void) {
-  if (!io64_ahead.running) return;
-  pthread_join(io64_ahead.th, NULL);
-  close(io64_ahead.fd);
-  io64_ahead.running = 0;
+// Blocks for the free slots, while the helper goes on. A block the heap
+// cannot give is simply not added (the queue is then shorter).
+static void io64_ahead_give(Env e) {
+  Io64Ahead* a = &io64_ahead;
+  for (;;) {
+    pthread_mutex_lock(&a->mu);
+    int more = !a->done && a->ai < a->ti + IO64_AHEAD;
+    pthread_mutex_unlock(&a->mu);
+    if (!more) return;
+    u64 loc;
+    if (!io64_block(e, a->d, &loc)) return;
+    pthread_mutex_lock(&a->mu);
+    Io64Slot* sl = &a->q[a->ai % IO64_AHEAD];
+    *sl = (Io64Slot){IO64_WANT, loc, (char*)(e.mem + loc), 0, 0};
+    a->ai += 1;
+    pthread_cond_broadcast(&a->cv);
+    pthread_mutex_unlock(&a->mu);
+  }
 }
 
-// Start reading the stream's next piece of max bytes ahead into a new block
-// of depth d. Nothing is started if the heap, a descriptor or a thread is not
-// available: the next call then reads the piece itself.
-static void io64_ahead_start(Env e, int fd, u32 d, uint64_t max) {
-  u64 loc;
-  if (!io64_block(e, d, &loc)) return;
-  int dup_fd = dup(fd);
-  if (dup_fd < 0) { heap_free(e, blk_wcls(0, d), loc); return; }
-  io64_ahead = (Io64Ahead){1, 1, 0, dup_fd, d, loc, (char*)(e.mem + loc), max, 0, 0};
-  if (pthread_create(&io64_ahead.th, NULL, io64_ahead_run, &io64_ahead) != 0) {
-    close(dup_fd);
-    heap_free(e, blk_wcls(0, d), loc);
-    io64_ahead.live = io64_ahead.running = 0;
+// Stop the helper (if one runs), join it, close its descriptor, and free the
+// blocks of the slots not handed out; answers whether one of them holds
+// bytes (a piece read ahead and not handed out).
+static int io64_ahead_end(Env e) {
+  Io64Ahead* a = &io64_ahead;
+  if (!a->on) return 0;
+  pthread_mutex_lock(&a->mu);
+  a->stop = 1;
+  pthread_cond_broadcast(&a->cv);
+  pthread_mutex_unlock(&a->mu);
+  pthread_join(a->th, NULL);
+  close(a->fd);
+  int left = 0;
+  for (; a->ti < a->ai; a->ti += 1) {
+    Io64Slot* sl = &a->q[a->ti % IO64_AHEAD];
+    if (sl->state == IO64_FULL && sl->got != 0) left = 1;
+    heap_free(e, blk_wcls(0, a->d), sl->loc);
+    sl->state = IO64_FREE;
   }
+  a->on = 0;
+  return left;
+}
+
+// Start reading the stream's next pieces of max bytes ahead into blocks of
+// depth d. Nothing is started if a descriptor or a thread is not available:
+// the next call then reads the piece itself.
+static void io64_ahead_start(Env e, int fd, u32 d, uint64_t max) {
+  Io64Ahead* a = &io64_ahead;
+  int dup_fd = dup(fd);
+  if (dup_fd < 0) return;
+  a->done = a->stop = 0; a->fd = dup_fd; a->max = max; a->d = d;
+  a->ti = a->fi = a->ai = 0;
+  for (int i = 0; i < IO64_AHEAD; i += 1) a->q[i].state = IO64_FREE;
+  if (pthread_create(&a->th, NULL, io64_ahead_run, a) != 0) {
+    close(dup_fd);
+    return;
+  }
+  a->on = 1;
+  io64_ahead_give(e);
+}
+
+// The next piece read ahead (the helper runs): waits for its slot to be
+// filled, takes it out of the queue, gives the free slots new blocks (or,
+// after the stream's last piece, ends the helper).
+static Io64Slot io64_ahead_take(Env e) {
+  Io64Ahead* a = &io64_ahead;
+  pthread_mutex_lock(&a->mu);
+  Io64Slot* sl = &a->q[a->ti % IO64_AHEAD];
+  while (sl->state != IO64_FULL && a->ai > a->ti && !(a->done && a->fi == a->ti)) pthread_cond_wait(&a->cv, &a->mu);
+  Io64Slot got = *sl;
+  if (sl->state == IO64_FULL) {
+    sl->state = IO64_FREE;
+    a->ti += 1;
+  }
+  pthread_mutex_unlock(&a->mu);
+  if (got.state != IO64_FULL) {
+    // No piece for this call: the queue is empty (the heap gave no block)
+    // or the helper stopped. Nothing past the pieces handed out was read:
+    // end the helper; the caller reads the piece itself.
+    io64_ahead_end(e);
+    return got;
+  }
+  if (got.code != 0 || got.got < a->max) io64_ahead_end(e);
+  else io64_ahead_give(e);
+  return got;
 }
 
 // The answer for a piece of got bytes read into the block of depth d at loc
@@ -316,31 +408,23 @@ Term io_read_block_run(Env e, Term* f, IoWork* w) {
   if (fstat(fd, &st) != 0) return io_tup(e, io_hand(fd), io_fail(e, (u32)errno, NULL));
   Io64In* s = &io64_in;
   if (s->fd != fd || s->dev != st.st_dev || s->ino != st.st_ino) {
-    // Another file: the last stream must have nothing left to hand out (its
+    // Another file: the last stream must have nothing left to hand out (a
     // piece read ahead, if any, is its empty end).
-    io64_ahead_join();
-    if ((io64_ahead.live && io64_ahead.got != 0) || s->hat < s->hn || s->cat < s->cn) {
+    if (io64_ahead_end(e) || s->hat < s->hn || s->cat < s->cn) {
       return io_tup(e, io_hand(fd), io_fail(e, EBUSY, NULL));
-    }
-    if (io64_ahead.live) {
-      heap_free(e, blk_wcls(0, io64_ahead.d), io64_ahead.loc);
-      io64_ahead.live = 0;
     }
     s->fd = fd; s->dev = st.st_dev; s->ino = st.st_ino; s->kind = 0;
     s->hn = s->hat = s->cn = s->cat = 0;
   }
-  if (io64_ahead.live) {
-    // The piece read ahead, for this stream. The driver asks every piece
-    // with the same max; a call with another max fails (EINVAL).
-    io64_ahead_join();
-    Io64Ahead a = io64_ahead;
-    io64_ahead.live = 0;
-    if (a.max != max) {
-      heap_free(e, blk_wcls(0, a.d), a.loc);
+  if (io64_ahead.on) {
+    // The next piece read ahead, for this stream. The driver asks every
+    // piece with the same max; a call with another max fails (EINVAL).
+    if (io64_ahead.max != max) {
+      io64_ahead_end(e);
       return io_tup(e, io_hand(fd), io_fail(e, EINVAL, NULL));
     }
-    if (a.code == 0 && a.got == a.max) io64_ahead_start(e, fd, a.d, a.max);
-    return io64_piece(e, fd, a.d, a.loc, a.got, a.code);
+    Io64Slot a = io64_ahead_take(e);
+    if (a.state == IO64_FULL) return io64_piece(e, fd, io64_ahead.d, a.loc, a.got, a.code);
   }
   if (s->kind == 0) {
     int64_t r = io64_kind(s, fd, gz);
@@ -361,10 +445,11 @@ static void __attribute__((constructor)) io_read_block_use(void) {
 }
 #endif
 
-#ifdef CID(Io.fa_read)
-// Io.fa_read(file, hi, lo, shi, slo, chi, clo, bhi, blo, whi, wlo, want):
+#ifdef CID(Io.fa_start)
+// A FASTA read (Io.fa_start's arguments: file, hi, lo, shi, slo, chi, clo,
+// bhi, blo, whi, wlo, want):
 // read the span of shi * 2^32 + slo bytes of the FASTA file at offset
-// hi * 2^32 + lo, in parts of at most 16 MiB, where the first byte is at
+// hi * 2^32 + lo, in parts of at most 1 MiB, where the first byte is at
 // column col = chi * 2^32 + clo of the contig's line layout (lb = bhi * 2^32
 // + blo letters, then LF, or CR LF when lw = whi * 2^32 + wlo = lb + 2;
 // col < lw). The driver keeps offsets and spans below 2^47. Every byte must
@@ -375,7 +460,7 @@ static void __attribute__((constructor)) io_read_block_use(void) {
 // code 0 when every byte fits and exactly want letters were read; 1 when a
 // byte does not fit the layout; 2 when fewer (or more) than want letters
 // were read (the file ends early). A read error fails with errno.
-#define IO64_PART ((uint64_t)1 << 24)
+#define IO64_PART ((uint64_t)1 << 20)
 
 #ifdef __SSE2__
 #include <emmintrin.h>
@@ -412,39 +497,37 @@ static inline int io64_line(char* dst, const char* src, uint64_t lb) {
 static uint64_t io64_wide(Term hi, Term lo) {
   return ((uint64_t)(u32)hi << 32) | (uint64_t)(u32)lo;
 }
-Term io_fa_read_run(Env e, Term* f, IoWork* w) {
-  int fd = io_hand_v(f[0]);
-  uint64_t off = io64_wide(f[1], f[2]);
-  uint64_t span = io64_wide(f[3], f[4]);
-  uint64_t col = io64_wide(f[5], f[6]);
-  uint64_t lb = io64_wide(f[7], f[8]);
-  uint64_t lw = io64_wide(f[9], f[10]);
-  uint64_t want = (u32)f[11];
-  if (want > ((uint64_t)1 << 31)) want = (uint64_t)1 << 31;
+
+// One read: its arguments, its block (depth d at loc, p its bytes), and what
+// it found: the read's errno (err, 0 if none), the code and the letters n.
+typedef struct {
+  int fd; uint64_t off, span, col, lb, lw, want;
+  u32 d; u64 loc; char* p;
+  u32 err, code; uint64_t n;
+} Io64Fa;
+
+// The read itself, into r->p (no heap access: it may run on a helper
+// thread). Sets err (and then nothing else is used), or code and n.
+static void io64_fa_do(Io64Fa* r) {
   char* buf = malloc(IO64_PART);
-  if (buf == NULL) return io_tup(e, io_hand(fd), io_fail(e, ENOMEM, NULL));
-  u32 d = io64_depth(want);
-  u64 loc;
-  if (!io64_block(e, d, &loc)) {
-    free(buf);
-    return io_tup(e, io_hand(fd), io_fail(e, ENOMEM, NULL));
-  }
-  char* p = (char*)(e.mem + loc);
+  if (buf == NULL) { r->err = ENOMEM; return; }
+  int fd = r->fd;
+  uint64_t off = r->off, span = r->span, col = r->col, lb = r->lb, lw = r->lw, want = r->want;
+  char* p = r->p;
   uint64_t n = 0;
   u32 code = 0;
   uint64_t done = 0;
   while (done < span && code == 0) {
-    // One part: up to 16 MiB of the span, read in full unless the file ends.
+    // One part: up to 1 MiB of the span, read in full unless the file ends.
     uint64_t part = span - done < IO64_PART ? span - done : IO64_PART;
     uint64_t got = 0;
     while (got < part) {
       ssize_t k = pread(fd, buf + got, part - got, (off_t)(off + done + got));
       if (k < 0 && errno == EINTR) continue;
       if (k < 0) {
-        u32 err = (u32)errno;
+        r->err = (u32)errno;
         free(buf);
-        heap_free(e, blk_wcls(0, d), loc);
-        return io_tup(e, io_hand(fd), io_fail(e, err, NULL));
+        return;
       }
       if (k == 0) break;
       got += (uint64_t)k;
@@ -497,11 +580,88 @@ Term io_fa_read_run(Env e, Term* f, IoWork* w) {
   free(buf);
   if (code == 0 && n != want) code = 2;
   if (code != 0) n = 0;  // the block is not used: the program stops
-  io64_pad(e, d, loc, n);
-  return io_tup(e, io_hand(fd), io_done(e, io_tup(e, (Term)code, io_tup(e, (Term)(u32)n, term_blk(0, d, loc)))));
+  r->code = code;
+  r->n = n;
 }
-static void __attribute__((constructor)) io_fa_read_use(void) {
-  io_eff(CID(Io.fa_read), io_fa_read_run);
+
+// A read's arguments from the effect's (f[0] .. f[11]); its block not yet
+// allocated.
+static Io64Fa io64_fa_args(Term* f) {
+  Io64Fa r = {0};
+  r.fd = io_hand_v(f[0]);
+  r.off = io64_wide(f[1], f[2]);
+  r.span = io64_wide(f[3], f[4]);
+  r.col = io64_wide(f[5], f[6]);
+  r.lb = io64_wide(f[7], f[8]);
+  r.lw = io64_wide(f[9], f[10]);
+  r.want = (u32)f[11];
+  if (r.want > ((uint64_t)1 << 31)) r.want = (uint64_t)1 << 31;
+  r.d = io64_depth(r.want);
+  return r;
+}
+
+// The block for a read (err = ENOMEM if the heap is full).
+static void io64_fa_alloc(Env e, Io64Fa* r) {
+  if (!io64_block(e, r->d, &r->loc)) { r->err = ENOMEM; return; }
+  r->p = (char*)(e.mem + r->loc);
+}
+
+// The effect's answer for a read done (its block freed on an error).
+static Term io64_fa_answer(Env e, Io64Fa* r) {
+  if (r->err != 0) {
+    if (r->p != NULL) heap_free(e, blk_wcls(0, r->d), r->loc);
+    return io_tup(e, io_hand(r->fd), io_fail(e, r->err, NULL));
+  }
+  io64_pad(e, r->d, r->loc, r->n);
+  return io_tup(e, io_hand(r->fd), io_done(e, io_tup(e, (Term)r->code, io_tup(e, (Term)(u32)r->n, term_blk(0, r->d, r->loc)))));
+}
+
+// Io.fa_start(file, hi, lo, ...): the read above, started on a helper
+// thread; answers (file, t), t its ticket. Io.fa_wait(file, t): waits for the
+// read with ticket t and answers (code, (n, block)) or its errno, as above.
+// The driver starts at most IO64_FA_MAX reads before waiting for each of them,
+// in order. The read's block is allocated (and later padded and handed out,
+// or freed) on the calling thread; the helper only fills it. A read whose
+// block or thread cannot be had is done (or fails, ENOMEM) at once; its
+// answer is kept for Io.fa_wait. A ticket that is not pending fails (EINVAL).
+#define IO64_FA_MAX 32
+typedef struct { int used, running; pthread_t th; Io64Fa r; } Io64FaSlot;
+static Io64FaSlot io64_fa[IO64_FA_MAX];
+
+static void* io64_fa_run(void* x) {
+  io64_fa_do(&((Io64FaSlot*)x)->r);
+  return NULL;
+}
+
+Term io_fa_start_run(Env e, Term* f, IoWork* w) {
+  int fd = io_hand_v(f[0]);
+  u32 t = 0;
+  while (t < IO64_FA_MAX && io64_fa[t].used) t += 1;
+  if (t == IO64_FA_MAX) return io_tup(e, io_hand(fd), (Term)(u32)IO64_FA_MAX);
+  Io64FaSlot* s = &io64_fa[t];
+  *s = (Io64FaSlot){1, 0, 0, io64_fa_args(f)};
+  io64_fa_alloc(e, &s->r);
+  if (s->r.err == 0) {
+    if (pthread_create(&s->th, NULL, io64_fa_run, s) == 0) s->running = 1;
+    else io64_fa_do(&s->r);
+  }
+  return io_tup(e, io_hand(fd), (Term)t);
+}
+
+Term io_fa_wait_run(Env e, Term* f, IoWork* w) {
+  int fd = io_hand_v(f[0]);
+  u32 t = (u32)f[1];
+  if (t >= IO64_FA_MAX || !io64_fa[t].used) return io_tup(e, io_hand(fd), io_fail(e, EINVAL, NULL));
+  Io64FaSlot* s = &io64_fa[t];
+  if (s->running) pthread_join(s->th, NULL);
+  s->running = 0;
+  s->used = 0;
+  return io64_fa_answer(e, &s->r);
+}
+
+static void __attribute__((constructor)) io_fa_start_use(void) {
+  io_eff(CID(Io.fa_start), io_fa_start_run);
+  io_eff(CID(Io.fa_wait), io_fa_wait_run);
 }
 #endif
 
