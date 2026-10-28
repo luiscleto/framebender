@@ -9,9 +9,9 @@ authority; each law below is named as it appears there.
 - **Science layer**: `LAWS.bend`, `types.bend`, `run.bend`, `tan.bend`. What normalization means
   and what the tool writes for a whole file. These files mention no implementation, and they are
   what a domain expert reviews.
-- **Implementation layer**: `protocol.bend`, `MACHINE.bend`, `bytes_enc.bend`. These say that the actual program
-  writes exactly what the science layer defines. The code (`norm*.bend`) can be rewritten freely
-  as long as this stays proven.
+- **Implementation layer**: `protocol.bend`, `MACHINE.bend`, `bytes_enc.bend`. These say that
+  the actual program writes exactly what the science layer defines. The code (`norm*.bend`) can be
+  rewritten freely as long as this stays proven.
 
 ## Terms
 
