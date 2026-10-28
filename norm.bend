@@ -5,6 +5,7 @@ import ./run.bend as R
 import ./norm_line.bend as J
 import ./norm_run.bend as NR
 import ./norm_fast.bend as NF
+import ./norm_fix.bend as NX
 import ../lawful-bytes/defs.bend as D
 import ../lawful-bytes/bytes.bend as BY
 import ../lawful-bytes/fast.bend as F
@@ -787,6 +788,123 @@ def against(w: Win, b: D.Bytes, +s: U32, +e0: U32, +pos: U32, +rs: U32, +rl: U32
     case WStr{c, a0, b0, clen, off, raw}:
       Wo{WStr{c, a0, b0, clen, off, raw}, b, WMiss{}}
 
+# ---------------------------------------------------------------------------
+# A record rewritten on its bytes (norm_fix.bend)
+# ---------------------------------------------------------------------------
+
+def fix.out(+o: B.Opts, p: NR.Run & D.Bytes, +lf: U32, b: D.Bytes, cx: Cx, win: Win) -> Adv:
+  (run, sc) = p
+  done.b(o, (run, b), (lf + 1 : U32), cx, win)
+
+def fix.tick(+o: B.Opts, p: NR.Run & Nat, +q: Nat, +pos: U32, +lf: U32, b: D.Bytes, sc: D.Bytes, +m: U32, cx: Cx, win: Win) -> Adv:
+  (run, +n) = p
+  fix.out(o, NR.fix_done(run, R.Opts.w(o), n, q, U32.to_nat(pos), sc, m), lf, b, cx, win)
+
+# The new text must fit the output buffer, as the String path's res_fits
+# asks; else the run goes to the String mode (body.fits).
+def fix.fits(fits: Bool, +back: Nat, +o: B.Opts, run: NR.Run, +q: Nat, +pos: U32, +s: U32, +lf: U32, b: D.Bytes, sc: D.Bytes, +m: U32, cx: Cx, win: Win) -> Adv:
+  match fits:
+    case True{}:
+      fix.tick(o, ticked(run), q, pos, lf, b, sc, m, cx, win)
+    case False{}:
+      to_str(o, run, b, s, back, cx, win, False{})
+
+def fix.len(+back: Nat, +o: B.Opts, p: NR.Run & U32, +q: Nat, +pos: U32, +s: U32, +lf: U32, b: D.Bytes, r: D.Bytes & U32, cx: Cx, win: Win) -> Adv:
+  (run, +ol) = p
+  (sc, +m) = r
+  fix.fits(U32.is_le(m, (1073741824 - ol : U32)), back, o, run, q, pos, s, lf, b, sc, m, cx, win)
+
+def fix.ne(eq: Bool, +back: Nat, +o: B.Opts, run: NR.Run, +q: Nat, +pos: U32, +s: U32, +lf: U32, sc: D.Bytes, b: D.Bytes, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  match eq:
+    case False{}:
+      fix.len(back, o, Run.oblen(run), q, pos, s, lf, b, BY.len(sc), cx, win)
+    case True{}:
+      decoded(back, o, run, b, s, cx, win, fneed)
+
+def fix.cmp.k(+back: Nat, +o: B.Opts, run: NR.Run, +q: Nat, +pos: U32, +s: U32, +lf: U32, r: D.Bytes & (D.Bytes & Bool), cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  (sc, p) = r
+  (b, eq) = p
+  fix.ne(eq, back, o, run, q, pos, s, lf, sc, b, cx, win, fneed)
+
+def fix.cmp.if(same_len: Bool, sc: D.Bytes, b: D.Bytes, +s: U32, +m: U32) -> D.Bytes & (D.Bytes & Bool):
+  match same_len:
+    case True{}:
+      BY.same(sc, 0, b, s, m)
+    case False{}:
+      (sc, (b, False{}))
+
+def fix.cmp(+back: Nat, +o: B.Opts, run: NR.Run, +q: Nat, +pos: U32, +s: U32, +lf: U32, r: D.Bytes & U32, b: D.Bytes, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  (sc, +m) = r
+  fix.cmp.k(back, o, run, q, pos, s, lf, fix.cmp.if(U32.is_eq(m, ((lf + 1 : U32) - s : U32)), sc, b, s, m), cx, win, fneed)
+
+# The new line is written (else, or if it is the line as it came, the line
+# is judged on its text).
+def fix.wb(+back: Nat, +o: B.Opts, run: NR.Run, +q: Nat, +pos: U32, +s: U32, +lf: U32, cx: Cx, +c0: String, cb: D.Bytes, +a0: Nat, +b0: Nat, +clen: Nat, +off: Nat, +offu: U32, +rlen: U32, +clenu: U32, +fneed: Bool, wb: NX.Wb) -> Adv:
+  match wb:
+    case NX.Wb{sc, b, raw, True{}}:
+      fix.cmp(back, o, run, q, pos, s, lf, BY.len(sc), b, cx, WKnown{c0, cb, a0, b0, clen, off, raw, offu, rlen, clenu}, fneed)
+    case NX.Wb{sc, b, raw, False{}}:
+      decoded(back, o, run, b, s, cx, WKnown{c0, cb, a0, b0, clen, off, raw, offu, rlen, clenu}, fneed)
+
+# same: the variant is unchanged and written in upper case (J.fast's Same):
+# left to the String path.
+def fix.same(same: Bool, +back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +pos: U32, +c: NF.Cut, +lf: U32, +als: List<&2, NX.Ap>, +k: U32, +tr: U32, +d: Nat, cx: Cx, +c0: String, cb: D.Bytes, +a0: Nat, +b0: Nat, +clen: Nat, +off: Nat, +offu: U32, +rlen: U32, +clenu: U32, +fneed: Bool, b: D.Bytes, raw: D.Bytes) -> Adv:
+  match same:
+    case True{}:
+      decoded(back, o, run, b, s, cx, WKnown{c0, cb, a0, b0, clen, off, raw, offu, rlen, clenu}, fneed)
+    case False{}:
+      fix.wb(back, o, run, U32.to_nat(((pos - k : U32) + U32.from_nat(d) : U32)), pos, s, lf, cx, c0, cb, a0, b0, clen, off, offu, rlen, clenu, fneed, NX.write(b, raw, s, c, als, k, tr, d, pos, offu))
+
+def fix.nr(+back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +pos: U32, +c: NF.Cut, +lf: U32, +als: List<&2, NX.Ap>, +up: Bool, cx: Cx, +c0: String, cb: D.Bytes, +a0: Nat, +b0: Nat, +clen: Nat, +off: Nat, +offu: U32, +rlen: U32, +clenu: U32, +fneed: Bool, r: NX.Nr) -> Adv:
+  match r:
+    case NX.Ng{b, raw}:
+      decoded(back, o, run, b, s, cx, WKnown{c0, cb, a0, b0, clen, off, raw, offu, rlen, clenu}, fneed)
+    case NX.Nd{b, raw, +k, +tr, +d}:
+      fix.same(U32.is_zero(k) && U32.is_zero(tr) && Nat.is_eq(d, 0n) && up, back, o, run, s, pos, c, lf, als, k, tr, d, cx, c0, cb, a0, b0, clen, off, offu, rlen, clenu, fneed, b, raw)
+
+def fix.hit(+back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +pos: U32, +c: NF.Cut, +lf: U32, +als: List<&2, NX.Ap>, +up: Bool, cx: Cx, win: Win, b: D.Bytes, +fneed: Bool) -> Adv:
+  match win:
+    case WKnown{+c0, cb, +a0, +b0, +clen, +off, raw, +offu, +rlen, +clenu}:
+      fix.nr(back, o, run, s, pos, c, lf, als, up, cx, c0, cb, a0, b0, clen, off, offu, rlen, clenu, fneed, NX.norm(b, raw, als, pos, offu))
+    case w:
+      decoded(back, o, run, b, s, cx, w, fneed)
+
+def fix.wo(+back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +pos: U32, +c: NF.Cut, +lf: U32, +als: List<&2, NX.Ap>, +up: Bool, wo: Wo, cx: Cx, +fneed: Bool) -> Adv:
+  match wo:
+    case Wo{win, b, WHit{}}:
+      fix.hit(back, o, run, s, pos, c, lf, als, up, cx, win, b, fneed)
+    case Wo{win, b, r}:
+      decoded(back, o, run, b, s, cx, win, fneed)
+
+def fix.if(ok: Bool, +back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +s: U32, +pos: U32, +c: NF.Cut, +e0: U32, +e2: U32, +e3: U32, +lf: U32, +als: List<&2, NX.Ap>, +up: Bool, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  match ok:
+    case True{}:
+      fix.wo(back, o, run, s, pos, c, lf, als, up, against(win, b, s, e0, pos, (e2 + 1 : U32), (e3 - (e2 + 1 : U32) : U32)), cx, fneed)
+    case False{}:
+      decoded(back, o, run, b, s, cx, win, fneed)
+
+def fix.run.q(+back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +pos: U32, +c: NF.Cut, +e0: U32, +e2: U32, +e3: U32, +lf: U32, +als: List<&2, NX.Ap>, +up: Bool, q: D.Bytes & Bool, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  (b, ok) = q
+  fix.if(ok && U32.is_lt(s, e0) && U32.is_le((lf - s : U32), 268435456), back, o, run, b, s, pos, c, e0, e2, e3, lf, als, up, cx, win, fneed)
+
+def fix.run(+back: Nat, +o: B.Opts, p: NR.Run & (D.Bytes & Bool), +s: U32, +pos: U32, +c: NF.Cut, +e0: U32, +e2: U32, +e3: U32, +lf: U32, +als: List<&2, NX.Ap>, +up: Bool, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  (run, q) = p
+  fix.run.q(back, o, run, s, pos, c, e0, e2, e3, lf, als, up, q, cx, win, fneed)
+
+def fix.pre(+back: Nat, +o: B.Opts, run: NR.Run, +s: U32, r: NX.Fr, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  match r:
+    case NX.Fr{b, NX.Fix{+pos, NF.Cut8{+e0, +e1, +e2, +e3, +e4, +e5, +e6, +e7, +lf}, +als, +up}}:
+      fix.run(back, o, Run.same(run, b, s, e0), s, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, e0, e2, e3, lf, als, up, cx, win, fneed)
+    case NX.Fr{b, p}:
+      decoded(back, o, run, b, s, cx, win, fneed)
+
+# A body line the fast path did not take: rewritten on its bytes when it
+# passes norm_fix.bend's tests, the CHROM run's and the window's (as the fast
+# path's WHit), and the window reaches far enough left; else judged on its
+# text.
+def fix(+back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +s: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  fix.pre(back, o, run, s, NX.line(b, s), cx, win, fneed)
+
 def fast.hit(+o: B.Opts, p: NR.Run & Nat, +pos: U32, +s: U32, +lf: U32, b: D.Bytes, cx: Cx, win: Win) -> Adv:
   (run, +n) = p
   done.b(o, NR.fast_done(run, R.Opts.w(o), n, U32.to_nat(pos), b, s, (lf + 1 - s : U32)), (lf + 1 : U32), cx, win)
@@ -829,7 +947,7 @@ def fast.pre(+back: Nat, +o: B.Opts, run: NR.Run, +s: U32, pr: NF.Pr, cx: Cx, wi
     case NF.Pr{b, NF.Pass{+pos, +e0, e1, +e2, +e3, e4, e5, e6, e7, +lf}}:
       fast.run(back, o, Run.same(run, b, s, e0), s, pos, lf, e0, (e2 + 1 : U32), (e3 - e2 - 1 : U32), cx, win, fneed)
     case NF.Pr{b, NF.Slow{}}:
-      decoded(back, o, run, b, s, cx, win, fneed)
+      fix(back, o, run, b, s, cx, win, fneed)
     case NF.Pr{b, NF.Incomplete{}}:
       decoded(back, o, run, b, s, cx, win, fneed)
 

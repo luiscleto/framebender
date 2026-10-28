@@ -490,6 +490,13 @@ def bump(r: Run, changed: Bool, skipped: Bool, warned: Bool) -> Run:
 def fast_done(r: Run, +w: Nat, +line: Nat, +pos: Nat, src: D.Bytes, +s: U32, +n: U32) -> Run & D.Bytes:
   same_run(bump(r, False{}, False{}, False{}), w, Ck{pos, pos, line, None{}, n}, pos, Raw{}, src, s, n)
 
+# A record rewritten on its bytes (norm_fix.bend), in the current run: as
+# body_line writes a Normalized result with a new text and no message. The
+# new text is bytes 0 .. n-1 of src; k: the new POS; inpos: the input POS
+# (written as Nat.show writes it).
+def fix_done(r: Run, +w: Nat, +line: Nat, +k: Nat, +inpos: Nat, src: D.Bytes, +n: U32) -> Run & D.Bytes:
+  same_run(bump(r, True{}, False{}, False{}), w, Ck{k, inpos, line, Some{Nat.show(inpos)}, n}, inpos, Raw{}, src, 0, n)
+
 # The header is written at once (the buffer is empty before the first body
 # line): ow covers all of ob.
 def head_line.out(ob: D.Bytes, r: Run) -> Run:

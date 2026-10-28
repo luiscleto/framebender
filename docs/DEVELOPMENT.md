@@ -63,6 +63,13 @@ NISTv4.2.1 GRCh38 benchmark VCF.
 Time with `nice -n 19` and a `timeout`, one benchmark at a time, before/after runs back to back.
 `NOTES.md` (Q5) and `notes/fast.md` record every measurement and where the time goes.
 
+## Compare with the previous build
+
+`test/same.sh new_binary [old_binary]` runs both binaries on every edge case, chr22, the scrambled
+set and the generated inputs (`test/gen_edge.py`, `test/gen_rw.py`, run first from the repository
+root), under `-c e`, `-c w` and several `-w`, and reports any difference in stdout, stderr or exit
+code. Use it after any change to the implementation, together with the gate.
+
 ## Files
 
 | files | role |

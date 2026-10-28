@@ -49,6 +49,7 @@ import ./proof_b_adv_fast.bend as FA
 import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BD
 import ./proof_b_budget_dec.bend as BDe
+import ./proof_c_bud.bend as CB
 import ./proof_b_budget_mb.bend as BM
 import ./proof_b_budget_fl.bend as FL
 import ../lawful-arrays/proof_base.bend as AB
@@ -616,7 +617,7 @@ def F.pre(+pr: NF.Pre, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, Stri
     case NF.Pass{+pos, +e0, +e1, +e2, +e3, +e4, +e5, +e6, +e7, +lf}:
       F.lt(U32.is_lt(at, e0), fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, fneed, hb, hw, hr, hg, hx, hbig, hin, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ep, {==}, hbi)
     case NF.Slow{}:
-      BDe.c.dec(fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, fneed, hb, hw, hr, hg, hx, hbig, hbi)
+      CB.fix_bud(fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, fneed, hb, hw, hr, hg, hx, hbig, hin, hi, hok, hs, hbi)
     case NF.Incomplete{}:
       BDe.c.dec(fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, fneed, hb, hw, hr, hg, hx, hbig, hbi)
 

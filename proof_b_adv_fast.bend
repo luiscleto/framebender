@@ -18,6 +18,7 @@ import ./proof_b_adv_line.bend as LI
 import ./proof_b_adv_dec.bend as DE
 import ./proof_b_adv_proj.bend as PJ
 import ./proof_b_adv_hit.bend as FH
+import ./proof_c_adv.bend as CF
 import ./proof_b_adv_msx.bend as MSX
 import ./proof_b_cache_lem.bend as X
 import ./proof_window_lists.bend as WL
@@ -682,7 +683,7 @@ def F.pre(+pr: NF.Pre, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, Stri
     case NF.Pass{+pos, +e0, +e1, +e2, +e3, +e4, +e5, +e6, +e7, +lf}:
       F.lt(U32.is_lt(at, e0), fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hx, hbig, hin, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ep, {==})
     case NF.Slow{}:
-      DE.dec(fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, fneed, hb, hw, hr, hg, hx, hbig)
+      CF.fix_ok(fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hx, hbig, hin, hi, hok, hs)
     case NF.Incomplete{}:
       DE.dec(fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, fneed, hb, hw, hr, hg, hx, hbig)
 
