@@ -133,13 +133,15 @@ def all_bytes(ss: List<&2, String>) -> Bool:
     case Con{s, t}:
       is_bytes(s) && all_bytes(t)
 
-# Every piece has at most 2^31 bytes (what a buffer holds).
+# Every piece has at most 2^31 bytes (what a buffer holds). 2^31 is written
+# as the literal 2147483648n: the checker unfolds definitions, and unfolding
+# Nat.pow(2n, 31n) overflows its stack, while a literal does not.
 def pieces_ok(cs: List<&2, String>) -> Bool:
   match cs:
     case Nil{}:
       True{}
     case Con{c, t}:
-      Nat.is_le(String.length(c), Nat.pow(2n, 31n)) && pieces_ok(t)
+      Nat.is_le(String.length(c), 2147483648n) && pieces_ok(t)
 
 # The inputs a packed driver can hand over: the command line, the FASTA and
 # every VCF piece are bytes, and every piece fits a buffer.
@@ -152,4 +154,4 @@ def reqs_ok(rs: List<&2, P.Req>) -> Bool:
     case Nil{}:
       True{}
     case Con{P.Req{c, a, b}, t}:
-      Nat.is_le(Nat.sub(b, a), Nat.pow(2n, 31n)) && reqs_ok(t)
+      Nat.is_le(Nat.sub(b, a), 2147483648n) && reqs_ok(t)
