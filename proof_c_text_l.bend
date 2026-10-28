@@ -1,6 +1,6 @@
 import Base
 import ./types.bend as B
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_run.bend as NR
 import ./proof_base.bend as P
 import ./proof_b_cut.bend as CU

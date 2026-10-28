@@ -1,7 +1,7 @@
 import Base
 import ./types.bend as B
 import ./tan.bend as V
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_fast.bend as NF
 import ./norm_fix.bend as NX
 import ../lawful-bytes/defs.bend as D

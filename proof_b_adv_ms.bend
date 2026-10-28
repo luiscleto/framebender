@@ -3,7 +3,7 @@ import ./types.bend as B
 import ./protocol.bend as Pr
 import ./run.bend as R
 import ./LAWS.bend as L
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_run.bend as NR
 import ./bytes_enc.bend as E
 import ./proof_b_defs.bend as P
@@ -151,3 +151,11 @@ def mbw_msO(st, qs, ql, wp):
   match st:
     case R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, +x}:
       {==}
+
+# A step into the String mode claims nothing (S.Moved).
+def moved_msO(+fa: List<&2, B.Contig>, +cs: Strs(), m: S.MdP, +p: S.StP, +p2: S.StP, st: R.RunSt, +qs: Strs(), +ql: Nat) -> S.Moved.md(m, msO(st, qs, ql), fa, cs, p, p2):
+  match m st:
+    case S.MBP{rp} R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, +x}:
+      Unit{}
+    case S.MSP{s, qs2, ql2, code} R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, +x}:
+      Unit{}

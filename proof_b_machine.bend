@@ -1,9 +1,10 @@
 import Base
 import ./types.bend as B
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./protocol.bend as P
 import ./LAWS.bend as L
 import ./MACHINE.bend as M
+import ./proof_b_mdefs.bend as MQ
 import ./bytes_enc.bend as E
 import ./proof_b_assemble.bend as AS
 
@@ -35,7 +36,7 @@ law machine:
   for +hf: {P.Fasta.plain(fasta) == True{} : Bool}
   for +h: {String.concat(cs) == vcf : String}
   for +hb: {E.texts_ok(argv, fasta, cs) == True{} : Bool}
-  {M.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
+  {MQ.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
 
 def machine(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb):
   AS.machine_h(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb)

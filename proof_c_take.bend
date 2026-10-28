@@ -1,6 +1,6 @@
 import Base
 import ./types.bend as B
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_run.bend as NR
 import ./norm_fix.bend as NX
 import ./norm_line.bend as J

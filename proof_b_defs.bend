@@ -2,7 +2,7 @@ import Base
 import ./types.bend as B
 import ./run.bend as R
 import ./norm_run.bend as NR
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./bytes_enc.bend as E
 import ../lawful-bytes/defs.bend as D
 import ../lawful-bytes/proof_core.bend as C

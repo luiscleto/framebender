@@ -2,7 +2,7 @@ import Base
 import ./types.bend as B
 import ./protocol.bend as Pr
 import ./run.bend as R
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./bytes_enc.bend as E
 import ./proof_b_defs.bend as P
 import ./proof_b_cachedefs.bend as PC
@@ -148,7 +148,8 @@ def pump_go(f, a, fa, T, cs, O, N, p, hb, ha, hf, ef, hef, ag):
       (+er2, a4) = a3
       (+elt, a5) = a4
       (eask2, a6) = a5
-      (eeof, eg2) = a6
+      (eeof, a7) = a6
+      (eg2, a8) = a7
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : DO.StepG2(fa, T, cs, O, N, ef, Norm.pump(1n+g, Norm.advance(_)))
       pump_go(g, Norm.advance(S.mkSt(fa, p2)), fa, T, cs, O, N, p2, hb, eask2, fuel_le(S.measure(p2), S.measure(p), g, elt, hf),
         ef, Equal.trans(Bool, S.StP.eof(p2), S.StP.eof(p), ef, eeof, hef),
@@ -163,7 +164,8 @@ def pump_go(f, a, fa, T, cs, O, N, p, hb, ha, hf, ef, hef, ag):
       (eask, a7) = a6
       (ens, a8) = a7
       (emr, a9) = a8
-      (eeof, eg) = a9
+      (eeof, a10) = a9
+      (eg, a11) = a10
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : DO.StepG2(fa, T, cs, O, N, ef, Norm.out(_, Pr.Ask{r}))
       DO.out_ask(fa, T, cs, O, N, p2, r, Norm.out(S.mkSt(fa, p2), Pr.Ask{r}), DO.out_ok(fa, cs, O, N, p2, Pr.Ask{r}, wf2, eg, DO.live_of(S.StP.md(p2), ens)), er2, eq, erq, emr, eask,
         ef, Equal.trans(Bool, S.StP.eof(p2), S.StP.eof(p), ef, eeof, hef))
@@ -175,7 +177,8 @@ def pump_go(f, a, fa, T, cs, O, N, p, hb, ha, hf, ef, hef, ag):
       (+esrc, a5) = a4
       (eask, a6) = a5
       (eeof, a7) = a6
-      (ens, eg) = a7
+      (ens, a8) = a7
+      (eg, a9) = a8
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : DO.StepG2(fa, T, cs, O, N, ef, Norm.idle(_))
       idle_go(fa, T, cs, O, N, p2, wf2, er2, esrc, eg, ens, Equal.trans(Maybe<&2, List<&2, Pr.Req>>, S.StP.asked(p2), S.StP.asked(p), None{}, eask, ha),
         ef, Equal.trans(Bool, S.StP.eof(p2), S.StP.eof(p), ef, eeof, hef))
@@ -186,7 +189,8 @@ def pump_go(f, a, fa, T, cs, O, N, p, hb, ha, hf, ef, hef, ag):
       (+er2, a4) = a3
       (eask, a5) = a4
       (+estop, a6) = a5
-      (eeof, eg) = a6
+      (eeof, a7) = a6
+      (eg, a8) = a7
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : DO.StepG2(fa, T, cs, O, N, ef, Norm.finish(_))
       ended_go(fa, T, cs, O, N, p2, wf2, er2, estop, eg, Equal.trans(Maybe<&2, List<&2, Pr.Req>>, S.StP.asked(p2), S.StP.asked(p), None{}, eask, ha),
         ef, Equal.trans(Bool, S.StP.eof(p2), S.StP.eof(p), ef, eeof, hef))
@@ -197,7 +201,8 @@ def pump_go(f, a, fa, T, cs, O, N, p, hb, ha, hf, ef, hef, ag):
       (+er2, a4) = a3
       (+eask, a5) = a4
       (ens, a6) = a5
-      (eeof, eg) = a6
+      (eeof, a7) = a6
+      (eg, a8) = a7
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : DO.StepG2(fa, T, cs, O, N, ef, Norm.out(_, Pr.Ask{Nil{}}))
       DO.out_ask(fa, T, cs, O, N, p2, Nil{}, Norm.out(S.mkSt(fa, p2), Pr.Ask{Nil{}}), DO.out_ok(fa, cs, O, N, p2, Pr.Ask{Nil{}}, wf2, eg, DO.live_of(S.StP.md(p2), ens)), er2, {==}, {==}, DO.mbr_nil(S.StP.md(p2)),
         Equal.trans(Maybe<&2, List<&2, Pr.Req>>, S.StP.asked(p2), S.StP.asked(p), None{}, eask, ha),

@@ -1,5 +1,5 @@
 import Base
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_line.bend as J
 import ./proof_b_cut_pair.bend as M
 import ./proof_b_cut_nat.bend as Z

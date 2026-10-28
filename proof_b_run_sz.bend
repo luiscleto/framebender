@@ -1,5 +1,5 @@
 import Base
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./proof_b_lit.bend as PL
 import ./proof_b_run_num.bend as NM
 import ../lawful-arrays/proof_base.bend as AB

@@ -2,7 +2,7 @@ import Base
 import ./types.bend as B
 import ./protocol.bend as Pr
 import ./run.bend as R
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_run.bend as NR
 import ./norm_fast.bend as NF
 import ./norm_line.bend as J
@@ -251,7 +251,7 @@ def F.wt(+reqs: List<&2, Pr.Req>, +fa: List<&2, B.Contig>, +T: R.Report, +cs: Li
     case (hok2, q):
       match q:
         case (hrq, hl):
-          (LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, wp, Some{reqs}, True{}), ({==}, (hw, (hr, (hok2, (hrq, (ao(reqs, hl), (hx, (hmb, ({==}, hg))))))))))
+          (LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, wp, Some{reqs}, True{}), ({==}, (hw, (hr, (hok2, (hrq, (ao(reqs, hl), (hx, (hmb, ({==}, (hg, ({==}, W.moved_keep(fa, cs, rp, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed), LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, wp, Some{reqs}, True{}), {==})))))))))))))
 
 def F.need(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: CD.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool,

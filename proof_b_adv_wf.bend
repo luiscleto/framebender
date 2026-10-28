@@ -2,7 +2,7 @@ import Base
 import ./types.bend as B
 import ./protocol.bend as Pr
 import ./run.bend as R
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./proof_b_defs.bend as P
 import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
@@ -372,3 +372,22 @@ def c9_m(m, m2, a1, a2, a3, a4, a5, a6, a7, b7, a8, h, hm, h7):
   c9_mk(m2, a1, a2, a3, a4, a5, a6, b7, a8, hm, c9_1(m, a1, a2, a3, a4, a5, a6, a7, a8, h), c9_2(m, a1, a2, a3, a4, a5, a6, a7, a8, h),
     c9_3(m, a1, a2, a3, a4, a5, a6, a7, a8, h), c9_4(m, a1, a2, a3, a4, a5, a6, a7, a8, h), c9_5(m, a1, a2, a3, a4, a5, a6, a7, a8, h),
     c9_6(m, a1, a2, a3, a4, a5, a6, a7, a8, h), h7, c9_8(m, a1, a2, a3, a4, a5, a6, a7, a8, h))
+
+# S.Moved
+# =======
+
+# A step that keeps the run and the text still to come (up to eqi) moved
+# no line.
+def moved_keep(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +rp: P.RunP, +p: S.StP, +q: S.StP,
+  +eqi: {S.intext(q, cs) == S.intext(p, cs) : String}) ->
+  S.Moved.md(S.MBP{rp}, S.MBP{rp}, fa, cs, p, q):
+  (Nil{}, (Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), S.intext(p, cs), S.intext(q, cs), Equal.sym(String, S.intext(q, cs), S.intext(p, cs), eqi)), {==}))
+
+# A step from the String mode claims nothing.
+def moved_ms(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +s: R.RunSt, +qs: List<&2, String>, +ql: Nat, +code: Maybe<&2, Nat>, m2: S.MdP, +p: S.StP, +q: S.StP) ->
+  S.Moved.md(S.MSP{s, qs, ql, code}, m2, fa, cs, p, q):
+  match m2:
+    case S.MBP{rp}:
+      Unit{}
+    case S.MSP{s2, qs2, ql2, code2}:
+      Unit{}

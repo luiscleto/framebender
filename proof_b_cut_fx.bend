@@ -9,7 +9,7 @@ import ../lawful-words/proof_nat.bend as N
 import ../lawful-arrays/proof_tree.bend as AT
 import ../lawful-arrays/proof_base.bend as AB
 import ./types.bend as B
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_line.bend as J
 import ./proof_b_cut_str.bend as S
 import ./proof_b_cut_ne2.bend as NE2

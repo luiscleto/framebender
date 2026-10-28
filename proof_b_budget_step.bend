@@ -3,7 +3,7 @@ import ./types.bend as B
 import ./protocol.bend as Pr
 import ./run.bend as R
 import ./MACHINE.bend as M
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./bytes_enc.bend as E
 import ./proof_b_defs.bend as P
 import ./proof_b_cachedefs.bend as PC
@@ -216,7 +216,8 @@ def pb_go(+f: Nat, a: Norm.Adv, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List
       (er2, a4) = a3
       (elt, a5) = a4
       (eask2, a6) = a5
-      (eeof, eg2) = a6
+      (eeof, a7) = a6
+      (eg2, a8) = a7
       went_k(g, st, fa, T, cs, O, N, p, p2, hb, hf, est, wf2, er2, elt, eask2, eg2, ab, abi,
         +q => hwq => hfq => agq => abq => abiq => pb_go(g, Norm.advance(S.mkSt(fa, q)), fa, T, cs, O, N, q, hb, hwq, hfq, agq, abq, abiq))
     case _ Norm.Want{st, +r}:

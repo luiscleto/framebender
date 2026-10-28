@@ -1,7 +1,7 @@
 import Base
 import ./types.bend as B
 import ./protocol.bend as Pr
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./bytes_enc.bend as E
 import ../lawful-words/proof_nat.bend as N
 import ../lawful-arrays/proof_base.bend as AB

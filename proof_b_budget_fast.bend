@@ -9,7 +9,7 @@ import ../lawful-words/proof_nat.bend as NN
 import ../lawful-words/proof_u32.bend as U
 import ./LAWS.bend as L
 import ./bytes_enc.bend as E
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_fast.bend as NF
 import ./norm_line.bend as J
 import ./norm_run.bend as NR

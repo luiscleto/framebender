@@ -3,7 +3,7 @@ import ./types.bend as B
 import ./protocol.bend as Pr
 import ./run.bend as R
 import ./LAWS.bend as L
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./proof_b_defs.bend as P
 import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
@@ -107,7 +107,7 @@ def DP.e(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: Strin
       W.c9_0(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw), srcs_tl(rest, P.SBP{len, t, d, at}, W.c9_1(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw)), hpd2, h3, W.or_r(S.src_empty(rest), String.is_empty(P.pdtext(pd2)), hpe), h5, W.c9_6(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw), W.c9_7(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw), W.c9_8(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw)),
     (Equal.trans(R.Report, S.report(fa, cs, O, N, q), S.report(fa, cs, O, N, p), T,
       Equal.cong(String, R.Report, z => R.finish(L.run.go(B.Text.lines(z), fa, o, S.pre(O, N, S.smd(S.MBP{rp})))), S.intext(q, cs), S.intext(p, cs), eqi), hr),
-    (meas_drop(n((len - at : U32)), S.msrc(rest)), ({==}, ({==}, hg)))))))
+    (meas_drop(n((len - at : U32)), S.msrc(rest)), ({==}, ({==}, (hg, ({==}, W.moved_keep(fa, cs, rp, p, q, eqi))))))))))
 
 # The last source, before the end: pend was empty and takes its text.
 def DP.nn(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
@@ -139,7 +139,7 @@ def DP.nn(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: Stri
       W.c9_0(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw), {==}, hpd2, h3, {==}, {==}, W.c9_6(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw), W.c9_7(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw), W.c9_8(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw)),
     (Equal.trans(R.Report, S.report(fa, cs, O, N, q), S.report(fa, cs, O, N, p), T,
       Equal.cong(String, R.Report, z => R.finish(L.run.go(B.Text.lines(z), fa, o, S.pre(O, N, S.smd(S.MBP{rp})))), S.intext(q, cs), S.intext(p, cs), eqi), hr),
-    (meas_drop(n((len - at : U32)), 0n), ({==}, ({==}, hg)))))))
+    (meas_drop(n((len - at : U32)), 0n), ({==}, ({==}, (hg, ({==}, W.moved_keep(fa, cs, rp, p, q, eqi))))))))))
 
 def DP.n(+eof: Bool, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +pd: P.PdP, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool, +fneed2: Bool,

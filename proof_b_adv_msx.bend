@@ -3,7 +3,7 @@ import ./types.bend as B
 import ./protocol.bend as Pr
 import ./run.bend as R
 import ./LAWS.bend as L
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_line.bend as J
 import ./bytes_enc.bend as E
 import ./proof_b_defs.bend as P
@@ -705,7 +705,7 @@ def wentL(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: Stri
   +emeas = meas_went(o, s2, qs, ql, src, src2, pd, eof, wp, hm2)
   (p2, (est, (wf_went(fa, o, s, s2, qs, ql, src2, pd, eof, wp, hw2, hmd),
     (rep_went(fa, T, cs, O, N, o, s, qs, ql, q, src, src2, pd, eof, back, wp, asked, fneed, s2, hr, hg, hst, hq, hout, h5, hs2),
-    (emeas, (MS.asked_msO(o, s2, qs, ql, src2, pd, eof, 0n, wp, None{}, False{}), ({==}, guard_went(O, N, o, s2, qs, ql, src2, pd, eof, wp, hgd))))))))
+    (emeas, (MS.asked_msO(o, s2, qs, ql, src2, pd, eof, 0n, wp, None{}, False{}), ({==}, (guard_went(O, N, o, s2, qs, ql, src2, pd, eof, wp, hgd), ({==}, Unit{})))))))))
 
 # ---------------------------------------------------------------------------
 # A text line q in the String mode: header line, body line, or reads asked
@@ -1173,7 +1173,7 @@ def wantL(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: Stri
   (h2, h3) = h23
   (SO(o, s, qs, ql, Con{P.SLP{q}, src2}, pd, eof, bk, wp, Some{reqs}, False{}), ({==}, (hw3,
     (rep_want(fa, T, cs, O, N, o, s, qs, ql, q, src, src2, pd, eof, back, wp, asked, fneed, bk, reqs, hr, hst),
-    (h1, (h2, (asked_some(reqs, h3), (stop_f(s, qs, ql, hx), ({==}, ({==}, hg))))))))))
+    (h1, (h2, (asked_some(reqs, h3), (stop_f(s, qs, ql, hx), ({==}, ({==}, (hg, ({==}, Unit{}))))))))))))
 
 # A body line judged r (the spec's judge): the line is consumed.
 def bodyW(+r: B.Res, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +o: B.Opts, +s: R.RunSt, +qs: List<&2, String>, +ql: Nat, +q: String,
@@ -1548,7 +1548,7 @@ def MP.e(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: Strin
       W.c9_0(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw), DPT.srcs_tl(rest, P.SBP{len, t, d, at}, W.c9_1(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw)), hpd2, h3, W.or_r(S.src_empty(rest), String.is_empty(P.pdtext(pd2)), hpe), h5, W.c9_6(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw), W.c9_7(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw), W.c9_8(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw)),
     (Equal.trans(R.Report, S.report(fa, cs, O, N, q), S.report(fa, cs, O, N, p), T,
       Equal.cong(String, R.Report, z => R.finish(L.run.go(B.Text.lines(z), fa, o, S.pre(O, N, S.smd(S.MSP{s, qs, ql, None{}})))), S.intext(q, cs), S.intext(p, cs), eqi), hr),
-    (meas_drop2(LI.n((len - at : U32)), S.msrc(rest)), ({==}, ({==}, hg)))))))
+    (meas_drop2(LI.n((len - at : U32)), S.msrc(rest)), ({==}, ({==}, (hg, ({==}, Unit{})))))))))
 
 # The last source, before the end: pend was empty and takes its text.
 def MP.nn(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
@@ -1580,7 +1580,7 @@ def MP.nn(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: Stri
       W.c9_0(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw), {==}, hpd2, h3, {==}, {==}, W.c9_6(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw), W.c9_7(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw), W.c9_8(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw)),
     (Equal.trans(R.Report, S.report(fa, cs, O, N, q), S.report(fa, cs, O, N, p), T,
       Equal.cong(String, R.Report, z => R.finish(L.run.go(B.Text.lines(z), fa, o, S.pre(O, N, S.smd(S.MSP{s, qs, ql, None{}})))), S.intext(q, cs), S.intext(p, cs), eqi), hr),
-    (meas_drop2(LI.n((len - at : U32)), 0n), ({==}, ({==}, hg)))))))
+    (meas_drop2(LI.n((len - at : U32)), 0n), ({==}, ({==}, (hg, ({==}, Unit{})))))))))
 
 def MP.n(+eof: Bool, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +s: R.RunSt, +qs: List<&2, String>, +ql: Nat, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +pd: P.PdP, +back: Nat, +wp: CD.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool, +fneed2: Bool,

@@ -1,6 +1,6 @@
 import Base
 import ./types.bend as B
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_fast.bend as NF
 import ./proof_b_cut_pair.bend as M
 import ./proof_b_cut_nat.bend as Z

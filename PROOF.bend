@@ -5,6 +5,7 @@ import ./proof_var.bend as PV
 import ./proof_window.bend as PW
 import ./proof_run.bend as PR
 import ./proof_b_machine.bend as PM
+import ./proof_e_machine.bend as EM
 
 # Proofs of the laws: `def L.name` proves `law name` of LAWS.bend (the
 # science), `def M.name` proves `law name` of MACHINE.bend (the
@@ -56,10 +57,12 @@ def L.no_unsorted(fasta, vcf, o, hw, hg, ha, hm):
 def L.twice_run(fasta, vcf, o, h):
   PR.twice_run(fasta, vcf, o, h)
 
-# The program (proof_b_machine.bend, the packed-bytes machine).
+# The program (proof_e_machine.bend, the parallel machine; it runs the
+# sequential machine norm_seq.bend, whose own proof of the same law is
+# proof_b_machine.bend's over proof_b_mdefs.bend).
 
 def M.machine(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb):
-  PM.machine(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb)
+  EM.machine(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb)
 
 def M.usage(argv, ha):
-  PM.usage(argv, ha)
+  EM.usage(argv, ha)

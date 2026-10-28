@@ -4,7 +4,7 @@ import ./protocol.bend as Pr
 import ./run.bend as R
 import ./tan.bend as V
 import ./norm_line.bend as J
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_run.bend as NR
 import ./proof_base.bend as P
 import ./proof_run_base.bend as Q

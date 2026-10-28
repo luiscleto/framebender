@@ -2,7 +2,7 @@ import Base
 import ./types.bend as B
 import ./run.bend as R
 import ./norm_run.bend as NR
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_fast.bend as NF
 import ./proof_b_defs.bend as P
 import ./proof_b_rundefs.bend as RD

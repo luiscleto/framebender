@@ -1,5 +1,5 @@
 import Base
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_run.bend as NR
 import ./bytes_enc.bend as E
 import ./proof_b_defs.bend as P

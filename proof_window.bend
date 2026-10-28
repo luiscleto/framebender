@@ -2,7 +2,7 @@ import Base
 import ./types.bend as B
 import ./protocol.bend as Pr
 import ./proof_window_defs.bend as WS
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./tan.bend as V
 import ./norm_line.bend as J
 import ./run.bend as R

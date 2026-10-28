@@ -5,7 +5,7 @@ import ./run.bend as R
 import ./LAWS.bend as L
 import ./MACHINE.bend as M
 import ./bytes_enc.bend as E
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_line.bend as J
 import ./norm_run.bend as NR
 import ./proof_b_defs.bend as P

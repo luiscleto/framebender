@@ -1,6 +1,6 @@
 import Base
 import ./types.bend as B
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_fix.bend as NX
 import ./proof_c_defs.bend as Q
 import ./proof_b_alleles_list.bend as LS

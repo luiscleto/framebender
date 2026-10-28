@@ -3,7 +3,7 @@ import ./types.bend as B
 import ./protocol.bend as Pr
 import ./run.bend as R
 import ./LAWS.bend as L
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_run.bend as NR
 import ./norm_fast.bend as NF
 import ./norm_line.bend as J

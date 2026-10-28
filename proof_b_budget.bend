@@ -1,6 +1,6 @@
 import Base
 import ./protocol.bend as Pr
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./proof_base.bend as P
 import ./proof_b_cut_str.bend as S
 import ../lawful-words/proof_nat.bend as N

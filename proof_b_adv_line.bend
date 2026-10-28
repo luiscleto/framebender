@@ -3,7 +3,7 @@ import ./types.bend as B
 import ./protocol.bend as Pr
 import ./run.bend as R
 import ./LAWS.bend as L
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_run.bend as NR
 import ./bytes_enc.bend as E
 import ./proof_b_defs.bend as P
@@ -249,6 +249,25 @@ def meas_line(+o: B.Opts, +rp: P.RunP, +rp2: P.RunP, +len: U32, +t: AT.Tree<U32>
   N.lt_add_mono_r(1n, Nat.add(Nat.add(x1, 2n), M), Nat.add(Nat.add(x2, 2n), M),
     N.lt_add_mono_r(M, Nat.add(x1, 2n), Nat.add(x2, 2n), N.lt_add_mono_r(2n, x1, x2, k1)))
 
+# What the line did (S.Moved): the line, taken from the front of the text
+# still to come, moved into the run.
+def moved_line(+fa: List<&2, B.Contig>, +cs: List<&2, String>,
+  +o: B.Opts, +rp: P.RunP, +rp2: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +lf: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool,
+  +hs: SPLIT(len, t, d, at, lf),
+  +hlc: {B.Text.lines(String.append(P.btext(len, t, at, (lf - at : U32)), String.append("\n", S.intext(P2(o, rp2, len, t, d, lf, rest, pd, eof, wp), cs)))) == Con{B.Text.line(P.btext(len, t, at, (lf - at : U32))), B.Text.lines(S.intext(P2(o, rp2, len, t, d, lf, rest, pd, eof, wp), cs))} : List<&2, B.Line>},
+  +hrun: {P.settle(P.specRun(rp2)) == P.settle(L.line_step(fa, o, P.specRun(rp), B.Text.line(P.btext(len, t, at, (lf - at : U32))))) : R.RunSt}) ->
+  S.Moved(fa, cs, PPs(o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed), P2(o, rp2, len, t, d, lf, rest, pd, eof, wp)):
+  +A = P.btext(len, t, at, (lf - at : U32))
+  +l = B.Text.line(A)
+  +IT2 = S.intext(P2(o, rp2, len, t, d, lf, rest, pd, eof, wp), cs)
+  (Con{l, Nil{}},
+    (Equal.trans(List<&2, B.Line>, B.Text.lines(S.intext(PPs(o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed), cs)), B.Text.lines(String.append(A, String.append("\n", IT2))), Con{l, B.Text.lines(IT2)},
+      Equal.cong(String, List<&2, B.Line>, x => B.Text.lines(x), S.intext(PPs(o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed), cs), String.append(A, String.append("\n", IT2)),
+        Equal.sym(String, String.append(A, String.append("\n", IT2)), S.intext(PPs(o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed), cs),
+          itx(o, S.MBP{rp}, S.MBP{rp2}, rest, pd, eof, back, 0n, wp, asked, None{}, fneed, False{}, cs, len, t, d, at, lf, hs))),
+      hlc),
+    hrun))
+
 # The line is done (done.b): Went, with the source past the line's LF.
 def went_line(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +rp2: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +lf: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool,
@@ -287,4 +306,4 @@ def went_line(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: 
         eof_next(eof, rest, pd, len, t, d, at, lf, hs, W.c9_5(m0, a1, a2, a3, a4, a5, a6, a7, a8, hw)),
         W.c9_6(m0, a1, a2, a3, a4, a5, a6, a7, a8, hw), W.c9_7(m0, a1, a2, a3, a4, a5, a6, a7, a8, hw), W.c9_8(m0, a1, a2, a3, a4, a5, a6, a7, a8, hw)),
     (rep_line(fa, T, cs, O, N, o, rp, rp2, len, t, d, at, lf, rest, pd, eof, back, wp, asked, fneed, hr, hg, hs, hlc, hrun),
-    (meas_line(o, rp, rp2, len, t, d, at, lf, rest, pd, eof, back, wp, asked, fneed, hal, hlt, hle, hat, hinc), ({==}, ({==}, hg2)))))))
+    (meas_line(o, rp, rp2, len, t, d, at, lf, rest, pd, eof, back, wp, asked, fneed, hal, hlt, hle, hat, hinc), ({==}, ({==}, (hg2, ({==}, moved_line(fa, cs, o, rp, rp2, len, t, d, at, lf, rest, pd, eof, back, wp, asked, fneed, hs, hlc, hrun))))))))))

@@ -1,6 +1,6 @@
 import Base
 import ./types.bend as B
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_line.bend as J
 import ../lawful-bytes/defs.bend as D
 import ../lawful-bytes/proof_shift.bend as PSh

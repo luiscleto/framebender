@@ -1,6 +1,6 @@
 import Base
 import ./types.bend as B
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./proof_b_defs.bend as P
 import ./proof_b_cachedefs.bend as CD
 import ./proof_b_adv_hit.bend as FH

@@ -1,7 +1,7 @@
 import Base
 import ./types.bend as B
 import ./protocol.bend as Pr
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./norm_line.bend as J
 import ./norm_run.bend as NR
 import ./MACHINE.bend as M

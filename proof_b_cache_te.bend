@@ -1,6 +1,6 @@
 import Base
 import ./bytes_enc.bend as E
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ../lawful-bytes/defs.bend as D
 import ../lawful-bytes/bytes.bend as BY
 import ../lawful-bytes/proof_core.bend as C

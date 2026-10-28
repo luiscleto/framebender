@@ -4,8 +4,9 @@ import ./protocol.bend as Pr
 import ./run.bend as R
 import ./LAWS.bend as L
 import ./MACHINE.bend as M
+import ./proof_b_mdefs.bend as MQ
 import ./bytes_enc.bend as E
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./proof_b_defs.bend as P
 import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
@@ -109,14 +110,14 @@ def GoodD(+fa: List<&2, B.Contig>, +T: R.Report, +lim: Nat, +f: Nat, st: Norm.St
 
 # Good(fa, T, lim, f, d): the driver state d leads to the report T within
 # the bound lim and the fuel f.
-def Good(+fa: List<&2, B.Contig>, +T: R.Report, +lim: Nat, +f: Nat, d: M.DSt) -> Type:
+def Good(+fa: List<&2, B.Contig>, +T: R.Report, +lim: Nat, +f: Nat, d: MQ.DSt) -> Type:
   match d:
-    case M.DSt{st, nx, dcs, de, rd, g, out, notes, done}:
+    case MQ.DSt{st, nx, dcs, de, rd, g, out, notes, done}:
       GoodD(fa, T, lim, f, st, nx, dcs, de, rd, g, out, notes, done)
 
 # After one driver step from fuel f: nothing at 0 (a good state that has not
 # stopped has fuel left), else Good with one less.
-def StepR(+fa: List<&2, B.Contig>, +T: R.Report, +lim: Nat, +f: Nat, d: M.DSt) -> Type:
+def StepR(+fa: List<&2, B.Contig>, +T: R.Report, +lim: Nat, +f: Nat, d: MQ.DSt) -> Type:
   match f:
     case 0n:
       Empty
@@ -284,10 +285,10 @@ law am_more.k:
   for +hef: {ef == False{} : Bool}
   for +bi2: {API.bi(fa, T, p2, cs2, de2, Pr.More{}, String.append(O, t)) == True{} : Bool}
   for +drop: {Nat.is_le(Nat.add(API.need(fa, T, p2, cs2, de2, Pr.More{}, String.append(O, t)), Nat.add(R, 1n)), n1) == True{} : Bool}
-  Good(fa, T, lim, h, M.absorb(Norm.Step{st2, b, ns, Pr.More{}}, cs2, de2, rd2, G, O, N))
+  Good(fa, T, lim, h, MQ.absorb(Norm.Step{st2, b, ns, Pr.More{}}, cs2, de2, rd2, G, O, N))
 
 def am_more.k(h, fa, T, lim, cs2, de2, rd, rd2, R, n1, O, N, ef, G, hG, hrd, hde, htx, hlim, st2, b, ns, t, p2, hfu, eout, est, hmo, rep, gd, hef, bi2, drop):
-  %Equal.sym(Maybe<&2, String>, E.out(b), Some{t}, eout) : Good(fa, T, lim, h, M.absorb.k(st2, Pr.More{}, cs2, de2, rd2, G, M.absorb.out(_, O), N, ns))
+  %Equal.sym(Maybe<&2, String>, E.out(b), Some{t}, eout) : Good(fa, T, lim, h, MQ.absorb.k(st2, Pr.More{}, cs2, de2, rd2, G, MQ.absorb.out(_, O), N, ns))
   (p2, (est, (hmo, (rep, (gd, (and_tt(G, hG), (de_false(de2, ef, hde, hef), (htx, (bi2,
     (%Equal.sym(Nat, rd2, Nat.add(rd, R), hrd) : {Nat.is_le(Nat.add(_, API.need(fa, T, p2, cs2, de2, Pr.More{}, String.append(O, t))), lim) == True{} : Bool}; ar_lim(rd, R, API.need(fa, T, p2, cs2, de2, Pr.More{}, String.append(O, t)), n1, lim, drop, hlim),
     ar_fuel(R, API.need(fa, T, p2, cs2, de2, Pr.More{}, String.append(O, t)), n1, h, drop, hfu)))))))))))
@@ -325,7 +326,7 @@ law am_more:
   for +gd: {S.guard(String.append(O, t), List.append(&2, B.Note, N, ns), p2) == True{} : Bool}
   for +hef: {ef == False{} : Bool}
   for bud: {API.bi(fa, T, p2, cs2, de2, Pr.More{}, String.append(O, t)) == True{} : Bool} & {Nat.is_le(Nat.add(API.need(fa, T, p2, cs2, de2, Pr.More{}, String.append(O, t)), Nat.add(R, 1n)), n1) == True{} : Bool}
-  StepR(fa, T, lim, f, M.absorb(Norm.Step{st2, b, ns, Pr.More{}}, cs2, de2, rd2, G, O, N))
+  StepR(fa, T, lim, f, MQ.absorb(Norm.Step{st2, b, ns, Pr.More{}}, cs2, de2, rd2, G, O, N))
 
 def am_more(f, fa, T, lim, cs2, de2, rd, rd2, R, n1, O, N, ef, G, hG, hrd, hde, htx, hlim, st2, b, ns, t, p2, hfu, eout, est, hmo, rep, gd, hef, bud):
   match f:
@@ -378,10 +379,10 @@ law am_ask.k:
   for +heof: {S.StP.eof(p2) == ef : Bool}
   for +bi2: {API.bi(fa, T, p2, cs2, de2, Pr.Ask{rs2}, String.append(O, t)) == True{} : Bool}
   for +drop: {Nat.is_le(Nat.add(API.need(fa, T, p2, cs2, de2, Pr.Ask{rs2}, String.append(O, t)), Nat.add(R, 1n)), n1) == True{} : Bool}
-  Good(fa, T, lim, h, M.absorb(Norm.Step{st2, b, ns, Pr.Ask{rs2}}, cs2, de2, rd2, G, O, N))
+  Good(fa, T, lim, h, MQ.absorb(Norm.Step{st2, b, ns, Pr.Ask{rs2}}, cs2, de2, rd2, G, O, N))
 
 def am_ask.k(h, fa, T, lim, cs2, de2, rd, rd2, R, n1, O, N, ef, G, hG, hrd, hde, htx, hlim, st2, b, ns, rs2, t, p2, hfu, eout, est, wf, rep, hq, hrq, hmr, hask, gd, heof, bi2, drop):
-  %Equal.sym(Maybe<&2, String>, E.out(b), Some{t}, eout) : Good(fa, T, lim, h, M.absorb.k(st2, Pr.Ask{rs2}, cs2, de2, rd2, G, M.absorb.out(_, O), N, ns))
+  %Equal.sym(Maybe<&2, String>, E.out(b), Some{t}, eout) : Good(fa, T, lim, h, MQ.absorb.k(st2, Pr.Ask{rs2}, cs2, de2, rd2, G, MQ.absorb.out(_, O), N, ns))
   (p2, (est, (wf, (rep, (hq, (hrq, (hmr, (hask, (gd, (and_tt(G, hG),
     (%Equal.sym(Bool, S.StP.eof(p2), ef, heof) : {Bool.or(Bool.not(de2), _) == True{} : Bool}; hde,
     (htx, (bi2,
@@ -426,7 +427,7 @@ law am_ask:
   for +gd: {S.guard(String.append(O, t), List.append(&2, B.Note, N, ns), p2) == True{} : Bool}
   for +heof: {S.StP.eof(p2) == ef : Bool}
   for bud: {API.bi(fa, T, p2, cs2, de2, Pr.Ask{rs2}, String.append(O, t)) == True{} : Bool} & {Nat.is_le(Nat.add(API.need(fa, T, p2, cs2, de2, Pr.Ask{rs2}, String.append(O, t)), Nat.add(R, 1n)), n1) == True{} : Bool}
-  StepR(fa, T, lim, f, M.absorb(Norm.Step{st2, b, ns, Pr.Ask{rs2}}, cs2, de2, rd2, G, O, N))
+  StepR(fa, T, lim, f, MQ.absorb(Norm.Step{st2, b, ns, Pr.Ask{rs2}}, cs2, de2, rd2, G, O, N))
 
 def am_ask(f, fa, T, lim, cs2, de2, rd, rd2, R, n1, O, N, ef, G, hG, hrd, hde, htx, hlim, st2, b, ns, rs2, t, p2, hfu, eout, est, wf, rep, hq, hrq, hmr, hask, gd, heof, bud):
   match f:
@@ -469,7 +470,7 @@ law am_fin:
   for +eout: {E.out(b) == Some{t} : Maybe<&2, String>}
   for +rep: {R.Report{String.append(O, t), List.append(&2, B.Note, N, ns), c} == T : R.Report}
   for +hfin: {Nat.is_le(Nat.add(R, 2n), n1) == True{} : Bool}
-  StepR(fa, T, lim, f, M.absorb(Norm.Step{st2, b, ns, Pr.Finish{c}}, cs2, de2, rd2, G, O, N))
+  StepR(fa, T, lim, f, MQ.absorb(Norm.Step{st2, b, ns, Pr.Finish{c}}, cs2, de2, rd2, G, O, N))
 
 def am_fin(f, fa, T, lim, cs2, de2, rd, rd2, R, n1, O, N, ef, G, hG, hrd, hde, htx, hlim, st2, b, ns, c, t, hfu, eout, rep, hfin):
   match f:
@@ -477,7 +478,7 @@ def am_fin(f, fa, T, lim, cs2, de2, rd, rd2, R, n1, O, N, ef, G, hG, hrd, hde, h
       ar_zero(R, 1n, n1, fin_drop(R, n1, hfin), hfu)
     case 1n+h:
       +drop = fin_drop(R, n1, hfin)
-      %Equal.sym(Maybe<&2, String>, E.out(b), Some{t}, eout) : Good(fa, T, lim, h, M.absorb.k(st2, Pr.Finish{c}, cs2, de2, rd2, G, M.absorb.out(_, O), N, ns))
+      %Equal.sym(Maybe<&2, String>, E.out(b), Some{t}, eout) : Good(fa, T, lim, h, MQ.absorb.k(st2, Pr.Finish{c}, cs2, de2, rd2, G, MQ.absorb.out(_, O), N, ns))
       (and_tt(G, hG), (rep, (%Equal.sym(Nat, rd2, Nat.add(rd, R), hrd) : {Nat.is_le(Nat.add(_, 1n), lim) == True{} : Bool}; ar_lim(rd, R, 1n, n1, lim, drop, hlim), ar_fuel(R, 1n, n1, h, drop, hfu))))
 
 # Any step, from its guarantee and the budget
@@ -508,7 +509,7 @@ law absorb_ok:
   for sg: DO.StepG2(fa, T, cs2, O, N, ef, s)
   for kb: Kont(fa, T, s, cs2, de2, R, n1, O, N)
   for kf: KFin(s, R, n1)
-  StepR(fa, T, lim, f, M.absorb(s, cs2, de2, rd2, G, O, N))
+  StepR(fa, T, lim, f, MQ.absorb(s, cs2, de2, rd2, G, O, N))
 
 def absorb_ok(s, f, fa, T, lim, cs2, de2, rd, rd2, R, n1, O, N, ef, G, hG, hrd, hde, htx, hlim, hfu, sg, kb, kf):
   match s:
@@ -581,12 +582,12 @@ law k_chunk:
   for +hbi: {API.bi(fa, T, p, c <> ct, de, Pr.More{}, out) == True{} : Bool}
   for +hlim: {Nat.is_le(Nat.add(rd, API.need(fa, T, p, c <> ct, de, Pr.More{}, out)), lim) == True{} : Bool}
   for +hfu: {Nat.is_le(API.need(fa, T, p, c <> ct, de, Pr.More{}, out), f) == True{} : Bool}
-  StepR(fa, T, lim, f, M.dstep(fa, M.DSt{st, Pr.More{}, c <> ct, de, rd, g, out, notes, None{}}))
+  StepR(fa, T, lim, f, MQ.dstep(fa, MQ.DSt{st, Pr.More{}, c <> ct, de, rd, g, out, notes, None{}}))
 
 def k_chunk(f, fa, T, lim, hbfa, st, c, ct, de, rd, g, out, notes, p, est, hmo, hr, hgd, hg, hde0, htx, hbi, hlim, hfu):
   match de:
     case True{}:
-      Empty.absurd(StepR(fa, T, lim, f, M.dstep(fa, M.DSt{st, Pr.More{}, c <> ct, True{}, rd, g, out, notes, None{}})), PB.true_ne_false(hde0))
+      Empty.absurd(StepR(fa, T, lim, f, MQ.dstep(fa, MQ.DSt{st, Pr.More{}, c <> ct, True{}, rd, g, out, notes, None{}})), PB.true_ne_false(hde0))
     case False{}:
       +hA = PB.and_true_l(Bool.and(E.is_bytes(c), E.all_bytes(ct)), Bool.and(E.le31(String.length(c)), E.pieces_ok(ct)), htx)
       +hP = PB.and_true_r(Bool.and(E.is_bytes(c), E.all_bytes(ct)), Bool.and(E.le31(String.length(c)), E.pieces_ok(ct)), htx)
@@ -594,7 +595,7 @@ def k_chunk(f, fa, T, lim, hbfa, st, c, ct, de, rd, g, out, notes, p, est, hmo, 
       +hcn = PB.and_true_l(E.le31(String.length(c)), E.pieces_ok(ct), hP)
       +htx2 = and_mk(E.all_bytes(ct), E.pieces_ok(ct), PB.and_true_r(E.is_bytes(c), E.all_bytes(ct), hA), PB.and_true_r(E.le31(String.length(c)), E.pieces_ok(ct), hP))
       +n1 = API.need(fa, T, p, c <> ct, False{}, Pr.More{}, out)
-      %Equal.sym(Norm.St, st, S.mkSt(fa, p), est) : StepR(fa, T, lim, f, M.absorb(Norm.step(_, Pr.Chunk{E.enc(c)}), ct, False{}, rd, g, out, notes))
+      %Equal.sym(Norm.St, st, S.mkSt(fa, p), est) : StepR(fa, T, lim, f, MQ.absorb(Norm.step(_, Pr.Chunk{E.enc(c)}), ct, False{}, rd, g, out, notes))
       absorb_ok(Norm.step(S.mkSt(fa, p), Pr.Chunk{E.enc(c)}), f, fa, T, lim, ct, False{}, rd, rd, 0n, n1, out, notes, False{}, g, hg,
         Equal.sym(Nat, Nat.add(rd, 0n), rd, N.add_zero(rd)), {==}, htx2, hlim, hfu,
         sg_chunk(fa, T, c, ct, out, notes, p, hbfa, hmo, hr, hcb, hcn, hgd),
@@ -624,15 +625,15 @@ law k_eof:
   for +hbi: {API.bi(fa, T, p, Nil{}, de, Pr.More{}, out) == True{} : Bool}
   for +hlim: {Nat.is_le(Nat.add(rd, API.need(fa, T, p, Nil{}, de, Pr.More{}, out)), lim) == True{} : Bool}
   for +hfu: {Nat.is_le(API.need(fa, T, p, Nil{}, de, Pr.More{}, out), f) == True{} : Bool}
-  StepR(fa, T, lim, f, M.dstep(fa, M.DSt{st, Pr.More{}, Nil{}, de, rd, g, out, notes, None{}}))
+  StepR(fa, T, lim, f, MQ.dstep(fa, MQ.DSt{st, Pr.More{}, Nil{}, de, rd, g, out, notes, None{}}))
 
 def k_eof(f, fa, T, lim, hbfa, st, de, rd, g, out, notes, p, est, hmo, hr, hgd, hg, hde0, hbi, hlim, hfu):
   match de:
     case True{}:
-      Empty.absurd(StepR(fa, T, lim, f, M.dstep(fa, M.DSt{st, Pr.More{}, Nil{}, True{}, rd, g, out, notes, None{}})), PB.true_ne_false(hde0))
+      Empty.absurd(StepR(fa, T, lim, f, MQ.dstep(fa, MQ.DSt{st, Pr.More{}, Nil{}, True{}, rd, g, out, notes, None{}})), PB.true_ne_false(hde0))
     case False{}:
       +n1 = API.need(fa, T, p, Nil{}, False{}, Pr.More{}, out)
-      %Equal.sym(Norm.St, st, S.mkSt(fa, p), est) : StepR(fa, T, lim, f, M.absorb(Norm.step(_, Pr.Eof{}), Nil{}, True{}, rd, g, out, notes))
+      %Equal.sym(Norm.St, st, S.mkSt(fa, p), est) : StepR(fa, T, lim, f, MQ.absorb(Norm.step(_, Pr.Eof{}), Nil{}, True{}, rd, g, out, notes))
       absorb_ok(Norm.step(S.mkSt(fa, p), Pr.Eof{}), f, fa, T, lim, Nil{}, True{}, rd, rd, 0n, n1, out, notes, True{}, g, hg,
         Equal.sym(Nat, Nat.add(rd, 0n), rd, N.add_zero(rd)), {==}, {==}, hlim, hfu,
         sg_eof(fa, T, out, notes, p, hbfa, hmo, hr, hgd),
@@ -679,12 +680,12 @@ law k_ask:
   for +hbi: {API.bi(fa, T, p, dcs, de, Pr.Ask{rs}, out) == True{} : Bool}
   for +hlim: {Nat.is_le(Nat.add(rd, API.need(fa, T, p, dcs, de, Pr.Ask{rs}, out)), lim) == True{} : Bool}
   for +hfu: {Nat.is_le(API.need(fa, T, p, dcs, de, Pr.Ask{rs}, out), f) == True{} : Bool}
-  StepR(fa, T, lim, f, M.dstep(fa, M.DSt{st, Pr.Ask{rs}, dcs, de, rd, g, out, notes, None{}}))
+  StepR(fa, T, lim, f, MQ.dstep(fa, MQ.DSt{st, Pr.Ask{rs}, dcs, de, rd, g, out, notes, None{}}))
 
 def k_ask(f, fa, T, lim, hbfa, st, rs, dcs, de, rd, g, out, notes, p, est, hw, hr, hq, hrq, hmr, hask, hgd, hg, hlink, htx, hbi, hlim, hfu):
   +n1 = API.need(fa, T, p, dcs, de, Pr.Ask{rs}, out)
   %Equal.sym(Norm.St, st, S.mkSt(fa, p), est) :
-    StepR(fa, T, lim, f, M.absorb(Norm.step(_, Pr.Ref{M.truths(fa, rs)}), dcs, de, Nat.add(rd, List.length(&2, Pr.Req, rs)), Bool.and(g, E.reqs_ok(rs)), out, notes))
+    StepR(fa, T, lim, f, MQ.absorb(Norm.step(_, Pr.Ref{M.truths(fa, rs)}), dcs, de, Nat.add(rd, List.length(&2, Pr.Req, rs)), Bool.and(g, E.reqs_ok(rs)), out, notes))
   absorb_ok(Norm.step(S.mkSt(fa, p), Pr.Ref{M.truths(fa, rs)}), f, fa, T, lim, dcs, de, rd, Nat.add(rd, List.length(&2, Pr.Req, rs)), List.length(&2, Pr.Req, rs), n1, out, notes,
     S.StP.eof(p), Bool.and(g, E.reqs_ok(rs)), and2(g, E.reqs_ok(rs), hg, hq), {==}, hlink, htx, hlim, hfu,
     sg_ref(fa, T, dcs, out, notes, p, rs, hbfa, hw, hr, hask, hq, hrq, hmr, hgd),
@@ -709,7 +710,7 @@ law k_fin:
   for +hrep: {R.Report{out, notes, c} == T : R.Report}
   for +hl: {Nat.is_le(Nat.add(rd, 1n), lim) == True{} : Bool}
   for +hf1: {Nat.is_le(1n, f) == True{} : Bool}
-  StepR(fa, T, lim, f, M.dstep(fa, M.DSt{st, Pr.Finish{c}, dcs, de, rd, g, out, notes, None{}}))
+  StepR(fa, T, lim, f, MQ.dstep(fa, MQ.DSt{st, Pr.Finish{c}, dcs, de, rd, g, out, notes, None{}}))
 
 def k_fin(f, fa, T, lim, st, c, dcs, de, rd, g, out, notes, hg, hrep, hl, hf1):
   match f:
@@ -736,8 +737,8 @@ law step_good:
   for +g: Bool
   for +out: String
   for +notes: List<&2, B.Note>
-  for gd: Good(fa, T, lim, f, M.DSt{st, nx, dcs, de, rd, g, out, notes, None{}})
-  StepR(fa, T, lim, f, M.dstep(fa, M.DSt{st, nx, dcs, de, rd, g, out, notes, None{}}))
+  for gd: Good(fa, T, lim, f, MQ.DSt{st, nx, dcs, de, rd, g, out, notes, None{}})
+  StepR(fa, T, lim, f, MQ.dstep(fa, MQ.DSt{st, nx, dcs, de, rd, g, out, notes, None{}}))
 
 def step_good(f, fa, T, lim, hbfa, st, nx, dcs, de, rd, g, out, notes, gd):
   match nx dcs:
@@ -800,7 +801,7 @@ law drive_done:
   for +out: String
   for +notes: List<&2, B.Note>
   for +c: Nat
-  {M.drive(f, fa, M.DSt{st, nx, dcs, de, rd, g, out, notes, Some{c}}) == M.DSt{st, nx, dcs, de, rd, g, out, notes, Some{c}} : M.DSt}
+  {MQ.drive(f, fa, MQ.DSt{st, nx, dcs, de, rd, g, out, notes, Some{c}}) == MQ.DSt{st, nx, dcs, de, rd, g, out, notes, Some{c}} : MQ.DSt}
 
 def drive_done(f, fa, st, nx, dcs, de, rd, g, out, notes, c):
   match f nx:
@@ -827,16 +828,16 @@ law done_res:
   for +out: String
   for +notes: List<&2, B.Note>
   for +c: Nat
-  for gd: Good(fa, T, lim, f, M.DSt{st, nx, dcs, de, rd, g, out, notes, Some{c}})
-  {M.result(M.drive(f, fa, M.DSt{st, nx, dcs, de, rd, g, out, notes, Some{c}}), lim) == Some{T} : Maybe<&2, R.Report>}
+  for gd: Good(fa, T, lim, f, MQ.DSt{st, nx, dcs, de, rd, g, out, notes, Some{c}})
+  {MQ.result(MQ.drive(f, fa, MQ.DSt{st, nx, dcs, de, rd, g, out, notes, Some{c}}), lim) == Some{T} : Maybe<&2, R.Report>}
 
 def done_res(f, fa, T, lim, st, nx, dcs, de, rd, g, out, notes, c, gd):
   (hg, g1) = gd
   (hrep, hk) = g1
-  %Equal.sym(M.DSt, M.drive(f, fa, M.DSt{st, nx, dcs, de, rd, g, out, notes, Some{c}}), M.DSt{st, nx, dcs, de, rd, g, out, notes, Some{c}}, drive_done(f, fa, st, nx, dcs, de, rd, g, out, notes, c)) :
-    {M.result(_, lim) == Some{T} : Maybe<&2, R.Report>}
-  %Equal.sym(Bool, g, True{}, hg) : {M.result.if(Bool.and(_, Nat.is_le(rd, lim)), R.Report{out, notes, c}) == Some{T} : Maybe<&2, R.Report>}
-  %Equal.sym(Bool, Nat.is_le(rd, lim), True{}, hk) : {M.result.if(Bool.and(True{}, _), R.Report{out, notes, c}) == Some{T} : Maybe<&2, R.Report>}
+  %Equal.sym(MQ.DSt, MQ.drive(f, fa, MQ.DSt{st, nx, dcs, de, rd, g, out, notes, Some{c}}), MQ.DSt{st, nx, dcs, de, rd, g, out, notes, Some{c}}, drive_done(f, fa, st, nx, dcs, de, rd, g, out, notes, c)) :
+    {MQ.result(_, lim) == Some{T} : Maybe<&2, R.Report>}
+  %Equal.sym(Bool, g, True{}, hg) : {MQ.result.if(Bool.and(_, Nat.is_le(rd, lim)), R.Report{out, notes, c}) == Some{T} : Maybe<&2, R.Report>}
+  %Equal.sym(Bool, Nat.is_le(rd, lim), True{}, hk) : {MQ.result.if(Bool.and(True{}, _), R.Report{out, notes, c}) == Some{T} : Maybe<&2, R.Report>}
   Equal.cong(R.Report, Maybe<&2, R.Report>, z => Some{z}, R.Report{out, notes, c}, T, hrep)
 
 # The drive ends with the report, given a good state and fuel for it.
@@ -846,19 +847,19 @@ law drive_ok:
   for +T: R.Report
   for +lim: Nat
   for +hbfa: {PC.fa_bytes(fa) == True{} : Bool}
-  for d: M.DSt
+  for d: MQ.DSt
   for gd: Good(fa, T, lim, f, d)
-  {M.result(M.drive(f, fa, d), lim) == Some{T} : Maybe<&2, R.Report>}
+  {MQ.result(MQ.drive(f, fa, d), lim) == Some{T} : Maybe<&2, R.Report>}
 
 def drive_ok(f, fa, T, lim, hbfa, d, gd):
   match f d:
-    case _ M.DSt{st, +nx, +dcs, +de, +rd, +g, +out, +notes, Some{+c}}:
+    case _ MQ.DSt{st, +nx, +dcs, +de, +rd, +g, +out, +notes, Some{+c}}:
       done_res(f, fa, T, lim, st, nx, dcs, de, rd, g, out, notes, c, gd)
-    case 0n M.DSt{st, +nx, +dcs, +de, +rd, +g, +out, +notes, None{}}:
-      Empty.absurd({M.result(M.drive(0n, fa, M.DSt{st, nx, dcs, de, rd, g, out, notes, None{}}), lim) == Some{T} : Maybe<&2, R.Report>},
+    case 0n MQ.DSt{st, +nx, +dcs, +de, +rd, +g, +out, +notes, None{}}:
+      Empty.absurd({MQ.result(MQ.drive(0n, fa, MQ.DSt{st, nx, dcs, de, rd, g, out, notes, None{}}), lim) == Some{T} : Maybe<&2, R.Report>},
         step_good(0n, fa, T, lim, hbfa, st, nx, dcs, de, rd, g, out, notes, gd))
-    case 1n+h M.DSt{st, +nx, +dcs, +de, +rd, +g, +out, +notes, None{}}:
-      drive_ok(h, fa, T, lim, hbfa, M.dstep(fa, M.DSt{st, nx, dcs, de, rd, g, out, notes, None{}}),
+    case 1n+h MQ.DSt{st, +nx, +dcs, +de, +rd, +g, +out, +notes, None{}}:
+      drive_ok(h, fa, T, lim, hbfa, MQ.dstep(fa, MQ.DSt{st, nx, dcs, de, rd, g, out, notes, None{}}),
         step_good(1n+h, fa, T, lim, hbfa, st, nx, dcs, de, rd, g, out, notes, gd))
 
 # ---------------------------------------------------------------------------
@@ -882,7 +883,7 @@ law machine_go3:
   for +hgd: {S.guard("", Nil{}, p) == True{} : Bool}
   for +hbi: {API.bi(B.Fasta.parse(fasta), L.run(fasta, vcf, o), p, cs, False{}, Pr.More{}, "") == True{} : Bool}
   for +hn: {Nat.is_le(API.need(B.Fasta.parse(fasta), L.run(fasta, vcf, o), p, cs, False{}, Pr.More{}, ""), M.bound(argv, fasta, vcf, cs)) == True{} : Bool}
-  {M.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
+  {MQ.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
 
 def machine_go3(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hb, est, hmo, hr, hgd, hbi, hn):
   +hfb = PB.and_true_r(E.all_bytes(argv), Bool.and(E.is_bytes(fasta), Bool.and(E.all_bytes(cs), E.pieces_ok(cs))), hb)
@@ -890,11 +891,11 @@ def machine_go3(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hb, est, hmo, hr, 
   +hbfa = fa_bytes_parse(fasta, PB.and_true_l(E.is_bytes(fasta), Bool.and(E.all_bytes(cs), E.pieces_ok(cs)), hfb))
   +est0 = AB.subst(Maybe<&2, B.Cfg>, x => {DD.start_st(Norm.start.of(x)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}, B.Args.parse(argv), Some{B.Cfg{o, ref, vcfpath}}, ha, est)
   %Equal.sym(Maybe<&2, B.Cfg>, B.Args.parse(argv), Some{B.Cfg{o, ref, vcfpath}}, ha) :
-    {M.launch(Norm.start.of(_), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
-  %Equal.sym(Maybe<&2, R.Report>, M.result(M.drive(M.bound(argv, fasta, vcf, cs), B.Fasta.parse(fasta), M.DSt{DD.start_st(Norm.start.of(Some{B.Cfg{o, ref, vcfpath}})), Pr.More{}, cs, False{}, 0n, True{}, "", Nil{}, None{}}), M.bound(argv, fasta, vcf, cs)), Some{L.run(fasta, vcf, o)},
-    drive_ok(M.bound(argv, fasta, vcf, cs), B.Fasta.parse(fasta), L.run(fasta, vcf, o), M.bound(argv, fasta, vcf, cs), hbfa, M.DSt{DD.start_st(Norm.start.of(Some{B.Cfg{o, ref, vcfpath}})), Pr.More{}, cs, False{}, 0n, True{}, "", Nil{}, None{}},
+    {MQ.launch(Norm.start.of(_), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
+  %Equal.sym(Maybe<&2, R.Report>, MQ.result(MQ.drive(M.bound(argv, fasta, vcf, cs), B.Fasta.parse(fasta), MQ.DSt{DD.start_st(Norm.start.of(Some{B.Cfg{o, ref, vcfpath}})), Pr.More{}, cs, False{}, 0n, True{}, "", Nil{}, None{}}), M.bound(argv, fasta, vcf, cs)), Some{L.run(fasta, vcf, o)},
+    drive_ok(M.bound(argv, fasta, vcf, cs), B.Fasta.parse(fasta), L.run(fasta, vcf, o), M.bound(argv, fasta, vcf, cs), hbfa, MQ.DSt{DD.start_st(Norm.start.of(Some{B.Cfg{o, ref, vcfpath}})), Pr.More{}, cs, False{}, 0n, True{}, "", Nil{}, None{}},
       (p, (est0, (hmo, (hr, (hgd, ({==}, ({==}, (htx, (hbi, (hn, hn)))))))))))) :
-    {M.launch.of(_, ref, vcfpath) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
+    {MQ.launch.of(_, ref, vcfpath) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
   {==}
 
 law machine_go2:
@@ -914,7 +915,7 @@ law machine_go2:
   for +hgd: {S.guard("", Nil{}, p) == True{} : Bool}
   for bud: {API.bi(B.Fasta.parse(fasta), L.run(fasta, vcf, o), p, cs, False{}, Pr.More{}, "") == True{} : Bool}
     & {Nat.is_le(API.need(B.Fasta.parse(fasta), L.run(fasta, vcf, o), p, cs, False{}, Pr.More{}, ""), M.bound(argv, fasta, vcf, cs)) == True{} : Bool}
-  {M.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
+  {MQ.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
 
 def machine_go2(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hb, est, hmo, hr, hgd, bud):
   (hbi, hn) = bud
@@ -937,7 +938,7 @@ law machine_go:
     & ({DD.more_ok(B.Fasta.parse(fasta), p) == True{} : Bool}
     & ({S.report(B.Fasta.parse(fasta), cs, "", Nil{}, p) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), B.Fasta.parse(fasta), o, R.start_st())) : R.Report}
     & {S.guard("", Nil{}, p) == True{} : Bool}))))
-  {M.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
+  {MQ.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
 
 def machine_go(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb, so):
   (+p, s1) = so
@@ -963,7 +964,7 @@ law machine_h:
   for +hf: {Pr.Fasta.plain(fasta) == True{} : Bool}
   for +h: {String.concat(cs) == vcf : String}
   for +hb: {E.texts_ok(argv, fasta, cs) == True{} : Bool}
-  {M.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
+  {MQ.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
 
 def machine_h(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb):
   machine_go(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb,

@@ -2,7 +2,7 @@ import Base
 import ./types.bend as B
 import ./protocol.bend as Pr
 import ./run.bend as R
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./proof_b_defs.bend as P
 import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S

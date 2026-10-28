@@ -229,3 +229,76 @@ Open points for the lead:
 Next (after the lead's look): the proofs (segment lemma, `merge.ok`, the machine), then step 4.
 Scratch: `data/tmp/parallel` (builds `fb_seq`, `fb_par`, `fb_par_{300,1000,70001}`, `fb_seq_300`,
 the instrumented `norm_pdbg.bend` and `fb_dbg_*`, the timed `fb_par_t`, `bench.sh`, `wg/`).
+
+## Step 3, lead's decisions (2026-10-28)
+
+The lead reproduced the checks and committed the code (eadf3dc). Decisions: keep the per-piece
+copy (fewer proof obligations); the merge limitation is accepted; measure K = 16 against K = 32.
+
+K (whole genome, plain, `-c w`, to a file, pinned 0-15, interleaved, 5 rounds): K = 32 2.35-2.41 s,
+782 MB peak; K = 16 2.41-2.46 s (2-3% slower), 608 MB. Within 5%: **K = 16** (`kmax()`). With it:
+`test/par.sh` 312/312, `test/same.sh` 128/128, whole genome `-c w` and `-c e` identical to main's
+machine.
+
+## Step 3, the proofs: started (2026-10-28)
+
+Design and areas: `notes/parallel_proofs.md`; brief for the area agents:
+`notes/briefs/PARALLEL_PROOFS.md`. Statement files (deliverables `?TODO`): `proof_e_seg.bend` (B),
+`proof_e_merge.bend` (C), `proof_e_task.bend` (D), `proof_e_qif.bend` (F), `proof_e_wrap.bend`
+(E1), `proof_e_machine.bend` (E2); shared definitions `proof_e_defs.bend`,
+`proof_e_wrap_defs.bend`, `proof_e_mdefs.bend`; area A edits `S.AdvG` in place.
+
+Herdr workspaces (one Claude agent each; close when done): fbe-a w1P (A, adv Moved), fbe-b w1Q
+(B, seg), fbe-c w1R (C, merge), fbe-d w1S (D, task), fbe-f w1T (F, Q interfaces), fbe-e1 w1V (E1,
+wrapper steps), fbe-e2 w1W (E2, budget and assembly).
+
+Code changes for the proofs so far (outputs unchanged; listed in `notes/parallel_proofs.md`):
+minimum piece size 256 for batching, reads only for pieces with a line, le31 tests on reads,
+sortedness and key tests in merge.ok, phantom by line 0, task windows only for contig names of at
+most 2^28 bytes, the one-line edge check, no BEdge, the phantom-CHROM test in merge.ok (area C's
+counterexample), the CHROM-length guard on tasks (area D).
+
+## Step 3: proven, renamed, gate passed (2026-10-28)
+
+All areas proven (each area's notes: `notes/parallel_proofs_<area>.md`; design:
+`notes/parallel_proofs.md`): A (AdvG's Moved and options clauses), B (the segment lemma: the true
+run over a piece's lines equals shiftS exactly), C (merge on pictured runs), D (the plan and the
+batch's tasks), F (Q interfaces: a piece as any good buffer, feed_line, set_win), E1 (each wrapper
+step), E2 (the budget: phase B's potential plus 12 per piece of at least 256 bytes, the start
+bound with that room; the assembly; `machine` and `usage`). New proofs: 64 files `proof_e_*.bend`,
+about 19,400 lines; phase-B files touched for AdvG and the rename: 72 (+215, -146). Every Herdr
+workspace of the phase is closed.
+
+**The rename** (a one-off script, dry-run on a scratch copy first): `norm.bend` is now the
+parallel machine (it imports the sequential one as `./norm_seq.bend as Q`); `norm_seq.bend` is the
+former `norm.bend`; proof files import `./norm_seq.bend` where they mean the sequential machine.
+`MACHINE.bend` and the rest of the contract are unchanged. `PROOF.bend`'s `M.machine` and
+`M.usage` forward to `proof_e_machine.bend`. Phase B's own proof that the sequential machine meets
+the same law still checks (`proof_b_machine.bend`, over `proof_b_mdefs.bend`, MACHINE.bend's driver
+copied with `norm_seq.bend` as the machine). The driver copy over the parallel machine
+(`proof_e_mdefs.bend`) is gone: its users now use MACHINE.bend's own driver.
+
+**`test/bcheck.sh`**: a 64 MB stack (`ulimit -s 65536`), and the 4 GB cap for every check through the
+cgroup (`MemoryMax=4G`, as `--verdict` had). The largest harnesses overflowed bend's machine stack
+at random with the default 16 MB, and an address-space cap leaves no room for 64 MB thread stacks.
+
+**The gate**, through `test/bcheck.sh`: `PROOF.bend --check-only` ALL PROOFS CHECK, `--verdict` ALL
+PROOFS CHECK (39 s); `examples.bend` 15 TODOs and `MACHINE.bend` 15 TODOs (the imported laws, as
+before); `main.bend` 62 defs rely on unsafe or foreign code (as before).
+
+**The final build** (`./build.sh` from the renamed tree): `test/par.sh` 312/312 and `test/same.sh`
+128/128 on the normal, 70,001, 1,000 and 300-byte builds; whole genome `-c w` and `-c e`, plain and
+`.vcf.gz`, identical to main's machine; `test/compare.sh` 0 differing records on chr22, the whole
+genome and the whole genome from `.vcf.gz`.
+
+Timings (whole genome, `-c w`, `data/tmp/parallel/bench.sh`, interleaved; seq: main's machine):
+
+| input, output | pinned 0-15: seq / par / bcftools | unpinned (2 rounds) |
+|---|---|---|
+| plain, file | 4.86-4.94 / **2.39-2.49** / 7.87-8.01 s | 5.18-5.82 / 3.21-3.56 / 7.86-7.90 s |
+| `.vcf.gz`, file | 4.88-4.93 / **2.72-2.74** / 8.03-8.09 s | 5.23-5.86 / 3.90-4.07 / 8.09-8.17 s |
+| plain, /dev/null | 4.34-4.47 / **1.84** / 5.40-5.57 s | |
+| `.vcf.gz`, /dev/null | 4.35-4.43 / **2.16** / 5.58-5.79 s | |
+
+Next (the lead's call): step 4, the driver (the batch's reads answered in parallel, reading
+several pieces ahead), which is now most of the time.

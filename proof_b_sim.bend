@@ -1,7 +1,7 @@
 import Base
 import ./types.bend as B
 import ./run.bend as R
-import ./norm.bend as Norm
+import ./norm_seq.bend as Norm
 import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
 import ./proof_b_adv.bend as AD
