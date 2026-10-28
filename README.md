@@ -75,14 +75,15 @@ Speed (wall clock, writing to a file, interleaved runs on the same machine):
 |---|---|---|
 | chr22 | 0.12–0.14 s | 0.12–0.16 s |
 | whole genome (2.8 GB) | 8.5–8.6 s | 9.1–9.7 s |
-| 20,739 indels moved to random positions | 0.08 s | 5.2 s |
+| 20,739 indels moved to random positions | 0.08–0.09 s | 0.14–0.17 s |
 
 On real data framebender keeps pace with bcftools. The first proven version stored text as
 linked lists of characters, as Bend 2's `String` does, and took 590 s on the whole genome. The
 current one works on bytes packed four to a word, using four packages written for it, each with
 its own proven laws (`lawful-words`, `lawful-arrays`, `lawful-bytes`, `lawful-fields`). The laws
 did not change in the rewrite; the proof was redone and the output is byte-identical. Records that
-need rewriting still take a slow path through `String`, which is why the last row lags.
+need rewriting are about twice as slow as in bcftools, because a few rare cases still take a slow
+path through `String`.
 
 ## How it was made
 

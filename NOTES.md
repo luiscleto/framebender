@@ -391,3 +391,22 @@ Q5 (speed), interleaved runs on 2026-10-28, wall clock, output to a file:
 
 `test/compare.sh` on this build: 0 differing records on chr22, `scr.vcf` and the whole genome.
 The rewritten records still go through a `String` slow path, which is why `scr.vcf` lags.
+
+## Rewritten records on bytes (2026-10-28; branch `rewrite`, merged into `main`)
+
+The bytes build still sent every record that normalization changes through the old String code:
+5.2 s on `data/scr.vcf` against bcftools' 0.08 s. A profile (gprof) put two-thirds of that in
+reference counting of shared Strings, mostly from splitting INFO up to six times per record. The
+rewrite agent added a bytes path (`norm_fix.bend`, plan and notes in `notes/rewrite*.md`), proven
+equal to the String path's result, with two sub-agents for the normalizer and the line tests.
+About 13,800 lines of proofs; no law, contract or driver change.
+
+| input | bcftools 1.24 | before | after |
+|---|---|---|---|
+| `scr.vcf` (20,739, nearly all rewritten) | 0.075-0.094 s | 5.24-5.38 s | 0.137-0.169 s |
+| chr22 | median 0.125 s | median 0.147 s | median 0.144 s |
+| whole genome | 8.40-8.55 s | median 9.19 s | median 7.95 s (6.97-10.17) |
+
+The whole genome's rounds vary by about 3 s for both builds (the disk), so the two are the same
+within noise. Checks: bcftools 0 differing records on chr22, scr, a second scramble and the whole
+genome; `test/same.sh`, 128 runs identical to the previous build, also with a build of tiny limits.
