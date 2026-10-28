@@ -159,4 +159,4 @@ def reqs_ok(rs: List<&2, P.Req>) -> Bool:
     case Nil{}:
       True{}
     case Con{P.Req{c, a, b}, t}:
-      Nat.is_le(Nat.sub(b, a), 2147483648n) && reqs_ok(t)
+      le31(Nat.sub(b, a)) && reqs_ok(t)
