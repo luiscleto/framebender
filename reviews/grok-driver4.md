@@ -1,0 +1,7 @@
+# Grok 4.7, driver review 4
+
+ACCEPT.
+
+The new driver matches the comment above `law machine`. A build from `./build.sh` agrees with the previous driver on plain VCF, including a file cut across the 3670016-byte piece, on a pipe, and on a FIFO. `bgzip` output agrees with the plain text for that file, for a member whose decompressed size is exactly one piece (the empty end block does not drop the next member), for an empty member in front, and for a file with the end-of-file block removed. A bad CRC, a bad `ISIZE`, an `ISIZE` of 70000, a flipped deflate byte, a short block, a 10-byte tail, and a bad CRC in the second piece each exit 2 with one `error: bad BGZF` line; a bad first piece writes nothing. Other gzip, and a text file that starts with `1f 8b`, exit 2 with one `error: unsupported gzip` line. Short reads and one `EINTR` do not change the bytes. With `-c e`, a full piece that stops the run still exits while the helper is blocked on the next read. `bend main.bend -o` matches `build.sh` on plain input and on non-BGZF gzip, and on a real `.vcf.gz` its only difference is `error: no BGZF in this build`, exit 2.
+
+The helper writes a block the main thread allocated. Bend 2.0.39 does not move live blocks, and the two-piece runs stayed identical to the old driver. Descriptor, device, and inode are enough for the order this driver opens files. The header check requires `FLG == 4`, which is the BGZF header `bgzip` writes; real `.vcf.gz` files pass, and a header with `FTEXT` set is refused up front.

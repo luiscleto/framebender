@@ -17,11 +17,13 @@ import ../lawful-bytes/bytes.bend as BY
 # writes, and exits with the machine's code. Every error of its own prints one
 # line "error: ..." and exits with code 2:
 #   usage (B.usage), "cannot read <path>", "cannot write" (stdout/stderr),
-#   "out of memory" (no room for a block of a piece or an answer, or for a
-#   read's buffer), "unsupported gzip <path> (not BGZF; use gzip -dc
-#   <path> | framebender ... /dev/stdin)" (a VCF that starts as gzip but not
-#   with a BGZF block header), "bad BGZF <path>" (a BGZF block of the VCF that
-#   is damaged or cut short), "no BGZF in this build <path>" (a BGZF VCF and
+#   "out of memory" (no room for a read's buffer or for libdeflate's
+#   decompressor), "unsupported gzip <path> (not BGZF; use gzip -dc
+#   <path> | framebender ... /dev/stdin)" (a VCF whose first two bytes are
+#   1f 8b, gzip's, and that does not start with a BGZF block header), "bad
+#   BGZF <path>" (a BGZF block of the VCF that is damaged or cut short, or a
+#   BGZF VCF that does not end with the empty end-of-file block, as a file
+#   cut at a block boundary), "no BGZF in this build <path>" (a BGZF VCF and
 #   a binary built without libdeflate: see build.sh), "bad .fai index
 #   <path>.fai" (a line that is not a name and four numbers of at most 14
 #   digits, a contig whose line layout samtools would not write, or a
@@ -37,9 +39,10 @@ import ../lawful-bytes/bytes.bend as BY
 # path in an error has each backslash, LF and CR written as \\, \n and \r, so
 # the error stays one line.
 # Bend's runtime, also trusted, can stop a run with one line "bend: ..." and
-# exit code 1: when the heap is exhausted ("bend: out of memory: ...") and on
-# any number of 2^48 or more, such as a VCF POS that large ("bend: a Nat past
-# the largest immediate 2^48-1").
+# exit code 1: when the heap is exhausted, by the machine or by a block the
+# driver allocates for a piece or an answer ("bend: out of memory: ..."), and
+# on any number of 2^48 or more, such as a VCF POS that large ("bend: a Nat
+# past the largest immediate 2^48-1").
 
 type Fai is Data:
   Fai{len: Nat, off: Nat, lb: Nat, lw: Nat}

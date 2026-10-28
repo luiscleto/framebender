@@ -13,8 +13,10 @@
 // bytes_enc.bend's enc: the smallest d with 4 * 2^d >= n (d = 0 for n = 0),
 // every byte past n zero.
 //
-// Out of memory (a heap block or a read buffer) fails with ENOMEM; the driver
-// reports it as "out of memory".
+// A read buffer or libdeflate's decompressor that cannot be allocated fails
+// with ENOMEM; the driver reports it as "out of memory". A full heap is not
+// seen here on a CPU build: Bend's runtime stops the run first, with
+// "bend: out of memory: ..." and exit code 1.
 
 #if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
 #error "io64.c packs blocks little-endian: byte i in byte i & 3 of word i >> 2"
@@ -60,7 +62,8 @@ static u32 io64_depth(uint64_t n) {
 
 // A block of depth d (2^d u32 words); its heap location in *loc. Its bytes
 // are not set: the caller writes the first n and zeroes the rest
-// (io64_pad). Returns 0 when the heap is full.
+// (io64_pad). Returns 0 when the heap is full (device builds only; on a CPU
+// build the runtime stops the run instead).
 static int io64_block(Env e, u32 d, u64* loc) {
   *loc = heap_alloc(e, blk_wcls(0, d));
   if (err_seen(e.mem)) return 0;
@@ -79,9 +82,11 @@ static void io64_pad(Env e, u32 d, u64 loc, uint64_t n) {
 // (max <= 2^31; fewer only at its end); answers (n, block) with the n bytes
 // packed as enc (n = 0 at the end). The text is the file's bytes, or, when
 // gz is 1 and the file starts with a BGZF block header, the bytes its BGZF
-// blocks decompress to. A read error fails with errno; a gzip file that is
-// not BGZF with IO64_NOT_BGZF; a BGZF block that is damaged or cut short
-// (its header, deflate data, CRC32 or ISIZE) with IO64_BAD_BGZF; a BGZF file
+// blocks decompress to. A read error fails with errno; a file whose first two
+// bytes are 1f 8b (gzip's) and that does not start with a BGZF block header
+// with IO64_NOT_BGZF; a BGZF block that is damaged or cut short (its header,
+// deflate data, CRC32 or ISIZE), or a BGZF file that does not end with an
+// empty block (bgzip's end-of-file marker), with IO64_BAD_BGZF; a BGZF file
 // in a build without libdeflate with IO64_NO_DEFLATE.
 //
 // The driver reads one such stream at a time (the .fai to its end, then the
@@ -102,10 +107,11 @@ static void io64_pad(Env e, u32 d, u64 loc, uint64_t n) {
 
 // The stream: the file (descriptor, device, inode), its format (0 not known
 // yet, 1 plain, 2 BGZF), the first bytes read to learn it and not handed out
-// yet (head), and for BGZF the bytes of the last block not handed out yet
-// (carry) and one compressed block (blk).
+// yet (head), and for BGZF whether the last block read was empty (last0), the
+// bytes of the last block not handed out yet (carry) and one compressed block
+// (blk).
 typedef struct {
-  int fd; dev_t dev; ino_t ino; int kind;
+  int fd; dev_t dev; ino_t ino; int kind; int last0;
   unsigned char head[18]; size_t hn, hat;
   unsigned char carry[65536]; size_t cn, cat;
   unsigned char blk[65536];
@@ -159,6 +165,7 @@ static int64_t io64_kind(Io64In* s, int fd, int gz) {
     if (s->dec == NULL) s->dec = libdeflate_alloc_decompressor();
     if (s->dec == NULL) return ENOMEM;
     s->kind = 2;
+    s->last0 = 0;
     return 0;
 #else
     return IO64_NO_DEFLATE;
@@ -175,7 +182,8 @@ static uint32_t io64_le32(const unsigned char* b) {
 // The next BGZF block of the stream into dst (room for 65536 bytes): its
 // size in *n, which may be 0 (the empty block bgzip ends a file with, also
 // found between the members of concatenated files); *end set at the end of
-// the file instead. Answers 0, -errno or IO64_BAD_BGZF.
+// the file instead, which must come right after an empty block: a file cut
+// at a block boundary has none. Answers 0, -errno or IO64_BAD_BGZF.
 static int64_t io64_block_in(Io64In* s, int fd, unsigned char* dst, size_t* n, int* end) {
 #ifdef FB_LIBDEFLATE
   unsigned char* b = s->blk;
@@ -189,7 +197,7 @@ static int64_t io64_block_in(Io64In* s, int fd, unsigned char* dst, size_t* n, i
   if (k < 0) return k;
   *n = 0;
   *end = at + (size_t)k == 0;
-  if (*end) return 0;
+  if (*end) return s->last0 ? 0 : IO64_BAD_BGZF;
   if (at + (size_t)k < 18 || !io64_bgzf_head(b)) return IO64_BAD_BGZF;
   size_t size = (size_t)(b[16] | b[17] << 8) + 1;  // BSIZE + 1: the whole block
   if (size < 26) return IO64_BAD_BGZF;
@@ -204,6 +212,7 @@ static int64_t io64_block_in(Io64In* s, int fd, unsigned char* dst, size_t* n, i
     return IO64_BAD_BGZF;
   }
   *n = out;
+  s->last0 = out == 0;
   return 0;
 #else
   (void)s; (void)fd; (void)dst; (void)n; (void)end;

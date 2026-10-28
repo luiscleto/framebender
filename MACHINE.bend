@@ -171,8 +171,9 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 # in io64.c):
 # - Reading the files' bytes (the command line's bytes too; for a VCF that is
 #   BGZF, the bytes its blocks decompress to, each block's CRC32 and length
-#   checked; any other gzip VCF is refused), packing each VCF
-#   piece and each reference answer as exactly E.enc of its text (bytes four
+#   checked, the file ending with the empty end-of-file block; a VCF whose
+#   first two bytes are 1f 8b and that does not start with a BGZF block header
+#   is refused), packing each VCF piece and each reference answer as exactly E.enc of its text (bytes four
 #   to a word, little-endian, zero-padded, in the smallest block), and writing
 #   every stdout byte (the bytes of each output buffer, D.view) and message
 #   (B.Note.render) exactly, then exiting with the code.
@@ -185,10 +186,11 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 # - For a FASTA file that is not P.Fasta.plain the law says nothing.
 # - The driver's own errors, each one line on stderr and exit code 2: a usage
 #   error (law usage; prints B.usage), "error: cannot read <path>", "error:
-#   cannot write", "error: out of memory", "error: unsupported gzip <path>
-#   (not BGZF; ...)", "error: bad BGZF <path>", "error: no BGZF in this build
-#   <path>", "error: bad .fai index
-#   <path>.fai", "error: unsupported FASTA <path>" (a byte read that the
+#   cannot write", "error: out of memory" (a read's buffer or libdeflate's
+#   decompressor), "error: unsupported gzip <path> (not BGZF; ...)", "error:
+#   bad BGZF <path>" (also a BGZF VCF without the end-of-file block, as one cut
+#   at a block boundary), "error: no BGZF in this build <path>", "error: bad
+#   .fai index <path>.fai", "error: unsupported FASTA <path>" (a byte read that the
 #   .fai layout does not explain), "error: .fai index does not match <path>"
 #   (fewer letters than the index promises), "error: FASTA read too large
 #   <path>" (never for a window the law allows: the program asks for at most
@@ -196,9 +198,11 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 #   breaks included, in parts). A <path> has each backslash, LF and CR
 #   written as \\, \n and \r.
 # - Bend's runtime, also trusted, which can stop a run outside this law, with
-#   one line "bend: ..." on stderr and exit code 1: when the heap is exhausted
-#   ("bend: out of memory: ...") and on any number of 2^48 or more, such as a
-#   VCF POS that large ("bend: a Nat past the largest immediate 2^48-1").
+#   one line "bend: ..." on stderr and exit code 1: when the heap is exhausted,
+#   by the machine or by a block the driver allocates for a piece or an answer
+#   ("bend: out of memory: ..."; the driver cannot catch this on a CPU build),
+#   and on any number of 2^48 or more, such as a VCF POS that large ("bend: a
+#   Nat past the largest immediate 2^48-1").
 law machine:
   for argv: List<&2, String>
   for o: B.Opts

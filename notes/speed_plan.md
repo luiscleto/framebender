@@ -5,7 +5,10 @@ edited; every prototype is scratch C in `data/tmp/speed` (file list at the end).
 
 **Status (2026-10-28):**
 - Steps 1 and 2 (A1 + A2, then `.vcf.gz`) are written on branch `driver`, checked and timed:
-  `notes/speed_driver.md`. They await the three-model driver review.
+  `notes/speed_driver.md`. Driver review 4 (`reviews/*-driver4.md`): GPT and Grok accepted;
+  Claude's four findings (a `.vcf.gz` cut at a block boundary accepted; the CPU out-of-memory stop;
+  the gzip wording; `$CC` in `build.sh`) are fixed and rechecked, see `notes/speed_driver.md`,
+  "After driver review 4".
 - Lead's decisions on section 4: (1) pinned timings, unpinned ranges beside them; (2) libdeflate
   through a two-step build (`build.sh`), BGZF only; (3) the `MACHINE.bend` trust comment goes to
   the driver review; (4) the boundary lemma stays inside the proofs; (5) write-behind dropped;

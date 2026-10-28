@@ -104,8 +104,10 @@ reads larger files in pieces.
 The trusted driver (`main.bend`, `io64.c`) reads and writes the bytes, reads the reference through
 the `.fai` index, and reports its own errors with exit code 2. For a VCF compressed with BGZF
 (`bgzip`, the usual `.vcf.gz`), the VCF the law speaks of is the text its blocks decompress to:
-the driver decompresses them with libdeflate and checks each block's CRC32 and length. Other gzip
-files are refused.
+the driver decompresses them with libdeflate, checks each block's CRC32 and length, and requires
+the empty block `bgzip` ends every file with, so a file cut at a block boundary stops with
+`error: bad BGZF <path>`. A VCF whose first two bytes are `1f 8b` (gzip's) and that does not start
+with a BGZF block header is refused.
 
 The law `machine` assumes the driver hands the program the reference as `P.Fasta.plain` describes
 it. That premise names exactly the FASTA files that `samtools faidx` 1.24 indexes and serves the way
