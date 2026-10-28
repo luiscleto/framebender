@@ -133,15 +133,20 @@ def all_bytes(ss: List<&2, String>) -> Bool:
     case Con{s, t}:
       is_bytes(s) && all_bytes(t)
 
-# Every piece has at most 2^31 bytes (what a buffer holds). 2^31 is written
-# as the literal 2147483648n: the checker unfolds definitions, and unfolding
-# Nat.pow(2n, 31n) overflows its stack, while a literal does not.
+# n is at most 2^31, stated on words: n fits a U32 (it reads back as n) and
+# that word is at most 2^31. The checker evaluates words natively, and
+# lawful-words relates them to numbers; a big Nat constant (a literal or a
+# Nat.pow) can only be compared with an identical term in a proof.
+def le31(+n: Nat) -> Bool:
+  Nat.is_eq(U32.to_nat(U32.from_nat(n)), n) && U32.is_le(U32.from_nat(n), 2147483648)
+
+# Every piece has at most 2^31 bytes (what a buffer holds).
 def pieces_ok(cs: List<&2, String>) -> Bool:
   match cs:
     case Nil{}:
       True{}
     case Con{c, t}:
-      Nat.is_le(String.length(c), 2147483648n) && pieces_ok(t)
+      le31(String.length(c)) && pieces_ok(t)
 
 # The inputs a packed driver can hand over: the command line, the FASTA and
 # every VCF piece are bytes, and every piece fits a buffer.
