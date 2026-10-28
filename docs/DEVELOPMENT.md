@@ -36,7 +36,7 @@ It prints `ALL PROOFS CHECK` twice when everything holds. A change to the code i
 `check.sh` passes; a change to the science layer needs a new law review (`refs/REVIEW_PROMPT.md`).
 
 To check one proof file while working, use `test/bcheck.sh file.bend [--check-only|--verdict]`. It
-runs at most two checks at once, each capped at 4 GB. A proof that evaluates a big number, such as
+runs at most two checks at once, each capped at 4 GB, with a 64 MB stack. A proof that evaluates a big number, such as
 `Nat.pow(2n, 29n)` closed by `{==}`, builds it in unary and can otherwise fill the machine's memory.
 
 ## Compare with bcftools
@@ -79,16 +79,24 @@ set and the generated inputs (`test/gen_edge.py`, `test/gen_rw.py`, run first fr
 root), under `-c e`, `-c w` and several `-w`, and reports any difference in stdout, stderr or exit
 code. Use it after any change to the implementation, together with the gate.
 
+`test/par.sh new_binary [old_binary]` does the same on the batch-boundary cases of the parallel
+machine (`python3 test/gen_par.py`, then `samtools faidx data/tmp/par/par.fa`): a CHROM change at
+a piece boundary, a record moving left across one, unsorted input, `-c e` stopping mid-batch,
+files shorter than a batch. Run both on builds with small pieces too: `main.bend` sets the piece
+size (3670016 bytes); a test build replaces `3670016ull` in the generated C with 300, 1000 or
+70001.
+
 ## Files
 
 | files | role |
 |---|---|
 | `LAWS.bend`, `types.bend`, `run.bend`, `tan.bend` | science layer: definitions and laws |
 | `protocol.bend`, `MACHINE.bend`, `bytes_enc.bend` | implementation contract: the machine law, the FASTA premise, and how bytes encode the spec's text |
-| `norm.bend`, `norm_fast.bend`, `norm_line.bend`, `norm_run.bend` | the program, a state machine on packed bytes (`../lawful-*`) |
+| `norm.bend` | the program: pieces judged in parallel in batches of 16 (`../lawful-halves`) and spliced in order, falling back to the sequential machine |
+| `norm_seq.bend`, `norm_fast.bend`, `norm_line.bend`, `norm_run.bend`, `norm_fix.bend` | the sequential machine on packed bytes (`../lawful-*`) |
 | `main.bend`, `io64.c`, `io64.js` | the trusted driver: file I/O and the `.fai` reader |
 | `build.sh` | the two-step build with libdeflate |
-| `PROOF.bend`, `proof_*.bend` | the proofs; `PROOF.bend` proves every law by importing the rest (`proof_b_*`: the bytes machine, notes in `notes/bytes_proofs*.md`) |
+| `PROOF.bend`, `proof_*.bend` | the proofs; `PROOF.bend` proves every law by importing the rest (`proof_b_*`: the bytes machine, `proof_c_*`: rewritten records, `proof_e_*`: the parallel machine; notes in `notes/*proofs*.md`) |
 | `examples.bend`, `examples_machine.bend` | concrete cases checked by evaluation; the machine's cases are outside the gate (they pass 4 GB in the checker) |
 | `test/` | the bcftools comparison, the scrambler, edge cases, FASTA premise cases |
 | `reviews/` | every law and driver review, with the responses |

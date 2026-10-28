@@ -15,10 +15,10 @@ You need [Bend 2](https://bend-lang.com) (2.0.39), clang,
 [libdeflate](https://github.com/ebiggers/libdeflate) (to read `.vcf.gz`), and
 [samtools](https://www.htslib.org/) to index the reference.
 
-framebender builds on four proven utility packages, which must sit next to it:
+framebender builds on five proven utility packages, which must sit next to it:
 
 ```
-for r in framebender lawful-words lawful-arrays lawful-bytes lawful-fields; do
+for r in framebender lawful-words lawful-arrays lawful-bytes lawful-fields lawful-halves; do
   git clone https://github.com/luiscleto/$r
 done
 cd framebender
@@ -71,23 +71,27 @@ The intentional differences:
   (`1/0:1,1` for `GT:AD:PS` stays as is).
 - The header gets two added lines with no date, so the output is reproducible.
 
-Speed (wall clock, writing to a file, 32-thread hybrid CPU; the whole-genome runs of both tools are
-pinned to the performance cores, which removes about 3 s of run-to-run noise):
+Speed (wall clock, writing to a file, 32-thread hybrid CPU, both tools pinned to the performance
+cores, which removes about 3 s of run-to-run noise on the whole genome):
 
 | GIAB HG002 | bcftools | framebender |
 |---|---|---|
-| chr22 | 0.12–0.14 s | 0.12–0.16 s |
-| whole genome (2.8 GB) | 7.7–7.9 s | 4.8–5.0 s |
-| whole genome, `.vcf.gz` | 7.9–8.1 s | 4.8–5.2 s |
-| 20,739 indels moved to random positions | 0.08–0.09 s | 0.14–0.17 s |
+| chr22 | 0.11–0.12 s | 0.06 s |
+| whole genome (2.8 GB) | 7.8–7.9 s | 1.8–1.9 s |
+| whole genome, `.vcf.gz` | 7.9–8.0 s | 1.8 s |
+| 20,739 indels moved to random positions | 0.07–0.08 s | 0.12–0.13 s |
 
-On the whole genome framebender is about 1.6 times faster than bcftools (unpinned: 5.4–6.6 s
-against 7.8–8.0 s), with the same records. The first proven version stored text as
-linked lists of characters, as Bend 2's `String` does, and took 590 s on the whole genome. The
-current one works on bytes packed four to a word, using four packages written for it, each with
-its own proven laws (`lawful-words`, `lawful-arrays`, `lawful-bytes`, `lawful-fields`). The laws
-did not change in the rewrite; the proof was redone and the output is byte-identical. A record that
-needs rewriting still costs about twice what it does in bcftools.
+On the whole genome framebender is about 4 times faster than bcftools (unpinned: 2.1–2.3 s
+against 8.0–8.1 s), with the same records. It reads the file in pieces and normalizes 16 at a
+time in parallel; the proof covers the parallel version, which gives byte-for-byte the output of
+the sequential one. It uses more memory: about 670 MB on the whole genome against bcftools'
+11 MB. A file where nearly every record needs rewriting is still slower than bcftools.
+
+The first proven version stored text as linked lists of characters, as Bend 2's `String` does,
+and took 590 s on the whole genome. The current one works on bytes packed four to a word, using
+five packages written for it, each with its own proven laws (`lawful-words`, `lawful-arrays`,
+`lawful-bytes`, `lawful-fields`, and `lawful-halves` for the parallel map). The laws did not
+change through any of the rewrites; only the proofs were redone.
 
 ## How it was made
 
@@ -98,8 +102,9 @@ if you have one, the science files (`LAWS.bend`, `types.bend`, `run.bend`, `tan.
 place to start, and issues are welcome.
 
 Every real bug in framebender was found by the reviewers in the small trusted layer that reads
-files, never inside the laws. Proving the packages did find one: the word-at-a-time byte search
-could report a wrong position in a case no test or genome comparison reached.
+files, never inside the laws. The proofs found two that tests missed: the word-at-a-time byte
+search could report a wrong position, and the parallel version's rule for joining pieces had a
+case, unreachable on real files, where it would have named a record's chromosome wrongly.
 [`NOTES.md`](NOTES.md) is the full record: decisions, who caught what, where the proofs got hard,
 and the measurements.
 

@@ -435,3 +435,65 @@ it now has to end with BGZF's empty end block. GPT had cut files only inside the
 Grok had removed the end block from a complete file and accepted the result. The author had
 found and fixed a similar early end of its own (an empty block mid-stream read as the end) before
 the review.
+
+## The parallel machine (2026-10-28; phase E, branches `parallel` and `driver2`, merged into `main`)
+
+The machine now reads VCF pieces in batches of 16, runs each piece on its own from a guessed
+start, and splices the results in order when a check (`merge.ok`) shows the guess cannot have
+changed anything; otherwise that piece runs sequentially, as before. A new package,
+`../lawful-halves` (a parallel map over a balanced tree, 12 laws, reviewed by the three models in
+two rounds), carries the parallelism. Notes: `notes/parallel.md` (the design and why `merge.ok`
+is enough), `notes/parallel_proofs*.md` (the proofs, area by area), `notes/speed_driver2.md`
+(the driver).
+
+**Proof.** `MACHINE.bend` and every other contract file are unchanged; `PROOF.bend` proves
+`law machine` and `law usage` with the parallel machine (`norm.bend`, which runs the old
+machine, now `norm_seq.bend`, unchanged). About 19,400 new lines in 64 `proof_e_*.bend` files,
+by seven Claude agents in their own Herdr workspaces; `--check-only` and `--verdict` both pass.
+
+**Q2/Q3: the proof found a hole the tests did not.** The merge statement was false as `merge.ok`
+stood: a task whose last item was still the phantom (a placeholder for the record before the
+piece) under a different CHROM would have been spliced with that record named under the wrong
+CHROM (`notes/cex/proof_e_merge_cex.bend`). Real runs cannot reach it (a new CHROM resets the
+last item), and all 312 boundary tests and the whole genome passed without the fix; `merge.ok`
+now tests it. The other code changes the proofs asked for are bounds (pieces of at least 256
+bytes, a first CHROM under 2^28 bytes, pieces under 1 GiB) and three more checks in `merge.ok`;
+none changes an output.
+
+**Q3: what was hard** (from the area notes):
+- Bend's rewrite `%e : P` direction caused most failed checks in every area.
+- No mutual recursion and no def calling one below it: induction hypotheses go to helpers as
+  lambdas; the boundary-line loop became four generated levels.
+- Computed pairs cannot be destructured, only parameters: hence continuation defs and lemmas
+  that take the pair as an argument.
+- Linearity: a proof of a Type-valued invariant can be used once, so invariants are copied
+  structurally (`inv_dup`); the Lean kernel counts a linear variable named inside `Equal.cong`
+  as a second use where `bend` does not.
+- Big closed numbers (`2^30`) overflow the checker's stack; bounds stay on abstract words.
+- The largest proof files overflowed `bend`'s 16 MB stack at random; `test/bcheck.sh` now gives
+  it 64 MB, and caps memory through the cgroup in both modes.
+
+**Driver review 5** (`reviews/*-driver5.md`, Q4). The driver answers a batch's reference reads
+on up to 32 threads, collected in order, and reads up to 16 VCF pieces ahead. All three
+reviewers accepted; Claude noted three minor points, none needing a change
+(`reviews/responses-driver5.md`). This round the reviewers ran far more than they read: GPT 49
+targeted checks, Grok the error-order and pipe cases on the real binaries, Claude 264
+comparisons per piece size on damaged inputs plus ThreadSanitizer, AddressSanitizer and
+injected thread and allocation failures. No defect found.
+
+**Q5.** Whole genome, to a file, interleaved, three rounds (output file deleted outside the
+timing; pinned with `taskset -c 0-15`):
+
+| input | bcftools 1.24 | sequential (before) | parallel machine | + parallel driver |
+|---|---|---|---|---|
+| plain VCF, pinned | 7.83-7.91 s | 4.86-4.94 s | 2.39-2.49 s | 1.83-1.87 s |
+| `.vcf.gz`, pinned | 7.90-8.00 s | 4.88-4.93 s | 2.72-2.74 s | 1.82-1.84 s |
+| plain VCF, unpinned | 7.96-8.12 s | | | 2.16-2.32 s |
+| `.vcf.gz`, unpinned | 8.03-8.09 s | | | 2.08-2.19 s |
+
+chr22: 0.06 s pinned (0.09 s unpinned) against bcftools' 0.11-0.12 s (0.13-0.14 s). The 20,739
+moved indels (`data/scr.vcf`), where nearly every record is rewritten: 0.12-0.13 s against
+0.07-0.08 s, so rewriting a record is still slower than in bcftools. Peak memory on the whole
+genome: 670 MB against bcftools' 11 MB (the sequential machine used 141 MB). One timing pitfall:
+reusing one output file adds the cost of truncating the previous 2.8 GB output to the next run
+(chr22 measured 0.3 s that way).
