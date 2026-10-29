@@ -17,6 +17,16 @@ import ./proof_e_defs.bend as SD
 import ./proof_e_task_buf.bend as BUF
 import ./proof_e_task_ms.bend as MS
 import ./proof_e_task_run.bend as RN
+import ./proof_b_adv_wf.bend as AW
+import ./proof_e_task_piece.bend as PI
+import ./proof_e_task_tail.bend as TL
+import ./proof_b_rundefs.bend as RD
+import ./proof_b_run_buf.bend as BF
+import ../lawful-bytes/bytes.bend as BY
+import ../lawful-bytes/defs.bend as D
+import ../lawful-bytes/proof_core.bend as C
+import ../lawful-bytes/proof_grow.bend as G
+import ../lawful-arrays/proof_tree.bend as AT
 import ../lawful-arrays/proof_base.bend as AB
 import ../lawful-words/proof_nat.bend as N
 
@@ -27,6 +37,12 @@ import ../lawful-words/proof_nat.bend as N
 # are the lines ls it handled followed by the lines still to come at p, and
 # its run settles as the spec's run of ls from the phantom state. The spare
 # windows are good pictures.
+#
+# Phase F: the task runs on its piece C.BT(len, tr) itself (no copy) and
+# hands it back with its result. The piece is Q's only source, from some at
+# on (while its text from at holds an LF, Q keeps it: S.Kept), or held by the
+# task, after Q's source became a copy of the piece's bytes from at
+# (proof_e_task_tail.bend).
 
 # ---------------------------------------------------------------------------
 # Pictures
@@ -84,8 +100,48 @@ def LRok(+fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String
         & (&ls: List<&2, B.Line> -> ({LA == List.append(&2, B.Line, ls, B.Text.lines(String.append(P.pdtext(pd), String.concat(cs)))) : List<&2, B.Line>}
           & {P.settle(P.specRun(rp)) == P.settle(L.run.go(ls, fa, o, SD.rs0(c0, l))) : R.RunSt}))
 
-def LoopG(+fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, -r: W.TRes) -> Type:
+# A task's result, pictured (the piece aside).
+def ResG(+fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, -r: W.TRes) -> Type:
   &x: LR -> ({r == mkLR(fa, k, c0, l, x) : W.TRes} & LRok(fa, o, cs, c0, l, LA, x))
+
+# What the loop gives: the piece and the result.
+def LoopG(+fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +len: U32, +tr: AT.Tree<U32>, -r: W.TOut) -> Type:
+  &x: LR -> ({r == W.TOut{C.BT(len, tr), mkLR(fa, k, c0, l, x)} : W.TOut} & LRok(fa, o, cs, c0, l, LA, x))
+
+# Where the piece is (norm.bend's Ph): Q's input, or held by the task.
+type PhP is Data:
+  PInP{}
+  PHeldP{}
+
+def mkPh(+len: U32, +tr: AT.Tree<U32>, +x: PhP) -> W.Ph:
+  match x:
+    case PInP{}:
+      W.PIn{}
+    case PHeldP{}:
+      W.PHeld{C.BT(len, tr)}
+
+# The piece as Q's input: its only source, from some at on (Hold0); and, at
+# the loop's states, its text from at holds an LF (Hold).
+def Hold0(+len: U32, +tr: AT.Tree<U32>, +d: Nat, +x: PhP, +p: S.StP) -> Type:
+  match x:
+    case PInP{}:
+      &at: U32 -> {S.StP.src(p) == [P.SBP{len, tr, d, at}] : List<&2, P.SrcP>}
+    case PHeldP{}:
+      Unit
+
+def Hold(+len: U32, +tr: AT.Tree<U32>, +d: Nat, +x: PhP, +p: S.StP) -> Type:
+  match x:
+    case PInP{}:
+      &at: U32 -> ({S.StP.src(p) == [P.SBP{len, tr, d, at}] : List<&2, P.SrcP>} & {P.nolf(P.srctext(P.SBP{len, tr, d, at})) == False{} : Bool})
+    case PHeldP{}:
+      Unit
+
+def isMB(+m: S.MdP) -> Bool:
+  match m:
+    case S.MBP{rp}:
+      True{}
+    case S.MSP{s, qs, ql, code}:
+      False{}
 
 # ---------------------------------------------------------------------------
 # One advance: the lines handled compose
@@ -203,7 +259,7 @@ def idle_mb(+fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: Str
   w: {PR.RunInv(rp) == True{} : Bool} & ({P.pd_ok(pd) == True{} : Bool} & ({P.nolf(P.pdtext(pd)) == True{} : Bool} & ({PC.wp_ok(fa, wp) == True{} : Bool} & {S.mb_win(S.MBP{rp}, wp) == True{} : Bool}))),
   +hx: {P.RunP.x(rp) == False{} : Bool},
   t: Trk(fa, o, cs, c0, l, LA, S.StP{o2, S.MBP{rp}, Nil{}, pd, False{}, back, wp, asked, fneed})) ->
-  LoopG(fa, o, cs, c0, l, LA, k, W.task.done(S.mkSt(fa, S.StP{o2, S.MBP{rp}, Nil{}, pd, False{}, back, wp, asked, fneed}), k, c0, l)):
+  ResG(fa, o, cs, c0, l, LA, k, W.task.done(S.mkSt(fa, S.StP{o2, S.MBP{rp}, Nil{}, pd, False{}, back, wp, asked, fneed}), k, c0, l)):
   (hinv, w1) = w
   (hpd, w2) = w1
   (hnl, w3) = w2
@@ -235,7 +291,7 @@ def idle_done(+fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: S
   +hsrc: {S.src_empty(S.StP.src(p2)) == True{} : Bool},
   +hstop: {S.stopped(S.StP.md(p2)) == False{} : Bool},
   t: Trk(fa, o, cs, c0, l, LA, p2)) ->
-  LoopG(fa, o, cs, c0, l, LA, k, W.task.done(S.mkSt(fa, p2), k, c0, l)):
+  ResG(fa, o, cs, c0, l, LA, k, W.task.done(S.mkSt(fa, p2), k, c0, l)):
   match p2:
     case S.StP{+o2, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
       match md:
@@ -244,11 +300,11 @@ def idle_done(+fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: S
         case S.MBP{+rp}:
           match src:
             case Con{+sp, +rest}:
-              Empty.absurd(LoopG(fa, o, cs, c0, l, LA, k, W.task.done(S.mkSt(fa, S.StP{o2, S.MBP{rp}, Con{sp, rest}, pd, eof, back, wp, asked, fneed}), k, c0, l)), N.false_ne_true(hsrc))
+              Empty.absurd(ResG(fa, o, cs, c0, l, LA, k, W.task.done(S.mkSt(fa, S.StP{o2, S.MBP{rp}, Con{sp, rest}, pd, eof, back, wp, asked, fneed}), k, c0, l)), N.false_ne_true(hsrc))
             case Nil{}:
               match eof:
                 case True{}:
-                  Empty.absurd(LoopG(fa, o, cs, c0, l, LA, k, W.task.done(S.mkSt(fa, S.StP{o2, S.MBP{rp}, Nil{}, pd, True{}, back, wp, asked, fneed}), k, c0, l)), N.true_ne_false(heof))
+                  Empty.absurd(ResG(fa, o, cs, c0, l, LA, k, W.task.done(S.mkSt(fa, S.StP{o2, S.MBP{rp}, Nil{}, pd, True{}, back, wp, asked, fneed}), k, c0, l)), N.true_ne_false(heof))
                 case False{}:
                   idle_mb(fa, o, cs, c0, l, LA, k, o2, rp, pd, back, wp, asked, fneed,
                     wf9(S.md_ok(S.MBP{rp}), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))),
@@ -306,52 +362,305 @@ def trk_swap(+fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: St
       Unit{}
 
 # ---------------------------------------------------------------------------
-# The loop
+# The piece: back from Q's input, kept by Q, its end copied
 # ---------------------------------------------------------------------------
 
-def IH(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +T: R.Report) -> Type:
-  @p2: S.StP -> @sp2: List<&2, PC.WP> -> Inv(fa, o, cs, c0, l, LA, T, p2) -> {wins_ok(fa, sp2) == True{} : Bool} ->
-    LoopG(fa, o, cs, c0, l, LA, k, W.task.loop(g, W.TGo{S.mkSt(fa, p2), mkWins(fa, sp2)}, k, c0, l))
-
-def end_r(+g: Nat, r: W.TRes, +k: U32, +c0: String, +l: Nat) -> {W.task.loop(g, W.TEnd{r}, k, c0, l) == r : W.TRes}:
+def end_r(+g: Nat, -r: W.TOut, +el: U32, +len: U32, +k: U32, +c0: String, +l: Nat) -> {W.task.loop(g, W.TEnd{r}, el, len, k, c0, l) == r : W.TOut}:
   match g:
     case 0n:
       {==}
     case 1n+h:
       {==}
 
-def swap_go(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +T: R.Report,
-  +p2: S.StP, +wp2: PC.WP, +sp2: List<&2, PC.WP>,
-  +hwf: {S.WF(fa, p2) == True{} : Bool},
-  +hrep: {S.report(fa, cs, "", Nil{}, p2) == T : R.Report},
-  +hgd: {S.guard("", Nil{}, p2) == True{} : Bool},
-  +heof: {S.StP.eof(p2) == False{} : Bool},
-  +ho: {S.StP.o(p2) == o : B.Opts},
-  t: Trk(fa, o, cs, c0, l, LA, p2),
-  +hw: {Bool.and(PC.wp_ok(fa, wp2), S.mb_win.k(wp2)) == True{} : Bool},
-  +hsp2: {wins_ok(fa, sp2) == True{} : Bool},
-  ih: IH(g, fa, o, cs, c0, l, LA, k, T)) ->
-  LoopG(fa, o, cs, c0, l, LA, k, W.task.loop(g, W.TGo{W.swap_win(S.mkSt(fa, p2), PC.mkWin(fa, wp2)), mkWins(fa, sp2)}, k, c0, l)):
-  match p2:
+# The piece is Q's input: the task takes it back.
+def back_in(+fa: List<&2, B.Contig>, +len: U32, +tr: AT.Tree<U32>, +d: Nat, +at: U32, +p: S.StP,
+  +h: {S.StP.src(p) == [P.SBP{len, tr, d, at}] : List<&2, P.SrcP>}) ->
+  {W.st_b(S.mkSt(fa, p)) == C.BT(len, tr) : D.Bytes}:
+  match p:
     case S.StP{+o2, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
-      +wf3 = wf_swap(S.md_ok(md), S.srcs_ok(src), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(src), String.is_empty(P.pdtext(pd))),
-        Bool.or(Bool.not(eof), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(src)))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o2)),
-        PC.wp_ok(fa, wp2), S.mb_win(md, wp2), hwf, BUF.andl(PC.wp_ok(fa, wp2), S.mb_win.k(wp2), hw), mbw(md, wp2, BUF.andr(PC.wp_ok(fa, wp2), S.mb_win.k(wp2), hw)))
-      +rep3 = Equal.trans(R.Report, S.report(fa, cs, "", Nil{}, S.StP{o2, md, src, pd, eof, back, wp2, None{}, fneed}), S.report(fa, cs, "", Nil{}, S.StP{o2, md, src, pd, eof, back, wp, asked, fneed}), T,
-        rep_swap(fa, cs, o2, md, src, pd, eof, back, wp, wp2, asked, fneed), hrep)
-      ih(S.StP{o2, md, src, pd, eof, back, wp2, None{}, fneed}, sp2,
-        (wf3, (rep3, (hgd, (heof, (ho, trk_swap(fa, o, cs, c0, l, LA, o2, md, src, pd, eof, back, wp, wp2, asked, fneed, t)))))), hsp2)
+      %Equal.sym(List<&2, P.SrcP>, src, [P.SBP{len, tr, d, at}], h) : {W.st_b(S.mkSt(fa, S.StP{o2, md, _, pd, eof, back, wp, asked, fneed})) == C.BT(len, tr) : D.Bytes}
+      {==}
 
-def hms2(+fa: List<&2, B.Contig>, -st: Q.St, +p: S.StP, +p2: S.StP,
+def back_x(+fa: List<&2, B.Contig>, +len: U32, +tr: AT.Tree<U32>, +d: Nat, +x: PhP, +p: S.StP,
+  h: Hold0(len, tr, d, x, p)) ->
+  {W.task.back(S.mkSt(fa, p), mkPh(len, tr, x)) == C.BT(len, tr) : D.Bytes}:
+  match x:
+    case PInP{}:
+      (+at, hs) = h
+      back_in(fa, len, tr, d, at, p, hs)
+    case PHeldP{}:
+      {==}
+
+def hold0_of(+len: U32, +tr: AT.Tree<U32>, +d: Nat, +x: PhP, +p: S.StP,
+  h: Hold(len, tr, d, x, p)) -> Hold0(len, tr, d, x, p):
+  match x:
+    case PInP{}:
+      (+at, h1) = h
+      (hs, hn) = h1
+      (at, hs)
+    case PHeldP{}:
+      Unit{}
+
+# A dirty end, with the piece.
+def dirty_g(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32,
+  +len: U32, +tr: AT.Tree<U32>, +el: U32, -st: Q.St, -ph: W.Ph,
+  +hb: {W.task.back(st, ph) == C.BT(len, tr) : D.Bytes}) ->
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.dirty(st, ph), el, len, k, c0, l)):
+  %Equal.sym(W.TOut, W.task.loop(g, W.TEnd{W.TOut{W.task.back(st, ph), W.TDirty{}}}, el, len, k, c0, l), W.TOut{W.task.back(st, ph), W.TDirty{}}, end_r(g, W.TOut{W.task.back(st, ph), W.TDirty{}}, el, len, k, c0, l)) :
+    LoopG(fa, o, cs, c0, l, LA, k, len, tr, _)
+  (LDirty{}, (Equal.cong(D.Bytes, W.TOut, z => W.TOut{z, W.TDirty{}}, W.task.back(st, ph), C.BT(len, tr), hb), Unit{}))
+
+def dirty_st(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +el: U32, -st: Q.St, +x: PhP, +p2: S.StP,
   +est: {st == S.mkSt(fa, p2) : Q.St},
-  hms: {MS.md_ms_p(S.StP.md(p)) == True{} : Bool} -> {MS.st_ms(st) == True{} : Bool},
-  +h: {MS.md_ms_p(S.StP.md(p)) == True{} : Bool}) ->
-  {MS.md_ms_p(S.StP.md(p2)) == True{} : Bool}:
-  Equal.trans(Bool, MS.md_ms_p(S.StP.md(p2)), MS.st_ms(S.mkSt(fa, p2)), True{}, Equal.sym(Bool, MS.st_ms(S.mkSt(fa, p2)), MS.md_ms_p(S.StP.md(p2)), MS.st_ms_p(fa, p2)),
-    AB.subst(Q.St, z => {MS.st_ms(z) == True{} : Bool}, st, S.mkSt(fa, p2), est, hms(h)))
+  h: Hold0(len, tr, d, x, p2)) ->
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.dirty(st, mkPh(len, tr, x)), el, len, k, c0, l)):
+  dirty_g(g, fa, o, cs, c0, l, LA, k, len, tr, el, st, mkPh(len, tr, x),
+    Equal.trans(D.Bytes, W.task.back(st, mkPh(len, tr, x)), W.task.back(S.mkSt(fa, p2), mkPh(len, tr, x)), C.BT(len, tr),
+      Equal.cong(Q.St, D.Bytes, z => W.task.back(z, mkPh(len, tr, x)), st, S.mkSt(fa, p2), est), back_x(fa, len, tr, d, x, p2, h)))
 
+# Q kept the piece (S.Kept): from the byte mode, while its text from at holds
+# an LF.
+def kept_in(+len: U32, +tr: AT.Tree<U32>, +d: Nat, +at: U32, +p: S.StP, +p2: S.StP,
+  +hmb: {isMB(S.StP.md(p)) == True{} : Bool},
+  +hs: {S.StP.src(p) == [P.SBP{len, tr, d, at}] : List<&2, P.SrcP>},
+  +hn: {P.nolf(P.srctext(P.SBP{len, tr, d, at})) == False{} : Bool},
+  kp: S.Kept(p, p2)) ->
+  &at2: U32 -> {S.StP.src(p2) == [P.SBP{len, tr, d, at2}] : List<&2, P.SrcP>}:
+  match p:
+    case S.StP{+o2, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+      match md:
+        case S.MBP{+rp}:
+          kf = AB.subst(List<&2, P.SrcP>, z => S.Kept.s(z, S.StP.src(p2)), src, [P.SBP{len, tr, d, at}], hs, kp)
+          kf(hn)
+        case S.MSP{+s, +qs, +ql, +code}:
+          Empty.absurd(&at2: U32 -> {S.StP.src(p2) == [P.SBP{len, tr, d, at2}] : List<&2, P.SrcP>}, N.false_ne_true(hmb))
+
+def kept_hold(+len: U32, +tr: AT.Tree<U32>, +d: Nat, +x: PhP, +p: S.StP, +p2: S.StP,
+  +hmb: {isMB(S.StP.md(p)) == True{} : Bool},
+  h: Hold(len, tr, d, x, p),
+  kp: S.Kept(p, p2)) -> Hold0(len, tr, d, x, p2):
+  match x:
+    case PHeldP{}:
+      Unit{}
+    case PInP{}:
+      (+at, h1) = h
+      (hs, hn) = h1
+      kept_in(len, tr, d, at, p, p2, hmb, hs, hn, kp)
+
+# A state whose one source is replaced by one with the same text.
+def intext_sw(+cs: List<&2, String>, +o2: B.Opts, +md: S.MdP, +s1: P.SrcP, +s2: P.SrcP, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool,
+  +ht: {P.srctext(s2) == P.srctext(s1) : String}) ->
+  {S.intext(S.StP{o2, md, [s2], pd, eof, back, wp, asked, fneed}, cs) == S.intext(S.StP{o2, md, [s1], pd, eof, back, wp, asked, fneed}, cs) : String}:
+  %Equal.sym(String, P.srctext(s2), P.srctext(s1), ht) :
+    {String.append(String.append(_, ""), String.append(P.pdtext(pd), S.concat_if(eof, cs))) == S.intext(S.StP{o2, md, [s1], pd, eof, back, wp, asked, fneed}, cs) : String}
+  {==}
+
+def inv_sw(+fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +T: R.Report,
+  +o2: B.Opts, +rp: P.RunP, +s1: P.SrcP, +s2: P.SrcP, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool,
+  +ht: {P.srctext(s2) == P.srctext(s1) : String},
+  +hok2: {P.src_ok(s2) == True{} : Bool},
+  hinv: Inv(fa, o, cs, c0, l, LA, T, S.StP{o2, S.MBP{rp}, [s1], pd, eof, back, wp, asked, fneed})) ->
+  Inv(fa, o, cs, c0, l, LA, T, S.StP{o2, S.MBP{rp}, [s2], pd, eof, back, wp, asked, fneed}):
+  (+hwf, i1) = hinv
+  (+hrep, i2) = i1
+  (+hgd, i3) = i2
+  (+heof, i4) = i3
+  (+ho, t) = i4
+  (+ls, t1) = t
+  (e, st) = t1
+  +p1 = {S.StP{o2, S.MBP{rp}, [s1], pd, eof, back, wp, asked, fneed} : S.StP}
+  +p2 = {S.StP{o2, S.MBP{rp}, [s2], pd, eof, back, wp, asked, fneed} : S.StP}
+  +m0 = S.md_ok(S.MBP{rp})
+  +hi = intext_sw(cs, o2, S.MBP{rp}, s1, s2, pd, eof, back, wp, asked, fneed, ht)
+  +h5 = {%Equal.sym(String, P.srctext(s2), P.srctext(s1), ht) :
+      {Bool.or(Bool.not(eof), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(String.append(_, "")))) == True{} : Bool};
+    AW.c9_5(m0, AW.W1(fa, p1), AW.W2(fa, p1), AW.W3(fa, p1), AW.W4(fa, p1), AW.W5(fa, p1), AW.W6(fa, p1), AW.W7(fa, p1), AW.W8(fa, p1), hwf) : {AW.W5(fa, p2) == True{} : Bool}}
+  +hwf2 = AW.c9_mk(m0, AW.W1(fa, p2), AW.W2(fa, p2), AW.W3(fa, p2), AW.W4(fa, p2), AW.W5(fa, p2), AW.W6(fa, p2), AW.W7(fa, p2), AW.W8(fa, p2),
+    AW.c9_0(m0, AW.W1(fa, p1), AW.W2(fa, p1), AW.W3(fa, p1), AW.W4(fa, p1), AW.W5(fa, p1), AW.W6(fa, p1), AW.W7(fa, p1), AW.W8(fa, p1), hwf), hok2,
+    AW.c9_2(m0, AW.W1(fa, p1), AW.W2(fa, p1), AW.W3(fa, p1), AW.W4(fa, p1), AW.W5(fa, p1), AW.W6(fa, p1), AW.W7(fa, p1), AW.W8(fa, p1), hwf),
+    AW.c9_3(m0, AW.W1(fa, p1), AW.W2(fa, p1), AW.W3(fa, p1), AW.W4(fa, p1), AW.W5(fa, p1), AW.W6(fa, p1), AW.W7(fa, p1), AW.W8(fa, p1), hwf),
+    AW.c9_4(m0, AW.W1(fa, p1), AW.W2(fa, p1), AW.W3(fa, p1), AW.W4(fa, p1), AW.W5(fa, p1), AW.W6(fa, p1), AW.W7(fa, p1), AW.W8(fa, p1), hwf), h5,
+    AW.c9_6(m0, AW.W1(fa, p1), AW.W2(fa, p1), AW.W3(fa, p1), AW.W4(fa, p1), AW.W5(fa, p1), AW.W6(fa, p1), AW.W7(fa, p1), AW.W8(fa, p1), hwf),
+    AW.c9_7(m0, AW.W1(fa, p1), AW.W2(fa, p1), AW.W3(fa, p1), AW.W4(fa, p1), AW.W5(fa, p1), AW.W6(fa, p1), AW.W7(fa, p1), AW.W8(fa, p1), hwf),
+    AW.c9_8(m0, AW.W1(fa, p1), AW.W2(fa, p1), AW.W3(fa, p1), AW.W4(fa, p1), AW.W5(fa, p1), AW.W6(fa, p1), AW.W7(fa, p1), AW.W8(fa, p1), hwf))
+  +er = {%Equal.sym(String, S.intext(p2, cs), S.intext(p1, cs), hi) :
+      {R.finish(L.run.go(B.Text.lines(_), fa, o2, S.pre("", Nil{}, P.specRun(rp)))) == S.report(fa, cs, "", Nil{}, p1) : R.Report};
+    {==} : {S.report(fa, cs, "", Nil{}, p2) == S.report(fa, cs, "", Nil{}, p1) : R.Report}}
+  +e2 = Equal.trans(List<&2, B.Line>, LA, List.append(&2, B.Line, ls, B.Text.lines(S.intext(p1, cs))), List.append(&2, B.Line, ls, B.Text.lines(S.intext(p2, cs))), e,
+    Equal.cong(String, List<&2, B.Line>, z => List.append(&2, B.Line, ls, B.Text.lines(z)), S.intext(p1, cs), S.intext(p2, cs), Equal.sym(String, S.intext(p2, cs), S.intext(p1, cs), hi)))
+  (hwf2, (Equal.trans(R.Report, S.report(fa, cs, "", Nil{}, p2), S.report(fa, cs, "", Nil{}, p1), T, er, hrep), (hgd, (heof, (ho, (ls, (e2, st)))))))
+
+def not_f(+b: Bool, +h: {Bool.not(b) == False{} : Bool}) -> {b == True{} : Bool}:
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      Empty.absurd({False{} == True{} : Bool}, N.true_ne_false(h))
+
+# ---------------------------------------------------------------------------
+# The loop
+# ---------------------------------------------------------------------------
+
+def IH(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +T: R.Report,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +el: U32) -> Type:
+  @p2: S.StP -> @sp2: List<&2, PC.WP> -> @x: PhP -> Inv(fa, o, cs, c0, l, LA, T, p2) -> {isMB(S.StP.md(p2)) == True{} : Bool} -> Hold(len, tr, d, x, p2) -> {wins_ok(fa, sp2) == True{} : Bool} ->
+    LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.TGo{S.mkSt(fa, p2), mkWins(fa, sp2), mkPh(len, tr, x)}, el, len, k, c0, l))
+
+# The swap test said: copy the piece's bytes from at; the task holds it.
+def tail_k(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +T: R.Report,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +el: U32,
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +o2: B.Opts, +rp: P.RunP, +at: U32, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool, +sp: List<&2, PC.WP>,
+  +hle: {U32.is_le(at, len) == True{} : Bool},
+  pb: &l2: U32 -> &t2: AT.Tree<U32> -> BF.PutB(0, G.tnew(TL.TE(len, at), 0), len, tr, at, (len - at : U32), l2, t2),
+  hinv: Inv(fa, o, cs, c0, l, LA, T, S.StP{o2, S.MBP{rp}, [P.SBP{len, tr, d, at}], pd, eof, back, wp, asked, fneed}),
+  +hsp: {wins_ok(fa, sp) == True{} : Bool},
+  ih: IH(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el)) ->
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.tgo(W.swap.if(True{}, o2, Q.MB{P.mkRun(rp)}, C.BT(len, tr), at, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed), mkWins(fa, sp)), el, len, k, c0, l)):
+  (+L2, q1) = pb
+  (+T2, q2) = q1
+  (+epb, q3) = q2
+  (+ok2, q4) = q3
+  (+v2, eln) = q4
+  +E0 = TL.TE(len, at)
+  +s2 = {P.SBP{L2, T2, RD.tdepth(T2), 0} : P.SrcP}
+  +hok2 = {%Equal.sym(Bool, D.ok(C.BT(L2, T2), RD.tdepth(T2)), True{}, ok2) : {Bool.and(_, U32.is_le(0, L2)) == True{} : Bool};
+    %Equal.sym(Bool, U32.is_le(0, L2), True{}, PI.u_le0(L2)) : {Bool.and(True{}, _) == True{} : Bool};
+    {==} : {P.src_ok(s2) == True{} : Bool}}
+  +ht = TL.tail_text(len, tr, d, at, L2, T2, RD.tdepth(T2), G.tnew(E0, 0), hok, hle, v2)
+  %Equal.sym(D.Bytes, BY.empty(E0), C.BT(0, G.tnew(E0, 0)), G.empty_eq(E0)) :
+    LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.tgo(W.swap.put(o2, Q.MB{P.mkRun(rp)}, NR.put_bytes(_, C.BT(len, tr), at, (len - at : U32)), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed), mkWins(fa, sp)), el, len, k, c0, l))
+  %Equal.sym(D.Bytes & D.Bytes, NR.put_bytes(C.BT(0, G.tnew(E0, 0)), C.BT(len, tr), at, (len - at : U32)), (C.BT(L2, T2), C.BT(len, tr)), epb) :
+    LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.tgo(W.swap.put(o2, Q.MB{P.mkRun(rp)}, _, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed), mkWins(fa, sp)), el, len, k, c0, l))
+  ih(S.StP{o2, S.MBP{rp}, [s2], pd, eof, back, wp, asked, fneed}, sp, PHeldP{},
+    inv_sw(fa, o, cs, c0, l, LA, T, o2, rp, P.SBP{len, tr, d, at}, s2, pd, eof, back, wp, asked, fneed, ht, hok2, hinv), {==}, Unit{}, hsp)
+
+def tail_ok(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +T: R.Report,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +el: U32,
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
+  +o2: B.Opts, +rp: P.RunP, +at: U32, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool, +sp: List<&2, PC.WP>,
+  hinv: Inv(fa, o, cs, c0, l, LA, T, S.StP{o2, S.MBP{rp}, [P.SBP{len, tr, d, at}], pd, eof, back, wp, asked, fneed}),
+  +hsp: {wins_ok(fa, sp) == True{} : Bool},
+  ih: IH(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el)) ->
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.tgo(W.swap.if(True{}, o2, Q.MB{P.mkRun(rp)}, C.BT(len, tr), at, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed), mkWins(fa, sp)), el, len, k, c0, l)):
+  (+hwf, i1) = hinv
+  +p1 = {S.StP{o2, S.MBP{rp}, [P.SBP{len, tr, d, at}], pd, eof, back, wp, asked, fneed} : S.StP}
+  +h1 = AW.c9_1(S.md_ok(S.MBP{rp}), AW.W1(fa, p1), AW.W2(fa, p1), AW.W3(fa, p1), AW.W4(fa, p1), AW.W5(fa, p1), AW.W6(fa, p1), AW.W7(fa, p1), AW.W8(fa, p1), hwf)
+  +hle = AW.and_r(D.ok(C.BT(len, tr), d), U32.is_le(at, len), h1)
+  tail_k(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el, hok, o2, rp, at, pd, eof, back, wp, asked, fneed, sp, hle,
+    TL.tail_put(len, tr, d, at, hok, hle, hL), (hwf, i1), hsp, ih)
+
+# The swap test on the byte at el (el < len).
+def if_ok(+c: Bool, +g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +T: R.Report,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +el: U32,
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
+  +o2: B.Opts, +rp: P.RunP, +at: U32, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool, +sp: List<&2, PC.WP>,
+  +hlt: {U32.is_lt(el, len) == True{} : Bool},
+  +hc: {Bool.not(Bool.and(U32.is_le(at, el), U32.is_eq(C.AT(len, tr, el), 10))) == c : Bool},
+  hinv: Inv(fa, o, cs, c0, l, LA, T, S.StP{o2, S.MBP{rp}, [P.SBP{len, tr, d, at}], pd, eof, back, wp, asked, fneed}),
+  +hsp: {wins_ok(fa, sp) == True{} : Bool},
+  ih: IH(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el)) ->
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.tgo(W.swap.if(c, o2, Q.MB{P.mkRun(rp)}, C.BT(len, tr), at, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed), mkWins(fa, sp)), el, len, k, c0, l)):
+  match c:
+    case True{}:
+      tail_ok(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el, hok, hL, o2, rp, at, pd, eof, back, wp, asked, fneed, sp, hinv, hsp, ih)
+    case False{}:
+      +A = U32.is_le(at, el)
+      +Bx = U32.is_eq(C.AT(len, tr, el), 10)
+      +hab = not_f(Bool.and(A, Bx), hc)
+      ih(S.StP{o2, S.MBP{rp}, [P.SBP{len, tr, d, at}], pd, eof, back, wp, asked, fneed}, sp, PInP{}, hinv, {==},
+        (at, ({==}, TL.nolf_at(len, tr, d, at, el, hok, BUF.andl(A, Bx, hab), hlt, BUF.andr(A, Bx, hab)))), hsp)
+
+def lt_ok(+b: Bool, +g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +T: R.Report,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +el: U32,
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
+  +o2: B.Opts, +rp: P.RunP, +at: U32, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool, +sp: List<&2, PC.WP>,
+  +hb: {U32.is_lt(el, len) == b : Bool},
+  hinv: Inv(fa, o, cs, c0, l, LA, T, S.StP{o2, S.MBP{rp}, [P.SBP{len, tr, d, at}], pd, eof, back, wp, asked, fneed}),
+  +hsp: {wins_ok(fa, sp) == True{} : Bool},
+  ih: IH(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el)) ->
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.tgo(W.swap.lt(b, C.BT(len, tr), at, el, o2, Q.MB{P.mkRun(rp)}, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed), mkWins(fa, sp)), el, len, k, c0, l)):
+  match b:
+    case False{}:
+      tail_ok(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el, hok, hL, o2, rp, at, pd, eof, back, wp, asked, fneed, sp, hinv, hsp, ih)
+    case True{}:
+      %Equal.sym(D.Bytes & U32, BY.at(C.BT(len, tr), el), (C.BT(len, tr), C.AT(len, tr, el)), C.at_pair_t(len, tr, el)) :
+        LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.tgo(W.swap.at(_, at, el, o2, Q.MB{P.mkRun(rp)}, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed), mkWins(fa, sp)), el, len, k, c0, l))
+      if_ok(Bool.not(Bool.and(U32.is_le(at, el), U32.is_eq(C.AT(len, tr, el), 10))), g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el, hok, hL,
+        o2, rp, at, pd, eof, back, wp, asked, fneed, sp, hb, {==}, hinv, hsp, ih)
+
+# The piece Q's input from at: the swap test.
+def next_in(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +T: R.Report,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +el: U32,
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
+  +o2: B.Opts, +rp: P.RunP, +src: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool, +sp: List<&2, PC.WP>,
+  +at: U32,
+  +hs: {src == [P.SBP{len, tr, d, at}] : List<&2, P.SrcP>},
+  hinv: Inv(fa, o, cs, c0, l, LA, T, S.StP{o2, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}),
+  +hsp: {wins_ok(fa, sp) == True{} : Bool},
+  ih: IH(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el)) ->
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.next(S.mkSt(fa, S.StP{o2, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}), W.PIn{}, mkWins(fa, sp), el, len), el, len, k, c0, l)):
+  +S1 = {[P.SBP{len, tr, d, at}] : List<&2, P.SrcP>}
+  %Equal.sym(List<&2, P.SrcP>, src, S1, hs) :
+    LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.next(S.mkSt(fa, S.StP{o2, S.MBP{rp}, _, pd, eof, back, wp, asked, fneed}), W.PIn{}, mkWins(fa, sp), el, len), el, len, k, c0, l))
+  lt_ok(U32.is_lt(el, len), g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el, hok, hL, o2, rp, at, pd, eof, back, wp, asked, fneed, sp, {==},
+    AB.subst(List<&2, P.SrcP>, z => Inv(fa, o, cs, c0, l, LA, T, S.StP{o2, S.MBP{rp}, z, pd, eof, back, wp, asked, fneed}), src, S1, hs, hinv), hsp, ih)
+
+# From a state p (the piece as Hold0 says), the loop goes on after the
+# swap test (norm.bend's task.next).
+def next_ok(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +T: R.Report,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +el: U32,
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
+  +p: S.StP, +sp: List<&2, PC.WP>, +x: PhP,
+  hinv: Inv(fa, o, cs, c0, l, LA, T, p),
+  h0: Hold0(len, tr, d, x, p),
+  +hsp: {wins_ok(fa, sp) == True{} : Bool},
+  ih: IH(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el)) ->
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.next(S.mkSt(fa, p), mkPh(len, tr, x), mkWins(fa, sp), el, len), el, len, k, c0, l)):
+  match p:
+    case S.StP{+o2, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+      match md:
+        case S.MSP{+s, +qs, +ql, +code}:
+          dirty_st(g, fa, o, cs, c0, l, LA, k, len, tr, d, el, S.mkSt(fa, S.StP{o2, S.MSP{s, qs, ql, code}, src, pd, eof, back, wp, asked, fneed}), x,
+            S.StP{o2, S.MSP{s, qs, ql, code}, src, pd, eof, back, wp, asked, fneed}, {==}, h0)
+        case S.MBP{+rp}:
+          match x:
+            case PHeldP{}:
+              ih(S.StP{o2, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}, sp, PHeldP{}, hinv, {==}, Unit{}, hsp)
+            case PInP{}:
+              (+at, hs) = h0
+              next_in(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el, hok, hL, o2, rp, src, pd, eof, back, wp, asked, fneed, sp, at, hs, hinv, hsp, ih)
+
+# Hold0 only looks at the sources: a new window keeps it.
+def hold0_win(+len: U32, +tr: AT.Tree<U32>, +d: Nat, +x: PhP,
+  +o2: B.Opts, +md: S.MdP, +src: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +wp2: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool,
+  h: Hold0(len, tr, d, x, S.StP{o2, md, src, pd, eof, back, wp, asked, fneed})) ->
+  Hold0(len, tr, d, x, S.StP{o2, md, src, pd, eof, back, wp2, None{}, fneed}):
+  match x:
+    case PInP{}:
+      h
+    case PHeldP{}:
+      Unit{}
+
+def ms_mb(+m: S.MdP, +h1: {isMB(m) == True{} : Bool}, +h2: {MS.md_ms_p(m) == True{} : Bool}) -> Empty:
+  match m:
+    case S.MBP{+rp}:
+      N.false_ne_true(h2)
+    case S.MSP{+s, +qs, +ql, +code}:
+      N.false_ne_true(h1)
+
+# A read the window does not answer: the next spare window, or dirty.
 def want_go(+sp: List<&2, PC.WP>, +g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +T: R.Report,
-  -st: Q.St, +p2: S.StP,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +el: U32,
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
+  -st: Q.St, +p2: S.StP, +x: PhP,
   +est: {st == S.mkSt(fa, p2) : Q.St},
   +hwf: {S.WF(fa, p2) == True{} : Bool},
   +hrep: {S.report(fa, cs, "", Nil{}, p2) == T : R.Report},
@@ -359,29 +668,73 @@ def want_go(+sp: List<&2, PC.WP>, +g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, 
   +heof: {S.StP.eof(p2) == False{} : Bool},
   +ho: {S.StP.o(p2) == o : B.Opts},
   t: Trk(fa, o, cs, c0, l, LA, p2),
+  h0: Hold0(len, tr, d, x, p2),
   +hsp: {wins_ok(fa, sp) == True{} : Bool},
-  ih: IH(g, fa, o, cs, c0, l, LA, k, T)) ->
-  LoopG(fa, o, cs, c0, l, LA, k, W.task.loop(g, W.task.want(st, mkWins(fa, sp)), k, c0, l)):
+  ih: IH(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el)) ->
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.want(st, mkWins(fa, sp), mkPh(len, tr, x), el, len), el, len, k, c0, l)):
   match sp:
     case Nil{}:
-      %Equal.sym(W.TRes, W.task.loop(g, W.TEnd{W.TDirty{}}, k, c0, l), W.TDirty{}, end_r(g, W.TDirty{}, k, c0, l)) : LoopG(fa, o, cs, c0, l, LA, k, _)
-      (LDirty{}, ({==}, Unit{}))
+      dirty_st(g, fa, o, cs, c0, l, LA, k, len, tr, d, el, st, x, p2, est, h0)
     case +wp2 <> +sp2:
-      +X = Bool.and(PC.wp_ok(fa, wp2), S.mb_win.k(wp2))
-      %Equal.sym(Q.St, st, S.mkSt(fa, p2), est) : LoopG(fa, o, cs, c0, l, LA, k, W.task.loop(g, W.TGo{W.swap_win(_, PC.mkWin(fa, wp2)), mkWins(fa, sp2)}, k, c0, l))
-      swap_go(g, fa, o, cs, c0, l, LA, k, T, p2, wp2, sp2, hwf, hrep, hgd, heof, ho, t, BUF.andl(X, wins_ok(fa, sp2), hsp), BUF.andr(X, wins_ok(fa, sp2), hsp), ih)
+      match p2:
+        case S.StP{+o2, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+          +X = Bool.and(PC.wp_ok(fa, wp2), S.mb_win.k(wp2))
+          +hw = BUF.andl(X, wins_ok(fa, sp2), hsp)
+          +hsp2 = BUF.andr(X, wins_ok(fa, sp2), hsp)
+          %Equal.sym(Q.St, st, S.mkSt(fa, S.StP{o2, md, src, pd, eof, back, wp, asked, fneed}), est) :
+            LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.next(W.swap_win(_, PC.mkWin(fa, wp2)), mkPh(len, tr, x), mkWins(fa, sp2), el, len), el, len, k, c0, l))
+          +wf3 = wf_swap(S.md_ok(md), S.srcs_ok(src), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(src), String.is_empty(P.pdtext(pd))),
+            Bool.or(Bool.not(eof), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(src)))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o2)),
+            PC.wp_ok(fa, wp2), S.mb_win(md, wp2), hwf, BUF.andl(PC.wp_ok(fa, wp2), S.mb_win.k(wp2), hw), mbw(md, wp2, BUF.andr(PC.wp_ok(fa, wp2), S.mb_win.k(wp2), hw)))
+          +rep3 = Equal.trans(R.Report, S.report(fa, cs, "", Nil{}, S.StP{o2, md, src, pd, eof, back, wp2, None{}, fneed}), S.report(fa, cs, "", Nil{}, S.StP{o2, md, src, pd, eof, back, wp, asked, fneed}), T,
+            rep_swap(fa, cs, o2, md, src, pd, eof, back, wp, wp2, asked, fneed), hrep)
+          next_ok(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el, hok, hL, S.StP{o2, md, src, pd, eof, back, wp2, None{}, fneed}, sp2, x,
+            (wf3, (rep3, (hgd, (heof, (ho, trk_swap(fa, o, cs, c0, l, LA, o2, md, src, pd, eof, back, wp, wp2, asked, fneed, t)))))),
+            hold0_win(len, tr, d, x, o2, md, src, pd, eof, back, wp, wp2, asked, fneed, h0), hsp2, ih)
+
+def res_out(+fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +len: U32, +tr: AT.Tree<U32>,
+  -r0: W.TRes, rg: ResG(fa, o, cs, c0, l, LA, k, r0)) ->
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.TOut{C.BT(len, tr), r0}):
+  (+r, g1) = rg
+  (e, h) = g1
+  (r, (Equal.cong(W.TRes, W.TOut, z => W.TOut{C.BT(len, tr), z}, r0, mkLR(fa, k, c0, l, r), e), h))
+
+# Idle: with the piece held, the result as before; else (not reached) dirty.
+def idle_go(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +el: U32,
+  -st: Q.St, +p2: S.StP, +x: PhP,
+  +est: {st == S.mkSt(fa, p2) : Q.St},
+  +hwf: {S.WF(fa, p2) == True{} : Bool},
+  +heof: {S.StP.eof(p2) == False{} : Bool},
+  +hsrc: {S.src_empty(S.StP.src(p2)) == True{} : Bool},
+  +hstop: {S.stopped(S.StP.md(p2)) == False{} : Bool},
+  t: Trk(fa, o, cs, c0, l, LA, p2),
+  h0: Hold0(len, tr, d, x, p2)) ->
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.idle(st, mkPh(len, tr, x), k, c0, l), el, len, k, c0, l)):
+  match x:
+    case PInP{}:
+      dirty_st(g, fa, o, cs, c0, l, LA, k, len, tr, d, el, st, PInP{}, p2, est, h0)
+    case PHeldP{}:
+      %Equal.sym(W.TOut, W.task.loop(g, W.TEnd{W.TOut{C.BT(len, tr), W.task.done(st, k, c0, l)}}, el, len, k, c0, l), W.TOut{C.BT(len, tr), W.task.done(st, k, c0, l)}, end_r(g, W.TOut{C.BT(len, tr), W.task.done(st, k, c0, l)}, el, len, k, c0, l)) :
+        LoopG(fa, o, cs, c0, l, LA, k, len, tr, _)
+      %Equal.sym(Q.St, st, S.mkSt(fa, p2), est) : LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.TOut{C.BT(len, tr), W.task.done(_, k, c0, l)})
+      res_out(fa, o, cs, c0, l, LA, k, len, tr, W.task.done(S.mkSt(fa, p2), k, c0, l), idle_done(fa, o, cs, c0, l, LA, k, p2, hwf, heof, hsrc, hstop, t))
 
 # One advance a from p (adv_ok's guarantee hadv), then the rest of the loop.
 def step(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +T: R.Report,
-  +p: S.StP, +sp: List<&2, PC.WP>, a: Q.Adv,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +el: U32,
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
+  +p: S.StP, +sp: List<&2, PC.WP>, +x: PhP, a: Q.Adv,
   +hsp: {wins_ok(fa, sp) == True{} : Bool},
   +heof: {S.StP.eof(p) == False{} : Bool},
   +ho: {S.StP.o(p) == o : B.Opts},
   t: Trk(fa, o, cs, c0, l, LA, p),
+  +hmb: {isMB(S.StP.md(p)) == True{} : Bool},
+  h: Hold(len, tr, d, x, p),
   hadv: S.AdvG(fa, T, cs, "", Nil{}, p, a),
-  hms: {MS.md_ms_p(S.StP.md(p)) == True{} : Bool} -> {MS.adv_ms(a) == True{} : Bool},
-  ih: IH(g, fa, o, cs, c0, l, LA, k, T)) ->
-  LoopG(fa, o, cs, c0, l, LA, k, W.task.loop(g, W.task.adv(a, mkWins(fa, sp), k, c0, l), k, c0, l)):
+  ih: IH(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el)) ->
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.adv(a, mkWins(fa, sp), mkPh(len, tr, x), el, len, k, c0, l), el, len, k, c0, l)):
   match a:
     case Q.Went{st}:
       (+p2, h1) = hadv
@@ -392,10 +745,14 @@ def step(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c
       (hask, h6) = h5
       (+heof2, h7) = h6
       (+hgd2, h8) = h7
-      (+ho2, mv) = h8
-      t2 = trk_md(S.StP.md(p), S.StP.md(p2), fa, o, cs, c0, l, LA, p, p2, t, mv, ho, h => hms2(fa, st, p, p2, est, hms, h))
-      %Equal.sym(Q.St, st, S.mkSt(fa, p2), est) : LoopG(fa, o, cs, c0, l, LA, k, W.task.loop(g, W.TGo{_, mkWins(fa, sp)}, k, c0, l))
-      ih(p2, sp, (hwf2, (hrep2, (hgd2, (Equal.trans(Bool, S.StP.eof(p2), S.StP.eof(p), False{}, heof2, heof), (Equal.trans(B.Opts, S.StP.o(p2), S.StP.o(p), o, ho2, ho), t2))))), hsp)
+      (+ho2, h9) = h8
+      (mv, kp) = h9
+      t2 = trk_md(S.StP.md(p), S.StP.md(p2), fa, o, cs, c0, l, LA, p, p2, t, mv, ho, hh => Empty.absurd({MS.md_ms_p(S.StP.md(p2)) == True{} : Bool}, ms_mb(S.StP.md(p), hmb, hh)))
+      %Equal.sym(Q.St, st, S.mkSt(fa, p2), est) :
+        LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(g, W.task.next(_, mkPh(len, tr, x), mkWins(fa, sp), el, len), el, len, k, c0, l))
+      next_ok(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el, hok, hL, p2, sp, x,
+        (hwf2, (hrep2, (hgd2, (Equal.trans(Bool, S.StP.eof(p2), S.StP.eof(p), False{}, heof2, heof), (Equal.trans(B.Opts, S.StP.o(p2), S.StP.o(p), o, ho2, ho), t2))))),
+        kept_hold(len, tr, d, x, p, p2, hmb, h, kp), hsp, ih)
     case Q.Want{st, reqs}:
       (+p2, h1) = hadv
       (+est, h2) = h1
@@ -408,10 +765,12 @@ def step(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c
       (hmbr, h9) = h8
       (+heof2, h10) = h9
       (+hgd2, h11) = h10
-      (+ho2, mv) = h11
-      t2 = trk_md(S.StP.md(p), S.StP.md(p2), fa, o, cs, c0, l, LA, p, p2, t, mv, ho, h => hms2(fa, st, p, p2, est, hms, h))
-      want_go(sp, g, fa, o, cs, c0, l, LA, k, T, st, p2, est, hwf2, hrep2, hgd2,
-        Equal.trans(Bool, S.StP.eof(p2), S.StP.eof(p), False{}, heof2, heof), Equal.trans(B.Opts, S.StP.o(p2), S.StP.o(p), o, ho2, ho), t2, hsp, ih)
+      (+ho2, h12) = h11
+      (mv, kp) = h12
+      t2 = trk_md(S.StP.md(p), S.StP.md(p2), fa, o, cs, c0, l, LA, p, p2, t, mv, ho, hh => Empty.absurd({MS.md_ms_p(S.StP.md(p2)) == True{} : Bool}, ms_mb(S.StP.md(p), hmb, hh)))
+      want_go(sp, g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el, hok, hL, st, p2, x, est, hwf2, hrep2, hgd2,
+        Equal.trans(Bool, S.StP.eof(p2), S.StP.eof(p), False{}, heof2, heof), Equal.trans(B.Opts, S.StP.o(p2), S.StP.o(p), o, ho2, ho), t2,
+        kept_hold(len, tr, d, x, p, p2, hmb, h, kp), hsp, ih)
     case Q.Idle{st}:
       (+p2, h1) = hadv
       (+est, h2) = h1
@@ -422,37 +781,70 @@ def step(+g: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c
       (+heof2, h7) = h6
       (+hstop, h8) = h7
       (+hgd2, h9) = h8
-      (+ho2, mv) = h9
-      t2 = trk_md(S.StP.md(p), S.StP.md(p2), fa, o, cs, c0, l, LA, p, p2, t, mv, ho, h => hms2(fa, st, p, p2, est, hms, h))
-      %Equal.sym(W.TRes, W.task.loop(g, W.TEnd{W.task.done(st, k, c0, l)}, k, c0, l), W.task.done(st, k, c0, l), end_r(g, W.task.done(st, k, c0, l), k, c0, l)) :
-        LoopG(fa, o, cs, c0, l, LA, k, _)
-      %Equal.sym(Q.St, st, S.mkSt(fa, p2), est) : LoopG(fa, o, cs, c0, l, LA, k, W.task.done(_, k, c0, l))
-      idle_done(fa, o, cs, c0, l, LA, k, p2, hwf2, Equal.trans(Bool, S.StP.eof(p2), S.StP.eof(p), False{}, heof2, heof), hsrc, hstop, t2)
+      (+ho2, h10) = h9
+      (mv, kp) = h10
+      t2 = trk_md(S.StP.md(p), S.StP.md(p2), fa, o, cs, c0, l, LA, p, p2, t, mv, ho, hh => Empty.absurd({MS.md_ms_p(S.StP.md(p2)) == True{} : Bool}, ms_mb(S.StP.md(p), hmb, hh)))
+      idle_go(g, fa, o, cs, c0, l, LA, k, len, tr, d, el, st, p2, x, est, hwf2, Equal.trans(Bool, S.StP.eof(p2), S.StP.eof(p), False{}, heof2, heof), hsrc, hstop, t2,
+        kept_hold(len, tr, d, x, p, p2, hmb, h, kp))
     case Q.Ended{st}:
-      %Equal.sym(W.TRes, W.task.loop(g, W.TEnd{W.TDirty{}}, k, c0, l), W.TDirty{}, end_r(g, W.TDirty{}, k, c0, l)) : LoopG(fa, o, cs, c0, l, LA, k, _)
-      (LDirty{}, ({==}, Unit{}))
+      (+p2, h1) = hadv
+      (+est, h2) = h1
+      (+hwf2, h3) = h2
+      (+hrep2, h4) = h3
+      (hask, h5) = h4
+      (hstop, h6) = h5
+      (+heof2, h7) = h6
+      (+hgd2, h8) = h7
+      (+ho2, kp) = h8
+      dirty_st(g, fa, o, cs, c0, l, LA, k, len, tr, d, el, st, x, p2, est, kept_hold(len, tr, d, x, p, p2, hmb, h, kp))
     case Q.Yield{st}:
-      %Equal.sym(W.TRes, W.task.loop(g, W.TEnd{W.TDirty{}}, k, c0, l), W.TDirty{}, end_r(g, W.TDirty{}, k, c0, l)) : LoopG(fa, o, cs, c0, l, LA, k, _)
-      (LDirty{}, ({==}, Unit{}))
+      (+p2, h1) = hadv
+      (+est, h2) = h1
+      (+hwf2, h3) = h2
+      (+hrep2, h4) = h3
+      (hask, h5) = h4
+      (hstop, h6) = h5
+      (+heof2, h7) = h6
+      (+hgd2, h8) = h7
+      (+ho2, kp) = h8
+      dirty_st(g, fa, o, cs, c0, l, LA, k, len, tr, d, el, st, x, p2, est, kept_hold(len, tr, d, x, p, p2, hmb, h, kp))
 
-# The task's loop from a good state: its result is dirty, or clean with the
-# lines it handled.
+# The task's loop from a good state: the piece back, and a result that is
+# dirty, or clean with the lines it handled.
 def loop_ok(+f: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +T: R.Report,
-  +p: S.StP, +sp: List<&2, PC.WP>,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +el: U32,
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
+  +p: S.StP, +sp: List<&2, PC.WP>, +x: PhP,
   +hb: {PC.fa_bytes(fa) == True{} : Bool},
   hinv: Inv(fa, o, cs, c0, l, LA, T, p),
+  +hmb: {isMB(S.StP.md(p)) == True{} : Bool},
+  h: Hold(len, tr, d, x, p),
   +hsp: {wins_ok(fa, sp) == True{} : Bool}) ->
-  LoopG(fa, o, cs, c0, l, LA, k, W.task.loop(f, W.TGo{S.mkSt(fa, p), mkWins(fa, sp)}, k, c0, l)):
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(f, W.TGo{S.mkSt(fa, p), mkWins(fa, sp), mkPh(len, tr, x)}, el, len, k, c0, l)):
   match f:
     case 0n:
-      (LDirty{}, ({==}, Unit{}))
+      (LDirty{}, (Equal.cong(D.Bytes, W.TOut, z => W.TOut{z, W.TDirty{}}, W.task.back(S.mkSt(fa, p), mkPh(len, tr, x)), C.BT(len, tr), back_x(fa, len, tr, d, x, p, hold0_of(len, tr, d, x, p, h))), Unit{}))
     case 1n+g:
       (+hwf, i1) = hinv
       (+hrep, i2) = i1
       (+hgd, i3) = i2
       (+heof, i4) = i3
       (+ho, t) = i4
-      step(g, fa, o, cs, c0, l, LA, k, T, p, sp, Q.advance(S.mkSt(fa, p)), hsp, heof, ho, t,
+      step(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el, hok, hL, p, sp, x, Q.advance(S.mkSt(fa, p)), hsp, heof, ho, t, hmb, h,
         SIM.adv_ok(fa, T, cs, "", Nil{}, p, hb, hwf, hrep, hgd),
-        h => MS.ms_stays(fa, p, h),
-        p2 => sp2 => j2 => w2 => loop_ok(g, fa, o, cs, c0, l, LA, k, T, p2, sp2, hb, j2, w2))
+        p2 => sp2 => x2 => j2 => m2 => h2 => w2 => loop_ok(g, fa, o, cs, c0, l, LA, k, T, len, tr, d, el, hok, hL, p2, sp2, x2, hb, j2, m2, h2, w2))
+
+# The task from its start state p0 (the piece Q's only source, from k + 1).
+def start_ok(+f: Nat, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA: List<&2, B.Line>, +k: U32, +T: R.Report,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +el: U32,
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
+  +p0: S.StP, +sp: List<&2, PC.WP>, +at: U32,
+  +hb: {PC.fa_bytes(fa) == True{} : Bool},
+  hinv: Inv(fa, o, cs, c0, l, LA, T, p0),
+  +hs: {S.StP.src(p0) == [P.SBP{len, tr, d, at}] : List<&2, P.SrcP>},
+  +hsp: {wins_ok(fa, sp) == True{} : Bool}) ->
+  LoopG(fa, o, cs, c0, l, LA, k, len, tr, W.task.loop(f, W.task.next(S.mkSt(fa, p0), W.PIn{}, mkWins(fa, sp), el, len), el, len, k, c0, l)):
+  next_ok(f, fa, o, cs, c0, l, LA, k, T, len, tr, d, el, hok, hL, p0, sp, PInP{}, hinv, (at, hs), hsp,
+    p2 => sp2 => x2 => j2 => m2 => h2 => w2 => loop_ok(f, fa, o, cs, c0, l, LA, k, T, len, tr, d, el, hok, hL, p2, sp2, x2, hb, j2, m2, h2, w2))

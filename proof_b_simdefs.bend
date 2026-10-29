@@ -278,6 +278,34 @@ def Moved.md(+m: MdP, +m2: MdP, +fa: List<&2, B.Contig>, +cs: List<&2, String>, 
 def Moved(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +p: StP, +p2: StP) -> Type:
   Moved.md(StP.md(p), StP.md(p2), fa, cs, p, p2)
 
+# What advance did to the input (from the byte mode): unless the rest of the
+# first source (a buffer) holds no LF, that source is the same buffer, from
+# some point on, before the same later sources. In any other case nothing is
+# claimed. (Phase F: a task takes its piece back from Q's input.)
+def Kept.sp(+sp: P.SrcP, +rest: List<&2, P.SrcP>, +s2: List<&2, P.SrcP>) -> Type:
+  match sp:
+    case P.SBP{+len, +t, +d, +at}:
+      {P.nolf(P.srctext(P.SBP{len, t, d, at})) == False{} : Bool} -> (&at2: U32 -> {s2 == Con{P.SBP{len, t, d, at2}, rest} : List<&2, P.SrcP>})
+    case P.SLP{+q}:
+      Unit
+
+def Kept.s(+s1: List<&2, P.SrcP>, +s2: List<&2, P.SrcP>) -> Type:
+  match s1:
+    case Nil{}:
+      Unit
+    case Con{+sp, +rest}:
+      Kept.sp(sp, rest, s2)
+
+def Kept.md(+m: MdP, +s1: List<&2, P.SrcP>, +s2: List<&2, P.SrcP>) -> Type:
+  match m:
+    case MBP{+rp}:
+      Kept.s(s1, s2)
+    case MSP{+s, +qs, +ql, +code}:
+      Unit
+
+def Kept(+p: StP, +p2: StP) -> Type:
+  Kept.md(StP.md(p), StP.src(p), StP.src(p2))
+
 # What advance leads to, for a good state p standing for report T: a good
 # state standing for T again (the lines it handled moved into its run), and
 #   Went: with less work left; Want: asking reads it keeps as asked, each
@@ -287,16 +315,16 @@ def AdvG(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: Strin
   match a:
     case Norm.Went{st}:
       &p2: StP -> ({st == mkSt(fa, p2) : Norm.St} & ({WF(fa, p2) == True{} : Bool} & ({report(fa, cs, O, N, p2) == T : R.Report}
-        & ({Nat.is_lt(measure(p2), measure(p)) == True{} : Bool} & ({StP.asked(p2) == None{} : Maybe<&2, List<&2, Pr.Req>>} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & Moved(fa, cs, p, p2)))))))))
+        & ({Nat.is_lt(measure(p2), measure(p)) == True{} : Bool} & ({StP.asked(p2) == None{} : Maybe<&2, List<&2, Pr.Req>>} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & (Moved(fa, cs, p, p2) & Kept(p, p2))))))))))
     case Norm.Want{st, reqs}:
       &p2: StP -> ({st == mkSt(fa, p2) : Norm.St} & ({WF(fa, p2) == True{} : Bool} & ({report(fa, cs, O, N, p2) == T : R.Report}
-        & ({E.reqs_ok(reqs) == True{} : Bool} & ({reqs == rq(reqs) : List<&2, Pr.Req>} & ({StP.asked(p2) == asked_of(reqs) : Maybe<&2, List<&2, Pr.Req>>} & ({stopped(StP.md(p2)) == False{} : Bool} & ({mb_reqs(StP.md(p2), reqs) == True{} : Bool} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & Moved(fa, cs, p, p2))))))))))))
+        & ({E.reqs_ok(reqs) == True{} : Bool} & ({reqs == rq(reqs) : List<&2, Pr.Req>} & ({StP.asked(p2) == asked_of(reqs) : Maybe<&2, List<&2, Pr.Req>>} & ({stopped(StP.md(p2)) == False{} : Bool} & ({mb_reqs(StP.md(p2), reqs) == True{} : Bool} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & (Moved(fa, cs, p, p2) & Kept(p, p2)))))))))))))
     case Norm.Idle{st}:
       &p2: StP -> ({st == mkSt(fa, p2) : Norm.St} & ({WF(fa, p2) == True{} : Bool} & ({report(fa, cs, O, N, p2) == T : R.Report}
-        & ({src_empty(StP.src(p2)) == True{} : Bool} & ({StP.asked(p2) == StP.asked(p) : Maybe<&2, List<&2, Pr.Req>>} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({stopped(StP.md(p2)) == False{} : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & Moved(fa, cs, p, p2))))))))))
+        & ({src_empty(StP.src(p2)) == True{} : Bool} & ({StP.asked(p2) == StP.asked(p) : Maybe<&2, List<&2, Pr.Req>>} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({stopped(StP.md(p2)) == False{} : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & (Moved(fa, cs, p, p2) & Kept(p, p2)))))))))))
     case Norm.Ended{st}:
       &p2: StP -> ({st == mkSt(fa, p2) : Norm.St} & ({WF(fa, p2) == True{} : Bool} & ({report(fa, cs, O, N, p2) == T : R.Report}
-        & ({StP.asked(p2) == StP.asked(p) : Maybe<&2, List<&2, Pr.Req>>} & ({stopped(StP.md(p2)) == True{} : Bool} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & {StP.o(p2) == StP.o(p) : B.Opts})))))))
+        & ({StP.asked(p2) == StP.asked(p) : Maybe<&2, List<&2, Pr.Req>>} & ({stopped(StP.md(p2)) == True{} : Bool} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & Kept(p, p2)))))))))
     case Norm.Yield{st}:
       &p2: StP -> ({st == mkSt(fa, p2) : Norm.St} & ({WF(fa, p2) == True{} : Bool} & ({report(fa, cs, O, N, p2) == T : R.Report}
-        & ({StP.asked(p2) == StP.asked(p) : Maybe<&2, List<&2, Pr.Req>>} & ({stopped(StP.md(p2)) == False{} : Bool} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & {StP.o(p2) == StP.o(p) : B.Opts})))))))
+        & ({StP.asked(p2) == StP.asked(p) : Maybe<&2, List<&2, Pr.Req>>} & ({stopped(StP.md(p2)) == False{} : Bool} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & Kept(p, p2)))))))))

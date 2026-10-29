@@ -140,7 +140,7 @@ def mbsrc(+src: List<&2, P.SrcP>, +fa: List<&2, B.Contig>, +T: R.Report, +cs: Li
     Norm.mb.src(P.mkSrcs(src), o, P.mkRun(rp), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed)):
   match src:
     case Nil{}:
-      (StM(o, S.MBP{rp}, Nil{}, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, ({==}, ({==}, (hx, (hg, ({==}, W.moved_keep(fa, cs, rp, StM(o, S.MBP{rp}, Nil{}, pd, eof, back, wp, asked, fneed), StM(o, S.MBP{rp}, Nil{}, pd, eof, back, wp, asked, fneed), {==})))))))))))
+      (StM(o, S.MBP{rp}, Nil{}, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, ({==}, ({==}, (hx, (hg, ({==}, (W.moved_keep(fa, cs, rp, StM(o, S.MBP{rp}, Nil{}, pd, eof, back, wp, asked, fneed), StM(o, S.MBP{rp}, Nil{}, pd, eof, back, wp, asked, fneed), {==}), Unit{})))))))))))
     case Con{P.SBP{+len, +t, +d, +at}, +rest}:
       adv.mb.sb(fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hx, hf, hbig)
     case Con{P.SLP{+q}, +rest}:
@@ -159,9 +159,9 @@ def mb.k(+x: Bool, +f: Bool, +g: Bool, +fa: List<&2, B.Contig>, +T: R.Report, +c
     Norm.mb.rs((P.mkRun(rp), Norm.Rs{x, f, g}), o, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed)):
   match x f g:
     case True{} _ _:
-      (StM(o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, (ex, ({==}, (hg, {==}))))))))
+      (StM(o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, (ex, ({==}, (hg, ({==}, W.kept_same(src))))))))))
     case False{} True{} _:
-      (StM(o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, (ex, ({==}, (hg, {==}))))))))
+      (StM(o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, (ex, ({==}, (hg, ({==}, W.kept_same(src))))))))))
     case False{} False{} True{}:
       TS.to_ms_went(fa, T, cs, O, N, o, rp, src, pd, eof, back, wp, asked, fneed, back, fneed, hw, hr, hg, ex)
     case False{} False{} False{}:
@@ -182,7 +182,7 @@ def mssrc(+src: List<&2, P.SrcP>, +fa: List<&2, B.Contig>, +T: R.Report, +cs: Li
     Norm.ms.src(P.mkSrcs(src), o, s, qs, ql, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed)):
   match src:
     case Nil{}:
-      (StM(o, S.MSP{s, qs, ql, None{}}, Nil{}, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, ({==}, ({==}, (%Equal.sym(Bool, R.RunSt.halt(s), False{}, hx) : {Bool.or(_, False{}) == False{} : Bool}; {==}, (hg, ({==}, Unit{}))))))))))
+      (StM(o, S.MSP{s, qs, ql, None{}}, Nil{}, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, ({==}, ({==}, (%Equal.sym(Bool, R.RunSt.halt(s), False{}, hx) : {Bool.or(_, False{}) == False{} : Bool}; {==}, (hg, ({==}, (Unit{}, Unit{})))))))))))
     case Con{P.SBP{+len, +t, +d, +at}, +rest}:
       adv.ms.sb(fa, T, cs, O, N, o, s, qs, ql, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hx)
     case Con{P.SLP{+q}, +rest}:
@@ -199,7 +199,7 @@ def msfull(+full: Bool, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, Str
     Norm.ms.full(full, o, s, qs, ql, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed)):
   match full:
     case True{}:
-      (StM(o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, (%Equal.sym(Bool, R.RunSt.halt(s), False{}, hx) : {Bool.or(_, False{}) == False{} : Bool}; {==}, ({==}, (hg, {==}))))))))
+      (StM(o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, (%Equal.sym(Bool, R.RunSt.halt(s), False{}, hx) : {Bool.or(_, False{}) == False{} : Bool}; {==}, ({==}, (hg, ({==}, Unit{})))))))))
     case False{}:
       mssrc(src, fa, T, cs, O, N, o, s, qs, ql, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hx)
 
@@ -214,9 +214,9 @@ def ms.k(+x: Bool, +code: Maybe<&2, Nat>, +fa: List<&2, B.Contig>, +T: R.Report,
     Norm.ms.adv(x, o, s, qs, ql, code, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed)):
   match x code:
     case _ Some{+c}:
-      (StM(o, S.MSP{s, qs, ql, Some{c}}, src, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, (W.or_r(R.RunSt.halt(s), True{}, {==}), ({==}, (hg, {==}))))))))
+      (StM(o, S.MSP{s, qs, ql, Some{c}}, src, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, (W.or_r(R.RunSt.halt(s), True{}, {==}), ({==}, (hg, ({==}, Unit{})))))))))
     case True{} None{}:
-      (StM(o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, (W.or_l(R.RunSt.halt(s), False{}, ex), ({==}, (hg, {==}))))))))
+      (StM(o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed), ({==}, (hw, (hr, ({==}, (W.or_l(R.RunSt.halt(s), False{}, ex), ({==}, (hg, ({==}, Unit{})))))))))
     case False{} None{}:
       msfull(Nat.is_le(Norm.lim(), ql), fa, T, cs, O, N, o, s, qs, ql, src, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, ex)
 

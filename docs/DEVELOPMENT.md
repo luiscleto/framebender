@@ -11,9 +11,13 @@ Arch, `libdeflate-dev` on Debian and Ubuntu, `libdeflate` in Homebrew). `build.s
 steps: `bend main.bend -o framebender.c` writes the program as C (with the driver's effects from
 `io64.c`), then `clang -std=c11 -O3 -DFB_LIBDEFLATE ... -ldeflate` compiles it, as `bend -o` would
 plus libdeflate, which reads BGZF (`.vcf.gz`) input. `./build.sh out` writes the binary to `out`.
+Between the two, `build.sh` patches Bend's heap in the generated C so that a large block freed on
+one thread can be reused by any (`notes/memory.md`); it stops if the generated runtime is not the
+one the patch was written for.
 
-`bend main.bend -o framebender` still builds in one step, without libdeflate. That binary reads
-plain VCF only and stops on a `.vcf.gz` with `error: no BGZF in this build <path>`.
+`bend main.bend -o framebender` still builds in one step, without libdeflate or the heap patch.
+That binary reads plain VCF only and stops on a `.vcf.gz` with `error: no BGZF in this build
+<path>`, and uses more memory.
 
 Set `BEND_NO_TELEMETRY=1` to turn off Bend's telemetry (`build.sh` sets it). `--threads N` sets
 Bend's worker threads too (`io64.c` puts `--threads N` before `BENDRTS` before `main`); the binary

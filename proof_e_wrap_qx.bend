@@ -247,7 +247,8 @@ def pump_x(f, a, fa, T, cs, O, N, p, hb, ag):
       (eask, a6) = a5
       (eeof, a7) = a6
       (eg, a8) = a7
-      (eo, mv) = a8
+      (eo, mvk) = a8
+      (mv, kp) = mvk
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : {WB.st_o(WB.step_st(Norm.out(_, Pr.Ask{Nil{}}))) == S.StP.o(p) : B.Opts} & {WB.live_k(WB.step_nx(Norm.out(_, Pr.Ask{Nil{}})), WB.st_stop(WB.step_st(Norm.out(_, Pr.Ask{Nil{}})))) == True{} : Bool}
       xs_o(Norm.out(S.mkSt(fa, p2), Pr.Ask{Nil{}}), WB.st_o(S.mkSt(fa, p2)), S.StP.o(p), ostep(fa, p2, S.StP.o(p), eo), out_xs(S.mkSt(fa, p2), Pr.Ask{Nil{}}, {==}))
     case 1n+g Norm.Went{st}:
@@ -259,7 +260,8 @@ def pump_x(f, a, fa, T, cs, O, N, p, hb, ag):
       (eask, a6) = a5
       (eeof, a7) = a6
       (+eg, a8) = a7
-      (eo, mv) = a8
+      (eo, mvk) = a8
+      (mv, kp) = mvk
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : {WB.st_o(WB.step_st(Norm.pump(g, Norm.advance(_)))) == S.StP.o(p) : B.Opts} & {WB.live_k(WB.step_nx(Norm.pump(g, Norm.advance(_))), WB.st_stop(WB.step_st(Norm.pump(g, Norm.advance(_))))) == True{} : Bool}
       xs_o(Norm.pump(g, Norm.advance(S.mkSt(fa, p2))), S.StP.o(p2), S.StP.o(p), eo,
         pump_x(g, Norm.advance(S.mkSt(fa, p2)), fa, T, cs, O, N, p2, hb, SA.adv_ok(fa, T, cs, O, N, p2, hb, wf2, er2, eg)))
@@ -275,7 +277,8 @@ def pump_x(f, a, fa, T, cs, O, N, p, hb, ag):
       (emr, a9) = a8
       (eeof, a10) = a9
       (eg, a11) = a10
-      (eo, mv) = a11
+      (eo, mvk) = a11
+      (mv, kp) = mvk
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : {WB.st_o(WB.step_st(Norm.out(_, Pr.Ask{r}))) == S.StP.o(p) : B.Opts} & {WB.live_k(WB.step_nx(Norm.out(_, Pr.Ask{r})), WB.st_stop(WB.step_st(Norm.out(_, Pr.Ask{r})))) == True{} : Bool}
       xs_o(Norm.out(S.mkSt(fa, p2), Pr.Ask{r}), WB.st_o(S.mkSt(fa, p2)), S.StP.o(p), ostep(fa, p2, S.StP.o(p), eo), out_xs(S.mkSt(fa, p2), Pr.Ask{r}, {==}))
     case _ Norm.Idle{st}:
@@ -288,7 +291,8 @@ def pump_x(f, a, fa, T, cs, O, N, p, hb, ag):
       (eeof, a7) = a6
       (+ens, a8) = a7
       (eg, a9) = a8
-      (eo, mv) = a9
+      (eo, mvk) = a9
+      (mv, kp) = mvk
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : {WB.st_o(WB.step_st(Norm.idle(_))) == S.StP.o(p) : B.Opts} & {WB.live_k(WB.step_nx(Norm.idle(_)), WB.st_stop(WB.step_st(Norm.idle(_)))) == True{} : Bool}
       xs_o(Norm.idle(S.mkSt(fa, p2)), S.StP.o(p2), S.StP.o(p), eo, idle_x(fa, p2, ens))
     case _ Norm.Ended{st}:
@@ -299,7 +303,8 @@ def pump_x(f, a, fa, T, cs, O, N, p, hb, ag):
       (eask, a5) = a4
       (estop, a6) = a5
       (eeof, a7) = a6
-      (eg, eo) = a7
+      (eg, a8) = a7
+      (eo, kp) = a8
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : {WB.st_o(WB.step_st(Norm.finish(_))) == S.StP.o(p) : B.Opts} & {WB.live_k(WB.step_nx(Norm.finish(_)), WB.st_stop(WB.step_st(Norm.finish(_)))) == True{} : Bool}
       xs_o(Norm.finish(S.mkSt(fa, p2)), WB.st_o(S.mkSt(fa, p2)), S.StP.o(p), ostep(fa, p2, S.StP.o(p), eo), finish_x(S.mkSt(fa, p2)))
     case _ Norm.Yield{st}:
@@ -310,7 +315,8 @@ def pump_x(f, a, fa, T, cs, O, N, p, hb, ag):
       (eask, a5) = a4
       (ens, a6) = a5
       (eeof, a7) = a6
-      (eg, eo) = a7
+      (eg, a8) = a7
+      (eo, kp) = a8
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : {WB.st_o(WB.step_st(Norm.out(_, Pr.Ask{Nil{}}))) == S.StP.o(p) : B.Opts} & {WB.live_k(WB.step_nx(Norm.out(_, Pr.Ask{Nil{}})), WB.st_stop(WB.step_st(Norm.out(_, Pr.Ask{Nil{}})))) == True{} : Bool}
       xs_o(Norm.out(S.mkSt(fa, p2), Pr.Ask{Nil{}}), WB.st_o(S.mkSt(fa, p2)), S.StP.o(p), ostep(fa, p2, S.StP.o(p), eo), out_xs(S.mkSt(fa, p2), Pr.Ask{Nil{}}, {==}))
 

@@ -178,5 +178,5 @@ def to_ms_went(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O:
     (to_ms_eq(fa, o, rp, src, pd, eof, back2, wp, fneed2, hi),
     (W.c9_m(S.md_ok(S.MBP{rp}), S.md_ok(MS.msO(sr, Nil{}, 0n)), W.W1(fa, PP), W.W2(fa, PP), W.W3(fa, PP), W.W4(fa, PP), W.W5(fa, PP), W.W6(fa, PP), W.W7(fa, PP), S.mb_win(MS.msO(sr, Nil{}, 0n), wp), W.W8(fa, PP), hw, hm, MS.mbw_msO(sr, Nil{}, 0n, wp)),
     (to_ms_rep(fa, T, cs, O, N, o, rp, src, pd, eof, back, back2, wp, asked, fneed, fneed2, hr),
-    (to_ms_lt(o, rp, src, pd, eof, back, back2, wp, asked, fneed, fneed2), ({==}, ({==}, (to_ms_guard(O, N, o, rp, src, pd, eof, back, back2, wp, asked, fneed, fneed2, hg), ({==}, MS.moved_msO(fa, cs, S.MBP{rp}, PP, P2ms(o, rp, src, pd, eof, back2, wp, fneed2), sr, Nil{}, 0n))))))))))
+    (to_ms_lt(o, rp, src, pd, eof, back, back2, wp, asked, fneed, fneed2), ({==}, ({==}, (to_ms_guard(O, N, o, rp, src, pd, eof, back, back2, wp, asked, fneed, fneed2, hg), ({==}, (MS.moved_msO(fa, cs, S.MBP{rp}, PP, P2ms(o, rp, src, pd, eof, back2, wp, fneed2), sr, Nil{}, 0n), W.kept_same(src)))))))))))
 

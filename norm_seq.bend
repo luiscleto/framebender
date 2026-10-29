@@ -161,9 +161,11 @@ def start(argv: List<&2, String>) -> Begin:
   start.of(B.Args.parse(argv))
 
 # How many letters a reference read asks for past what the line needs, so
-# that the next lines are answered from it, and before it.
+# that the next lines are answered from it, and before it. With margin(), a
+# read of ahead() + margin() + 1 letters fits a block of 4 MiB, as a VCF
+# piece does (notes/memory.md).
 def ahead() -> Nat:
-  16777216n
+  4128767n
 
 def margin() -> Nat:
   65536n

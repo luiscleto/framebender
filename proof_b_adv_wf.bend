@@ -391,3 +391,24 @@ def moved_ms(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +s: R.RunSt, +qs: L
       Unit{}
     case S.MSP{s2, qs2, ql2, code2}:
       Unit{}
+
+# S.Kept
+# ======
+
+# A step that keeps the sources as they are keeps the first one's buffer.
+def kept_same(+src: List<&2, P.SrcP>) -> S.Kept.s(src, src):
+  match src:
+    case Nil{}:
+      Unit{}
+    case Con{P.SBP{+len, +t, +d, +at}, +rest}:
+      h => (at, {==})
+    case Con{P.SLP{+q}, +rest}:
+      Unit{}
+
+# The same for a state p whose sources are those of q (in either mode).
+def kept_md(+m: S.MdP, +src: List<&2, P.SrcP>) -> S.Kept.md(m, src, src):
+  match m:
+    case S.MBP{+rp}:
+      kept_same(src)
+    case S.MSP{+s, +qs, +ql, +code}:
+      Unit{}

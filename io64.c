@@ -467,7 +467,7 @@ static void __attribute__((constructor)) io_read_block_use(void) {
 // A FASTA read (Io.fa_start's arguments: file, hi, lo, shi, slo, chi, clo,
 // bhi, blo, whi, wlo, want):
 // read the span of shi * 2^32 + slo bytes of the FASTA file at offset
-// hi * 2^32 + lo, in parts of at most 1 MiB, where the first byte is at
+// hi * 2^32 + lo, in parts of at most 128 KiB, where the first byte is at
 // column col = chi * 2^32 + clo of the contig's line layout (lb = bhi * 2^32
 // + blo letters, then LF, or CR LF when lw = whi * 2^32 + wlo = lb + 2;
 // col < lw). The driver keeps offsets and spans below 2^47. Every byte must
@@ -478,7 +478,10 @@ static void __attribute__((constructor)) io_read_block_use(void) {
 // code 0 when every byte fits and exactly want letters were read; 1 when a
 // byte does not fit the layout; 2 when fewer (or more) than want letters
 // were read (the file ends early). A read error fails with errno.
-#define IO64_PART ((uint64_t)1 << 20)
+// The parts go through a buffer on the reading thread's stack: a malloc'd
+// one came from a per-thread glibc arena, which kept it (up to 32 MiB at
+// once, notes/memory.md).
+#define IO64_PART ((uint64_t)1 << 17)
 
 #ifdef __SSE2__
 #include <emmintrin.h>
@@ -527,8 +530,7 @@ typedef struct {
 // The read itself, into r->p (no heap access: it may run on a helper
 // thread). Sets err (and then nothing else is used), or code and n.
 static void io64_fa_do(Io64Fa* r) {
-  char* buf = malloc(IO64_PART);
-  if (buf == NULL) { r->err = ENOMEM; return; }
+  char buf[IO64_PART];
   int fd = r->fd;
   uint64_t off = r->off, span = r->span, col = r->col, lb = r->lb, lw = r->lw, want = r->want;
   char* p = r->p;
@@ -536,7 +538,7 @@ static void io64_fa_do(Io64Fa* r) {
   u32 code = 0;
   uint64_t done = 0;
   while (done < span && code == 0) {
-    // One part: up to 1 MiB of the span, read in full unless the file ends.
+    // One part: up to 128 KiB of the span, read in full unless the file ends.
     uint64_t part = span - done < IO64_PART ? span - done : IO64_PART;
     uint64_t got = 0;
     while (got < part) {
@@ -544,7 +546,6 @@ static void io64_fa_do(Io64Fa* r) {
       if (k < 0 && errno == EINTR) continue;
       if (k < 0) {
         r->err = (u32)errno;
-        free(buf);
         return;
       }
       if (k == 0) break;
@@ -595,7 +596,6 @@ static void io64_fa_do(Io64Fa* r) {
     done += got;
     if (got < part) break;  // the file ended
   }
-  free(buf);
   if (code == 0 && n != want) code = 2;
   if (code != 0) n = 0;  // the block is not used: the program stops
   r->code = code;

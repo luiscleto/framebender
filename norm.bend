@@ -47,7 +47,7 @@ type TRes is Type:
   TDirty{}
   TClean{c: Tc}
 
-# A task's result, with the piece (a copy, when the task ran on it).
+# A task's result, with its piece (handed back by the task when it ran on it).
 type TOut is Type:
   TOut{b: D.Bytes, r: TRes}
 
@@ -89,10 +89,18 @@ type Nm is Type:
 type Cp is Type:
   Cp{b: D.Bytes, ok: Bool, c: String, p: Nat}
 
-# A task's loop: go on from st (spare: the windows not tried yet), or done.
+# Where a task's piece is: still Q's input, from some point on (PIn), or
+# held by the task once Q's input is a copy of the piece's last partial line
+# (PHeld).
+type Ph is Type:
+  PIn{}
+  PHeld{b: D.Bytes}
+
+# A task's loop: go on from st (spare: the windows not tried yet), or done
+# (with the piece).
 type Tk is Type:
-  TGo{st: Q.St, spare: List<&1, Q.Win>}
-  TEnd{r: TRes}
+  TGo{st: Q.St, spare: List<&1, Q.Win>, ph: Ph}
+  TEnd{r: TOut}
 
 # Q after an advance on the boundary line: at the piece from k+1 (ok: with
 # nothing else waiting), or not yet.
@@ -290,11 +298,12 @@ def cp(b: D.Bytes, +s: U32, +e: U32) -> Cp:
 
 # The reads for a piece whose first complete line is at c1:p1 and last at
 # c2:p2 (POS 1-based): one window from margin() letters before the smaller
-# POS to margin() past the larger, when both are on one CHROM and it fits one
-# read (and an empty one); else a window ahead() letters on from the first,
-# and one ahead() letters back from the last (each empty if it is more than
-# 2^31 letters). A piece with a complete line after its first LF has these
-# two reads; any other piece none.
+# POS to margin() past the larger, when both are on one CHROM and it is at
+# most ahead() + margin() letters (and an empty one); else a window ahead()
+# letters on from the first, and one ahead() letters back from the last (each
+# empty if it is more than 2^31 letters). So no read takes more than a 4 MiB
+# block (notes/memory.md). A piece with a complete line after its first LF
+# has these two reads; any other piece none.
 def plan.win.if(one: Bool, +c: String, +a: Nat, +e: Nat) -> P.Req:
   match one:
     case True{}:
@@ -318,7 +327,7 @@ def plan.reqs.if(one: Bool, +c1: String, +p1: Nat, +c2: String, +p2: Nat, +a: Na
 def plan.reqs(+c1: String, +p1: Nat, +c2: String, +p2: Nat) -> List<&2, P.Req>:
   +a = Nat.sub(Nat.sub(Nat.min(p1, p2), 1n), Q.margin())
   +e = Nat.add(Nat.max(p1, p2), Q.margin())
-  plan.reqs.if(String.eq(c1, c2) && Q.le31(Nat.sub(e, a)), c1, p1, c2, p2, a, e)
+  plan.reqs.if(String.eq(c1, c2) && Q.le31(Nat.sub(e, a)) && Nat.is_le(Nat.sub(Nat.sub(e, a), Q.margin()), Q.ahead()), c1, p1, c2, p2, a, e)
 
 def plan.last.cp(+k: U32, +c1: String, +p1: Nat, c: Cp) -> Pl:
   match c:
@@ -336,7 +345,7 @@ def plan.last.at(+k: U32, +c1: String, +p1: Nat, +el: U32, +s1: U32, r: D.Bytes 
   plan.last.at2(k, c1, p1, el, s1, b, q)
 
 def plan.last.k2(+k: U32, +c1: String, +p1: Nat, +s1: U32, b: D.Bytes, q: U32 & Bool) -> Pl:
-  (+el, fl) = q
+  (+el, len) = q
   plan.last.at(k, c1, p1, el, s1, rlf(b, el, s1))
 
 def plan.last.k(+k: U32, +c1: String, +p1: Nat, +s1: U32, r: D.Bytes & (U32 & Bool)) -> Pl:
@@ -415,34 +424,139 @@ def task.done(st: Q.St, +k: U32, +c0: String, +l: Nat) -> TRes:
     case Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed}:
       TDirty{}
 
-def task.want(st: Q.St, spare: List<&1, Q.Win>) -> Tk:
+# The buffer of Q's input (the piece, while the task has not taken it back).
+def src_b(src: List<&1, Q.Src>) -> D.Bytes:
+  match src:
+    case Nil{}:
+      BY.empty(0n)
+    case Q.SB{b, at} <> t:
+      b
+    case Q.SL{p} <> t:
+      BY.empty(0n)
+
+def st_b(st: Q.St) -> D.Bytes:
+  match st:
+    case Q.St{o, md, src, pend, eof, back, win, asked, fneed}:
+      src_b(src)
+
+# The piece: held by the task, or Q's input.
+def task.back(st: Q.St, ph: Ph) -> D.Bytes:
+  match ph:
+    case PHeld{b}:
+      b
+    case PIn{}:
+      st_b(st)
+
+def task.dirty(st: Q.St, ph: Ph) -> Tk:
+  TEnd{TOut{task.back(st, ph), TDirty{}}}
+
+# Q's input made a copy of the piece's bytes from at (its last partial line),
+# the piece held by the task.
+def swap.put(+o: B.Opts, md: Q.Md, p: D.Bytes & D.Bytes, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+  (tail, b) = p
+  (Q.St{o, md, [Q.SB{tail, 0}], pend, eof, back, win, asked, fneed}, PHeld{b})
+
+def swap.len(+o: B.Opts, md: Q.Md, r: D.Bytes & U32, +at: U32, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+  (b, +len) = r
+  swap.put(o, md, NR.put_bytes(BY.empty(NR.depth((len - at + 8 : U32))), b, at, (len - at : U32)), pend, eof, back, win, asked, fneed)
+
+def swap.if(go: Bool, +o: B.Opts, md: Q.Md, b: D.Bytes, +at: U32, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+  match go:
+    case True{}:
+      swap.len(o, md, BY.len(b), at, pend, eof, back, win, asked, fneed)
+    case False{}:
+      (Q.St{o, md, [Q.SB{b, at}], pend, eof, back, win, asked, fneed}, PIn{})
+
+# The piece stays Q's input while its byte el is an LF at or after at.
+def swap.at(r: D.Bytes & U32, +at: U32, +el: U32, +o: B.Opts, md: Q.Md, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+  (b, +x) = r
+  swap.if(Bool.not(U32.is_le(at, el) && U32.is_eq(x, 10)), o, md, b, at, pend, eof, back, win, asked, fneed)
+
+def swap.lt(lt: Bool, b: D.Bytes, +at: U32, +el: U32, +o: B.Opts, md: Q.Md, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+  match lt:
+    case True{}:
+      swap.at(BY.at(b, el), at, el, o, md, pend, eof, back, win, asked, fneed)
+    case False{}:
+      swap.if(True{}, o, md, b, at, pend, eof, back, win, asked, fneed)
+
+def swap.src(src: List<&1, Q.Src>, +el: U32, +len: U32, +o: B.Opts, md: Q.Md, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+  match src:
+    case Nil{}:
+      (Q.St{o, md, Nil{}, pend, eof, back, win, asked, fneed}, PIn{})
+    case Q.SB{b, +at} <> t:
+      match t:
+        case Nil{}:
+          swap.lt(U32.is_lt(el, len), b, at, el, o, md, pend, eof, back, win, asked, fneed)
+        case h <> t2:
+          (Q.St{o, md, Q.SB{b, at} <> (h <> t2), pend, eof, back, win, asked, fneed}, PIn{})
+    case Q.SL{p} <> t:
+      (Q.St{o, md, Q.SL{p} <> t, pend, eof, back, win, asked, fneed}, PIn{})
+
+# Before Q reaches the piece's last partial line (no LF from at), where it
+# would drop its input, its input becomes a copy of that line and the task
+# holds the piece. el is where the piece's last LF should be (len: the
+# piece's length): while its byte is an LF at or after at, Q keeps the piece.
+def swap.ph(ph: Ph, +el: U32, +len: U32, +o: B.Opts, md: Q.Md, src: List<&1, Q.Src>, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+  match ph:
+    case PHeld{b}:
+      (Q.St{o, md, src, pend, eof, back, win, asked, fneed}, PHeld{b})
+    case PIn{}:
+      swap.src(src, el, len, o, md, pend, eof, back, win, asked, fneed)
+
+def swap(st: Q.St, ph: Ph, +el: U32, +len: U32) -> Q.St & Ph:
+  match st:
+    case Q.St{+o, md, src, pend, +eof, +back, win, +asked, +fneed}:
+      swap.ph(ph, el, len, o, md, src, pend, eof, back, win, asked, fneed)
+
+def task.tgo(p: Q.St & Ph, spare: List<&1, Q.Win>) -> Tk:
+  (st, ph) = p
+  TGo{st, spare, ph}
+
+# The loop goes on from st, after the swap test; Q in the String mode makes
+# the task dirty (Q's input is then no longer kept for the piece).
+def task.next(st: Q.St, ph: Ph, spare: List<&1, Q.Win>, +el: U32, +len: U32) -> Tk:
+  match st:
+    case Q.St{o, Q.MB{run}, src, pend, eof, back, win, asked, fneed}:
+      task.tgo(swap(Q.St{o, Q.MB{run}, src, pend, eof, back, win, asked, fneed}, ph, el, len), spare)
+    case Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed}:
+      task.dirty(Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed}, ph)
+
+def task.idle(st: Q.St, ph: Ph, +k: U32, +c0: String, +l: Nat) -> Tk:
+  match ph:
+    case PHeld{b}:
+      TEnd{TOut{b, task.done(st, k, c0, l)}}
+    case PIn{}:
+      task.dirty(st, PIn{})
+
+def task.want(st: Q.St, spare: List<&1, Q.Win>, ph: Ph, +el: U32, +len: U32) -> Tk:
   match spare:
     case Nil{}:
-      TEnd{TDirty{}}
+      task.dirty(st, ph)
     case w <> ws:
-      TGo{swap_win(st, w), ws}
+      task.next(swap_win(st, w), ph, ws, el, len)
 
-def task.adv(a: Q.Adv, spare: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat) -> Tk:
+def task.adv(a: Q.Adv, spare: List<&1, Q.Win>, ph: Ph, +el: U32, +len: U32, +k: U32, +c0: String, +l: Nat) -> Tk:
   match a:
     case Q.Went{st}:
-      TGo{st, spare}
+      task.next(st, ph, spare, el, len)
     case Q.Want{st, r}:
-      task.want(st, spare)
+      task.want(st, spare, ph, el, len)
     case Q.Idle{st}:
-      TEnd{task.done(st, k, c0, l)}
+      task.idle(st, ph, k, c0, l)
     case Q.Ended{st}:
-      TEnd{TDirty{}}
+      task.dirty(st, ph)
     case Q.Yield{st}:
-      TEnd{TDirty{}}
+      task.dirty(st, ph)
 
 # Q's pump on the task's lines: a read its window does not answer tries the
-# next window, then makes the task dirty.
-def task.loop(fuel: Nat, t: Tk, +k: U32, +c0: String, +l: Nat) -> TRes:
+# next window, then makes the task dirty. The piece comes back with the
+# result.
+def task.loop(fuel: Nat, t: Tk, +el: U32, +len: U32, +k: U32, +c0: String, +l: Nat) -> TOut:
   match fuel t:
-    case 0n TGo{st, sp}:
-      TDirty{}
-    case 1n+f TGo{st, sp}:
-      task.loop(f, task.adv(Q.advance(st), sp, k, c0, l), k, c0, l)
+    case 0n TGo{st, sp, ph}:
+      TOut{task.back(st, ph), TDirty{}}
+    case 1n+f TGo{st, sp, ph}:
+      task.loop(f, task.adv(Q.advance(st), sp, ph, el, len, k, c0, l), el, len, k, c0, l)
     case _ TEnd{r}:
       r
 
@@ -458,23 +572,29 @@ def task.wins(ws: List<&1, Q.Win>) -> Q.Win & List<&1, Q.Win>:
 def task.run0(+c0: String, +l: Nat, +len: U32) -> NR.Run:
   NR.reserve(NR.Run{0n, True{}, "", Some{c0}, NR.of_str(c0), Nil{}, Some{NR.Ck{l, l, 0n, None{}, 0}}, Nil{}, Nil{}, 0n, 0n, R.Cnt{0n, 0n, 0n, 0n}, BY.empty(0n), 0, Nil{}, False{}}, len)
 
-def task.start(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, p: Q.Win & List<&1, Q.Win>, +c0: String, +l: Nat) -> TRes:
+def task.start(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, p: Q.Win & List<&1, Q.Win>, +el: U32, +c0: String, +l: Nat) -> TOut:
   (w, spare) = p
-  task.loop(Nat.add(U32.to_nat(len), 8n), TGo{Q.St{o, Q.MB{task.run0(c0, l, len)}, [Q.SB{b, (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, w, None{}, False{}}, spare}, k, c0, l)
+  task.loop(Nat.add(U32.to_nat(len), 8n), task.next(Q.St{o, Q.MB{task.run0(c0, l, len)}, [Q.SB{b, (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, w, None{}, False{}}, PIn{}, spare, el, len), el, len, k, c0, l)
 
-def task.copy(+o: B.Opts, p: D.Bytes & D.Bytes, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat) -> TOut:
-  (copy, b) = p
-  TOut{copy, task.start(o, b, len, k, task.wins(ws), c0, l)}
+def task.last.k(+o: B.Opts, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat, b: D.Bytes, q: U32 & Bool) -> TOut:
+  (+el, fl) = q
+  task.start(o, b, len, k, task.wins(ws), el, c0, l)
+
+def task.last(+o: B.Opts, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat, r: D.Bytes & (U32 & Bool)) -> TOut:
+  (b, q) = r
+  task.last.k(o, len, ws, k, c0, l, b, q)
 
 def task.len.if(small: Bool, +o: B.Opts, b: D.Bytes, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat) -> TOut:
   match small:
     case True{}:
-      task.copy(o, NR.put_bytes(BY.empty(NR.depth((len + 8 : U32))), b, 0, len), len, ws, k, c0, l)
+      task.last(o, len, ws, k, c0, l, rlf(b, len, (k + 1 : U32)))
     case False{}:
       TOut{b, TDirty{}}
 
-# The piece is copied and run, if it has less than 2^30 bytes (the driver's
-# have 3.5 MB); a larger one is left to Q.
+# The piece is run, if it has less than 2^30 bytes (the driver's have
+# 3.5 MB); a larger one is left to Q. The task runs on the piece itself and
+# hands it back (for the combine), with no copy: its last LF el tells
+# when to take it back from Q.
 def task.len(+o: B.Opts, r: D.Bytes & U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat) -> TOut:
   (b, +len) = r
   task.len.if(U32.is_lt(len, 1073741824), o, b, len, ws, k, c0, l)
@@ -512,8 +632,8 @@ def task.go(run: Bool, +o: B.Opts, b: D.Bytes, rs: List<&2, P.Req>, a1: P.Ans, a
     case False{}:
       TOut{b, TDirty{}}
 
-# A piece's task: the piece is copied (for the combine), and the task runs
-# on it; a piece with no complete line after its first LF, or whose first
+# A piece's task: the task runs on the piece and hands it back (for the
+# combine); a piece with no complete line after its first LF, or whose first
 # CHROM has more than 2^28 bytes (no byte-mode line has), is left to Q.
 def task(+o: B.Opts, b: D.Bytes, ok: Bool, rs: List<&2, P.Req>, a1: P.Ans, a2: P.Ans, +k: U32, +c0: String, +l: Nat) -> TOut:
   task.go(ok && Q.len_le(c0, 268435456), o, b, rs, a1, a2, k, c0, l)

@@ -88,7 +88,7 @@ cores, which removes about 3 s of run-to-run noise on the whole genome):
 On the whole genome framebender is about 4 times faster than bcftools (unpinned: 2.1–2.3 s
 against 8.0–8.1 s), with the same records. It reads the file in pieces and normalizes 16 at a
 time in parallel; the proof covers the parallel version, which gives byte-for-byte the output of
-the sequential one. It uses more memory: about 670 MB on the whole genome against bcftools'
+the sequential one. It uses more memory: about 350 MB on the whole genome against bcftools'
 11 MB. A file where nearly every record needs rewriting is still slower than bcftools.
 
 The first proven version stored text as linked lists of characters, as Bend 2's `String` does,

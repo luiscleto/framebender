@@ -321,13 +321,13 @@ def win_le(+c: String, +a: Nat, +e: Nat) -> {E.le31(Nat.sub(e, WB(c, a, e))) == 
   Pair.snd({W.plan.win(c, a, e) == Pr.Req{c, WB(c, a, e), e} : Pr.Req}, {E.le31(Nat.sub(e, WB(c, a, e))) == True{} : Bool}, win_ok(c, a, e))
 
 def reqs.if(+one: Bool, +c1: String, +p1: Nat, +c2: String, +p2: Nat, +a: Nat, +e: Nat,
-  +h: {one == Bool.and(String.eq(c1, c2), Q.le31(Nat.sub(e, a))) : Bool},
+  +h: {one == Bool.and(Bool.and(String.eq(c1, c2), Q.le31(Nat.sub(e, a))), Nat.is_le(Nat.sub(Nat.sub(e, a), Q.margin()), Q.ahead())) : Bool},
   +hb1: {E.is_bytes(c1) == True{} : Bool},
   +hb2: {E.is_bytes(c2) == True{} : Bool}) ->
   {Bool.and(rs_ok2(W.plan.reqs.if(one, c1, p1, c2, p2, a, e)), two2(W.plan.reqs.if(one, c1, p1, c2, p2, a, e))) == True{} : Bool}:
   match one:
     case True{}:
-      +hl = andr(String.eq(c1, c2), Q.le31(Nat.sub(e, a)), Equal.sym(Bool, True{}, Bool.and(String.eq(c1, c2), Q.le31(Nat.sub(e, a))), h))
+      +hl = andr(String.eq(c1, c2), Q.le31(Nat.sub(e, a)), andl(Bool.and(String.eq(c1, c2), Q.le31(Nat.sub(e, a))), Nat.is_le(Nat.sub(Nat.sub(e, a), Q.margin()), Q.ahead()), Equal.sym(Bool, True{}, Bool.and(Bool.and(String.eq(c1, c2), Q.le31(Nat.sub(e, a))), Nat.is_le(Nat.sub(Nat.sub(e, a), Q.margin()), Q.ahead())), h)))
       %Equal.sym(Bool, E.le31(Nat.sub(e, a)), True{}, hl) :
         {Bool.and(Bool.and(Bool.and(_, E.is_bytes(c1)), Bool.and(Bool.and(E.le31(Nat.sub(e, e)), E.is_bytes(c1)), True{})), True{}) == True{} : Bool}
       %Equal.sym(Bool, E.le31(Nat.sub(e, e)), True{}, le31_0(e)) :
@@ -363,7 +363,7 @@ def reqs_ok(+c1: String, +p1: Nat, +c2: String, +p2: Nat,
   {Bool.and(rs_ok2(W.plan.reqs(c1, p1, c2, p2)), two2(W.plan.reqs(c1, p1, c2, p2))) == True{} : Bool}:
   +a = Nat.sub(Nat.sub(Nat.min(p1, p2), 1n), Q.margin())
   +e = Nat.add(Nat.max(p1, p2), Q.margin())
-  reqs.if(Bool.and(String.eq(c1, c2), Q.le31(Nat.sub(e, a))), c1, p1, c2, p2, a, e, {==}, hb1, hb2)
+  reqs.if(Bool.and(Bool.and(String.eq(c1, c2), Q.le31(Nat.sub(e, a))), Nat.is_le(Nat.sub(Nat.sub(e, a), Q.margin()), Q.ahead())), c1, p1, c2, p2, a, e, {==}, hb1, hb2)
 
 # ---------------------------------------------------------------------------
 # The last line

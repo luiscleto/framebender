@@ -229,7 +229,8 @@ def E0_a(av: Norm.Adv, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, Stri
       (+eask, a6) = a5
       (+eeof, a7) = a6
       (+eg, a8) = a7
-      (+eo, mv) = a8
+      (+eo, mvk) = a8
+      (mv, kp) = mvk
       ch2 = ED.ch_step(fa, List.append(&2, String, PT.texts(pt), cs), p1, pc, p2, hchpc, mv, Equal.trans(B.Opts, S.StP.o(pc), o, S.StP.o(p1), hopc, Equal.sym(B.Opts, S.StP.o(p1), o, ho1)), or_pic(fa, pc, p2, st, est, hk))
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : WD.StepGW(fa, T, cs, O, N, ef, W.edge(0n, n0, W.edge.where(_, W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), PT.mkTOuts(fa, pt, xt), e))
       %Equal.sym(W.Ew, W.edge.where(S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), W.edge.where.if(here_p(p2, k, n0), ok_p(p2), S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}), where_eq(fa, p2, rpT, pdT, wpT, k, c0, l, n0)) :
@@ -340,7 +341,8 @@ def E1_a(av: Norm.Adv, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, Stri
       (+eask, a6) = a5
       (+eeof, a7) = a6
       (+eg, a8) = a7
-      (+eo, mv) = a8
+      (+eo, mvk) = a8
+      (mv, kp) = mvk
       ch2 = ED.ch_step(fa, List.append(&2, String, PT.texts(pt), cs), p1, pc, p2, hchpc, mv, Equal.trans(B.Opts, S.StP.o(pc), o, S.StP.o(p1), hopc, Equal.sym(B.Opts, S.StP.o(p1), o, ho1)), or_pic(fa, pc, p2, st, est, hk))
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : WD.StepGW(fa, T, cs, O, N, ef, W.edge(1n, n0, W.edge.where(_, W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), PT.mkTOuts(fa, pt, xt), e))
       %Equal.sym(W.Ew, W.edge.where(S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), W.edge.where.if(here_p(p2, k, n0), ok_p(p2), S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}), where_eq(fa, p2, rpT, pdT, wpT, k, c0, l, n0)) :
@@ -451,7 +453,8 @@ def E2_a(av: Norm.Adv, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, Stri
       (+eask, a6) = a5
       (+eeof, a7) = a6
       (+eg, a8) = a7
-      (+eo, mv) = a8
+      (+eo, mvk) = a8
+      (mv, kp) = mvk
       ch2 = ED.ch_step(fa, List.append(&2, String, PT.texts(pt), cs), p1, pc, p2, hchpc, mv, Equal.trans(B.Opts, S.StP.o(pc), o, S.StP.o(p1), hopc, Equal.sym(B.Opts, S.StP.o(p1), o, ho1)), or_pic(fa, pc, p2, st, est, hk))
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : WD.StepGW(fa, T, cs, O, N, ef, W.edge(2n, n0, W.edge.where(_, W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), PT.mkTOuts(fa, pt, xt), e))
       %Equal.sym(W.Ew, W.edge.where(S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), W.edge.where.if(here_p(p2, k, n0), ok_p(p2), S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}), where_eq(fa, p2, rpT, pdT, wpT, k, c0, l, n0)) :
@@ -562,7 +565,8 @@ def E3_a(av: Norm.Adv, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, Stri
       (+eask, a6) = a5
       (+eeof, a7) = a6
       (+eg, a8) = a7
-      (+eo, mv) = a8
+      (+eo, mvk) = a8
+      (mv, kp) = mvk
       ch2 = ED.ch_step(fa, List.append(&2, String, PT.texts(pt), cs), p1, pc, p2, hchpc, mv, Equal.trans(B.Opts, S.StP.o(pc), o, S.StP.o(p1), hopc, Equal.sym(B.Opts, S.StP.o(p1), o, ho1)), or_pic(fa, pc, p2, st, est, hk))
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : WD.StepGW(fa, T, cs, O, N, ef, W.edge(3n, n0, W.edge.where(_, W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), PT.mkTOuts(fa, pt, xt), e))
       %Equal.sym(W.Ew, W.edge.where(S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), W.edge.where.if(here_p(p2, k, n0), ok_p(p2), S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}), where_eq(fa, p2, rpT, pdT, wpT, k, c0, l, n0)) :

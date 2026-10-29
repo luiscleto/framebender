@@ -64,7 +64,8 @@ def want_seq(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: S
   (+emr, a9) = a8
   (+eeof, a10) = a9
   (+eg, a11) = a10
-  (eo, mv) = a11
+  (eo, mvk) = a11
+  (mv, kp) = mvk
   +CS = List.append(&2, String, PT.texts(pt), cs)
   %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : WD.StepGW(fa, T, cs, O, N, ef, W.seq_out(Norm.out(_, Pr.Ask{r}), PT.mkTOuts(fa, pt, xt), e))
   WS.seq_ok(fa, T, cs, O, N, ef, o, pt, xt, e, Norm.out(S.mkSt(fa, p2), Pr.Ask{r}),
@@ -93,7 +94,8 @@ def idle_seq(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: S
   (+eeof, a7) = a6
   (+ens, a8) = a7
   (+eg, a9) = a8
-  (eo, mv) = a9
+  (eo, mvk) = a9
+  (mv, kp) = mvk
   +CS = List.append(&2, String, PT.texts(pt), cs)
   %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : WD.StepGW(fa, T, cs, O, N, ef, W.seq_out(Norm.idle(_), PT.mkTOuts(fa, pt, xt), e))
   WS.seq_ok(fa, T, cs, O, N, ef, o, pt, xt, e, Norm.idle(S.mkSt(fa, p2)),
@@ -120,7 +122,8 @@ def ended_seq(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: 
   (+eask, a5) = a4
   (+estop, a6) = a5
   (+eeof, a7) = a6
-  (eg, eo) = a7
+  (eg, a8) = a7
+  (eo, kp) = a8
   +CS = List.append(&2, String, PT.texts(pt), cs)
   %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : WD.StepGW(fa, T, cs, O, N, ef, W.seq_out(Norm.finish(_), PT.mkTOuts(fa, pt, xt), e))
   WS.seq_ok(fa, T, cs, O, N, ef, o, pt, xt, e, Norm.finish(S.mkSt(fa, p2)),
@@ -147,7 +150,8 @@ def yield_seq(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: 
   (+eask, a5) = a4
   (+ens, a6) = a5
   (+eeof, a7) = a6
-  (eg, eo) = a7
+  (eg, a8) = a7
+  (eo, kp) = a8
   +CS = List.append(&2, String, PT.texts(pt), cs)
   %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : WD.StepGW(fa, T, cs, O, N, ef, W.seq_out(Norm.out(_, Pr.Ask{Nil{}}), PT.mkTOuts(fa, pt, xt), e))
   WS.seq_ok(fa, T, cs, O, N, ef, o, pt, xt, e, Norm.out(S.mkSt(fa, p2), Pr.Ask{Nil{}}),

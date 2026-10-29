@@ -306,4 +306,4 @@ def went_line(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: 
         eof_next(eof, rest, pd, len, t, d, at, lf, hs, W.c9_5(m0, a1, a2, a3, a4, a5, a6, a7, a8, hw)),
         W.c9_6(m0, a1, a2, a3, a4, a5, a6, a7, a8, hw), W.c9_7(m0, a1, a2, a3, a4, a5, a6, a7, a8, hw), W.c9_8(m0, a1, a2, a3, a4, a5, a6, a7, a8, hw)),
     (rep_line(fa, T, cs, O, N, o, rp, rp2, len, t, d, at, lf, rest, pd, eof, back, wp, asked, fneed, hr, hg, hs, hlc, hrun),
-    (meas_line(o, rp, rp2, len, t, d, at, lf, rest, pd, eof, back, wp, asked, fneed, hal, hlt, hle, hat, hinc), ({==}, ({==}, (hg2, ({==}, moved_line(fa, cs, o, rp, rp2, len, t, d, at, lf, rest, pd, eof, back, wp, asked, fneed, hs, hlc, hrun))))))))))
+    (meas_line(o, rp, rp2, len, t, d, at, lf, rest, pd, eof, back, wp, asked, fneed, hal, hlt, hle, hat, hinc), ({==}, ({==}, (hg2, ({==}, (moved_line(fa, cs, o, rp, rp2, len, t, d, at, lf, rest, pd, eof, back, wp, asked, fneed, hs, hlc, hrun), hk => ((lf + 1 : U32), {==})))))))))))
