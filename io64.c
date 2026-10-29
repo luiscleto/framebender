@@ -14,8 +14,9 @@
 // bytes_enc.bend's enc: the smallest d with 4 * 2^d >= n (d = 0 for n = 0),
 // every byte past n zero.
 //
-// A read buffer or libdeflate's decompressor that cannot be allocated fails
-// with ENOMEM; the driver reports it as "out of memory". A full heap is not
+// libdeflate's decompressor that cannot be allocated fails with ENOMEM (as
+// does a read that the system answers with ENOMEM); the driver reports it as
+// "out of memory". A full heap is not
 // seen here on a CPU build: Bend's runtime stops the run first, with
 // "bend: out of memory: ..." and exit code 1.
 
@@ -478,9 +479,9 @@ static void __attribute__((constructor)) io_read_block_use(void) {
 // code 0 when every byte fits and exactly want letters were read; 1 when a
 // byte does not fit the layout; 2 when fewer (or more) than want letters
 // were read (the file ends early). A read error fails with errno.
-// The parts go through a buffer on the reading thread's stack: a malloc'd
-// one came from a per-thread glibc arena, which kept it (up to 32 MiB at
-// once, notes/memory.md).
+// The parts go through the read's slot's buffer, io64_fa_buf below (not
+// malloc: a per-thread glibc arena kept it, up to 32 MiB at once,
+// notes/memory.md; not the stack: 128 KiB overflows a small ulimit -s).
 #define IO64_PART ((uint64_t)1 << 17)
 
 #ifdef __SSE2__
@@ -527,10 +528,10 @@ typedef struct {
   u32 err, code; uint64_t n;
 } Io64Fa;
 
-// The read itself, into r->p (no heap access: it may run on a helper
-// thread). Sets err (and then nothing else is used), or code and n.
-static void io64_fa_do(Io64Fa* r) {
-  char buf[IO64_PART];
+// The read itself, into r->p, its parts through buf (IO64_PART bytes; no
+// heap access: it may run on a helper thread). Sets err (and then nothing
+// else is used), or code and n.
+static void io64_fa_do(Io64Fa* r, char* buf) {
   int fd = r->fd;
   uint64_t off = r->off, span = r->span, col = r->col, lb = r->lb, lw = r->lw, want = r->want;
   char* p = r->p;
@@ -642,12 +643,17 @@ static Term io64_fa_answer(Env e, Io64Fa* r) {
 // allocated (and later padded and handed out, or freed) on the calling thread;
 // the helper only fills it. A read whose block or thread cannot be had is done
 // (or fails, ENOMEM) at once; its answer is kept for Io.fa_wait. A ticket that is not pending fails (EINVAL).
+// Each slot has its own part buffer, used by its read wherever it runs: a
+// slot belongs to one read until Io.fa_wait joins it. A buffer's pages are
+// committed only once a read touches them.
 #define IO64_FA_MAX 128
 typedef struct { int used, running; pthread_t th; Io64Fa r; } Io64FaSlot;
 static Io64FaSlot io64_fa[IO64_FA_MAX];
+static char io64_fa_buf[IO64_FA_MAX][IO64_PART];
 
 static void* io64_fa_run(void* x) {
-  io64_fa_do(&((Io64FaSlot*)x)->r);
+  Io64FaSlot* s = x;
+  io64_fa_do(&s->r, io64_fa_buf[s - io64_fa]);
   return NULL;
 }
 
@@ -661,7 +667,7 @@ Term io_fa_start_run(Env e, Term* f, IoWork* w) {
   io64_fa_alloc(e, &s->r);
   if (s->r.err == 0) {
     if (pthread_create(&s->th, NULL, io64_fa_run, s) == 0) s->running = 1;
-    else io64_fa_do(&s->r);
+    else io64_fa_do(&s->r, io64_fa_buf[t]);
   }
   return io_tup(e, io_hand(fd), (Term)t);
 }

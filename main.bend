@@ -22,8 +22,8 @@ import ../lawful-bytes/bytes.bend as BY
 # the machine writes); io64.c also sets Bend's worker threads from it. Every
 # error of its own prints one line "error: ..." and exits with code 2:
 #   usage (B.usage), "cannot read <path>", "cannot write" (stdout/stderr),
-#   "out of memory" (no room for a read's buffer or for libdeflate's
-#   decompressor), "unsupported gzip <path> (not BGZF; use gzip -dc
+#   "out of memory" (no room for libdeflate's decompressor), "unsupported
+#   gzip <path> (not BGZF; use gzip -dc
 #   <path> | framebender ... /dev/stdin)" (a VCF whose first two bytes are
 #   1f 8b, gzip's, and that does not start with a BGZF block header), "bad
 #   BGZF <path>" (a BGZF block of the VCF that is damaged or cut short, or a

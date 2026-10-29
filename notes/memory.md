@@ -192,8 +192,9 @@ would have pushed one free later. `bank_push` takes the bank lock. Smaller class
 
 ### 2. Reference-read buffers (`io64.c`)
 
-`io64_fa_do` reads in parts of 128 KiB (`IO64_PART`, was 1 MiB) through a buffer on the reading
-thread's stack (was `malloc`, which a per-thread glibc arena kept); comments updated. A read can
+`io64_fa_do` reads in parts of 128 KiB (`IO64_PART`, was 1 MiB) through its slot's buffer,
+`io64_fa_buf[IO64_FA_MAX][IO64_PART]` (was `malloc`, which a per-thread glibc arena kept; then,
+until driver review 7, a buffer on the reading thread's stack); comments updated. A read can
 no longer fail for want of a buffer.
 
 ### 3. Windows of at most 4 MiB (`norm_seq.bend`, `norm.bend`)
@@ -452,6 +453,49 @@ another thread's cold block.
 3. With smaller windows, a damaged FASTA is met at a different read, so the output written before
    the error differs in length (still a prefix of the good output, same error). Acceptable?
 
+## Driver review 7 (2026-10-29)
+
+Reviews and responses: `reviews/{claude,gpt,grok}-driver7.md`, `reviews/responses-driver7.md`.
+All three answered the questions above: (1) the one-block argument holds on 2.0.39, but the
+checks accepted other runtimes; (2) the stack is enough at normal limits only; (3) acceptable.
+Fixes:
+
+1. `io64.c`: the 128 KiB part buffer is no longer on the stack (under `ulimit -s` 64 or 128 the
+   old build dies with SIGSEGV, exit 139, on every `test/edge` run). Each read slot has its own
+   static buffer, `io64_fa_buf[IO64_FA_MAX][IO64_PART]` (16 MiB of `.bss`, committed only where a
+   read touches it), used by the helper thread and by the fallback on the calling thread alike;
+   a slot belongs to one read until `Io.fa_wait` joins it.
+2. `build.sh` also pins, each exactly once: `#define NCLS      8`, `#define CAP_WORDS 32768`,
+   `#define CHUNK     256`, the two lines of the `QUANTUM` macro, `KEEP_WORDS = gpu ? CHUNK :
+   CAP_WORDS;`, and the call `heap_hand(e, cls);`. Each of `KEEP`, `NCLS`, `CAP_WORDS`, `CHUNK` and
+   `QUANTUM` must have one `#define` in all, and `heap_hand` must be named exactly twice. A fake
+   `bend` (`d7/fake/bend`: the real generated C, changed) stopped the build with the message in
+   each of 12 cases. They were `CAP_WORDS` 49152, `NCLS` 16, `CHUNK` 512, `QUANTUM` changed,
+   `KEEP_WORDS = CHUNK;`, a second `#define KEEP(c) (1)` (after an `#undef`), a second `# define
+   NCLS 16`, an `INLINE heap_hand` under `#if 0`, an extra `heap_hand` call, and the three
+   earlier cases. The unchanged C builds.
+3. Comments that still listed a `malloc`'ed read buffer: `io64.c`'s header, `main.bend`'s header,
+   and the comment on law machine in `MACHINE.bend` (comment only, not the law's statement; for
+   the owner's sign-off).
+
+Checks:
+- `test/edge` (3 VCFs, `-c e`/`-c w`, `--threads` 1 and 8) under `ulimit -s` 64 and 128, 24 runs
+  per build. The new build and a scratch build with the helper threads made to fail (every read
+  on the calling thread) both match a normal run of the same binary in stdout, stderr and exit
+  code: 0, or 1 for the machine's own REF_MISMATCH. 67d7c0a gives exit 139 in all 24.
+- chr22 `-c w` under the same limits: exit 0, identical (8 runs).
+- PROOF.bend `--check-only`: ALL PROOFS CHECK. MACHINE.bend has 16 TODOs and main.bend 79 unsafe
+  defs, as before.
+- `same.sh` 128/128 and `par.sh` 312/312 at 3.5 MiB pieces against 67d7c0a.
+- Whole genome, `-c w`, under the lock, pinned, interleaved, 5 rounds (`d7/bench_d7.txt`):
+
+| build | time | peak RSS |
+|---|---|---|
+| 67d7c0a | 1.78–1.92 s (a first, cold run 2.53 s) | 332–337 MB |
+| fixed | 1.79–1.97 s | 333–339 MB |
+
+Every run's output is 3469a25b962abb21, as before.
+
 ## Scratch (`data/tmp/mem`)
 
 `patch_mem.py` (instrumentation), `var.py` and `mk.sh` (variants of the generated C; `X_i` is
@@ -459,4 +503,6 @@ the instrumented build of `X`), `run.py` (time and peak RSS), `bench.sh` (interl
 the lock), `bench*.txt` (every timing above), `log_*.txt` and `*.smaps` (instrumented runs),
 `wants.txt` (every FASTA read's size), `t_*` (edited copies of the tree: `nocopy`, `cap`,
 `cap_a`, `cap2_a`, `nccap_a`, `nccap2_a`, `k8`, `nc_k8`, `nc_k32`, `ahead`), `st`, `st_a` (the
-sequential machine with today's driver), `g_*.c`, `fb.c`, `fbseq*.c` (generated C).
+sequential machine with today's driver), `g_*.c`, `fb.c`, `fbseq*.c` (generated C). Driver
+review 7: `d7/` (`fake/bend`, `nothr/bend` (the forced fallback), `stack.sh`, `st/`, `bench_d7.txt`),
+`t67` (67d7c0a's tree).

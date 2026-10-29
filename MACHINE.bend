@@ -189,8 +189,8 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 #   exactly as above.
 # - The driver's own errors, each one line on stderr and exit code 2: a usage
 #   error (law usage; prints B.usage), "error: cannot read <path>", "error:
-#   cannot write", "error: out of memory" (a read's buffer or libdeflate's
-#   decompressor), "error: unsupported gzip <path> (not BGZF; ...)", "error:
+#   cannot write", "error: out of memory" (libdeflate's decompressor),
+#   "error: unsupported gzip <path> (not BGZF; ...)", "error:
 #   bad BGZF <path>" (also a BGZF VCF without the end-of-file block, as one cut
 #   at a block boundary), "error: no BGZF in this build <path>", "error: bad
 #   .fai index <path>.fai", "error: unsupported FASTA <path>" (a byte read that the

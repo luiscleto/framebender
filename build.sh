@@ -31,11 +31,25 @@ OUTLINE void heap_hand(Env e, u32 cls) {
   ALC_AT(e, cls)   = ALC_LEN(e, cls) = 0;
 }
 EOF
+# Each line below exactly once; each macro below defined once (no second
+# definition after an #undef); heap_hand named twice in all: its definition
+# and the call in heap_free.
 one() { [ "$(grep -c -x -F "$1" "$c")" = 1 ]; }
+def() { [ "$(grep -c -E "^[[:space:]]*#[[:space:]]*define[[:space:]]+$1([[:space:](]|$)" "$c")" = 1 ]; }
+quantum='#define QUANTUM   (DEVICE ? PAGE_LEN \
+  : KEEP_WORDS < 32 * PAGE_LEN ? KEEP_WORDS : 32 * PAGE_LEN)'
 if ! cmp -s "$tmp/hand.c" "$tmp/hand.want" \
-  || ! one '#define KEEP(c)        (KEEP_WORDS >> (c) ? KEEP_WORDS >> (c) : 1)' \
+  || ! one '#define KEEP(c)        (KEEP_WORDS >> (c) ? KEEP_WORDS >> (c) : 1)' || ! def KEEP \
+  || ! one '#define NCLS      8' || ! def NCLS \
+  || ! one '#define CAP_WORDS 32768' || ! def CAP_WORDS \
+  || ! one '#define CHUNK     256' || ! def CHUNK \
+  || ! one '#define QUANTUM   (DEVICE ? PAGE_LEN \' || ! def QUANTUM \
+  || [ "$(grep -x -F -A1 '#define QUANTUM   (DEVICE ? PAGE_LEN \' "$c")" != "$quantum" ] \
+  || ! one '  KEEP_WORDS = gpu ? CHUNK : CAP_WORDS;' \
   || ! one '  u32 n = got ? KEEP(cls) : cls < NCLS ? QUANTUM >> cls : 1;' \
-  || ! one '  if (!DEVICE && ALC_LEN(e, cls) >= KEEP_WORDS) {'; then
+  || ! one '  if (!DEVICE && ALC_LEN(e, cls) >= KEEP_WORDS) {' \
+  || ! one '    heap_hand(e, cls);' \
+  || [ "$(grep -o 'heap_hand' "$c" | wc -l)" != 2 ]; then
   echo "build.sh: the generated runtime is not the one the heap patch was written for (Bend 2.0.39); see notes/memory.md" >&2
   exit 1
 fi
