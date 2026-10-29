@@ -19,8 +19,8 @@ import ../lawful-bytes/bytes.bend as BY
 # reads, or N, at a time are read in parallel, then taken in order), writes
 # what the machine writes, and exits with the machine's code. The thread
 # count is B.Args.threads of the command line (law threads: it changes nothing
-# the machine writes); io64.c also sets Bend's worker threads from it. Every error of its own prints one
-# line "error: ..." and exits with code 2:
+# the machine writes); io64.c also sets Bend's worker threads from it. Every
+# error of its own prints one line "error: ..." and exits with code 2:
 #   usage (B.usage), "cannot read <path>", "cannot write" (stdout/stderr),
 #   "out of memory" (no room for a read's buffer or for libdeflate's
 #   decompressor), "unsupported gzip <path> (not BGZF; use gzip -dc

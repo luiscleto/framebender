@@ -132,7 +132,9 @@ typedef struct {
 // done: it stopped (after a short or failed piece, or when asked: stop); the
 // helper's descriptor (a duplicate); the size of every piece (max), the
 // depth of their blocks (d). io64_ahead_n is 16, or --threads N (Io.threads,
-// before the first read), at most IO64_AHEAD_MAX.
+// before the first read), at most IO64_AHEAD_MAX; a plain static, as the
+// runtime runs the driver's effects in order and the helper starts after it
+// is set (pthread_create).
 #define IO64_AHEAD_MAX 128
 static u32 io64_ahead_n = 16;
 enum { IO64_FREE, IO64_WANT, IO64_FULL };
@@ -636,10 +638,10 @@ static Term io64_fa_answer(Env e, Io64Fa* r) {
 // thread; answers (file, t), t its ticket. Io.fa_wait(file, t): waits for the
 // read with ticket t and answers (code, (n, block)) or its errno, as above.
 // The driver starts at most IO64_FA_MAX reads before waiting for each of them,
-// in order (32, or --threads N: main.bend's answers). The read's block is allocated (and later padded and handed out,
-// or freed) on the calling thread; the helper only fills it. A read whose
-// block or thread cannot be had is done (or fails, ENOMEM) at once; its
-// answer is kept for Io.fa_wait. A ticket that is not pending fails (EINVAL).
+// in order (32, or --threads N: main.bend's answers). The read's block is
+// allocated (and later padded and handed out, or freed) on the calling thread;
+// the helper only fills it. A read whose block or thread cannot be had is done
+// (or fails, ENOMEM) at once; its answer is kept for Io.fa_wait. A ticket that is not pending fails (EINVAL).
 #define IO64_FA_MAX 128
 typedef struct { int used, running; pthread_t th; Io64Fa r; } Io64FaSlot;
 static Io64FaSlot io64_fa[IO64_FA_MAX];
@@ -718,24 +720,26 @@ static void __attribute__((constructor)) io_write_block_use(void) {
 // words "--threads N" are put before BENDRTS, which the runtime reads first.
 // So the runtime runs at most N workers unless the user's own BENDRTS or
 // +RTS --threads says otherwise (the runtime takes the last one). Anything
-// unexpected (no command line to read, a line Args.parse refuses) leaves
-// BENDRTS as it is. On Linux the words come from /proc/self/cmdline, on macOS
+// unexpected (no command line to read, a command line of 1 MiB or more, a
+// line Args.parse refuses) leaves BENDRTS as it is. On Linux the words come from /proc/self/cmdline, on macOS
 // from _NSGetArgv(); elsewhere nothing is done.
 #if defined(__linux__) || defined(__APPLE__)
 #ifdef __APPLE__
 #include <crt_externs.h>
 #endif
 
-// One or more decimal digits; their value, capped at 1000.
+// One or more decimal digits of a value below 2^48 (B.Pos.read stops the run
+// on a larger one: "a Nat past the largest immediate"); the value, capped at
+// 1000.
 static int io64_num(const char* x, unsigned* v) {
   if (*x == 0) return 0;
-  unsigned n = 0;
+  uint64_t n = 0;
   for (; *x; x += 1) {
     if (*x < '0' || *x > '9') return 0;
-    n = n * 10 + (unsigned)(*x - '0');
-    if (n > 1000) n = 1000;
+    n = n * 10 + (uint64_t)(*x - '0');
+    if (n >> 48) return 0;
   }
-  *v = n;
+  *v = n > 1000 ? 1000 : (unsigned)n;
   return 1;
 }
 

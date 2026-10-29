@@ -1,0 +1,13 @@
+# Driver review 6 (`--threads N`): Grok 4.7
+
+One minor. Nothing in the driver changes the bytes, the messages, or the exit code.
+
+1. **Minor.** `io64.c`, `io64_num`, used for the `-w` value in `io64_threads_of`. A digit string is clamped at 1000, and 1000 passes the `-w` test `v >= 1`, so a value the runtime cannot build still looks valid. Input: `norm -w 281474976710656 -f test/edge/ref.fa --threads 4 test/edge/sorted.vcf` (`281474976710656` is 2^48). `io64_threads_of` returns 4 and the constructor sets `BENDRTS` to `--threads 4`. `B.Args.threads` never returns 4: `Pos.read` aborts with `bend: a Nat past the largest immediate 2^48-1` and exit 1. The same abort happens if `BENDRTS` is left unset. A `-w` of `1001` or of 2^48−1 is a real line and must still count. Fix: accumulate in a `uint64_t` and fail the token if the value would reach 2^48, instead of clamping at 1000.
+
+Checked and holding: the rest of the grammar (a lone `-`, an empty word, `-f` taking `--threads` as its path, a missing value, leading zeros, repeated options, words after the VCF path) agrees with `B.Args.threads`, including on 200,000 random lines. The `+RTS`/`-RTS`/`--RTS` split matches the generated `main`. A user's `BENDRTS` or `+RTS --threads` stays last and wins. `setenv` runs in the constructor, before `main` reads `BENDRTS`. A command line of 1 MiB or more returns without writing past the buffer. `loop.piece` does not drop, duplicate, or reorder a piece. `c` survives an `Ask` and resets only on the empty piece. On a two-piece VCF, `--threads 1`, `3`, `16`, and `128` match no option for `-c w` and `-c e`. The read-ahead depth is set once in `main.t` before any `Io.read_block`, and every index is modulo that depth after `io64_ahead_start`. Reference reads stay in groups of at most 128, which is `IO64_FA_MAX`, and the first failure in order is still the one reported. `io64.js` is a no-op. The constructor is in the generated C, and `build.sh` does not define `FB_NO_RTS_THREADS`.
+
+## Follow-up
+
+The long-command-line run finished and does not change the report. A command line of about 500 KB started and was stopped, and one of about 1.25 MB never started (`Argument list too long`). The 1 MiB cap in the constructor still just leaves `BENDRTS` unchanged.
+
+The finding stands: one minor, in `io64_num`. A `-w` of 2^48 or more is clamped to 1000, so `norm -w 281474976710656 -f test/edge/ref.fa --threads 4 test/edge/sorted.vcf` makes the constructor set `BENDRTS=--threads 4` even though `Pos.read` aborts with exit 1. The abort text is the same if `BENDRTS` is left alone. Fail the token at 2^48 instead of clamping at 1000.
