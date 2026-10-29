@@ -36,7 +36,8 @@ Full text: `reviews/responses-1.md` .. `responses-4.md`; implemented in `LAWS.be
    base (VCF 4.3 §1.6.1); N is a letter equal only to N.
 4. Normalized records are written canonically (POS without leading zeros, upper-case alleles); every
    other byte is kept; line endings kept (a missing final LF is added).
-5. Output sorted by a buffer with an exact flush rule (window `-w`, default 100000); a CHROM that comes
+5. Output sorted by a buffer with an exact flush rule (window `-w`, default 100000, 1000 since
+   phase G); a CHROM that comes
    back, or a record that cannot be put in order, stops the run with UNSORTED.
 6. Header: two lines added before `#CHROM` (`##framebender_normVersion`, `##framebender_normCommand`,
    control characters replaced, no date).
@@ -557,3 +558,37 @@ on one thread, while framebender holds a 3.5 MB piece, a reference window of up 
 output buffer per piece in flight (about 20 MB each). Smaller pieces trade memory for time
 (1.6 MiB pieces: about 230 MB for 5-10% more time); not pursued, as under 1 GB is ordinary for
 the pipelines that run `bcftools norm`.
+
+## Cohort VCFs and the default `-w` (2026-10-29; phase G, `notes/cohort.md`)
+
+On a cohort file (1000 Genomes high-coverage panel, chr22: 3,202 samples, 1,066,557 records of
+about 14 KB) framebender lost its lead: 64 s and 1 GB against bcftools' 70 s and 19 MB. The cohort
+agent found why (brief `notes/briefs/COHORT.md`): the sorting buffer. A record stays buffered
+until the input passes its position + `-w`; at the default 100000 that is 100 kb of genome, about
+14 KB of text on a single sample but 43 MB (up to 93 MB) on this file. Every step of the machine
+copied and zero-filled that buffer (87% of the CPU time), and no piece of 3.5 MiB spans 100 kb, so
+every piece failed `merge.ok` and ran again sequentially: no parallelism at all.
+
+The owner chose to lower the default to 1000, the window `bcftools norm` uses (`--site-win`).
+A science-layer change, but only of a default: no law mentions the value, and the proofs went
+through unchanged (examples updated; gate `ALL PROOFS CHECK` with both checkers). No three-model
+review: the owner judged it a technicality another tool already uses. Before choosing:
+- GIAB whole genome and the scrambled file give the same output at `-w` 1000, 10000 and 100000.
+- A deletion moving 3,000 bases left through a poly-A run, after records already written:
+  bcftools writes it out of order and exits 0; framebender with `-w 1000` stops with UNSORTED
+  naming both lines, and with `-w 5000` writes it in order. So the smaller default never changes
+  output silently; it can only stop a run that `-w` larger would finish.
+
+**Q5** (pinned, interleaved, to a file; `test/bench.sh` is the script now):
+
+| | before (`-w 100000`) | now (`-w 1000`) | bcftools |
+|---|---|---|---|
+| 1000 Genomes first 800 MB | 3.21-3.24 s, 975 MB | 0.29-0.30 s, 227 MB | 3.50-3.69 s, 12 MB |
+| same, `--threads 1` | 3.35 s, 783 MB | 0.63-0.66 s, 38 MB | |
+| 1000 Genomes chr22 `.vcf.gz` | 64.4-64.8 s, 1006 MB | 6.86-6.91 s, 309-313 MB | 69.8 s, 18 MB |
+| same, `--threads 1` | | 11.4-12.1 s, 101 MB | |
+| GIAB whole genome | 1.77-1.89 s, 333 MB | 1.76-1.78 s, 327-330 MB | 7.99-8.05 s, 11-12 MB |
+
+Identical output before and after on all three (md5). The agent's machine-only options (A: an
+offset instead of a copy, 2.6x at any `-w`; B, C: merges across pieces) are recorded in
+`notes/cohort.md` and not pursued: at the new default the cohort file is 10x faster than bcftools.

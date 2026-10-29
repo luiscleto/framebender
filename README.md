@@ -34,7 +34,11 @@ samtools faidx ref.fa                      # once: writes ref.fa.fai
 
 - `-c w`: pass records whose REF does not match the reference through with a warning
   (default `-c e`: stop at the first one).
-- `-w N`: how far (in bases) a record may move left; default 100000.
+- `-w N`: how far (in bases) a record may move left; default 1000, the same window as
+  `bcftools norm --site-win`. A record that moves further stops the run with UNSORTED, naming
+  both lines; re-run with a larger `-w`. (bcftools writes such a record out of order and exits
+  successfully.) Larger windows hold more records in memory, which slows down files with many
+  samples per line.
 - `--threads N` (1 to 128): how much work runs at once, to fit the machine: N pieces of the VCF
   normalized in parallel by at most N of Bend's worker threads, N pieces read ahead, N reference
   reads in flight. It changes only speed and memory, never the output (law `threads`; the header
@@ -75,31 +79,41 @@ The intentional differences:
   (`1/0:1,1` for `GT:AD:PS` stays as is).
 - The header gets two added lines with no date, so the output is reproducible.
 
-Speed (wall clock, writing to a file, 32-thread hybrid CPU, both tools pinned to the performance
-cores, which removes about 3 s of run-to-run noise on the whole genome):
+Speed, on one sample (GIAB HG002) and on a cohort of 3,202 (the 1000 Genomes high-coverage
+panel, chr22: 1,066,557 records of about 14 KB each, 14.8 GB uncompressed):
 
-| GIAB HG002 | bcftools | framebender |
+| input | bcftools | framebender |
 |---|---|---|
-| chr22 | 0.11–0.12 s | 0.06 s |
-| whole genome (2.8 GB) | 7.8–7.9 s | 1.8–1.9 s |
-| whole genome, `.vcf.gz` | 7.9–8.0 s | 1.8 s |
-| 20,739 indels moved to random positions | 0.07–0.08 s | 0.12–0.13 s |
+| HG002 chr22 | 0.11–0.12 s | 0.06 s |
+| HG002 whole genome (2.8 GB) | 8.0–8.1 s | 1.8 s |
+| HG002 whole genome, `.vcf.gz` | 7.9–8.0 s | 1.8 s |
+| HG002, 20,739 indels moved to random positions | 0.07–0.08 s | 0.12–0.13 s |
+| 1000 Genomes chr22, first 800 MB | 3.5–3.7 s | 0.29–0.30 s |
+| 1000 Genomes chr22, `.vcf.gz` (425 MiB) | 69.8 s | 6.9 s |
 
-On the whole genome framebender is about 4 times faster than bcftools (unpinned: 2.1–2.3 s
-against 8.0–8.1 s), with the same records. It reads the file in pieces and normalizes 16 at a
-time in parallel; the proof covers the parallel version, which gives byte-for-byte the output of
-the sequential one. It uses more memory, which `--threads` trades against speed (whole genome,
-same pinning; the output is identical at every setting):
+framebender reads the file in pieces and normalizes 16 at a time in parallel; the proof covers
+the parallel version, which gives byte-for-byte the output of the sequential one. A file where
+nearly every record needs rewriting is still slower than bcftools. framebender uses more memory,
+which `--threads` trades against speed (HG002 whole genome; the output is identical at every
+setting):
 
 | | time | peak memory |
 |---|---|---|
 | bcftools | 8.0–8.2 s | 11–12 MB |
-| framebender (default: 16 pieces at a time) | 1.8–1.9 s | 345–350 MB |
+| framebender (default: 16 pieces at a time) | 1.8 s | 330 MB |
 | `--threads 8` | 2.1 s | 205 MB |
 | `--threads 4` | 2.7 s | 130 MB |
-| `--threads 1` | 6.1 s | 44 MB |
+| `--threads 1` | 6.0 s | 44–48 MB |
 
-A file where nearly every record needs rewriting is still slower than bcftools.
+On the 1000 Genomes file: bcftools 18 MB, framebender 310 MB (`--threads 1`: 100 MB, 11.4–12.1 s).
+
+How it was measured: a laptop with an Intel i9-13950HX (8 performance cores with 2 threads each,
+16 efficiency cores), 30 GB of RAM and an NVMe SSD, on Linux; bcftools 1.24, Bend 2.0.39. Both
+tools ran with `-c w`, writing to a file deleted before each run, pinned to the performance cores
+(`taskset -c 0-15`, which removes about 3 s of run-to-run noise on the whole genome), one at a
+time and interleaved, three rounds (two on the whole 1000 Genomes file, bcftools once). Times are
+wall clock, memory is peak resident size. framebender's output was the same in every run.
+`test/bench.sh ref.fa in.vcf` repeats the comparison on any file.
 
 The first proven version stored text as linked lists of characters, as Bend 2's `String` does,
 and took 590 s on the whole genome. The current one works on bytes packed four to a word, using

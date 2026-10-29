@@ -709,7 +709,7 @@ def Note.render(n: Note) -> String:
 
 # The options of one run.
 #   strict: True for -c e (the default: a problem stops the run), False for -c w.
-#   w: the sorting window (-w, default 100000, at least 1).
+#   w: the sorting window (-w, default 1000, at least 1).
 #   args: the command-line arguments that decide the output, recorded in the
 #     header: all those after "norm" except --threads and its value (which
 #     only size the program's work), so the output is the same for every N.
@@ -794,7 +794,7 @@ def Args.go(xs: List<&2, String>, st: ArgSt) -> ArgSt:
 def Args.done(st: ArgSt) -> Maybe<&2, Cfg>:
   match st:
     case ArgSt{PNone{}, s, w, t, Some{r}, Some{v}, True{}, k}:
-      Some{Cfg{Opts{s, Maybe.default(&2, Nat, w, 100000n), k}, r, v}}
+      Some{Cfg{Opts{s, Maybe.default(&2, Nat, w, 1000n), k}, r, v}}
     case _:
       None{}
 
@@ -810,7 +810,7 @@ def Args.done.if(ok: Bool, rest: List<&2, String>) -> Maybe<&2, Cfg>:
       None{}
 
 # The command line after the program name: "norm", then the options -f FASTA
-# (required), -c e or -c w (default e), -w N (N at least 1, default 100000),
+# (required), -c e or -c w (default e), -w N (N at least 1, default 1000),
 # --threads N (N from 1 to Args.max_threads()) in any order, and one VCF path.
 # None for anything else (a usage error). For -c, -w and --threads every one
 # given must be valid, and the last one counts.

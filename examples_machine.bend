@@ -22,7 +22,7 @@ def m_basic() -> {M.launch(Norm.start(X.argv()), X.argv(), X.fa(), X.hdr() ++ X.
 def m_pieces() -> {M.launch(Norm.start(X.argv()), X.argv(), X.fa(), X.hdr() ++ X.body1(), ["##fileformat=VCF", "v4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\nc\t4\t.\tA", "", "A\tA\t.\t.\t.\nc\t5\t.\ta\tg\t.\t.\t.", "\n"]) == Some{M.Launch{"r.fa", "in.vcf", L.run(X.fa(), X.hdr() ++ X.body1(), X.sopts())}} : Maybe<&2, M.Launch>}:
   {==}
 
-def m_mixed_w() -> {M.launch(Norm.start(["norm", "-c", "w", "-f", "r.fa", "in.vcf"]), ["norm", "-c", "w", "-f", "r.fa", "in.vcf"], X.fa(), X.hdr() ++ X.body2(), [X.hdr(), X.body2()]) == Some{M.Launch{"r.fa", "in.vcf", L.run(X.fa(), X.hdr() ++ X.body2(), B.Opts{False{}, 100000n, ["-c", "w", "-f", "r.fa", "in.vcf"]})}} : Maybe<&2, M.Launch>}:
+def m_mixed_w() -> {M.launch(Norm.start(["norm", "-c", "w", "-f", "r.fa", "in.vcf"]), ["norm", "-c", "w", "-f", "r.fa", "in.vcf"], X.fa(), X.hdr() ++ X.body2(), [X.hdr(), X.body2()]) == Some{M.Launch{"r.fa", "in.vcf", L.run(X.fa(), X.hdr() ++ X.body2(), B.Opts{False{}, 1000n, ["-c", "w", "-f", "r.fa", "in.vcf"]})}} : Maybe<&2, M.Launch>}:
   {==}
 
 def m_mixed_e() -> {M.launch(Norm.start(X.argv()), X.argv(), X.fa(), X.hdr() ++ X.body2(), [X.hdr() ++ X.body2()]) == Some{M.Launch{"r.fa", "in.vcf", L.run(X.fa(), X.hdr() ++ X.body2(), X.sopts())}} : Maybe<&2, M.Launch>}:

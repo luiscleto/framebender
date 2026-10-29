@@ -75,7 +75,7 @@ def fasta_vt() -> {B.Fasta.parse(">c\nA\u{b}G\n") == [B.Contig{"c", "A\u{b}G"}] 
 def args_ok() -> {B.Args.parse(["norm", "-c", "w", "-f", "r.fa", "-w", "5", "in.vcf"]) == Some{B.Cfg{B.Opts{False{}, 5n, ["-c", "w", "-f", "r.fa", "-w", "5", "in.vcf"]}, "r.fa", "in.vcf"}} : Maybe<&2, B.Cfg>}:
   {==}
 
-def args_default() -> {B.Args.parse(["norm", "-f", "r.fa", "in.vcf"]) == Some{B.Cfg{B.Opts{True{}, 100000n, ["-f", "r.fa", "in.vcf"]}, "r.fa", "in.vcf"}} : Maybe<&2, B.Cfg>}:
+def args_default() -> {B.Args.parse(["norm", "-f", "r.fa", "in.vcf"]) == Some{B.Cfg{B.Opts{True{}, 1000n, ["-f", "r.fa", "in.vcf"]}, "r.fa", "in.vcf"}} : Maybe<&2, B.Cfg>}:
   {==}
 
 def args_w0() -> {B.Args.parse(["norm", "-w", "0", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
@@ -88,10 +88,10 @@ def args_no_ref() -> {B.Args.parse(["norm", "in.vcf"]) == None{} : Maybe<&2, B.C
   {==}
 
 # --threads N is read anywhere among the options and is not recorded.
-def args_threads() -> {B.Args.parse(["norm", "--threads", "8", "-f", "r.fa", "in.vcf"]) == Some{B.Cfg{B.Opts{True{}, 100000n, ["-f", "r.fa", "in.vcf"]}, "r.fa", "in.vcf"}} : Maybe<&2, B.Cfg>}:
+def args_threads() -> {B.Args.parse(["norm", "--threads", "8", "-f", "r.fa", "in.vcf"]) == Some{B.Cfg{B.Opts{True{}, 1000n, ["-f", "r.fa", "in.vcf"]}, "r.fa", "in.vcf"}} : Maybe<&2, B.Cfg>}:
   {==}
 
-def args_threads_mid() -> {B.Args.parse(["norm", "-f", "r.fa", "--threads", "008", "-c", "w", "in.vcf"]) == Some{B.Cfg{B.Opts{False{}, 100000n, ["-f", "r.fa", "-c", "w", "in.vcf"]}, "r.fa", "in.vcf"}} : Maybe<&2, B.Cfg>}:
+def args_threads_mid() -> {B.Args.parse(["norm", "-f", "r.fa", "--threads", "008", "-c", "w", "in.vcf"]) == Some{B.Cfg{B.Opts{False{}, 1000n, ["-f", "r.fa", "-c", "w", "in.vcf"]}, "r.fa", "in.vcf"}} : Maybe<&2, B.Cfg>}:
   {==}
 
 # The last --threads counts.
@@ -114,7 +114,7 @@ def args_threads_end() -> {B.Args.parse(["norm", "-f", "r.fa", "in.vcf", "--thre
   {==}
 
 # As the value of -f, "--threads" is a path, recorded like any other.
-def args_threads_path() -> {B.Args.parse(["norm", "-f", "--threads", "in.vcf"]) == Some{B.Cfg{B.Opts{True{}, 100000n, ["-f", "--threads", "in.vcf"]}, "--threads", "in.vcf"}} : Maybe<&2, B.Cfg>}:
+def args_threads_path() -> {B.Args.parse(["norm", "-f", "--threads", "in.vcf"]) == Some{B.Cfg{B.Opts{True{}, 1000n, ["-f", "--threads", "in.vcf"]}, "--threads", "in.vcf"}} : Maybe<&2, B.Cfg>}:
   {==}
 
 # As the value of -c or -w, "--threads" is a bad value.
@@ -191,7 +191,7 @@ def added() -> String:
   "##fileformat=VCFv4.2\n##framebender_normVersion=0.1.0\n##framebender_normCommand=norm -f r.fa\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
 
 def strict() -> B.Opts:
-  B.Opts{True{}, 100000n, ["-f", "r.fa"]}
+  B.Opts{True{}, 1000n, ["-f", "r.fa"]}
 
 # A deletion moves to the start; a lower-case SNP is written in upper case.
 def run_basic() -> {L.run(fa(), hdr() ++ "c\t4\t.\tAA\tA\t.\t.\t.\nc\t5\t.\ta\tg\t.\t.\t.\n", strict()) == R.Report{added() ++ "c\t1\t.\tGA\tG\t.\t.\t.\nc\t5\t.\tA\tG\t.\t.\t.\n", [B.Summary{2n, 2n, 0n, 0n}], 0n} : R.Report}:
@@ -202,7 +202,7 @@ def run_mismatch() -> {L.run(fa(), hdr() ++ "c\t2\t.\tC\tT\t.\t.\t.\n", strict()
   {==}
 
 # Under -c w it is passed through with a warning.
-def run_mismatch_w() -> {L.run(fa(), hdr() ++ "c\t2\t.\tC\tT\t.\t.\t.\n", B.Opts{False{}, 100000n, ["-f", "r.fa"]}) == R.Report{added() ++ "c\t2\t.\tC\tT\t.\t.\t.\n", [B.Warning{B.RefMismatch{}, B.At{3n, "c", "2"}}, B.Summary{1n, 0n, 0n, 1n}], 0n} : R.Report}:
+def run_mismatch_w() -> {L.run(fa(), hdr() ++ "c\t2\t.\tC\tT\t.\t.\t.\n", B.Opts{False{}, 1000n, ["-f", "r.fa"]}) == R.Report{added() ++ "c\t2\t.\tC\tT\t.\t.\t.\n", [B.Warning{B.RefMismatch{}, B.At{3n, "c", "2"}}, B.Summary{1n, 0n, 0n, 1n}], 0n} : R.Report}:
   {==}
 
 # A record that moves before one read earlier comes out first.
@@ -247,7 +247,7 @@ def argv() -> List<&2, String>:
   ["norm", "-f", "r.fa", "in.vcf"]
 
 def sopts() -> B.Opts:
-  B.Opts{True{}, 100000n, ["-f", "r.fa", "in.vcf"]}
+  B.Opts{True{}, 1000n, ["-f", "r.fa", "in.vcf"]}
 
 def body1() -> String:
   "c\t4\t.\tAA\tA\t.\t.\t.\nc\t5\t.\ta\tg\t.\t.\t.\n"
