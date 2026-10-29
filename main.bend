@@ -8,15 +8,18 @@ import ../lawful-bytes/bytes.bend as BY
 # framebender: the driver (trusted, not proven; see the comment on law machine
 # in MACHINE.bend).
 #
-#   framebender norm -f ref.fa [-c e|w] [-w N] in.vcf > out.vcf
+#   framebender norm -f ref.fa [-c e|w] [-w N] [--threads N] in.vcf > out.vcf
 #
 # It only runs the proven machine (Norm.start, Norm.step): it reads the VCF
 # file in pieces (its bytes, or for a BGZF file the bytes its blocks
-# decompress to; up to 16 pieces are read ahead, in order, by a helper
-# thread), answers the reads of each Ask in order with the contig's letters at
-# the .fai offsets (line breaks removed; up to 32 reads at a time are read in
-# parallel, then taken in order), writes what the machine writes, and exits
-# with the machine's code. Every error of its own prints one
+# decompress to; up to 16 pieces, or --threads N, are read ahead, in order, by
+# a helper thread), gives the machine an empty piece after every 16 pieces
+# (or N: the machine's batches), answers the reads of each Ask in order with
+# the contig's letters at the .fai offsets (line breaks removed; up to 32
+# reads, or N, at a time are read in parallel, then taken in order), writes
+# what the machine writes, and exits with the machine's code. The thread
+# count is B.Args.threads of the command line (law threads: it changes nothing
+# the machine writes); io64.c also sets Bend's worker threads from it. Every error of its own prints one
 # line "error: ..." and exits with code 2:
 #   usage (B.usage), "cannot read <path>", "cannot write" (stdout/stderr),
 #   "out of memory" (no room for a read's buffer or for libdeflate's
@@ -49,9 +52,11 @@ import ../lawful-bytes/bytes.bend as BY
 type Fai is Data:
   Fai{len: Nat, off: Nat, lb: Nat, lw: Nat}
 
-# Everything the loop carries: the files, the FASTA path and the .fai index.
+# Everything the loop carries: the files, the FASTA path, the .fai index, the
+# pieces per batch (k), the reads started at once (g), and the pieces read
+# since the last empty one (c).
 type Io is Type:
-  Io{vcf: File, fa: File, ref: String, fai: Map<&2, Maybe<&2, Fai>>}
+  Io{vcf: File, fa: File, ref: String, fai: Map<&2, Maybe<&2, Fai>>, k: Nat, g: Nat, c: Nat}
 
 # ---------------------------------------------------------------------------
 # Effects of the driver (io64.c): a full read at a 64-bit offset, and a write
@@ -91,6 +96,12 @@ def Io.write_block(fd: U32, n: U32, a: Array<U32>) -> IO(U32):
   import "./io64.js"
 
 def Io.write_fd(fd: U32, data: List<&2, U32>) -> IO(Result<&1, &1, U32 & String, Unit>):
+  import "./io64.c"
+  import "./io64.js"
+
+# Size the VCF read-ahead by the thread count n (0: the default, 16 pieces;
+# at most 128). Called once, before the first read; answers 0.
+def Io.threads(n: U32) -> IO(U32):
   import "./io64.c"
   import "./io64.js"
 
@@ -514,35 +525,36 @@ def answers.app?(+as: List<&1, P.Ans>, r: Map<&2, Maybe<&2, Fai>> & (File & List
     case (m, (fa, bs)):
       IO.pure(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>), (m, (fa, List.append(&1, P.Ans, as, bs))))
 
-def answers.w?(w: File & List<&1, P.Ans>, m: Map<&2, Maybe<&2, Fai>>, rest: List<&2, P.Req>, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
+def answers.w?(+n: Nat, w: File & List<&1, P.Ans>, m: Map<&2, Maybe<&2, Fai>>, rest: List<&2, P.Req>, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
   match w:
     case (fa, as):
       do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)>:
-        r : Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>) <- answers(rest, m, fa, ref)
+        r : Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>) <- answers(n, rest, m, fa, ref)
         answers.app(as, r)
 
-def answers.s?(q: Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>), rest: List<&2, P.Req>, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
+def answers.s?(+n: Nat, q: Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>), rest: List<&2, P.Req>, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
   match q:
     case (m, (fa, ps)):
       do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)>:
         w : File & List<&1, P.Ans> <- waits(ps, fa, ref)
-        answers.w(w, m, rest, ref)
+        answers.w(n, w, m, rest, ref)
 
-def answers.g?(p: List<&2, P.Req> & List<&2, P.Req>, fai: Map<&2, Maybe<&2, Fai>>, fa: File, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
+def answers.g?(+n: Nat, p: List<&2, P.Req> & List<&2, P.Req>, fai: Map<&2, Maybe<&2, Fai>>, fa: File, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
   match p:
     case (g, rest):
       do IO<Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)>:
         q : Map<&2, Maybe<&2, Fai>> & (File & List<&2, Pend>) <- starts(g, fai, fa)
-        answers.s(q, rest, ref)
+        answers.s(n, q, rest, ref)
 
-# The answers to the reads rs, in order: up to 32 at a time, each group's
-# reads started at once (in parallel) and then taken in order.
-def answers?(rs: List<&2, P.Req>, fai: Map<&2, Maybe<&2, Fai>>, fa: File, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
+# The answers to the reads rs, in order: up to n at a time (n at least 1: 32,
+# or --threads N), each group's reads started at once (in parallel) and then
+# taken in order.
+def answers?(+n: Nat, rs: List<&2, P.Req>, fai: Map<&2, Maybe<&2, Fai>>, fa: File, +ref: String) -> IO(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>)):
   match rs:
     case Nil{}:
       IO.pure(Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>), (fai, (fa, Nil{})))
     case +r <> +t:
-      answers.g(split(32n, r <> t), fai, fa, ref)
+      answers.g(n, split(n, r <> t), fai, fa, ref)
 
 # ---------------------------------------------------------------------------
 # The loop
@@ -563,9 +575,20 @@ def loop.input.go?(eof: Bool, +n: U32, blk: Array<U32>, st: Norm.St) -> Norm.Ste
     case False{}:
       Norm.step(st, P.Chunk{D.Bytes{n, blk}})
 
+# The next piece: after k pieces, an empty one (it ends the machine's batch),
+# else the next piece of the file.
+def loop.piece?(full: Bool, vcf: File, fa: File, +ref: String, fai: Map<&2, Maybe<&2, Fai>>, +k: Nat, +g: Nat, +c: Nat, +vpath: String, st: Norm.St) -> IO(Unit):
+  match full:
+    case True{}:
+      emit(Io{vcf, fa, ref, fai, k, g, 0n}, vpath, Norm.step(st, P.Chunk{D.Bytes{0, Array.new(U32, 0n, 0)}}))
+    case False{}:
+      do IO<Unit>:
+        p : File & Result<&1, &1, U32 & String, U32 & Array<U32>> <- Io.read_block(vcf, piece(), 1)
+        loop.more(p, fa, ref, vpath, fai, k, g, 1n+c, st)
+
 def loop?(io: Io, +vpath: String, st: Norm.St, next: P.Next) -> IO(Unit):
   match io:
-    case Io{vcf, fa, +ref, fai}:
+    case Io{vcf, fa, +ref, fai, +k, +g, +c}:
       match next:
         case P.Finish{code}:
           do IO<Unit>:
@@ -573,25 +596,23 @@ def loop?(io: Io, +vpath: String, st: Norm.St, next: P.Next) -> IO(Unit):
             File.close(fa)
             IO.exit(U32.from_nat(code))
         case P.More{}:
-          do IO<Unit>:
-            p : File & Result<&1, &1, U32 & String, U32 & Array<U32>> <- Io.read_block(vcf, piece(), 1)
-            loop.more(p, fa, ref, vpath, fai, st)
+          loop.piece(Nat.is_le(k, c), vcf, fa, ref, fai, k, g, c, vpath, st)
         case P.Ask{rs}:
           do IO<Unit>:
-            q : Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>) <- answers(rs, fai, fa, ref)
-            loop.ref(q, vcf, ref, vpath, st)
+            q : Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>) <- answers(g, rs, fai, fa, ref)
+            loop.ref(q, vcf, ref, k, g, c, vpath, st)
 
-def loop.ref?(q: Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>), vcf: File, +ref: String, +vpath: String, st: Norm.St) -> IO(Unit):
+def loop.ref?(q: Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>), vcf: File, +ref: String, +k: Nat, +g: Nat, +c: Nat, +vpath: String, st: Norm.St) -> IO(Unit):
   match q:
     case (fai, (fa, as)):
-      emit(Io{vcf, fa, ref, fai}, vpath, Norm.step(st, P.Ref{as}))
+      emit(Io{vcf, fa, ref, fai, k, g, c}, vpath, Norm.step(st, P.Ref{as}))
 
-def loop.more?(p: File & Result<&1, &1, U32 & String, U32 & Array<U32>>, fa: File, +ref: String, +vpath: String, fai: Map<&2, Maybe<&2, Fai>>, st: Norm.St) -> IO(Unit):
+def loop.more?(p: File & Result<&1, &1, U32 & String, U32 & Array<U32>>, fa: File, +ref: String, +vpath: String, fai: Map<&2, Maybe<&2, Fai>>, +k: Nat, +g: Nat, +c: Nat, st: Norm.St) -> IO(Unit):
   match p:
     case (vcf, Fail{+e}):
       read_fail(Unit, e, vpath)
     case (vcf, Done{(n, blk)}):
-      emit(Io{vcf, fa, ref, fai}, vpath, loop.input(n, blk, st))
+      emit(Io{vcf, fa, ref, fai, k, g, c}, vpath, loop.input(n, blk, st))
 
 # Write what a step wrote, then go on with what it wants next.
 def emit?(io: Io, +vpath: String, s: Norm.Step) -> IO(Unit):
@@ -602,7 +623,7 @@ def emit?(io: Io, +vpath: String, s: Norm.Step) -> IO(Unit):
         put(2, notes_text(ns))
         loop(io, vpath, st, next)
 
-def run.fai?(m: Maybe<&2, Map<&2, Maybe<&2, Fai>>>, st: Norm.St, +ref: String, +vcf: String) -> IO(Unit):
+def run.fai?(m: Maybe<&2, Map<&2, Maybe<&2, Fai>>>, st: Norm.St, +ref: String, +vcf: String, +k: Nat, +g: Nat) -> IO(Unit):
   match m:
     case None{}:
       die(Unit, "bad .fai index " ++ esc(ref ++ ".fai"))
@@ -610,27 +631,38 @@ def run.fai?(m: Maybe<&2, Map<&2, Maybe<&2, Fai>>>, st: Norm.St, +ref: String, +
       do IO<Unit>:
         fa : File <- open(ref)
         v : File <- open(vcf)
-        loop(Io{v, fa, ref, fai}, vcf, st, P.More{})
+        loop(Io{v, fa, ref, fai, k, g, 0n}, vcf, st, P.More{})
 
-def run?(st: Norm.St, +ref: String, +vcf: String) -> IO(Unit):
+def run?(st: Norm.St, +ref: String, +vcf: String, +k: Nat, +g: Nat) -> IO(Unit):
   do IO<Unit>:
     fi : File <- open(ref ++ ".fai")
     cs : List<&2, List<&2, U32>> <- read_all(fi, ref ++ ".fai", Nil{})
-    run.fai(fai_load(String.split(bytes_str(concat_rev(cs, Nil{})), '\n'), Map.new(&2, Maybe<&2, Fai>)), st, ref, vcf)
+    run.fai(fai_load(String.split(bytes_str(concat_rev(cs, Nil{})), '\n'), Map.new(&2, Maybe<&2, Fai>)), st, ref, vcf, k, g)
 
-def main.k?(b: Norm.Begin) -> IO(Unit):
+def main.k?(b: Norm.Begin, +k: Nat, +g: Nat) -> IO(Unit):
   match b:
     case Norm.Usage{}:
       usage(Unit)
     case Norm.Begin{st, ref, vcf}:
-      run(st, ref, vcf)
+      run(st, ref, vcf, k, g)
+
+# The thread count n (0 when none) sizes the driver's work: the read-ahead
+# (Io.threads), the pieces per batch (16, or n) and the reads started at once
+# (32, or n). n is at most 128 (Args.threads, proof_f_args.bend's threads_ok).
+def main.t?(+n: Nat, b: Norm.Begin) -> IO(Unit):
+  do IO<Unit>:
+    r : U32 <- Io.threads(U32.from_nat(n))
+    main.k(b, Bool.pick(Nat, Nat.is_eq(n, 0n), 16n, n), Bool.pick(Nat, Nat.is_eq(n, 0n), 32n, n))
+
+def main.n?(+xs: List<&2, String>) -> IO(Unit):
+  main.t(Maybe.default(&2, Nat, B.Args.threads(xs), 0n), Norm.start(xs))
 
 def main.args?(args: List<List<&2, U32>>) -> IO(Unit):
   match args:
     case Nil{}:
       usage(Unit)
     case prog <> rest:
-      main.k(Norm.start(args_str(rest)))
+      main.n(args_str(rest))
 
 def main() -> IO(Unit):
   do IO<Unit>:

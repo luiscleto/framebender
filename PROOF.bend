@@ -6,6 +6,7 @@ import ./proof_window.bend as PW
 import ./proof_run.bend as PR
 import ./proof_b_machine.bend as PM
 import ./proof_e_machine.bend as EM
+import ./proof_f_threads.bend as FT
 
 # Proofs of the laws: `def L.name` proves `law name` of LAWS.bend (the
 # science), `def M.name` proves `law name` of MACHINE.bend (the
@@ -66,3 +67,9 @@ def M.machine(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb):
 
 def M.usage(argv, ha):
   EM.usage(argv, ha)
+
+# --threads N changes nothing the program writes (proof_f_threads.bend, from
+# law machine and law usage).
+
+def M.threads(pre, x, n, post, fasta, vcf, cs, he, hx, hn, hf, h, hb):
+  FT.threads(pre, x, n, post, fasta, vcf, cs, he, hx, hn, hf, h, hb)

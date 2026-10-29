@@ -87,6 +87,98 @@ def args_two_vcf() -> {B.Args.parse(["norm", "-f", "r.fa", "a.vcf", "b.vcf"]) ==
 def args_no_ref() -> {B.Args.parse(["norm", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
   {==}
 
+# --threads N is read anywhere among the options and is not recorded.
+def args_threads() -> {B.Args.parse(["norm", "--threads", "8", "-f", "r.fa", "in.vcf"]) == Some{B.Cfg{B.Opts{True{}, 100000n, ["-f", "r.fa", "in.vcf"]}, "r.fa", "in.vcf"}} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def args_threads_mid() -> {B.Args.parse(["norm", "-f", "r.fa", "--threads", "008", "-c", "w", "in.vcf"]) == Some{B.Cfg{B.Opts{False{}, 100000n, ["-f", "r.fa", "-c", "w", "in.vcf"]}, "r.fa", "in.vcf"}} : Maybe<&2, B.Cfg>}:
+  {==}
+
+# The last --threads counts.
+def args_threads_last() -> {B.Args.threads(["norm", "--threads", "4", "-f", "r.fa", "--threads", "128", "in.vcf"]) == Some{128n} : Maybe<&2, Nat>}:
+  {==}
+
+def args_threads_none() -> {B.Args.threads(["norm", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, Nat>}:
+  {==}
+
+def args_threads0() -> {B.Args.parse(["norm", "--threads", "0", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def args_threads129() -> {B.Args.parse(["norm", "--threads", "129", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def args_threads_word() -> {B.Args.parse(["norm", "--threads", "four", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def args_threads_end() -> {B.Args.parse(["norm", "-f", "r.fa", "in.vcf", "--threads"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+# As the value of -f, "--threads" is a path, recorded like any other.
+def args_threads_path() -> {B.Args.parse(["norm", "-f", "--threads", "in.vcf"]) == Some{B.Cfg{B.Opts{True{}, 100000n, ["-f", "--threads", "in.vcf"]}, "--threads", "in.vcf"}} : Maybe<&2, B.Cfg>}:
+  {==}
+
+# As the value of -c or -w, "--threads" is a bad value.
+def args_threads_c() -> {B.Args.parse(["norm", "-f", "r.fa", "-c", "--threads", "8", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def args_threads_w() -> {B.Args.parse(["norm", "-f", "r.fa", "-w", "--threads", "8", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+# A --threads without its number takes the next word as its value.
+def args_threads_noval() -> {B.Args.parse(["norm", "--threads", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+# Every --threads must be valid, as with -w.
+def args_threads_bad_first() -> {B.Args.parse(["norm", "--threads", "0", "-f", "r.fa", "--threads", "8", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+# A command line refused without --threads is refused with it.
+def args_threads_no_ref() -> {B.Args.parse(["norm", "--threads", "8", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+# After the VCF path, as anywhere an option may come.
+def args_threads_after() -> {B.Args.parse(["norm", "-f", "r.fa", "in.vcf", "--threads", "8"]) == B.Args.parse(["norm", "-f", "r.fa", "in.vcf"]) : Maybe<&2, B.Cfg>}:
+  {==}
+
+# Where an option may come (law threads' B.Args.expecting).
+def expecting_start() -> {B.Args.expecting([]) == True{} : Bool}:
+  {==}
+
+def expecting_after_value() -> {B.Args.expecting(["-f", "r.fa"]) == True{} : Bool}:
+  {==}
+
+def expecting_after_vcf() -> {B.Args.expecting(["-f", "r.fa", "in.vcf"]) == True{} : Bool}:
+  {==}
+
+def expecting_value() -> {B.Args.expecting(["-f"]) == False{} : Bool}:
+  {==}
+
+# After an error the parser still reads the next word as an option.
+def expecting_error() -> {B.Args.expecting(["-c", "x"]) == True{} : Bool}:
+  {==}
+
+# Args.threads: Some only for an accepted command line.
+def threads_lead0() -> {B.Args.threads(["norm", "-f", "r.fa", "--threads", "008", "-c", "w", "in.vcf"]) == Some{8n} : Maybe<&2, Nat>}:
+  {==}
+
+def threads_path() -> {B.Args.threads(["norm", "-f", "--threads", "in.vcf"]) == None{} : Maybe<&2, Nat>}:
+  {==}
+
+def threads_zero() -> {B.Args.threads(["norm", "--threads", "0", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, Nat>}:
+  {==}
+
+def threads_big() -> {B.Args.threads(["norm", "--threads", "999", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, Nat>}:
+  {==}
+
+def threads_cmd() -> {B.Args.threads(["x", "--threads", "8", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, Nat>}:
+  {==}
+
+def threads_trailing() -> {B.Args.threads(["norm", "--threads", "4", "-f", "r.fa", "in.vcf", "--threads"]) == None{} : Maybe<&2, Nat>}:
+  {==}
+
+def threads_refused() -> {B.Args.threads(["norm", "--threads", "8", "in.vcf"]) == None{} : Maybe<&2, Nat>}:
+  {==}
+
 # --- Whole runs ------------------------------------------------------------
 
 def fa() -> String:

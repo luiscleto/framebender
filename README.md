@@ -35,6 +35,10 @@ samtools faidx ref.fa                      # once: writes ref.fa.fai
 - `-c w`: pass records whose REF does not match the reference through with a warning
   (default `-c e`: stop at the first one).
 - `-w N`: how far (in bases) a record may move left; default 100000.
+- `--threads N` (1 to 128): how much work runs at once, to fit the machine: N pieces of the VCF
+  normalized in parallel by at most N of Bend's worker threads, N pieces read ahead, N reference
+  reads in flight. It changes only speed and memory, never the output (law `threads`; the header
+  does not record it). Without it: 16 pieces, one worker per CPU. A larger N needs more memory.
 - Input is plain VCF or bgzip-compressed `.vcf.gz` (a file that is cut short is refused). Output
   is plain VCF; pipe it to `bgzip` to compress it.
 

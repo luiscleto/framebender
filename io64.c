@@ -124,26 +124,42 @@ typedef struct {
 #endif
 } Io64In;
 
-// The pieces read ahead: a ring of IO64_AHEAD slots, each free, holding a
+// The pieces read ahead: a ring of io64_ahead_n slots, each free, holding a
 // block to fill (want), or a filled one (full: got bytes read, code its
 // error, 0 if none). The helper fills slot fi, the calling thread hands out
 // slot ti and gives blocks to the free slots from ai on (ti <= fi <= ai <=
-// ti + IO64_AHEAD, as counts). on: a helper was started and not joined; done:
-// it stopped (after a short or failed piece, or when asked: stop); the
+// ti + io64_ahead_n, as counts). on: a helper was started and not joined;
+// done: it stopped (after a short or failed piece, or when asked: stop); the
 // helper's descriptor (a duplicate); the size of every piece (max), the
-// depth of their blocks (d).
-#define IO64_AHEAD 16
+// depth of their blocks (d). io64_ahead_n is 16, or --threads N (Io.threads,
+// before the first read), at most IO64_AHEAD_MAX.
+#define IO64_AHEAD_MAX 128
+static u32 io64_ahead_n = 16;
 enum { IO64_FREE, IO64_WANT, IO64_FULL };
 typedef struct { int state; u64 loc; char* p; uint64_t got; u32 code; } Io64Slot;
 typedef struct {
   int on, done, stop; pthread_t th; int fd; uint64_t max; u32 d;
   uint64_t ti, fi, ai;
-  Io64Slot q[IO64_AHEAD];
+  Io64Slot q[IO64_AHEAD_MAX];
   pthread_mutex_t mu; pthread_cond_t cv;
 } Io64Ahead;
 
 static Io64In io64_in = {.fd = -1};
 static Io64Ahead io64_ahead = {.mu = PTHREAD_MUTEX_INITIALIZER, .cv = PTHREAD_COND_INITIALIZER};
+
+#ifdef CID(Io.threads)
+// Io.threads(n): the depth of the read-ahead, n (the thread count) or 16 for
+// 0, at most IO64_AHEAD_MAX. The driver calls it once, before its first
+// read (no helper runs yet). Answers 0.
+Term io_threads_run(Env e, Term* f, IoWork* w) {
+  u32 n = (u32)f[0];
+  io64_ahead_n = n == 0 ? 16 : n < IO64_AHEAD_MAX ? n : IO64_AHEAD_MAX;
+  return (Term)0;
+}
+static void __attribute__((constructor)) io_threads_use(void) {
+  io_eff(CID(Io.threads), io_threads_run);
+}
+#endif
 
 // Exactly n bytes from fd, fewer only at the end of the file; the count, or
 // -errno.
@@ -268,7 +284,7 @@ static void* io64_ahead_run(void* x) {
   Io64Ahead* a = x;
   pthread_mutex_lock(&a->mu);
   for (;;) {
-    Io64Slot* sl = &a->q[a->fi % IO64_AHEAD];
+    Io64Slot* sl = &a->q[a->fi % io64_ahead_n];
     while (sl->state != IO64_WANT && !a->stop) pthread_cond_wait(&a->cv, &a->mu);
     if (a->stop) break;
     pthread_mutex_unlock(&a->mu);
@@ -293,13 +309,13 @@ static void io64_ahead_give(Env e) {
   Io64Ahead* a = &io64_ahead;
   for (;;) {
     pthread_mutex_lock(&a->mu);
-    int more = !a->done && a->ai < a->ti + IO64_AHEAD;
+    int more = !a->done && a->ai < a->ti + io64_ahead_n;
     pthread_mutex_unlock(&a->mu);
     if (!more) return;
     u64 loc;
     if (!io64_block(e, a->d, &loc)) return;
     pthread_mutex_lock(&a->mu);
-    Io64Slot* sl = &a->q[a->ai % IO64_AHEAD];
+    Io64Slot* sl = &a->q[a->ai % io64_ahead_n];
     *sl = (Io64Slot){IO64_WANT, loc, (char*)(e.mem + loc), 0, 0};
     a->ai += 1;
     pthread_cond_broadcast(&a->cv);
@@ -321,7 +337,7 @@ static int io64_ahead_end(Env e) {
   close(a->fd);
   int left = 0;
   for (; a->ti < a->ai; a->ti += 1) {
-    Io64Slot* sl = &a->q[a->ti % IO64_AHEAD];
+    Io64Slot* sl = &a->q[a->ti % io64_ahead_n];
     if (sl->state == IO64_FULL && sl->got != 0) left = 1;
     heap_free(e, blk_wcls(0, a->d), sl->loc);
     sl->state = IO64_FREE;
@@ -339,7 +355,7 @@ static void io64_ahead_start(Env e, int fd, u32 d, uint64_t max) {
   if (dup_fd < 0) return;
   a->done = a->stop = 0; a->fd = dup_fd; a->max = max; a->d = d;
   a->ti = a->fi = a->ai = 0;
-  for (int i = 0; i < IO64_AHEAD; i += 1) a->q[i].state = IO64_FREE;
+  for (int i = 0; i < IO64_AHEAD_MAX; i += 1) a->q[i].state = IO64_FREE;
   if (pthread_create(&a->th, NULL, io64_ahead_run, a) != 0) {
     close(dup_fd);
     return;
@@ -354,7 +370,7 @@ static void io64_ahead_start(Env e, int fd, u32 d, uint64_t max) {
 static Io64Slot io64_ahead_take(Env e) {
   Io64Ahead* a = &io64_ahead;
   pthread_mutex_lock(&a->mu);
-  Io64Slot* sl = &a->q[a->ti % IO64_AHEAD];
+  Io64Slot* sl = &a->q[a->ti % io64_ahead_n];
   while (sl->state != IO64_FULL && a->ai > a->ti && !(a->done && a->fi == a->ti)) pthread_cond_wait(&a->cv, &a->mu);
   Io64Slot got = *sl;
   if (sl->state == IO64_FULL) {
@@ -620,11 +636,11 @@ static Term io64_fa_answer(Env e, Io64Fa* r) {
 // thread; answers (file, t), t its ticket. Io.fa_wait(file, t): waits for the
 // read with ticket t and answers (code, (n, block)) or its errno, as above.
 // The driver starts at most IO64_FA_MAX reads before waiting for each of them,
-// in order. The read's block is allocated (and later padded and handed out,
+// in order (32, or --threads N: main.bend's answers). The read's block is allocated (and later padded and handed out,
 // or freed) on the calling thread; the helper only fills it. A read whose
 // block or thread cannot be had is done (or fails, ENOMEM) at once; its
 // answer is kept for Io.fa_wait. A ticket that is not pending fails (EINVAL).
-#define IO64_FA_MAX 32
+#define IO64_FA_MAX 128
 typedef struct { int used, running; pthread_t th; Io64Fa r; } Io64FaSlot;
 static Io64FaSlot io64_fa[IO64_FA_MAX];
 
@@ -692,4 +708,117 @@ Term io_write_block_run(Env e, Term* f, IoWork* w) {
 static void __attribute__((constructor)) io_write_block_use(void) {
   io_eff(CID(Io.write_block), io_write_block_run);
 }
+#endif
+
+#ifndef FB_NO_RTS_THREADS
+// Bend's worker threads follow --threads: before main, the program's words
+// are read as Bend's runtime splits them (the words between +RTS and -RTS are
+// the runtime's; every word after --RTS is the program's), and, if they are a
+// command line B.Args.parse accepts with a --threads N (the last one), the
+// words "--threads N" are put before BENDRTS, which the runtime reads first.
+// So the runtime runs at most N workers unless the user's own BENDRTS or
+// +RTS --threads says otherwise (the runtime takes the last one). Anything
+// unexpected (no command line to read, a line Args.parse refuses) leaves
+// BENDRTS as it is. On Linux the words come from /proc/self/cmdline, on macOS
+// from _NSGetArgv(); elsewhere nothing is done.
+#if defined(__linux__) || defined(__APPLE__)
+#ifdef __APPLE__
+#include <crt_externs.h>
+#endif
+
+// One or more decimal digits; their value, capped at 1000.
+static int io64_num(const char* x, unsigned* v) {
+  if (*x == 0) return 0;
+  unsigned n = 0;
+  for (; *x; x += 1) {
+    if (*x < '0' || *x > '9') return 0;
+    n = n * 10 + (unsigned)(*x - '0');
+    if (n > 1000) n = 1000;
+  }
+  *v = n;
+  return 1;
+}
+
+// B.Args.threads of the program's words w[0 .. n): N, or 0 for none (no
+// --threads, or a line Args.parse refuses).
+static unsigned io64_threads_of(char** w, int n) {
+  if (n < 1 || strcmp(w[0], "norm") != 0) return 0;
+  int pend = 0, ok = 1, ref = 0, vcf = 0;
+  unsigned thr = 0, v = 0;
+  for (int i = 1; i < n; i += 1) {
+    const char* x = w[i];
+    if (pend == 'f') { ok = ok && !ref; ref = 1; pend = 0; }
+    else if (pend == 'c') { ok = ok && (!strcmp(x, "e") || !strcmp(x, "w")); pend = 0; }
+    else if (pend == 'w') { ok = ok && io64_num(x, &v) && v >= 1; pend = 0; }
+    else if (pend == 't') {
+      if (io64_num(x, &v)) { thr = v; ok = ok && v >= 1 && v <= 128; } else ok = 0;
+      pend = 0;
+    }
+    else if (!strcmp(x, "-f")) pend = 'f';
+    else if (!strcmp(x, "-c")) pend = 'c';
+    else if (!strcmp(x, "-w")) pend = 'w';
+    else if (!strcmp(x, "--threads")) pend = 't';
+    else { ok = ok && !(x[0] == '-' && x[1] != 0) && !vcf; vcf = 1; }
+  }
+  return ok && pend == 0 && ref && vcf ? thr : 0;
+}
+
+static void __attribute__((constructor)) io64_rts_threads(void) {
+  int argc = 0;
+  char** argv = NULL;
+  char* buf = NULL;
+#ifdef __APPLE__
+  argc = *_NSGetArgc();
+  argv = *_NSGetArgv();
+#else
+  int fd = open("/proc/self/cmdline", O_RDONLY);
+  if (fd < 0) return;
+  size_t cap = 1 << 20, len = 0;
+  buf = malloc(cap + 1);
+  if (buf == NULL) { close(fd); return; }
+  for (;;) {
+    ssize_t k = read(fd, buf + len, cap - len);
+    if (k < 0 && errno == EINTR) continue;
+    if (k < 0) { close(fd); free(buf); return; }
+    if (k == 0) break;
+    len += (size_t)k;
+    if (len == cap) { close(fd); free(buf); return; }
+  }
+  close(fd);
+  buf[len] = 0;
+  for (size_t i = 0; i < len; i += 1) if (buf[i] == 0) argc += 1;
+  argv = malloc(((size_t)argc + 1) * sizeof(char*));
+  if (argv == NULL) { free(buf); return; }
+  for (size_t i = 0, at = 0, j = 0; i < len; i += 1) {
+    if (buf[i] == 0) { argv[j++] = buf + at; at = i + 1; }
+  }
+#endif
+  char** w = malloc(((size_t)argc + 1) * sizeof(char*));
+  int n = 0, in = 0, all = 0;
+  if (w != NULL) {
+    for (int i = 1; i < argc; i += 1) {
+      const char* a = argv[i];
+      if (all) w[n++] = argv[i];
+      else if (!strcmp(a, "--RTS")) all = 1;
+      else if (!strcmp(a, "+RTS") || !strcmp(a, "-RTS")) in = a[0] == '+';
+      else if (!in) w[n++] = argv[i];
+    }
+    unsigned t = io64_threads_of(w, n);
+    if (t != 0) {
+      const char* old = getenv("BENDRTS");
+      char* rts = malloc(32 + (old != NULL ? strlen(old) : 0));
+      if (rts != NULL) {
+        sprintf(rts, "--threads %u%s%s", t, old != NULL ? " " : "", old != NULL ? old : "");
+        setenv("BENDRTS", rts, 1);
+        free(rts);
+      }
+    }
+    free(w);
+  }
+#ifndef __APPLE__
+  free(argv);
+  free(buf);
+#endif
+}
+#endif
 #endif

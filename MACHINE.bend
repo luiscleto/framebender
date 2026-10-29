@@ -184,6 +184,9 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 #   spaces, tabs and CRs). The driver reads it through the .fai index (built by
 #   samtools faidx 1.24 from this FASTA file), at 64-bit offsets.
 # - For a FASTA file that is not P.Fasta.plain the law says nothing.
+# - The driver's read-ahead and reference reads in flight, and the runtime's
+#   thread count, follow --threads (B.Args.threads); reading and writing stay
+#   exactly as above.
 # - The driver's own errors, each one line on stderr and exit code 2: a usage
 #   error (law usage; prints B.usage), "error: cannot read <path>", "error:
 #   cannot write", "error: out of memory" (a read's buffer or libdeflate's
@@ -200,7 +203,9 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 # - Bend's runtime, also trusted, which can stop a run outside this law, with
 #   one line "bend: ..." on stderr and exit code 1: when the heap is exhausted,
 #   by the machine or by a block the driver allocates for a piece or an answer
-#   ("bend: out of memory: ..."; the driver cannot catch this on a CPU build),
+#   ("bend: out of memory: ..."; the driver cannot catch this on a CPU build;
+#   memory grows with --threads N, so this can happen at one N and not at
+#   another),
 #   and on any number of 2^48 or more, such as a VCF POS that large ("bend: a
 #   Nat past the largest immediate 2^48-1").
 law machine:
@@ -222,3 +227,34 @@ law usage:
   for argv: List<&2, String>
   for ha: {B.Args.parse(argv) == None{} : Maybe<&2, B.Cfg>}
   {Norm.start(argv) == Norm.Usage{} : Norm.Begin}
+
+# A command line: "norm", then the words pre, then the words post.
+def command(pre: List<&2, String>, post: List<&2, String>) -> List<&2, String>:
+  "norm" <> List.append(&2, String, pre, post)
+
+# --threads N changes nothing the program writes. Wherever the parser expects
+# an option (B.Args.expecting: no option waiting for its value, as after
+# "norm", after an option's value or after the VCF path), adding --threads N (N from 1 to B.Args.max_threads()) gives
+# the same paths and the same report (stdout bytes, messages, exit code) as
+# the same command line without it; so two values of N give the same too, at
+# any such position. The program may size its work by N. It follows from law
+# machine: parse gives the same Cfg with or without --threads N where an option
+# is expected, and Opts.args does not record it. Outside this law, as for law
+# machine: Bend's runtime may run out of memory at one N and not at another
+# (memory grows with N).
+law threads:
+  for pre: List<&2, String>
+  for x: String
+  for n: Nat
+  for post: List<&2, String>
+  for fasta: String
+  for vcf: String
+  for cs: List<&2, String>
+  for he: {B.Args.expecting(pre) == True{} : Bool}
+  for hx: {B.Pos.read(x) == Some{n} : Maybe<&2, Nat>}
+  for hn: {(Nat.is_le(1n, n) && Nat.is_le(n, B.Args.max_threads())) == True{} : Bool}
+  for hf: {P.Fasta.plain(fasta) == True{} : Bool}
+  for h: {String.concat(cs) == vcf : String}
+  for hb: {E.texts_ok(command(pre, "--threads" <> x <> post), fasta, cs) == True{} : Bool}
+  {launch(Norm.start(command(pre, "--threads" <> x <> post)), command(pre, "--threads" <> x <> post), fasta, vcf, cs)
+    == launch(Norm.start(command(pre, post)), command(pre, post), fasta, vcf, cs) : Maybe<&2, Launch>}

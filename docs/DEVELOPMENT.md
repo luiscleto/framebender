@@ -15,8 +15,10 @@ plus libdeflate, which reads BGZF (`.vcf.gz`) input. `./build.sh out` writes the
 `bend main.bend -o framebender` still builds in one step, without libdeflate. That binary reads
 plain VCF only and stops on a `.vcf.gz` with `error: no BGZF in this build <path>`.
 
-Set `BEND_NO_TELEMETRY=1` to turn off Bend's telemetry (`build.sh` sets it). The binary reads
-`+RTS --threads N` to set the number of threads.
+Set `BEND_NO_TELEMETRY=1` to turn off Bend's telemetry (`build.sh` sets it). `--threads N` sets
+Bend's worker threads too (`io64.c` puts `--threads N` before `BENDRTS` before `main`); the binary
+still reads `BENDRTS="--threads M"` and `+RTS --threads M -RTS`, which win. A build with
+`-DFB_NO_RTS_THREADS` leaves the runtime's threads alone.
 
 ## Check the proofs
 
@@ -78,6 +80,10 @@ Time with `nice -n 19` and a `timeout`, one benchmark at a time, before/after ru
 set and the generated inputs (`test/gen_edge.py`, `test/gen_rw.py`, run first from the repository
 root), under `-c e`, `-c w` and several `-w`, and reports any difference in stdout, stderr or exit
 code. Use it after any change to the implementation, together with the gate.
+
+`test/threads.sh new_binary old_binary` checks law `threads` on these cases: `new_binary` with
+`--threads N` (1 to 128, at three positions) against `old_binary` without it, then the usage errors
+of `--threads` and the threads a run starts.
 
 `test/par.sh new_binary [old_binary]` does the same on the batch-boundary cases of the parallel
 machine (`python3 test/gen_par.py`, then `samtools faidx data/tmp/par/par.fa`): a CHROM change at

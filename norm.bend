@@ -17,7 +17,8 @@ import ../lawful-halves/halves.bend as HH
 #
 # 1. Collect: up to kmax() pieces of at least minp() bytes are taken without
 #    being read (each Chunk answers More); the end of the file or a shorter
-#    piece (taken as the last) closes a batch early.
+#    piece (taken as the last) closes a batch early. The driver sizes the
+#    batches: it sends an empty piece after every --threads N pieces.
 # 2. Plan: for each piece of at least minp() bytes, the CHROM and POS of its
 #    first and last complete lines (after its first LF); one Ask with two
 #    reads per such piece (none if there is no such piece).
@@ -109,8 +110,10 @@ type Mg is Type:
 # Start
 # ---------------------------------------------------------------------------
 
+# The most pieces a batch takes: B.Args.max_threads(), so the driver's empty
+# pieces (after every N of them) close each batch.
 def kmax() -> Nat:
-  16n
+  128n
 
 # The smallest piece a batch takes (bytes). Each batched piece costs a few
 # driver steps and reads more than Q would spend on it; a piece this long

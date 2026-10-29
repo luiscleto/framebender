@@ -23,6 +23,7 @@ import ../lawful-bytes/defs.bend as D
 import ../lawful-bytes/bytes.bend as BY
 import ../lawful-words/proof_nat.bend as N
 import ../lawful-arrays/proof_base.bend as AB
+import ./proof_f_args.bend as A
 
 # The budget at the start (proof_b_budget_api.bend's bud_start): the start
 # state's potential fits M.bound. Spec-level: the start state's picture has
@@ -125,33 +126,34 @@ def cfg_al(m: Maybe<&2, B.Cfg>) -> Nat:
 
 law al_done:
   for +st: B.ArgSt
-  for +args: List<&2, String>
-  {Nat.is_le(cfg_al(B.Args.done(st, args)), M.args_len(args)) == True{} : Bool}
+  {Nat.is_le(cfg_al(B.Args.done(st)), A.kl(st)) == True{} : Bool}
 
-def al_done(st, args):
+def al_done(st):
   match st:
-    case B.ArgSt{pe, s, w, r, v, ok}:
+    case B.ArgSt{pe, s, w, t, r, v, ok, k}:
       match pe:
         case B.PNone{}:
           match r:
             case None{}:
-              N.le_zero_l(M.args_len(args))
+              N.le_zero_l(M.args_len(k))
             case Some{r1}:
               match v:
                 case None{}:
-                  N.le_zero_l(M.args_len(args))
+                  N.le_zero_l(M.args_len(k))
                 case Some{v1}:
                   match ok:
                     case True{}:
-                      N.le_refl(M.args_len(args))
+                      N.le_refl(M.args_len(k))
                     case False{}:
-                      N.le_zero_l(M.args_len(args))
+                      N.le_zero_l(M.args_len(k))
         case B.PRef{}:
-          N.le_zero_l(M.args_len(args))
+          N.le_zero_l(M.args_len(k))
         case B.PCheck{}:
-          N.le_zero_l(M.args_len(args))
+          N.le_zero_l(M.args_len(k))
         case B.PWin{}:
-          N.le_zero_l(M.args_len(args))
+          N.le_zero_l(M.args_len(k))
+        case B.PThr{}:
+          N.le_zero_l(M.args_len(k))
 
 law al_if:
   for +c: Bool
@@ -162,9 +164,12 @@ law al_if:
 def al_if(c, cmd, rest):
   match c:
     case True{}:
-      N.le_trans(cfg_al(B.Args.done(B.Args.go(rest, B.ArgSt{B.PNone{}, True{}, None{}, None{}, None{}, True{}}), rest)), M.args_len(rest), M.args_len(cmd <> rest),
-        al_done(B.Args.go(rest, B.ArgSt{B.PNone{}, True{}, None{}, None{}, None{}, True{}}), rest),
-        N.le_add_l(M.args_len(rest), Nat.add(String.length(cmd), 1n)))
+      +st = B.Args.go(rest, B.Args.init())
+      N.le_trans(cfg_al(B.Args.done(st)), A.kl(st), M.args_len(cmd <> rest),
+        al_done(st),
+        N.le_trans(A.kl(st), M.args_len(rest), M.args_len(cmd <> rest),
+          A.kl_go(rest, B.Args.init()),
+          N.le_add_l(M.args_len(rest), Nat.add(String.length(cmd), 1n))))
     case False{}:
       N.le_zero_l(M.args_len(cmd <> rest))
 

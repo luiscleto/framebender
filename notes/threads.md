@@ -474,3 +474,152 @@ part is round 1's plus the changes above.
 - **The gate:** `check.sh`, through `test/bcheck.sh`.
 
 Size: about 1 to 2 days of agent work.
+
+## Step 2: implemented and proven (2026-10-29)
+
+Round 2 of the law review (`reviews/*-threads-law-r2.md`, `reviews/responses-threads-law-2.md`):
+all three accept. Claude's four minor items, as decided:
+1. **`Args.expecting` without `ok`.** It now means only "no option waiting for its value", so the
+   law is strictly stronger. The proof does not need the lemma that a false `ok` stays false. The
+   parser lemma relates two states that differ only in `thr`, whatever their `ok` is, and
+   `Args.done` refuses a false `ok` on both sides alike. So that lemma was not written.
+2. **The bound on `Args.threads` is proven** (`proof_f_args.bend`, `threads_ok`): if
+   `Args.threads(argv) == Some{n}`, then `Args.parse(argv)` is `Some` and `1 <= n <= 128`.
+   `io64.c` also caps the read-ahead depth at 128 (`IO64_AHEAD_MAX`), and the reference-read
+   slots are a table of 128 (`IO64_FA_MAX`).
+3. **`docs/LAWS.md`:** law `threads` is under "The program", and the memory exception and the
+   driver's use of N are under "What the laws do not cover".
+4. **"At most"** is the wording for the constructor everywhere (`io64.c`, the docs). Its copy of
+   the grammar goes to the driver review.
+
+### Where the batch size lives: a change from the design
+
+The design put the batch size in the parallel machine's state (`W.St{q, bat, k}`). That would have
+meant:
+- adding a parameter to about 30 functions in `norm.bend`, in the area the memory agent edits
+  (`comb.*`, the tasks);
+- about 200 changed references in 10,000 lines of `proof_e_wrap*`, `proof_e_bud*` and
+  `proof_e_mach*`.
+
+Instead, the driver closes the batches, and no proof changed:
+- **The machine already closes a batch at a short piece.** Any piece under `minp()` (256 bytes),
+  an empty one included, ends a batch; this is documented in `norm.bend`'s header.
+- **Law machine holds for every split of the VCF.** The split includes empty pieces, and
+  `E.enc("")` is exactly the driver's `D.Bytes{0, Array.new(U32, 0n, 0)}` (checked by evaluation).
+- **The driver sends the empty pieces.** After every N pieces it feeds the machine an empty one
+  (16 without `--threads`). `kmax()` becomes 128 (`B.Args.max_threads()`), the machine's own cap.
+  Proofs use `kmax()` only as an opaque test.
+- **What it costs.**
+  - A batch starts only when the sequential machine is quiet, so the first batch takes the
+    pieces up to the first empty one (15 at N = 16, as the first piece goes to the sequential
+    machine). After that the batches are aligned.
+  - If the driver stopped sending empty pieces (a driver bug), batches would grow to 128 pieces:
+    more memory, the same output.
+
+  It is driver code, so it goes to the driver review.
+
+The machine's change is then only `kmax()` and two comments (`norm.bend`, +5 -2).
+
+### Files
+
+- **Science and contract (reviewed):**
+  - `types.bend`: the parser; `Args.expecting` drops `ok`;
+  - `MACHINE.bend`: `command`, law `threads`, the two comment bullets;
+  - `examples.bend`: 27 new cases; `expecting_error` now expects True.
+- **Proofs:**
+  - `proof_f_args.bend` (new, about 650 lines). Lemmas: `kl_go` and `ab_go` (the recorded
+    arguments), `un_go` and `done_un` (the thread count is not looked at), `two_words`,
+    `parse_thr`, and `threads_ok` (an invariant: `ok` implies the count is in range).
+  - `proof_f_threads.bend` (new, about 120 lines): `threads`, from `EM.machine` and `EM.usage`.
+  - `proof_b_bud_start.bend` and `proof_b_drive_start.bend`: `al_done`/`al_if` and
+    `args_done`/`args_if` rebuilt on `A.kl_go` and `A.ab_go`.
+  - `PROOF.bend` forwards `M.threads`.
+- **Driver (trusted):**
+  - `main.bend`:
+    - `Io` carries k (pieces per batch), g (reads started at once) and c (pieces since the last
+      empty one);
+    - `loop.piece` sends the empty piece;
+    - `answers` groups reads by g;
+    - `main.t` calls `Io.threads`.
+  - `io64.c`:
+    - the read-ahead depth `io64_ahead_n` and the `Io.threads` effect;
+    - `IO64_FA_MAX` raised to 128;
+    - the constructor `io64_rts_threads`, compiled out with `-DFB_NO_RTS_THREADS`.
+  - `io64.js`: a no-op `Io.threads`.
+- **Not changed:** `build.sh`, which the memory agent rewrites. The `BENDRTS` check is in
+  `test/threads.sh` instead. If the runtime stopped reading `BENDRTS`, the constructor would just
+  do nothing.
+- **Tests:** `test/threads.sh` (new).
+- **Docs:** README (Run), `docs/LAWS.md`, `docs/DEVELOPMENT.md`.
+
+### Checks
+
+All checks went through `test/bcheck.sh`, on the final tree:
+- `PROOF.bend --check-only`: ALL PROOFS CHECK;
+- `PROOF.bend --verdict`: ALL PROOFS CHECK;
+- `examples.bend` and `MACHINE.bend`: 16 TODOs each (the imported laws, now including `threads`);
+- `main.bend`: 79 defs rely on unsafe or foreign code (62 before: the new and changed driver defs).
+
+Tests (NEW: this branch, built as `build.sh` does; REF: the committed tree, c378c5f; scratch in
+`data/tmp/threads/`):
+- **`test/same.sh` and `test/par.sh`,** NEW against REF without `--threads` (private copies with
+  their own caches, so `data/tmp/rw` and `data/tmp/par` stay untouched):
+  - ALL IDENTICAL, 128 and 312 runs, on the normal build and on the 300, 1,000 and 70,001-byte
+    builds (`3670016ull` replaced in the generated C, for both NEW and REF).
+- **`test/threads.sh`** on the four builds. NEW runs with `--threads N` (N = 1, 2, 3, 7, 16, 32,
+  128, rotated over three positions: after `norm`, after `-f FASTA`, after the VCF path). REF runs
+  without it. The cases are the edge, batch-boundary, generated, chr22 and scrambled files, under
+  `-c e` and `-c w`, with the default `-w` and `-w 1`:
+  - ALL IDENTICAL (2,128 runs) on each build;
+  - USAGE ERRORS OK: 0, 129, 1000000, x, -1, a missing value, `--threads 0 --threads 8`,
+    `-c --threads 8`, `-w --threads 8`;
+  - BENDRTS READ.
+- **Threads seen on chr22.** `--threads 1`: at most 4. `--threads 3`: at most 7. `--threads 8`:
+  at most 10. That is N workers plus the driver's helpers (the read-ahead, and the reference
+  readers while the workers wait). Without the constructor: 34 to 36, and REF: 33 (one worker per
+  CPU).
+- **Whole genome, `-c e`:** REF, and NEW with no option and with N = 1, 7, 32, 128, give the same
+  md5 of stdout and stderr, exit 0.
+- **Whole genome from the `.vcf.gz`, `-c w`:** REF, and NEW with no option and with N = 4, 32,
+  give the same md5.
+
+Timings:
+- **Setup.** Whole genome, plain, `-c w`, to a file, pinned to CPUs 0-15, `nice -n 19`, under
+  `flock data/tmp/bench.lock`, interleaved, 3 rounds (`data/tmp/threads/bench.sh`).
+- **Peak RSS** is from `getrusage(RUSAGE_CHILDREN)`, one Python per run.
+- **Identity.** Every run's output had the same md5 (`f70d8639223b`), with exit 0.
+- **The `nort` columns** are the build with `-DFB_NO_RTS_THREADS`, the constructor compiled out.
+  When pinned, its runtime runs 16 workers, because Bend's CPU count follows the affinity.
+
+| run | wall | peak RSS | nort: wall | nort: peak RSS |
+|---|---|---|---|---|
+| REF, no option | 2.01-2.35 s | 565-599 MB | | |
+| NEW, no option | 1.99-2.02 s | 563-569 MB | | |
+| `--threads 1` | 6.96-7.00 s | 109 MB | 7.04-7.62 s | 366-402 MB |
+| `--threads 2` | 4.58-4.82 s | 162-194 MB | 4.54-4.78 s | 326-353 MB |
+| `--threads 4` | 2.95-3.05 s | 296-330 MB | 3.17-3.25 s | 438-459 MB |
+| `--threads 8` | 2.31-2.35 s | 371-375 MB | 2.35-2.37 s | 418-445 MB |
+| `--threads 16` | 2.02-2.05 s | 546-552 MB | 2.00-2.02 s | 553-561 MB |
+| `--threads 32` | 1.91-1.94 s | 881-883 MB | 1.91-2.00 s | 810-812 MB |
+
+What the numbers say:
+- **The default is today's program.** NEW with no option matches REF (REF's 2.35 s is its first
+  run).
+- **Memory follows N.**
+  - It falls from about 565 MB to 109 MB at N = 1 and 162-194 MB at N = 2, at a cost in time:
+    7.0 s and 4.6 s.
+  - N = 8 costs 15% in time for two thirds of the memory.
+  - N = 32 is 5% faster for 880 MB.
+- **The constructor stays (item 11).** At small N the runtime's idle workers cost memory: N = 1
+  takes 109 MB with the constructor and 366-402 MB without, and N = 4 is 6-7% faster with it.
+  From N = 8 up the two builds are the same. At N = 32 the constructor's 32 workers on 16 pinned
+  CPUs take 70 MB more than the 16 that the affinity would give. When `--threads` is above the
+  CPU count, the user can lower the runtime's threads with `+RTS --threads`.
+
+Open, for the driver review:
+- **The constructor's copy of the grammar** in `io64.c` (`io64_threads_of`). The cases to check
+  are a lone `-`, an empty word, `+RTS`/`-RTS`/`--RTS`, leading zeros, and huge numbers (capped at
+  1000 while read).
+- **The empty piece after every k pieces** in `main.bend` (`loop.piece`).
+- **`answers` grouping by g.**
+- **The read-ahead ring's variable depth.**

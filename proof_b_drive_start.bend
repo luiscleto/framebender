@@ -16,6 +16,7 @@ import ./proof_b_drive_out.bend as DO
 import ./proof_base.bend as PB
 import ./proof_b_frame_fr.bend as FR
 import ../lawful-bytes/bytes.bend as BY
+import ./proof_f_args.bend as A
 
 # Helpers for proof_b_drive.bend's start_ok. start_ok as stated is false
 # (proof_b_drive_cex.bend, third case): S.WF asks the options' arguments to
@@ -33,13 +34,12 @@ def cfg_args(m: Maybe<&2, B.Cfg>) -> List<&2, String>:
 
 law args_done:
   for +st: B.ArgSt
-  for +args: List<&2, String>
-  for +h: {E.all_bytes(args) == True{} : Bool}
-  {E.all_bytes(cfg_args(B.Args.done(st, args))) == True{} : Bool}
+  for +h: {E.all_bytes(A.keep(st)) == True{} : Bool}
+  {E.all_bytes(cfg_args(B.Args.done(st))) == True{} : Bool}
 
-def args_done(st, args, h):
+def args_done(st, h):
   match st:
-    case B.ArgSt{pe, s, w, r, v, ok}:
+    case B.ArgSt{pe, s, w, t, r, v, ok, k}:
       match pe:
         case B.PNone{}:
           match r:
@@ -61,6 +61,8 @@ def args_done(st, args, h):
           {==}
         case B.PWin{}:
           {==}
+        case B.PThr{}:
+          {==}
 
 law args_if:
   for +c: Bool
@@ -71,7 +73,7 @@ law args_if:
 def args_if(c, rest, h):
   match c:
     case True{}:
-      args_done(B.Args.go(rest, B.ArgSt{B.PNone{}, True{}, None{}, None{}, None{}, True{}}), rest, h)
+      args_done(B.Args.go(rest, B.Args.init()), A.ab_go(rest, B.Args.init(), {==}, h))
     case False{}:
       {==}
 

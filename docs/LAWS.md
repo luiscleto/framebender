@@ -94,6 +94,18 @@ asks for reference letters. However the VCF is split into chunks, the program's 
 and exit code equal `run` on the whole file. The law assumes the arguments parse and the reference
 is a plain FASTA file (`P.Fasta.plain`). `usage` covers arguments that do not parse.
 
+`threads` (in `MACHINE.bend`): `--threads N` changes only speed and memory, never stdout, messages
+or exit code. Wherever the parser expects an option (no option is waiting for its value: after
+`norm`, after an option's value, after the VCF path), adding `--threads N`, with N from 1 to 128,
+gives the same paths and the same report as the same command line without it. So any two values
+of N give the same output too. It follows from `machine`: `Args.parse` gives the same result with
+or without `--threads N` there, and the header's `##framebender_normCommand` does not record it.
+Right after `-f`, `-c` or `-w`, the word `--threads` is that option's value (a path after `-f`, a
+usage error after `-c` or `-w`). Every `--threads` given must be valid, and the last one counts.
+The program uses N to size its work: the pieces normalized at once, the VCF pieces read ahead, the
+reference reads in flight, and Bend's worker threads (at most N; a user's own `BENDRTS` or
+`+RTS --threads` wins). A larger N needs more memory (below).
+
 The program works on bytes, while the science layer reads text. `bytes_enc.bend` connects them:
 each character is one byte, and the law assumes every character the driver passes is below 256,
 which holds for anything read from a file. Each piece is at most 2^31 bytes (2 GiB). The driver
@@ -114,6 +126,16 @@ it. That premise names exactly the FASTA files that `samtools faidx` 1.24 indexe
 the spec reads them: uniform line lengths, no spaces or control characters in sequence lines, and no
 contig without letters. The 23 cases behind it, checked against samtools, are in
 `test/plain_cases.bend`.
+
+Bend's runtime can stop a run outside the laws (exit code 1): when its heap is exhausted, and on a
+number of 2^48 or more (a VCF POS, or the value of `-w` or `--threads`). Memory grows with
+`--threads N`, so a run can run out of memory at one N and not at another.
+
+How `--threads N` sizes the driver's work is trusted, outside the laws: the driver gives the
+machine an empty piece after every N pieces (the machine closes a batch at a short piece), keeps N
+pieces read ahead and N reference reads in flight (16, 16 and 32 without `--threads`), and before
+`main` `io64.c` puts `--threads N` before `BENDRTS` for a command line `Args.parse` accepts, so
+Bend's runtime starts at most N workers. None of these can change what the program writes.
 
 All the real bugs found in this project were in the driver, and three independent reviews of it
 found them. See `NOTES.md`, "Driver review".

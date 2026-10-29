@@ -710,17 +710,25 @@ def Note.render(n: Note) -> String:
 # The options of one run.
 #   strict: True for -c e (the default: a problem stops the run), False for -c w.
 #   w: the sorting window (-w, default 100000, at least 1).
-#   args: the command-line arguments after "norm", recorded in the header.
+#   args: the command-line arguments that decide the output, recorded in the
+#     header: all those after "norm" except --threads and its value (which
+#     only size the program's work), so the output is the same for every N.
 type Opts is Data:
   Opts{strict: Bool, w: Nat, args: List<&2, String>}
 
-# A parsed command line: the options, the FASTA path, the VCF path.
+# A parsed command line: the options, the FASTA path, the VCF path. The thread
+# count (--threads) is not part of it (see Args.threads).
 type Cfg is Data:
   Cfg{opts: Opts, ref: String, vcf: String}
 
 # The usage message, printed on a usage error (exit code 2).
 def usage() -> String:
-  "usage: framebender norm -f ref.fa [-c e|w] [-w N] in.vcf > out.vcf\n"
+  "usage: framebender norm -f ref.fa [-c e|w] [-w N] [--threads N] in.vcf > out.vcf\n"
+
+# The largest thread count --threads accepts: a chosen limit, the most worker
+# threads Bend's runtime runs and the size of the driver's tables.
+def Args.max_threads() -> Nat:
+  128n
 
 # Reading the command line: which option is waiting for its value.
 type Pend is Data:
@@ -728,38 +736,53 @@ type Pend is Data:
   PRef{}
   PCheck{}
   PWin{}
+  PThr{}
 
-# The command line read so far; ok turns False on any error.
+# The command line read so far; ok turns False on any error. thr: the thread
+# count; keep: the arguments recorded in the header (all but --threads and its
+# value), in order.
 type ArgSt is Data:
-  ArgSt{pend: Pend, strict: Bool, w: Maybe<&2, Nat>, ref: Maybe<&2, String>, vcf: Maybe<&2, String>, ok: Bool}
+  ArgSt{pend: Pend, strict: Bool, w: Maybe<&2, Nat>, thr: Maybe<&2, Nat>, ref: Maybe<&2, String>, vcf: Maybe<&2, String>, ok: Bool, keep: List<&2, String>}
 
 def Args.word(+x: String, st: ArgSt) -> ArgSt:
   match st:
-    case ArgSt{p, +s, +w, +r, +v, +ok}:
+    case ArgSt{p, +s, +w, +t, +r, +v, +ok, +k}:
       +opt = String.starts_with(x, "-") && Nat.is_lt(1n, String.length(x))
-      Bool.pick(ArgSt, String.eq(x, "-f"), ArgSt{PRef{}, s, w, r, v, ok},
-      Bool.pick(ArgSt, String.eq(x, "-c"), ArgSt{PCheck{}, s, w, r, v, ok},
-      Bool.pick(ArgSt, String.eq(x, "-w"), ArgSt{PWin{}, s, w, r, v, ok},
-      ArgSt{PNone{}, s, w, r, Some{x}, ok && Bool.not(opt) && Maybe.is_none(&2, String, v)})))
+      +kx = List.append(&2, String, k, [x])
+      Bool.pick(ArgSt, String.eq(x, "-f"), ArgSt{PRef{}, s, w, t, r, v, ok, kx},
+      Bool.pick(ArgSt, String.eq(x, "-c"), ArgSt{PCheck{}, s, w, t, r, v, ok, kx},
+      Bool.pick(ArgSt, String.eq(x, "-w"), ArgSt{PWin{}, s, w, t, r, v, ok, kx},
+      Bool.pick(ArgSt, String.eq(x, "--threads"), ArgSt{PThr{}, s, w, t, r, v, ok, k},
+      ArgSt{PNone{}, s, w, t, r, Some{x}, ok && Bool.not(opt) && Maybe.is_none(&2, String, v), kx}))))
 
 def Args.win(m: Maybe<&2, Nat>, st: ArgSt) -> ArgSt:
   match m st:
-    case Some{+n} ArgSt{p, s, w, r, v, ok}:
-      ArgSt{PNone{}, s, Some{n}, r, v, ok && Nat.is_le(1n, n)}
-    case None{} ArgSt{p, s, w, r, v, ok}:
-      ArgSt{PNone{}, s, w, r, v, False{}}
+    case Some{+n} ArgSt{p, s, w, t, r, v, ok, k}:
+      ArgSt{PNone{}, s, Some{n}, t, r, v, ok && Nat.is_le(1n, n), k}
+    case None{} ArgSt{p, s, w, t, r, v, ok, k}:
+      ArgSt{PNone{}, s, w, t, r, v, False{}, k}
 
-# The state after one more argument x.
+def Args.thr(m: Maybe<&2, Nat>, st: ArgSt) -> ArgSt:
+  match m st:
+    case Some{+n} ArgSt{p, s, w, t, r, v, ok, k}:
+      ArgSt{PNone{}, s, w, Some{n}, r, v, ok && Nat.is_le(1n, n) && Nat.is_le(n, Args.max_threads()), k}
+    case None{} ArgSt{p, s, w, t, r, v, ok, k}:
+      ArgSt{PNone{}, s, w, t, r, v, False{}, k}
+
+# The state after one more argument x. Every argument is recorded (keep)
+# except --threads and its value.
 def Args.step(st: ArgSt, +x: String) -> ArgSt:
   match st:
-    case ArgSt{PNone{}, s, w, r, v, ok}:
-      Args.word(x, ArgSt{PNone{}, s, w, r, v, ok})
-    case ArgSt{PRef{}, s, w, r, v, ok}:
-      ArgSt{PNone{}, s, w, Some{x}, v, ok && Maybe.is_none(&2, String, r)}
-    case ArgSt{PCheck{}, +s, w, r, v, ok}:
-      ArgSt{PNone{}, String.eq(x, "e") || (s && Bool.not(String.eq(x, "w"))), w, r, v, ok && (String.eq(x, "e") || String.eq(x, "w"))}
-    case ArgSt{PWin{}, s, w, r, v, ok}:
-      Args.win(Pos.read(x), ArgSt{PWin{}, s, w, r, v, ok})
+    case ArgSt{PNone{}, s, w, t, r, v, ok, k}:
+      Args.word(x, ArgSt{PNone{}, s, w, t, r, v, ok, k})
+    case ArgSt{PRef{}, s, w, t, r, v, ok, k}:
+      ArgSt{PNone{}, s, w, t, Some{x}, v, ok && Maybe.is_none(&2, String, r), List.append(&2, String, k, [x])}
+    case ArgSt{PCheck{}, +s, w, t, r, v, ok, k}:
+      ArgSt{PNone{}, String.eq(x, "e") || (s && Bool.not(String.eq(x, "w"))), w, t, r, v, ok && (String.eq(x, "e") || String.eq(x, "w")), List.append(&2, String, k, [x])}
+    case ArgSt{PWin{}, s, w, t, r, v, ok, k}:
+      Args.win(Pos.read(x), ArgSt{PWin{}, s, w, t, r, v, ok, List.append(&2, String, k, [x])})
+    case ArgSt{PThr{}, s, w, t, r, v, ok, k}:
+      Args.thr(Pos.read(x), ArgSt{PThr{}, s, w, t, r, v, ok, k})
 
 def Args.go(xs: List<&2, String>, st: ArgSt) -> ArgSt:
   match xs:
@@ -768,26 +791,70 @@ def Args.go(xs: List<&2, String>, st: ArgSt) -> ArgSt:
     case +x <> t:
       Args.go(t, Args.step(st, x))
 
-def Args.done(st: ArgSt, args: List<&2, String>) -> Maybe<&2, Cfg>:
+def Args.done(st: ArgSt) -> Maybe<&2, Cfg>:
   match st:
-    case ArgSt{PNone{}, s, w, Some{r}, Some{v}, True{}}:
-      Some{Cfg{Opts{s, Maybe.default(&2, Nat, w, 100000n), args}, r, v}}
+    case ArgSt{PNone{}, s, w, t, Some{r}, Some{v}, True{}, k}:
+      Some{Cfg{Opts{s, Maybe.default(&2, Nat, w, 100000n), k}, r, v}}
     case _:
       None{}
 
-def Args.done.if(ok: Bool, +rest: List<&2, String>) -> Maybe<&2, Cfg>:
+# The state before the first argument after "norm".
+def Args.init() -> ArgSt:
+  ArgSt{PNone{}, True{}, None{}, None{}, None{}, None{}, True{}, Nil{}}
+
+def Args.done.if(ok: Bool, rest: List<&2, String>) -> Maybe<&2, Cfg>:
   match ok:
     case True{}:
-      Args.done(Args.go(rest, ArgSt{PNone{}, True{}, None{}, None{}, None{}, True{}}), rest)
+      Args.done(Args.go(rest, Args.init()))
     case False{}:
       None{}
 
 # The command line after the program name: "norm", then the options -f FASTA
-# (required), -c e or -c w (default e), -w N (N at least 1, default 100000) in
-# any order, and one VCF path. None for anything else (a usage error).
+# (required), -c e or -c w (default e), -w N (N at least 1, default 100000),
+# --threads N (N from 1 to Args.max_threads()) in any order, and one VCF path.
+# None for anything else (a usage error). For -c, -w and --threads every one
+# given must be valid, and the last one counts.
 def Args.parse(argv: List<&2, String>) -> Maybe<&2, Cfg>:
   match argv:
     case Nil{}:
       None{}
     case +cmd <> +rest:
       Args.done.if(String.eq(cmd, "norm"), rest)
+
+def Args.expecting.of(st: ArgSt) -> Bool:
+  match st:
+    case ArgSt{PNone{}, s, w, t, r, v, ok, k}:
+      True{}
+    case _:
+      False{}
+
+# The words pre, read after "norm", leave the parser where an option may come:
+# no option waiting for its value (after an error too: the line is refused
+# then, with or without the words that follow).
+def Args.expecting(pre: List<&2, String>) -> Bool:
+  Args.expecting.of(Args.go(pre, Args.init()))
+
+def Args.thr.done(st: ArgSt) -> Maybe<&2, Nat>:
+  match st:
+    case ArgSt{PNone{}, s, w, t, Some{r}, Some{v}, True{}, k}:
+      t
+    case _:
+      None{}
+
+def Args.threads.if(ok: Bool, rest: List<&2, String>) -> Maybe<&2, Nat>:
+  match ok:
+    case True{}:
+      Args.thr.done(Args.go(rest, Args.init()))
+    case False{}:
+      None{}
+
+# The thread count of a command line Args.parse accepts: Some{n} for its last
+# --threads n (then 1 <= n <= Args.max_threads()), None when it has none. None
+# for every command line Args.parse refuses. The program may size its work by
+# it; law threads (MACHINE.bend) says that changes nothing it writes.
+def Args.threads(argv: List<&2, String>) -> Maybe<&2, Nat>:
+  match argv:
+    case Nil{}:
+      None{}
+    case +cmd <> +rest:
+      Args.threads.if(String.eq(cmd, "norm"), rest)
