@@ -98,6 +98,18 @@ files shorter than a batch. Run both on builds with small pieces too: `main.bend
 size (3670016 bytes); a test build replaces `3670016ull` in the generated C with 300, 1000 or
 70001.
 
+`test/out.sh new_binary [dir]` checks the output options (law `output`) and the BGZF writer:
+every output form of `-o` and `-O` against the plain run on the cases above and on
+`test/gen_out.py`'s block-cut cases (lines of 65279 to 200000 bytes, CRLF, incompressible
+records, headers ending at a block boundary), at every `--threads`, where BGZF output must be byte
+for byte `bgzip -l L` of the plain output (htslib 1.24 with libdeflate 1.26); then every level on
+chr22, `bgzip -t`, `tabix` and `bcftools view`, failed inputs and writes (a full disk, a file
+size limit, a `close` that fails, a non-blocking pipe that fills), `-o` naming an input (by
+path, link, `/dev/stdin`, a FIFO), file modes, the usage errors, a round trip through
+framebender's own reader, and the threads a run starts. `QUICK=1` skips the identity runs;
+`NOLIB=binary` also checks a build without libdeflate (`bend main.bend -o binary`). It exits 0
+only when every check passes.
+
 ## Files
 
 | files | role |
@@ -108,7 +120,7 @@ size (3670016 bytes); a test build replaces `3670016ull` in the generated C with
 | `norm_seq.bend`, `norm_fast.bend`, `norm_line.bend`, `norm_run.bend`, `norm_fix.bend` | the sequential machine on packed bytes (`../lawful-*`) |
 | `main.bend`, `io64.c`, `io64.js` | the trusted driver: file I/O and the `.fai` reader |
 | `build.sh` | the two-step build with libdeflate |
-| `PROOF.bend`, `proof_*.bend` | the proofs; `PROOF.bend` proves every law by importing the rest (`proof_b_*`: the bytes machine, `proof_c_*`: rewritten records, `proof_e_*`: the parallel machine; notes in `notes/*proofs*.md`) |
+| `PROOF.bend`, `proof_*.bend` | the proofs; `PROOF.bend` proves every law by importing the rest (`proof_b_*`: the bytes machine, `proof_c_*`: rewritten records, `proof_e_*`: the parallel machine; `proof_f_*`: the command line, laws `threads` and `output`; notes in `notes/*proofs*.md`) |
 | `examples.bend`, `examples_machine.bend` | concrete cases checked by evaluation; the machine's cases are outside the gate (they pass 4 GB in the checker) |
 | `test/` | the bcftools comparison, the scrambler, edge cases, FASTA premise cases |
 | `reviews/` | every law and driver review, with the responses |

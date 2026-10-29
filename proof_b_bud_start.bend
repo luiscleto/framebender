@@ -154,6 +154,10 @@ def al_done(st):
           N.le_zero_l(M.args_len(k))
         case B.PThr{}:
           N.le_zero_l(M.args_len(k))
+        case B.POut{}:
+          N.le_zero_l(M.args_len(k))
+        case B.PType{}:
+          N.le_zero_l(M.args_len(k))
 
 law al_if:
   for +c: Bool

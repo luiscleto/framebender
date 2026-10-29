@@ -1,0 +1,31 @@
+The law is the right shape. Four things should change before it is implemented.
+
+The grammar is unambiguous. In `PNone` the new arms are exact `-o`, exact `-O`, then a word that starts with `-O`. A pending `-f`, `-c`, `-w`, or `--threads` still takes the next word whole, so `-o` as the value of `-f` stays that path (`out_as_ref`). A word starting with `-O` was already refused, because `opt` is true, so every command line accepted today keeps the same `Cfg`, including `Opts.args`. Each `-o` and `-O` must be valid (`ok &&`), and the last of each replaces `Drv`. On bcftools 1.24 the extension beats `-O`; `.gz` and `.bgz` alone stay plain; `.bcf.gz` is not BCF; the last `-o` wins; `-o -` drops an earlier extension; `-OZ` is rejected. Glued `-oFILE` is accepted by bcftools and refused here, which the notes already choose.
+
+1. **should fix.** `notes/compress.md`, `Io.out_close`, and the new law-machine bullet that the end-of-file block is written once the machine finishes, whatever its code, and that the file then decompresses to the output bytes. `out_close` writes that block whenever the machine reaches `P.Finish`. The failure bullet says `cannot write` leaves the blocks written so far and no end-of-file block. `out_write` records the error, drops later blocks, and the loop still runs, so the machine can finish, print its summary, and seal a shorter file. `bgzip -t` and `tabix` then accept it. Today `put_bytes` dies on the first bad write, before that step's messages. "Full `write()` calls (retrying on EINTR)" also leaves a short write unspecified, and a short write counted as success splits a gzip member. **Fix:** on the first write error, stop the loop, write no end-of-file block, and exit 2. Retry a short write until the block is complete. In the law comment, say that a finished write, including a nonzero machine code, decompresses to the output bytes, and that a failed write or a killed run leaves a prefix and no end-of-file block. Leave 65280, the level map, and mode 0666 in the driver section.
+
+2. **should fix.** `notes/compress.md`, "The level is that of the last `-O` if it has one", and `Args.level.of`. In bcftools 1.24 a later `-Oz` or `-Ov` leaves a level already set. On a 4000-line file, `-Oz0` is 891436 bytes, `-Oz0 -Oz` is 891440, `-Oz9 -Oz` is 10445, and `-Oz9 -Ov -o x.vcf.gz` is 10447. Plain `-Oz` is 13057. The draft stores `None` on `-Oz` and `-Ov`, and `level.of` then returns 6. **Fix:** remember the last explicit digit. `-Oz` and `-Ov` change only the type. Use 6 only when no digit was given. Add examples for `-Oz0 -Oz` (level 0) and `-Oz9 -Ov -o x.vcf.gz` (BGZF, level 9). A plain `.vcf` still ignores the level: `-Oz9 -o x.vcf` is plain in bcftools too.
+
+3. **should fix.** `notes/compress.md`, "Zero copy" and "Double buffering." The tail carried into the next window lives in the previous Bend block. `out_write` waits for that block's jobs, frees it, and only then builds the first window from those carried bytes. **Fix:** copy the tail out before `blk_free`. At `out_close`, queue that final tail, wait, free, then write the end-of-file block.
+
+4. **should fix.** `notes/compress.md`, the test plan's byte-identity bullets and the full-disk bullets. "Byte-identical to `plain | bgzip -l L`" is the oracle for BGZF only. `-o x.vcf -Oz` and `-Oz9 -o x.vcf` are plain, so a correct file fails that comparison. The full-disk cases check the exit code only. **Fix:** when `Sink.z` is false, the file equals the plain stdout and the level is unused. When `Sink.z` is true, the file equals `plain | bgzip -l L` at every `--threads`, including `-Ov -o x.vcf.gz` and the sticky levels above. A failed write fails `bgzip -t`. Keep the chr22 levels 0–9 as a regression, and add one incompressible window so the stored fallback is compared with bgzip.
+
+5. **minor.** The comment on law `output`. A compressed run, or a higher level, can exhaust the heap when the plain run does not. Law `threads` says so. This comment needs the same sentence.
+
+6. **minor.** `notes/compress.md`, "Optional: `output_ok`", and the driver treating `None` as plain stdout. `Args.output` is `Some` on the same state `Args.parse` accepts. Stdout is `Some{Sink{file: None, ...}}`, so the outer `None` means the line was refused. After `Begin`, that fallback writes the text to the wrong place and creates no `-o` file. Prove `output_ok`, and make that `None` an internal error.
+
+7. **minor.** `notes/compress.md`, the inode check. Compare `fstat` of the open VCF, FASTA, and `.fai` descriptors with `fstat` of the output fd, before `ftruncate`. `stat` of the paths misses a path replaced or unlinked after the open. A signal that kills the process leaves the partial file with no end-of-file block, and a handler should leave it that way.
+
+**The five questions**
+
+1. Keep the extension over `-O`. bcftools 1.24 writes plain for `-Oz -o x.vcf` and BGZF for `-Ov -o x.vcf.gz`, and `.gz` alone does not select a type. Refusing a conflict would make acceptance depend on two options, and law `output` would need a premise on the whole line. The README should say the extension wins. The level rule is the part that disagrees with bcftools (item 2).
+
+2. Leave `-o` and `-O` out of `##framebender_normCommand`. The decompressed file is then the plain run, which is the equality law `output` proves, and the header carries no path. `-c`, `-w`, `-f`, and the input path still decide the records.
+
+3. Write the end-of-file block when the machine finishes, including `-c e`. The exit code carries that failure. A missing end-of-file block means the write did not finish. Item 1 is the bound: seal the file only when every output byte was written.
+
+4. Keep default level 6. The measured run is 3.0 s against 6.1–6.2 s, the size matches `bgzip` and `bcftools -Oz`, and `-Oz1` is the fast switch.
+
+5. Refuse `-o` when the path is the VCF, the FASTA, or the `.fai`, including through a symlink or a hard link, and do it before `ftruncate`. That is what keeps the run from writing something other than `run`. Item 7 is the check to use.
+
+The compressor, the gzip framing, the open, truncate, and close, and the input check stay outside the laws. That is the same split as `--threads`, and the comment says so. The test plan stands in for a proof of that part once items 1 and 4 are in it.

@@ -8,7 +8,7 @@ import ../lawful-bytes/bytes.bend as BY
 # framebender: the driver (trusted, not proven; see the comment on law machine
 # in MACHINE.bend).
 #
-#   framebender norm -f ref.fa [-c e|w] [-w N] [--threads N] in.vcf > out.vcf
+#   framebender norm -f ref.fa [-c e|w] [-w N] [--threads N] [-o FILE] [-O v|z|z0-9] in.vcf
 #
 # It only runs the proven machine (Norm.start, Norm.step): it reads the VCF
 # file in pieces (its bytes, or for a BGZF file the bytes its blocks
@@ -19,9 +19,17 @@ import ../lawful-bytes/bytes.bend as BY
 # reads, or N, at a time are read in parallel, then taken in order), writes
 # what the machine writes, and exits with the machine's code. The thread
 # count is B.Args.threads of the command line (law threads: it changes nothing
-# the machine writes); io64.c also sets Bend's worker threads from it. Every
-# error of its own prints one line "error: ..." and exits with code 2:
+# the machine writes); io64.c also sets Bend's worker threads from it. It
+# writes the output where and how B.Args.output says (law output): stdout or
+# the -o file, plain or BGZF (Io.out_set, Io.out_write, Io.out_close in
+# io64.c; the BGZF end-of-file block only for exit code 0). Every error of
+# its own prints one line "error: ..." and exits with code 2:
 #   usage (B.usage), "cannot read <path>", "cannot write" (stdout/stderr),
+#   "cannot write <path>" (the -o file), "output is an input <path>" (the -o
+#   file is the VCF, the FASTA, its .fai or stderr's file), "no BGZF in this
+#   build <path>" also for BGZF output (<path> the -o file, "-" for stdout),
+#   "internal error: no output" (B.Args.output refused a command line that
+#   Norm.start accepted; never, by output_ok in proof_f_out.bend),
 #   "out of memory" (no room for libdeflate's decompressor), "unsupported
 #   gzip <path> (not BGZF; use gzip -dc
 #   <path> | framebender ... /dev/stdin)" (a VCF whose first two bytes are
@@ -53,10 +61,10 @@ type Fai is Data:
   Fai{len: Nat, off: Nat, lb: Nat, lw: Nat}
 
 # Everything the loop carries: the files, the FASTA path, the .fai index, the
-# pieces per batch (k), the reads started at once (g), and the pieces read
-# since the last empty one (c).
+# pieces per batch (k), the reads started at once (g), the pieces read since
+# the last empty one (c), and the -o path (out; None for stdout), for errors.
 type Io is Type:
-  Io{vcf: File, fa: File, ref: String, fai: Map<&2, Maybe<&2, Fai>>, k: Nat, g: Nat, c: Nat}
+  Io{vcf: File, fa: File, ref: String, fai: Map<&2, Maybe<&2, Fai>>, k: Nat, g: Nat, c: Nat, out: Maybe<&2, String>}
 
 # ---------------------------------------------------------------------------
 # Effects of the driver (io64.c): a full read at a 64-bit offset, and a write
@@ -89,9 +97,27 @@ def Io.fa_wait(file: File, t: U32) -> IO(File & Result<&1, &1, U32 & String, U32
   import "./io64.c"
   import "./io64.js"
 
-# Write the first n bytes of a block to an inherited descriptor (1: stdout);
-# answers 0 or an errno (EINVAL if the block is not a packed buffer).
-def Io.write_block(fd: U32, n: U32, a: Array<U32>) -> IO(U32):
+# Where and how the output is written (B.Args.output's Sink): the -o path's
+# bytes when file is 1 (else stdout), BGZF when z is 1, at level (0 to 9),
+# with n compressor threads (0: 16); fa is the open FASTA, which the -o file
+# must not be. Called once, before the first step; the file is opened at the
+# first Io.out_write (or at Io.out_close). Answers (fa, 0), or 2002 for BGZF
+# in a build without libdeflate.
+def Io.out_set(fa: File, path: List<&2, U32>, file: U32, z: U32, level: U32, n: U32) -> IO(File & U32):
+  import "./io64.c"
+  import "./io64.js"
+
+# Write the first n bytes of a block to the output; answers 0 or the first
+# error of the output: an errno (cannot write), 12 (out of memory), 2001 (the
+# -o file is an input or stderr's file).
+def Io.out_write(n: U32, a: Array<U32>) -> IO(U32):
+  import "./io64.c"
+  import "./io64.js"
+
+# The end of the output, for a run ending with exit code c: the last blocks,
+# the BGZF end-of-file block only when c is 0, the -o file closed. Answers 0
+# or the first error of the output.
+def Io.out_close(c: U32) -> IO(U32):
   import "./io64.c"
   import "./io64.js"
 
@@ -205,23 +231,55 @@ def put?(fd: U32, s: String) -> IO(Unit):
     r : Result<&1, &1, U32 & String, Unit> <- Io.write_fd(fd, str_bytes(s))
     or_die(Unit, r, "cannot write")
 
-def put_code?(c: U32) -> IO(Unit):
-  put_ok(U32.is_zero(c))
+# The -o path in an error ("-" for stdout).
+def out_name?(out: Maybe<&2, String>) -> String:
+  match out:
+    case None{}:
+      "-"
+    case Some{p}:
+      esc(p)
 
-def put_ok?(ok: Bool) -> IO(Unit):
+def cannot_write?(out: Maybe<&2, String>) -> String:
+  match out:
+    case None{}:
+      "cannot write"
+    case Some{p}:
+      "cannot write " ++ esc(p)
+
+# An error of the output (Io.out_set, Io.out_write, Io.out_close): "out of
+# memory" (12), "output is an input <path>" (2001), "no BGZF in this build
+# <path>" (2002), else "cannot write" (stdout) or "cannot write <path>".
+def out_fail?(-A: Type, +c: U32, out: Maybe<&2, String>) -> IO(A):
+  out_fail.go(A, U32.is_eq(c, 12), U32.is_eq(c, 2001), U32.is_eq(c, 2002), out)
+
+def out_fail.go?(-A: Type, oom: Bool, inp: Bool, nolib: Bool, out: Maybe<&2, String>) -> IO(A):
+  match oom inp nolib:
+    case True{} _ _:
+      die(A, "out of memory")
+    case False{} True{} _:
+      die(A, "output is an input " ++ out_name(out))
+    case False{} False{} True{}:
+      die(A, "no BGZF in this build " ++ out_name(out))
+    case False{} False{} False{}:
+      die(A, cannot_write(out))
+
+def out_code?(+c: U32, out: Maybe<&2, String>) -> IO(Unit):
+  out_code.go(U32.is_zero(c), c, out)
+
+def out_code.go?(ok: Bool, +c: U32, out: Maybe<&2, String>) -> IO(Unit):
   match ok:
     case True{}:
       IO.pure(Unit, Unit{})
     case False{}:
-      die(Unit, "cannot write")
+      out_fail(Unit, c, out)
 
-# Write an output buffer's bytes (D.view) to stdout.
-def put_bytes?(b: D.Bytes) -> IO(Unit):
+# Write an output buffer's bytes (D.view) to the output.
+def put_bytes?(out: Maybe<&2, String>, b: D.Bytes) -> IO(Unit):
   match b:
     case D.Bytes{n, a}:
       do IO<Unit>:
-        c : U32 <- Io.write_block(1, n, a)
-        put_code(c)
+        c : U32 <- Io.out_write(n, a)
+        out_code(c, out)
 
 def notes_text?(ns: List<&2, B.Note>) -> String:
   match ns:
@@ -577,85 +635,113 @@ def loop.input.go?(eof: Bool, +n: U32, blk: Array<U32>, st: Norm.St) -> Norm.Ste
 
 # The next piece: after k pieces, an empty one (it ends the machine's batch),
 # else the next piece of the file.
-def loop.piece?(full: Bool, vcf: File, fa: File, +ref: String, fai: Map<&2, Maybe<&2, Fai>>, +k: Nat, +g: Nat, +c: Nat, +vpath: String, st: Norm.St) -> IO(Unit):
+def loop.piece?(full: Bool, vcf: File, fa: File, +ref: String, fai: Map<&2, Maybe<&2, Fai>>, +k: Nat, +g: Nat, +c: Nat, +out: Maybe<&2, String>, +vpath: String, st: Norm.St) -> IO(Unit):
   match full:
     case True{}:
-      emit(Io{vcf, fa, ref, fai, k, g, 0n}, vpath, Norm.step(st, P.Chunk{D.Bytes{0, Array.new(U32, 0n, 0)}}))
+      emit(Io{vcf, fa, ref, fai, k, g, 0n, out}, vpath, Norm.step(st, P.Chunk{D.Bytes{0, Array.new(U32, 0n, 0)}}))
     case False{}:
       do IO<Unit>:
         p : File & Result<&1, &1, U32 & String, U32 & Array<U32>> <- Io.read_block(vcf, piece(), 1)
-        loop.more(p, fa, ref, vpath, fai, k, g, 1n+c, st)
+        loop.more(p, fa, ref, vpath, fai, k, g, 1n+c, out, st)
 
+# At the end: the output finished (Io.out_close; the BGZF end-of-file block
+# only for code 0), then exit with the machine's code.
 def loop?(io: Io, +vpath: String, st: Norm.St, next: P.Next) -> IO(Unit):
   match io:
-    case Io{vcf, fa, +ref, fai, +k, +g, +c}:
+    case Io{vcf, fa, +ref, fai, +k, +g, +c, +out}:
       match next:
-        case P.Finish{code}:
+        case P.Finish{+code}:
           do IO<Unit>:
             File.close(vcf)
             File.close(fa)
+            r : U32 <- Io.out_close(U32.from_nat(code))
+            out_code(r, out)
             IO.exit(U32.from_nat(code))
         case P.More{}:
-          loop.piece(Nat.is_le(k, c), vcf, fa, ref, fai, k, g, c, vpath, st)
+          loop.piece(Nat.is_le(k, c), vcf, fa, ref, fai, k, g, c, out, vpath, st)
         case P.Ask{rs}:
           do IO<Unit>:
             q : Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>) <- answers(g, rs, fai, fa, ref)
-            loop.ref(q, vcf, ref, k, g, c, vpath, st)
+            loop.ref(q, vcf, ref, k, g, c, out, vpath, st)
 
-def loop.ref?(q: Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>), vcf: File, +ref: String, +k: Nat, +g: Nat, +c: Nat, +vpath: String, st: Norm.St) -> IO(Unit):
+def loop.ref?(q: Map<&2, Maybe<&2, Fai>> & (File & List<&1, P.Ans>), vcf: File, +ref: String, +k: Nat, +g: Nat, +c: Nat, +out: Maybe<&2, String>, +vpath: String, st: Norm.St) -> IO(Unit):
   match q:
     case (fai, (fa, as)):
-      emit(Io{vcf, fa, ref, fai, k, g, c}, vpath, Norm.step(st, P.Ref{as}))
+      emit(Io{vcf, fa, ref, fai, k, g, c, out}, vpath, Norm.step(st, P.Ref{as}))
 
-def loop.more?(p: File & Result<&1, &1, U32 & String, U32 & Array<U32>>, fa: File, +ref: String, +vpath: String, fai: Map<&2, Maybe<&2, Fai>>, +k: Nat, +g: Nat, +c: Nat, st: Norm.St) -> IO(Unit):
+def loop.more?(p: File & Result<&1, &1, U32 & String, U32 & Array<U32>>, fa: File, +ref: String, +vpath: String, fai: Map<&2, Maybe<&2, Fai>>, +k: Nat, +g: Nat, +c: Nat, +out: Maybe<&2, String>, st: Norm.St) -> IO(Unit):
   match p:
     case (vcf, Fail{+e}):
       read_fail(Unit, e, vpath)
     case (vcf, Done{(n, blk)}):
-      emit(Io{vcf, fa, ref, fai, k, g, c}, vpath, loop.input(n, blk, st))
+      emit(Io{vcf, fa, ref, fai, k, g, c, out}, vpath, loop.input(n, blk, st))
 
 # Write what a step wrote, then go on with what it wants next.
 def emit?(io: Io, +vpath: String, s: Norm.Step) -> IO(Unit):
-  match s:
-    case Norm.Step{st, o, ns, next}:
+  match io s:
+    case Io{vcf, fa, +ref, fai, +k, +g, +c, +out} Norm.Step{st, o, ns, next}:
       do IO<Unit>:
-        put_bytes(o)
+        put_bytes(out, o)
         put(2, notes_text(ns))
-        loop(io, vpath, st, next)
+        loop(Io{vcf, fa, ref, fai, k, g, c, out}, vpath, st, next)
 
-def run.fai?(m: Maybe<&2, Map<&2, Maybe<&2, Fai>>>, st: Norm.St, +ref: String, +vcf: String, +k: Nat, +g: Nat) -> IO(Unit):
+def bool_u32?(b: Bool) -> U32:
+  Bool.pick(U32, b, 1, 0)
+
+def path_bytes?(m: Maybe<&2, String>) -> List<&2, U32>:
   match m:
     case None{}:
+      Nil{}
+    case Some{p}:
+      str_bytes(p)
+
+# Start the loop once the output is set (Io.out_set's answer q).
+def run.set?(q: File & U32, v: File, +ref: String, fai: Map<&2, Maybe<&2, Fai>>, +k: Nat, +g: Nat, +out: Maybe<&2, String>, +vcf: String, st: Norm.St) -> IO(Unit):
+  match q:
+    case (fa, +r):
+      do IO<Unit>:
+        out_code(r, out)
+        loop(Io{v, fa, ref, fai, k, g, 0n, out}, vcf, st, P.More{})
+
+def run.fai?(m: Maybe<&2, Map<&2, Maybe<&2, Fai>>>, st: Norm.St, +ref: String, +vcf: String, +k: Nat, +g: Nat, sk: B.Sink, +n: Nat) -> IO(Unit):
+  match m sk:
+    case None{} _:
       die(Unit, "bad .fai index " ++ esc(ref ++ ".fai"))
-    case Some{fai}:
+    case Some{fai} B.Sink{+out, z, level}:
       do IO<Unit>:
         fa : File <- open(ref)
         v : File <- open(vcf)
-        loop(Io{v, fa, ref, fai, k, g, 0n}, vcf, st, P.More{})
+        q : File & U32 <- Io.out_set(fa, path_bytes(out), bool_u32(Maybe.is_some(&2, String, out)), bool_u32(z), U32.from_nat(level), U32.from_nat(n))
+        run.set(q, v, ref, fai, k, g, out, vcf, st)
 
-def run?(st: Norm.St, +ref: String, +vcf: String, +k: Nat, +g: Nat) -> IO(Unit):
+def run?(st: Norm.St, +ref: String, +vcf: String, +k: Nat, +g: Nat, sk: B.Sink, +n: Nat) -> IO(Unit):
   do IO<Unit>:
     fi : File <- open(ref ++ ".fai")
     cs : List<&2, List<&2, U32>> <- read_all(fi, ref ++ ".fai", Nil{})
-    run.fai(fai_load(String.split(bytes_str(concat_rev(cs, Nil{})), '\n'), Map.new(&2, Maybe<&2, Fai>)), st, ref, vcf, k, g)
+    run.fai(fai_load(String.split(bytes_str(concat_rev(cs, Nil{})), '\n'), Map.new(&2, Maybe<&2, Fai>)), st, ref, vcf, k, g, sk, n)
 
-def main.k?(b: Norm.Begin, +k: Nat, +g: Nat) -> IO(Unit):
-  match b:
-    case Norm.Usage{}:
+# A command line Norm.start accepted has an output (B.Args.output; output_ok
+# in proof_f_out.bend): None there is an internal error, never a fallback.
+def main.k?(b: Norm.Begin, m: Maybe<&2, B.Sink>, +k: Nat, +g: Nat, +n: Nat) -> IO(Unit):
+  match b m:
+    case Norm.Usage{} _:
       usage(Unit)
-    case Norm.Begin{st, ref, vcf}:
-      run(st, ref, vcf, k, g)
+    case Norm.Begin{st, ref, vcf} Some{sk}:
+      run(st, ref, vcf, k, g, sk, n)
+    case Norm.Begin{st, ref, vcf} None{}:
+      die(Unit, "internal error: no output")
 
 # The thread count n (0 when none) sizes the driver's work: the read-ahead
-# (Io.threads), the pieces per batch (16, or n) and the reads started at once
-# (32, or n). n is at most 128 (Args.threads, proof_f_args.bend's threads_ok).
-def main.t?(+n: Nat, b: Norm.Begin) -> IO(Unit):
+# (Io.threads), the pieces per batch (16, or n), the reads started at once
+# (32, or n) and the BGZF compressor threads (16, or n). n is at most 128
+# (Args.threads, proof_f_args.bend's threads_ok).
+def main.t?(+n: Nat, b: Norm.Begin, m: Maybe<&2, B.Sink>) -> IO(Unit):
   do IO<Unit>:
     r : U32 <- Io.threads(U32.from_nat(n))
-    main.k(b, Bool.pick(Nat, Nat.is_eq(n, 0n), 16n, n), Bool.pick(Nat, Nat.is_eq(n, 0n), 32n, n))
+    main.k(b, m, Bool.pick(Nat, Nat.is_eq(n, 0n), 16n, n), Bool.pick(Nat, Nat.is_eq(n, 0n), 32n, n), n)
 
 def main.n?(+xs: List<&2, String>) -> IO(Unit):
-  main.t(Maybe.default(&2, Nat, B.Args.threads(xs), 0n), Norm.start(xs))
+  main.t(Maybe.default(&2, Nat, B.Args.threads(xs), 0n), Norm.start(xs), B.Args.output(xs))
 
 def main.args?(args: List<List<&2, U32>>) -> IO(Unit):
   match args:

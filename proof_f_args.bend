@@ -5,9 +5,10 @@ import ./bytes_enc.bend as E
 import ./proof_base.bend as PB
 import ../lawful-words/proof_nat.bend as N
 
-# Phase F: the command-line parser (types.bend's Args) with --threads. The
-# parser now records the arguments it keeps (keep) and reads a thread count
-# (thr). This file proves:
+# Phases F and H: the command-line parser (types.bend's Args) with --threads
+# and the output options. The parser records the arguments it keeps (keep)
+# and reads the driver's options (drv: the thread count, -o and -O). This file
+# proves:
 # - kl_go, ab_go: the recorded arguments are no longer, in args_len, than the
 #   arguments read, and are bytes when those are (for the budget and the
 #   driver's start, proof_b_bud_start.bend and proof_b_drive_start.bend);
@@ -28,23 +29,32 @@ def kl(st: B.ArgSt) -> Nat:
 def kx(k: List<&2, String>, x: String) -> List<&2, String>:
   List.append(&2, String, k, [x])
 
-# The state with no thread count.
+# The state with no driver options (no thread count, no output options).
 def unthr(st: B.ArgSt) -> B.ArgSt:
   match st:
     case B.ArgSt{p, s, w, t, r, v, ok, k}:
-      B.ArgSt{p, s, w, None{}, r, v, ok, k}
+      B.ArgSt{p, s, w, B.Drv.none(), r, v, ok, k}
 
 # Args.word's branches, from the last one up (Args.word(x, st) unfolds to w1).
-def w5(+x: String, s: Bool, w: Maybe<&2, Nat>, t: Maybe<&2, Nat>, r: Maybe<&2, String>, +v: Maybe<&2, String>, ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+def w8(+x: String, s: Bool, w: Maybe<&2, Nat>, t: B.Drv, r: Maybe<&2, String>, +v: Maybe<&2, String>, ok: Bool, +k: List<&2, String>) -> B.ArgSt:
   B.ArgSt{B.PNone{}, s, w, t, r, Some{x}, ok && Bool.not(String.starts_with(x, "-") && Nat.is_lt(1n, String.length(x))) && Maybe.is_none(&2, String, v), kx(k, x)}
 
-def w4(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: Maybe<&2, Nat>, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+def w7(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+  Bool.pick(B.ArgSt, String.starts_with(x, "-O"), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}), w8(x, s, w, t, r, v, ok, k))
+
+def w6(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+  Bool.pick(B.ArgSt, String.eq(x, "-O"), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}, w7(x, s, w, t, r, v, ok, k))
+
+def w5(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+  Bool.pick(B.ArgSt, String.eq(x, "-o"), B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}, w6(x, s, w, t, r, v, ok, k))
+
+def w4(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
   Bool.pick(B.ArgSt, String.eq(x, "--threads"), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k}, w5(x, s, w, t, r, v, ok, k))
 
-def w3(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: Maybe<&2, Nat>, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+def w3(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
   Bool.pick(B.ArgSt, String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, w4(x, s, w, t, r, v, ok, k))
 
-def w2(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: Maybe<&2, Nat>, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+def w2(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
   Bool.pick(B.ArgSt, String.eq(x, "-c"), B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, kx(k, x)}, w3(x, s, w, t, r, v, ok, k))
 
 # ---------------------------------------------------------------------------
@@ -107,7 +117,7 @@ def tin(m: Maybe<&2, Nat>) -> Bool:
 def inv(st: B.ArgSt) -> Bool:
   match st:
     case B.ArgSt{p, s, w, t, r, v, ok, k}:
-      Bool.not(ok) || tin(t)
+      Bool.not(ok) || tin(B.Drv.thr(t))
 
 law tok_and:
   for +ok: Bool
@@ -259,6 +269,102 @@ def thr_keep(m, st):
     case None{} B.ArgSt{p, s, w, t, r, v, ok, k}:
       {==}
 
+# -o and -O keep the recorded arguments, keep the invariant, and do not look
+# at the driver options (except to set them).
+law typ_kl:
+  for +m: Maybe<&2, B.OType>
+  for +s: Bool
+  for +w: Maybe<&2, Nat>
+  for +t: B.Drv
+  for +r: Maybe<&2, String>
+  for +v: Maybe<&2, String>
+  for +ok: Bool
+  for +k: List<&2, String>
+  for +n: Nat
+  {Nat.is_le(kl(B.Args.typ(m, B.ArgSt{B.PType{}, s, w, t, r, v, ok, k})), Nat.add(M.args_len(k), n)) == True{} : Bool}
+
+def typ_kl(m, s, w, t, r, v, ok, k, n):
+  match m:
+    case Some{y}:
+      N.le_add_r(M.args_len(k), n)
+    case None{}:
+      N.le_add_r(M.args_len(k), n)
+
+law typ_ab:
+  for +m: Maybe<&2, B.OType>
+  for +s: Bool
+  for +w: Maybe<&2, Nat>
+  for +t: B.Drv
+  for +r: Maybe<&2, String>
+  for +v: Maybe<&2, String>
+  for +ok: Bool
+  for +k: List<&2, String>
+  for +hk: {E.all_bytes(k) == True{} : Bool}
+  {E.all_bytes(keep(B.Args.typ(m, B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}))) == True{} : Bool}
+
+def typ_ab(m, s, w, t, r, v, ok, k, hk):
+  match m:
+    case Some{y}:
+      hk
+    case None{}:
+      hk
+
+law typ_inv:
+  for +m: Maybe<&2, B.OType>
+  for +s: Bool
+  for +w: Maybe<&2, Nat>
+  for +t: B.Drv
+  for +r: Maybe<&2, String>
+  for +v: Maybe<&2, String>
+  for +ok: Bool
+  for +k: List<&2, String>
+  for +h: {(Bool.not(ok) || tin(B.Drv.thr(t))) == True{} : Bool}
+  {inv(B.Args.typ(m, B.ArgSt{B.PType{}, s, w, t, r, v, ok, k})) == True{} : Bool}
+
+def typ_inv(m, s, w, t, r, v, ok, k, h):
+  match m:
+    case Some{y}:
+      match y t:
+        case B.OType{z1, l1} B.Drv{t0, o0, z0, l0}:
+          h
+    case None{}:
+      {==}
+
+law out_inv:
+  for +x: String
+  for +s: Bool
+  for +w: Maybe<&2, Nat>
+  for +t: B.Drv
+  for +r: Maybe<&2, String>
+  for +v: Maybe<&2, String>
+  for +ok: Bool
+  for +k: List<&2, String>
+  for +h: {(Bool.not(ok) || tin(B.Drv.thr(t))) == True{} : Bool}
+  {inv(B.ArgSt{B.PNone{}, s, w, B.Drv.set_out(x, t), r, v, ok && Bool.not(B.Args.bcf(x)), k}) == True{} : Bool}
+
+def out_inv(x, s, w, t, r, v, ok, k, h):
+  match t:
+    case B.Drv{t0, o0, z0, l0}:
+      tok_and(ok, Bool.not(B.Args.bcf(x)), t0, h)
+
+law typ_un:
+  for +m: Maybe<&2, B.OType>
+  for +s: Bool
+  for +w: Maybe<&2, Nat>
+  for +t: B.Drv
+  for +r: Maybe<&2, String>
+  for +v: Maybe<&2, String>
+  for +ok: Bool
+  for +k: List<&2, String>
+  {unthr(B.Args.typ(m, B.ArgSt{B.PType{}, s, w, t, r, v, ok, k})) == unthr(B.Args.typ(m, B.ArgSt{B.PType{}, s, w, B.Drv.none(), r, v, ok, k})) : B.ArgSt}
+
+def typ_un(m, s, w, t, r, v, ok, k):
+  match m:
+    case Some{y}:
+      {==}
+    case None{}:
+      {==}
+
 law kl_step:
   for +st: B.ArgSt
   for +x: String
@@ -273,7 +379,10 @@ def kl_step(st, x):
           pick_kl(String.eq(x, "-c"), B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, kx(k, x)}, w3(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), snoc_le(k, x),
           pick_kl(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, w4(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), snoc_le(k, x),
           pick_kl(String.eq(x, "--threads"), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k}, w5(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), N.le_add_r(M.args_len(k), Nat.add(String.length(x), 1n)),
-          snoc_le(k, x)))))
+          pick_kl(String.eq(x, "-o"), B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}, w6(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), N.le_add_r(M.args_len(k), Nat.add(String.length(x), 1n)),
+          pick_kl(String.eq(x, "-O"), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}, w7(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), N.le_add_r(M.args_len(k), Nat.add(String.length(x), 1n)),
+          pick_kl(String.starts_with(x, "-O"), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}), w8(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), typ_kl(B.Args.otype(String.drop(x, 2n)), s, w, t, r, v, ok, k, Nat.add(String.length(x), 1n)),
+          snoc_le(k, x))))))))
         case B.PRef{}:
           snoc_le(k, x)
         case B.PCheck{}:
@@ -286,6 +395,10 @@ def kl_step(st, x):
           %Equal.sym(List<&2, String>, keep(B.Args.thr(B.Pos.read(x), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k})), k, thr_keep(B.Pos.read(x), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k})) :
             {Nat.is_le(M.args_len(_), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n))) == True{} : Bool}
           N.le_add_r(M.args_len(k), Nat.add(String.length(x), 1n))
+        case B.POut{}:
+          N.le_add_r(M.args_len(k), Nat.add(String.length(x), 1n))
+        case B.PType{}:
+          typ_kl(B.Args.otype(x), s, w, t, r, v, ok, k, Nat.add(String.length(x), 1n))
 
 law ab_step:
   for +st: B.ArgSt
@@ -303,7 +416,10 @@ def ab_step(st, x, hk, hx):
           pick_ab(String.eq(x, "-c"), B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, kx(k, x)}, w3(x, s, w, t, r, v, ok, k), ab_snoc(k, x, hk, hx),
           pick_ab(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, w4(x, s, w, t, r, v, ok, k), ab_snoc(k, x, hk, hx),
           pick_ab(String.eq(x, "--threads"), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k}, w5(x, s, w, t, r, v, ok, k), hk,
-          ab_snoc(k, x, hk, hx)))))
+          pick_ab(String.eq(x, "-o"), B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}, w6(x, s, w, t, r, v, ok, k), hk,
+          pick_ab(String.eq(x, "-O"), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}, w7(x, s, w, t, r, v, ok, k), hk,
+          pick_ab(String.starts_with(x, "-O"), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}), w8(x, s, w, t, r, v, ok, k), typ_ab(B.Args.otype(String.drop(x, 2n)), s, w, t, r, v, ok, k, hk),
+          ab_snoc(k, x, hk, hx))))))))
         case B.PRef{}:
           ab_snoc(k, x, hk, hx)
         case B.PCheck{}:
@@ -316,23 +432,27 @@ def ab_step(st, x, hk, hx):
           %Equal.sym(List<&2, String>, keep(B.Args.thr(B.Pos.read(x), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k})), k, thr_keep(B.Pos.read(x), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k})) :
             {E.all_bytes(_) == True{} : Bool}
           hk
+        case B.POut{}:
+          hk
+        case B.PType{}:
+          typ_ab(B.Args.otype(x), s, w, t, r, v, ok, k, hk)
 
 law win_inv:
   for +m: Maybe<&2, Nat>
   for +s: Bool
   for +w: Maybe<&2, Nat>
-  for +t: Maybe<&2, Nat>
+  for +t: B.Drv
   for +r: Maybe<&2, String>
   for +v: Maybe<&2, String>
   for +ok: Bool
   for +k: List<&2, String>
-  for +h: {(Bool.not(ok) || tin(t)) == True{} : Bool}
+  for +h: {(Bool.not(ok) || tin(B.Drv.thr(t))) == True{} : Bool}
   {inv(B.Args.win(m, B.ArgSt{B.PWin{}, s, w, t, r, v, ok, k})) == True{} : Bool}
 
 def win_inv(m, s, w, t, r, v, ok, k, h):
   match m:
     case Some{n}:
-      tok_and(ok, Nat.is_le(1n, n), t, h)
+      tok_and(ok, Nat.is_le(1n, n), B.Drv.thr(t), h)
     case None{}:
       {==}
 
@@ -340,7 +460,7 @@ law thr_inv:
   for +m: Maybe<&2, Nat>
   for +s: Bool
   for +w: Maybe<&2, Nat>
-  for +t: Maybe<&2, Nat>
+  for +t: B.Drv
   for +r: Maybe<&2, String>
   for +v: Maybe<&2, String>
   for +ok: Bool
@@ -350,7 +470,9 @@ law thr_inv:
 def thr_inv(m, s, w, t, r, v, ok, k):
   match m:
     case Some{n}:
-      tok_thr(ok, Nat.is_le(1n, n), Nat.is_le(n, B.Args.max_threads()))
+      match t:
+        case B.Drv{t0, o0, z0, l0}:
+          tok_thr(ok, Nat.is_le(1n, n), Nat.is_le(n, B.Args.max_threads()))
     case None{}:
       {==}
 
@@ -369,27 +491,34 @@ def inv_step(st, x, h):
           pick_inv(String.eq(x, "-c"), B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, kx(k, x)}, w3(x, s, w, t, r, v, ok, k), h,
           pick_inv(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, w4(x, s, w, t, r, v, ok, k), h,
           pick_inv(String.eq(x, "--threads"), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k}, w5(x, s, w, t, r, v, ok, k), h,
-          tok_and(ok && Bool.not(String.starts_with(x, "-") && Nat.is_lt(1n, String.length(x))), Maybe.is_none(&2, String, v), t,
-            tok_and(ok, Bool.not(String.starts_with(x, "-") && Nat.is_lt(1n, String.length(x))), t, h))))))
+          pick_inv(String.eq(x, "-o"), B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}, w6(x, s, w, t, r, v, ok, k), h,
+          pick_inv(String.eq(x, "-O"), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}, w7(x, s, w, t, r, v, ok, k), h,
+          pick_inv(String.starts_with(x, "-O"), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}), w8(x, s, w, t, r, v, ok, k), typ_inv(B.Args.otype(String.drop(x, 2n)), s, w, t, r, v, ok, k, h),
+          tok_and(ok && Bool.not(String.starts_with(x, "-") && Nat.is_lt(1n, String.length(x))), Maybe.is_none(&2, String, v), B.Drv.thr(t),
+            tok_and(ok, Bool.not(String.starts_with(x, "-") && Nat.is_lt(1n, String.length(x))), B.Drv.thr(t), h)))))))))
         case B.PRef{}:
-          tok_and(ok, Maybe.is_none(&2, String, r), t, h)
+          tok_and(ok, Maybe.is_none(&2, String, r), B.Drv.thr(t), h)
         case B.PCheck{}:
-          tok_and(ok, String.eq(x, "e") || String.eq(x, "w"), t, h)
+          tok_and(ok, String.eq(x, "e") || String.eq(x, "w"), B.Drv.thr(t), h)
         case B.PWin{}:
           win_inv(B.Pos.read(x), s, w, t, r, v, ok, kx(k, x), h)
         case B.PThr{}:
           thr_inv(B.Pos.read(x), s, w, t, r, v, ok, k)
+        case B.POut{}:
+          out_inv(x, s, w, t, r, v, ok, k, h)
+        case B.PType{}:
+          typ_inv(B.Args.otype(x), s, w, t, r, v, ok, k, h)
 
 law win_un:
   for +m: Maybe<&2, Nat>
   for +s: Bool
   for +w: Maybe<&2, Nat>
-  for +t: Maybe<&2, Nat>
+  for +t: B.Drv
   for +r: Maybe<&2, String>
   for +v: Maybe<&2, String>
   for +ok: Bool
   for +k: List<&2, String>
-  {unthr(B.Args.win(m, B.ArgSt{B.PWin{}, s, w, t, r, v, ok, k})) == unthr(B.Args.win(m, B.ArgSt{B.PWin{}, s, w, None{}, r, v, ok, k})) : B.ArgSt}
+  {unthr(B.Args.win(m, B.ArgSt{B.PWin{}, s, w, t, r, v, ok, k})) == unthr(B.Args.win(m, B.ArgSt{B.PWin{}, s, w, B.Drv.none(), r, v, ok, k})) : B.ArgSt}
 
 def win_un(m, s, w, t, r, v, ok, k):
   match m:
@@ -402,12 +531,12 @@ law thr_un:
   for +m: Maybe<&2, Nat>
   for +s: Bool
   for +w: Maybe<&2, Nat>
-  for +t: Maybe<&2, Nat>
+  for +t: B.Drv
   for +r: Maybe<&2, String>
   for +v: Maybe<&2, String>
   for +ok: Bool
   for +k: List<&2, String>
-  {unthr(B.Args.thr(m, B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k})) == unthr(B.Args.thr(m, B.ArgSt{B.PThr{}, s, w, None{}, r, v, ok, k})) : B.ArgSt}
+  {unthr(B.Args.thr(m, B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k})) == unthr(B.Args.thr(m, B.ArgSt{B.PThr{}, s, w, B.Drv.none(), r, v, ok, k})) : B.ArgSt}
 
 def thr_un(m, s, w, t, r, v, ok, k):
   match m:
@@ -416,7 +545,7 @@ def thr_un(m, s, w, t, r, v, ok, k):
     case None{}:
       {==}
 
-# A step does not look at the thread count (except to set it).
+# A step does not look at the driver options (except to set them).
 law un_step:
   for +st: B.ArgSt
   for +x: String
@@ -427,10 +556,13 @@ def un_step(st, x):
     case B.ArgSt{p, s, w, t, r, v, ok, k}:
       match p:
         case B.PNone{}:
-          pick_un(String.eq(x, "-f"), B.ArgSt{B.PRef{}, s, w, t, r, v, ok, kx(k, x)}, B.ArgSt{B.PRef{}, s, w, None{}, r, v, ok, kx(k, x)}, w2(x, s, w, t, r, v, ok, k), w2(x, s, w, None{}, r, v, ok, k), {==},
-          pick_un(String.eq(x, "-c"), B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, kx(k, x)}, B.ArgSt{B.PCheck{}, s, w, None{}, r, v, ok, kx(k, x)}, w3(x, s, w, t, r, v, ok, k), w3(x, s, w, None{}, r, v, ok, k), {==},
-          pick_un(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, B.ArgSt{B.PWin{}, s, w, None{}, r, v, ok, kx(k, x)}, w4(x, s, w, t, r, v, ok, k), w4(x, s, w, None{}, r, v, ok, k), {==},
-          pick_un(String.eq(x, "--threads"), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k}, B.ArgSt{B.PThr{}, s, w, None{}, r, v, ok, k}, w5(x, s, w, t, r, v, ok, k), w5(x, s, w, None{}, r, v, ok, k), {==}, {==}))))
+          pick_un(String.eq(x, "-f"), B.ArgSt{B.PRef{}, s, w, t, r, v, ok, kx(k, x)}, B.ArgSt{B.PRef{}, s, w, B.Drv.none(), r, v, ok, kx(k, x)}, w2(x, s, w, t, r, v, ok, k), w2(x, s, w, B.Drv.none(), r, v, ok, k), {==},
+          pick_un(String.eq(x, "-c"), B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, kx(k, x)}, B.ArgSt{B.PCheck{}, s, w, B.Drv.none(), r, v, ok, kx(k, x)}, w3(x, s, w, t, r, v, ok, k), w3(x, s, w, B.Drv.none(), r, v, ok, k), {==},
+          pick_un(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, B.ArgSt{B.PWin{}, s, w, B.Drv.none(), r, v, ok, kx(k, x)}, w4(x, s, w, t, r, v, ok, k), w4(x, s, w, B.Drv.none(), r, v, ok, k), {==},
+          pick_un(String.eq(x, "--threads"), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k}, B.ArgSt{B.PThr{}, s, w, B.Drv.none(), r, v, ok, k}, w5(x, s, w, t, r, v, ok, k), w5(x, s, w, B.Drv.none(), r, v, ok, k), {==},
+          pick_un(String.eq(x, "-o"), B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}, B.ArgSt{B.POut{}, s, w, B.Drv.none(), r, v, ok, k}, w6(x, s, w, t, r, v, ok, k), w6(x, s, w, B.Drv.none(), r, v, ok, k), {==},
+          pick_un(String.eq(x, "-O"), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}, B.ArgSt{B.PType{}, s, w, B.Drv.none(), r, v, ok, k}, w7(x, s, w, t, r, v, ok, k), w7(x, s, w, B.Drv.none(), r, v, ok, k), {==},
+          pick_un(String.starts_with(x, "-O"), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, B.Drv.none(), r, v, ok, k}), w8(x, s, w, t, r, v, ok, k), w8(x, s, w, B.Drv.none(), r, v, ok, k), typ_un(B.Args.otype(String.drop(x, 2n)), s, w, t, r, v, ok, k), {==})))))))
         case B.PRef{}:
           {==}
         case B.PCheck{}:
@@ -439,6 +571,11 @@ def un_step(st, x):
           win_un(B.Pos.read(x), s, w, t, r, v, ok, kx(k, x))
         case B.PThr{}:
           thr_un(B.Pos.read(x), s, w, t, r, v, ok, k)
+        case B.POut{}:
+          {==}
+        case B.PType{}:
+          typ_un(B.Args.otype(x), s, w, t, r, v, ok, k)
+
 
 # ---------------------------------------------------------------------------
 # Many steps
@@ -569,6 +706,10 @@ def done_un(st):
           {==}
         case B.PThr{}:
           {==}
+        case B.POut{}:
+          {==}
+        case B.PType{}:
+          {==}
 
 law done_same:
   for +post: List<&2, String>
@@ -613,15 +754,15 @@ def two_words(st, x, n, he, hx, hn):
           +h1 = PB.and_true_l(Nat.is_le(1n, n), Nat.is_le(n, B.Args.max_threads()), hn)
           +h2 = PB.and_true_r(Nat.is_le(1n, n), Nat.is_le(n, B.Args.max_threads()), hn)
           %Equal.sym(Maybe<&2, Nat>, B.Pos.read(x), Some{n}, hx) :
-            {unthr(B.Args.thr(_, B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k})) == B.ArgSt{B.PNone{}, s, w, None{}, r, v, ok, k} : B.ArgSt}
+            {unthr(B.Args.thr(_, B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k})) == B.ArgSt{B.PNone{}, s, w, B.Drv.none(), r, v, ok, k} : B.ArgSt}
           %Equal.sym(Bool, Nat.is_le(1n, n), True{}, h1) :
-            {B.ArgSt{B.PNone{}, s, w, None{}, r, v, ok && _ && Nat.is_le(n, B.Args.max_threads()), k} == B.ArgSt{B.PNone{}, s, w, None{}, r, v, ok, k} : B.ArgSt}
+            {B.ArgSt{B.PNone{}, s, w, B.Drv.none(), r, v, ok && _ && Nat.is_le(n, B.Args.max_threads()), k} == B.ArgSt{B.PNone{}, s, w, B.Drv.none(), r, v, ok, k} : B.ArgSt}
           %Equal.sym(Bool, Nat.is_le(n, B.Args.max_threads()), True{}, h2) :
-            {B.ArgSt{B.PNone{}, s, w, None{}, r, v, ok && True{} && _, k} == B.ArgSt{B.PNone{}, s, w, None{}, r, v, ok, k} : B.ArgSt}
+            {B.ArgSt{B.PNone{}, s, w, B.Drv.none(), r, v, ok && True{} && _, k} == B.ArgSt{B.PNone{}, s, w, B.Drv.none(), r, v, ok, k} : B.ArgSt}
           %Equal.sym(Bool, ok && True{} && True{}, ok && True{}, N.and_true_r_id(ok && True{})) :
-            {B.ArgSt{B.PNone{}, s, w, None{}, r, v, _, k} == B.ArgSt{B.PNone{}, s, w, None{}, r, v, ok, k} : B.ArgSt}
+            {B.ArgSt{B.PNone{}, s, w, B.Drv.none(), r, v, _, k} == B.ArgSt{B.PNone{}, s, w, B.Drv.none(), r, v, ok, k} : B.ArgSt}
           %Equal.sym(Bool, ok && True{}, ok, N.and_true_r_id(ok)) :
-            {B.ArgSt{B.PNone{}, s, w, None{}, r, v, _, k} == B.ArgSt{B.PNone{}, s, w, None{}, r, v, ok, k} : B.ArgSt}
+            {B.ArgSt{B.PNone{}, s, w, B.Drv.none(), r, v, _, k} == B.ArgSt{B.PNone{}, s, w, B.Drv.none(), r, v, ok, k} : B.ArgSt}
           {==}
         case B.PRef{}:
           Empty.absurd({unthr(B.Args.step(B.Args.step(B.ArgSt{B.PRef{}, s, w, t, r, v, ok, k}, "--threads"), x)) == unthr(B.ArgSt{B.PRef{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
@@ -631,6 +772,10 @@ def two_words(st, x, n, he, hx, hn):
           Empty.absurd({unthr(B.Args.step(B.Args.step(B.ArgSt{B.PWin{}, s, w, t, r, v, ok, k}, "--threads"), x)) == unthr(B.ArgSt{B.PWin{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
         case B.PThr{}:
           Empty.absurd({unthr(B.Args.step(B.Args.step(B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k}, "--threads"), x)) == unthr(B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
+        case B.POut{}:
+          Empty.absurd({unthr(B.Args.step(B.Args.step(B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}, "--threads"), x)) == unthr(B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
+        case B.PType{}:
+          Empty.absurd({unthr(B.Args.step(B.Args.step(B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}, "--threads"), x)) == unthr(B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
 
 # The parser fact behind law threads.
 law parse_thr:
@@ -688,6 +833,10 @@ def done_some(st, n, h):
           Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.PWin{}, s, w, t, r, v, ok, k})) == False{} : Bool}, none_ne_some(n, h))
         case B.PThr{}:
           Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k})) == False{} : Bool}, none_ne_some(n, h))
+        case B.POut{}:
+          Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.POut{}, s, w, t, r, v, ok, k})) == False{} : Bool}, none_ne_some(n, h))
+        case B.PType{}:
+          Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.PType{}, s, w, t, r, v, ok, k})) == False{} : Bool}, none_ne_some(n, h))
 
 law done_range:
   for +st: B.ArgSt
@@ -722,6 +871,10 @@ def done_range(st, n, hi, h):
         case B.PWin{}:
           Empty.absurd({(Nat.is_le(1n, n) && Nat.is_le(n, B.Args.max_threads())) == True{} : Bool}, none_ne_some(n, h))
         case B.PThr{}:
+          Empty.absurd({(Nat.is_le(1n, n) && Nat.is_le(n, B.Args.max_threads())) == True{} : Bool}, none_ne_some(n, h))
+        case B.POut{}:
+          Empty.absurd({(Nat.is_le(1n, n) && Nat.is_le(n, B.Args.max_threads())) == True{} : Bool}, none_ne_some(n, h))
+        case B.PType{}:
           Empty.absurd({(Nat.is_le(1n, n) && Nat.is_le(n, B.Args.max_threads())) == True{} : Bool}, none_ne_some(n, h))
 
 law threads_if:

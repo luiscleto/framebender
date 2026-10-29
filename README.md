@@ -28,8 +28,9 @@ cd framebender
 ## Run
 
 ```
-samtools faidx ref.fa                      # once: writes ref.fa.fai
-./framebender norm -f ref.fa in.vcf.gz > out.vcf   # or a plain in.vcf
+samtools faidx ref.fa                                # once: writes ref.fa.fai
+./framebender norm -f ref.fa -o out.vcf.gz in.vcf.gz  # or a plain in.vcf
+./framebender norm -f ref.fa in.vcf > out.vcf         # plain VCF to stdout
 ```
 
 - `-c w`: pass records whose REF does not match the reference through with a warning
@@ -43,8 +44,15 @@ samtools faidx ref.fa                      # once: writes ref.fa.fai
   normalized in parallel by at most N of Bend's worker threads, N pieces read ahead, N reference
   reads in flight. It changes only speed and memory, never the output (law `threads`; the header
   does not record it). Without it: 16 pieces, one worker per CPU. A larger N needs more memory.
-- Input is plain VCF or bgzip-compressed `.vcf.gz` (a file that is cut short is refused). Output
-  is plain VCF; pipe it to `bgzip` to compress it.
+- `-o FILE`: write to FILE instead of stdout. A name ending in `.vcf.gz` gets bgzip-compressed
+  VCF (BGZF, ready for `tabix`), as in bcftools.
+- `-O z` (or `-Oz`, `-Oz0` to `-Oz9`): compress, also on stdout; default level 6, as bcftools and
+  bgzip; `-Oz1` is faster for a larger file. The file is byte for byte what `bgzip` makes of the
+  plain output, at every `--threads` (law `output`: these options never change the text).
+- A `.vcf.gz` ends with BGZF's end-of-file block only when the run succeeded, so a run that stops
+  never leaves a file that looks complete. `-o` refuses to overwrite an input, and a run that
+  cannot read its inputs leaves an existing file as it was.
+- Input is plain VCF or bgzip-compressed `.vcf.gz` (a file that is cut short is refused).
 
 ## What is guaranteed
 
@@ -77,7 +85,9 @@ The intentional differences:
 - Normalized records are written canonically: alleles in upper case, POS without leading zeros.
   Everything else on a line is kept byte for byte, including sample columns that bcftools pads
   (`1/0:1,1` for `GT:AD:PS` stays as is).
-- The header gets two added lines with no date, so the output is reproducible.
+- The header gets two added lines with no date, so the output is reproducible. Its command line
+  leaves out `--threads`, `-o` and `-O`, which do not change the records.
+- No BCF output, and no long forms of `-o`/`-O` (details in `docs/LAWS.md`).
 
 Speed, on one sample (GIAB HG002) and on a cohort of 3,202 (the 1000 Genomes high-coverage
 panel, chr22: 1,066,557 records of about 14 KB each, 14.8 GB uncompressed):
@@ -107,12 +117,26 @@ setting):
 
 On the 1000 Genomes file: bcftools 18 MB, framebender 310 MB (`--threads 1`: 100 MB, 11.4–12.1 s).
 
+Writing compressed `.vcf.gz` (HG002 whole genome; the same 150 MB file from both tools):
+
+| | time | peak memory |
+|---|---|---|
+| `bcftools norm -Oz` | 14.2–14.3 s | 11 MB |
+| `bcftools norm -Oz --threads 16` | 6.2–6.3 s | 17 MB |
+| framebender `-Oz` | 2.9 s | 345 MB |
+| framebender `-Oz1` (a 253 MB file) | 2.1 s | 345 MB |
+| framebender `--threads 1 -Oz` | 14.4–14.7 s | 46 MB |
+
+On the 1000 Genomes file, `.vcf.gz` in and out: bcftools `-Oz --threads 16` 65 s, framebender
+`-Oz` 14 s.
+
 How it was measured: a laptop with an Intel i9-13950HX (8 performance cores with 2 threads each,
 16 efficiency cores), 30 GB of RAM and an NVMe SSD, on Linux; bcftools 1.24, Bend 2.0.39. Both
 tools ran with `-c w`, writing to a file deleted before each run, pinned to the performance cores
 (`taskset -c 0-15`, which removes about 3 s of run-to-run noise on the whole genome), one at a
-time and interleaved, three rounds (two on the whole 1000 Genomes file, bcftools once). Times are
-wall clock, memory is peak resident size. framebender's output was the same in every run.
+time and interleaved, three rounds (two on the whole 1000 Genomes file and for compressed output,
+bcftools once on the 1000 Genomes file). Times are wall clock, memory is peak resident size.
+framebender's output was the same in every run.
 `test/bench.sh ref.fa in.vcf` repeats the comparison on any file.
 
 The first proven version stored text as linked lists of characters, as Bend 2's `String` does,

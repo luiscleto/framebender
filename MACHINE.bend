@@ -164,8 +164,8 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 # The program: started with a command line B.Args.parse accepts, it opens the
 # FASTA and VCF files it names and, for a FASTA file whose sequence lines hold
 # no spaces or tabs (P.Fasta.plain), however the VCF file is cut into pieces,
-# given truthful reference reads, writes exactly what run says (stdout bytes,
-# stderr messages, exit code), within bound steps and bound reads.
+# given truthful reference reads, writes exactly what run says (the output
+# bytes, stderr messages, exit code), within bound steps and bound reads.
 #
 # What this law does not cover (the trusted driver, main.bend, with its effects
 # in io64.c):
@@ -175,8 +175,23 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 #   first two bytes are 1f 8b and that does not start with a BGZF block header
 #   is refused), packing each VCF piece and each reference answer as exactly E.enc of its text (bytes four
 #   to a word, little-endian, zero-padded, in the smallest block), and writing
-#   every stdout byte (the bytes of each output buffer, D.view) and message
+#   every output byte (the bytes of each output buffer, D.view) and message
 #   (B.Note.render) exactly, then exiting with the code.
+# - Where and how the output bytes are written, as B.Args.output(argv) says
+#   (law output): to stdout, or to the file it names, opened at the first
+#   write, after the first VCF piece was read (created with mode 0666 less the
+#   umask, or emptied first if it is a regular file); as they are, or in BGZF:
+#   cut into blocks as bgzip 1.24 cuts text (each block a whole number of lines
+#   when they fit 65280 bytes, the header's lines apart from the records), each
+#   block a gzip member with the BC extra field, deflated by libdeflate at the
+#   level (htslib's mapping), in order. Only when the run ends with exit code 0
+#   is the 28-byte empty end-of-file block written: a BGZF file is complete
+#   exactly when the run succeeded (if closing a regular -o file fails after
+#   it, it is cut off again, the run exiting 2, unless that take-back fails
+#   itself, when the file may keep it; a pipe cannot take it back).
+#   Decompressed, the file is a prefix of the output bytes: all of them when
+#   the machine finished. After a failed write nothing more is written to the
+#   output.
 # - Answering each reference read Req{chrom, a, b} of an Ask, in order, with
 #   exactly truth(B.Fasta.parse(fasta), chrom, a, b): Unknown when the .fai has
 #   no such contig, else Known with the contig's length String.length(Contig.raw)
@@ -189,10 +204,17 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 #   exactly as above.
 # - The driver's own errors, each one line on stderr and exit code 2: a usage
 #   error (law usage; prints B.usage), "error: cannot read <path>", "error:
-#   cannot write", "error: out of memory" (libdeflate's decompressor),
+#   cannot write" (stdout or stderr), "error: cannot write <path>" (the -o
+#   file: it cannot be opened, written or closed), "error: output is an input
+#   <path>" (the -o file, of any type, a pipe or FIFO too, is the VCF, the
+#   FASTA or its .fai, or is stderr's regular file: refused before the file
+#   is emptied), "error: out of memory" (libdeflate's
+#   decompressor or compressor),
 #   "error: unsupported gzip <path> (not BGZF; ...)", "error:
 #   bad BGZF <path>" (also a BGZF VCF without the end-of-file block, as one cut
-#   at a block boundary), "error: no BGZF in this build <path>", "error: bad
+#   at a block boundary), "error: no BGZF in this build <path>" (a BGZF VCF,
+#   or BGZF output to the -o file <path>, "-" for stdout, in a build without
+#   libdeflate), "error: bad
 #   .fai index <path>.fai", "error: unsupported FASTA <path>" (a byte read that the
 #   .fai layout does not explain), "error: .fai index does not match <path>"
 #   (fewer letters than the index promises), "error: FASTA read too large
@@ -257,4 +279,31 @@ law threads:
   for h: {String.concat(cs) == vcf : String}
   for hb: {E.texts_ok(command(pre, "--threads" <> x <> post), fasta, cs) == True{} : Bool}
   {launch(Norm.start(command(pre, "--threads" <> x <> post)), command(pre, "--threads" <> x <> post), fasta, vcf, cs)
+    == launch(Norm.start(command(pre, post)), command(pre, post), fasta, vcf, cs) : Maybe<&2, Launch>}
+
+# The output options choose only how and where the text is written, never the
+# text. Wherever the parser expects an option (B.Args.expecting), adding one
+# output option o (B.Args.out_opt: -o PATH, -O T or the glued -OT) gives the
+# same paths and the same report (output bytes, messages, exit code) as the
+# same command line without it. The driver then writes the output bytes where
+# and how B.Args.output says (see law machine's comment). The law covers the
+# machine's report; the driver's own errors for the -o file ("cannot write
+# <path>", "output is an input <path>") are outside it, as law machine's
+# comment says. It follows from law machine: parse gives the same Cfg with or
+# without o where an option is expected, and Opts.args does not record it.
+# Outside this law, as for law machine: Bend's runtime may run out of memory
+# with a compressed output, or a higher level, and not without it.
+law output:
+  for pre: List<&2, String>
+  for o: List<&2, String>
+  for post: List<&2, String>
+  for fasta: String
+  for vcf: String
+  for cs: List<&2, String>
+  for he: {B.Args.expecting(pre) == True{} : Bool}
+  for ho: {B.Args.out_opt(o) == True{} : Bool}
+  for hf: {P.Fasta.plain(fasta) == True{} : Bool}
+  for h: {String.concat(cs) == vcf : String}
+  for hb: {E.texts_ok(command(pre, List.append(&2, String, o, post)), fasta, cs) == True{} : Bool}
+  {launch(Norm.start(command(pre, List.append(&2, String, o, post))), command(pre, List.append(&2, String, o, post)), fasta, vcf, cs)
     == launch(Norm.start(command(pre, post)), command(pre, post), fasta, vcf, cs) : Maybe<&2, Launch>}

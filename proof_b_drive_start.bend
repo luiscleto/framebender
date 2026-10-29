@@ -63,6 +63,10 @@ def args_done(st, h):
           {==}
         case B.PThr{}:
           {==}
+        case B.POut{}:
+          {==}
+        case B.PType{}:
+          {==}
 
 law args_if:
   for +c: Bool

@@ -592,3 +592,44 @@ review: the owner judged it a technicality another tool already uses. Before cho
 Identical output before and after on all three (md5). The agent's machine-only options (A: an
 offset instead of a copy, 2.6x at any `-w`; B, C: merges across pieces) are recorded in
 `notes/cohort.md` and not pursued: at the new default the cohort file is 10x faster than bcftools.
+
+## Compressed output (2026-10-29; phase H, branch `gz`, `notes/compress.md`)
+
+`-o FILE` and `-O v|z|z0..z9`, as in bcftools: the driver writes BGZF itself, byte for byte what
+`bgzip -l L` makes of the plain output, compressing blocks on N threads with libdeflate. New law
+`output` (`MACHINE.bend`), in the style of `law threads`: an output option where an option is
+expected changes nothing in the machine's report; proven from `machine` (`proof_f_out.bend`, with
+`output_ok`: `B.Args.output` answers exactly for the lines `Args.parse` accepts). The writer stays
+trusted and is tested against bgzip, tabix and bcftools (`test/out.sh`).
+
+**Law review** (`reviews/*-compress-law.md`, `responses-compress-law.md`): all three accepted the
+law and grammar, no blockers; twelve design decisions. **Driver review 8** (three rounds,
+`reviews/*-driver8*.md`, `responses-driver8.md`): every finding in the trusted writer, none in the
+laws.
+
+**Q2: laws that held while behaviour was wrong.** All of these: law `output` held throughout.
+- An input pipe or FIFO named by `-o` hung the run (Claude, Grok).
+- A file-size limit killed the run with `SIGXFSZ`; the test's `trap` hid it (GPT, Grok).
+- A failed `close` after the end-of-file block left a complete-looking file with exit 2 (GPT,
+  Grok); the first fix reopened the path by name, which could truncate the FASTA through a
+  re-pointed symlink (GPT, Claude); the author proposed a `dup` of the descriptor instead.
+- The test script exited 0 on failure (GPT, Grok).
+
+**Q4.** In the law review, Claude alone saw that opening `-o` before the input was read would
+empty an existing file on an input error; Grok alone measured bcftools' sticky compression level
+and found the carried tail read after its block was freed; GPT alone showed `bgzip -t` accepts a
+file without its end-of-file block. GPT kept finding injected-failure cases into round 3.
+
+**Q5** (whole genome, to a file, pinned, two rounds; identical plain output to main):
+
+| | time | peak memory |
+|---|---|---|
+| bcftools `-Oz` | 14.2-14.3 s | 11 MB |
+| bcftools `-Oz --threads 16` | 6.2-6.3 s | 17 MB |
+| framebender `-Oz` | 2.9 s | 343-345 MB |
+| framebender `-Oz1` | 2.1 s | 342-343 MB |
+| framebender `--threads 8 -Oz` | 3.1 s | 200 MB |
+| framebender `--threads 1 -Oz` | 14.4-14.7 s | 46 MB |
+
+1000 Genomes chr22 `.vcf.gz` in and out: framebender `-Oz` 13.8-14.0 s, bcftools `-Oz --threads
+16` 65 s (the agent's runs).

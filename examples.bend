@@ -179,6 +179,122 @@ def threads_trailing() -> {B.Args.threads(["norm", "--threads", "4", "-f", "r.fa
 def threads_refused() -> {B.Args.threads(["norm", "--threads", "8", "in.vcf"]) == None{} : Maybe<&2, Nat>}:
   {==}
 
+# --- Output options (-o, -O; law output) -----------------------------------
+
+# They change nothing Args.parse returns, and are not recorded in the header.
+def out_header() -> {B.Args.parse(["norm", "-Oz", "-f", "r.fa", "-o", "o.vcf.gz", "in.vcf"]) == Some{B.Cfg{B.Opts{True{}, 1000n, ["-f", "r.fa", "in.vcf"]}, "r.fa", "in.vcf"}} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def out_sep() -> {B.Args.parse(["norm", "-f", "r.fa", "-O", "z9", "in.vcf", "-o", "-"]) == B.Args.parse(["norm", "-f", "r.fa", "in.vcf"]) : Maybe<&2, B.Cfg>}:
+  {==}
+
+# Refused: BCF (-O b, -O u, a .bcf path in any case), a level past 9, a level
+# on v, a bad type, a missing value; every -O must be valid.
+def out_Ob() -> {B.Args.parse(["norm", "-Ob", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def out_Ou() -> {B.Args.parse(["norm", "-O", "u", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def out_bcf() -> {B.Args.parse(["norm", "-f", "r.fa", "-o", "x.BCF", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def out_z10() -> {B.Args.parse(["norm", "-Oz10", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def out_v5() -> {B.Args.parse(["norm", "-Ov5", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def out_bad_first() -> {B.Args.parse(["norm", "-Ox", "-Oz", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def out_noval() -> {B.Args.parse(["norm", "-f", "r.fa", "in.vcf", "-o"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+# As a value, -o is that option's value; any word is a path for -o.
+def out_as_ref() -> {B.Args.parse(["norm", "-f", "-o", "in.vcf"]) == Some{B.Cfg{B.Opts{True{}, 1000n, ["-f", "-o", "in.vcf"]}, "-o", "in.vcf"}} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def out_path_word() -> {B.Args.output(["norm", "-o", "--threads", "-f", "r.fa", "in.vcf"]) == Some{B.Sink{Some{"--threads"}, False{}, 6n}} : Maybe<&2, B.Sink>}:
+  {==}
+
+# B.Args.output: the extension decides when it names a type, else -O.
+def sink_default() -> {B.Args.output(["norm", "-f", "r.fa", "in.vcf"]) == Some{B.Sink{None{}, False{}, 6n}} : Maybe<&2, B.Sink>}:
+  {==}
+
+def sink_ext() -> {B.Args.output(["norm", "-f", "r.fa", "-o", "out.vcf.gz", "in.vcf"]) == Some{B.Sink{Some{"out.vcf.gz"}, True{}, 6n}} : Maybe<&2, B.Sink>}:
+  {==}
+
+def sink_ext_case() -> {B.Args.output(["norm", "-Ov", "-f", "r.fa", "-o", "OUT.Vcf.Bgz", "in.vcf"]) == Some{B.Sink{Some{"OUT.Vcf.Bgz"}, True{}, 6n}} : Maybe<&2, B.Sink>}:
+  {==}
+
+def sink_ext_plain() -> {B.Args.output(["norm", "-Oz9", "-f", "r.fa", "-o", "out.vcf", "in.vcf"]) == Some{B.Sink{Some{"out.vcf"}, False{}, 9n}} : Maybe<&2, B.Sink>}:
+  {==}
+
+def sink_other_ext() -> {B.Args.output(["norm", "-O", "z3", "-f", "r.fa", "-o", "out.gz", "in.vcf"]) == Some{B.Sink{Some{"out.gz"}, True{}, 3n}} : Maybe<&2, B.Sink>}:
+  {==}
+
+def sink_stdout_z() -> {B.Args.output(["norm", "-f", "r.fa", "in.vcf", "-Oz"]) == Some{B.Sink{None{}, True{}, 6n}} : Maybe<&2, B.Sink>}:
+  {==}
+
+def sink_dash() -> {B.Args.output(["norm", "-o", "out.vcf.gz", "-o", "-", "-f", "r.fa", "in.vcf"]) == Some{B.Sink{None{}, False{}, 6n}} : Maybe<&2, B.Sink>}:
+  {==}
+
+def sink_last() -> {B.Args.output(["norm", "-Oz1", "-f", "r.fa", "-Oz0", "in.vcf"]) == Some{B.Sink{None{}, True{}, 0n}} : Maybe<&2, B.Sink>}:
+  {==}
+
+def sink_refused() -> {B.Args.output(["norm", "-Oz", "in.vcf"]) == None{} : Maybe<&2, B.Sink>}:
+  {==}
+
+def out_threads() -> {B.Args.threads(["norm", "-Oz", "--threads", "8", "-o", "x.vcf.gz", "-f", "r.fa", "in.vcf"]) == Some{8n} : Maybe<&2, Nat>}:
+  {==}
+
+# The level is sticky, as in bcftools 1.24: a later -Oz or -Ov keeps it.
+def sink_sticky() -> {B.Args.output(["norm", "-Oz0", "-Oz", "-f", "r.fa", "in.vcf"]) == Some{B.Sink{None{}, True{}, 0n}} : Maybe<&2, B.Sink>}:
+  {==}
+
+def sink_sticky_v() -> {B.Args.output(["norm", "-Oz9", "-Ov", "-o", "x.vcf.gz", "-f", "r.fa", "in.vcf"]) == Some{B.Sink{Some{"x.vcf.gz"}, True{}, 9n}} : Maybe<&2, B.Sink>}:
+  {==}
+
+def sink_level_last() -> {B.Args.output(["norm", "-Oz1", "-O", "z9", "-f", "r.fa", "in.vcf"]) == Some{B.Sink{None{}, True{}, 9n}} : Maybe<&2, B.Sink>}:
+  {==}
+
+# More refused lines: -O with no value, a glued -oFILE, an invalid first -o.
+def out_O_noval() -> {B.Args.parse(["norm", "-f", "r.fa", "in.vcf", "-O"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def out_glued_o() -> {B.Args.parse(["norm", "-ox.vcf.gz", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def out_bad_first_o() -> {B.Args.parse(["norm", "-o", "a.bcf", "-o", "b.vcf", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+# A VCF path "-o" waits for a value (refused); written ./-o it is the VCF.
+def out_vcf_dash_o() -> {B.Args.parse(["norm", "-f", "r.fa", "-o"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def out_vcf_dot_o() -> {B.Args.parse(["norm", "-f", "r.fa", "./-o"]) == Some{B.Cfg{B.Opts{True{}, 1000n, ["-f", "r.fa", "./-o"]}, "r.fa", "./-o"}} : Maybe<&2, B.Cfg>}:
+  {==}
+
+# The words of one output option (law output's B.Args.out_opt).
+def oo_o() -> {B.Args.out_opt(["-o", "a.vcf.gz"]) == True{} : Bool}:
+  {==}
+
+def oo_glued() -> {B.Args.out_opt(["-Oz5"]) == True{} : Bool}:
+  {==}
+
+def oo_sep() -> {B.Args.out_opt(["-O", "v"]) == True{} : Bool}:
+  {==}
+
+def oo_alone() -> {B.Args.out_opt(["-O"]) == False{} : Bool}:
+  {==}
+
+def oo_bcf() -> {B.Args.out_opt(["-o", "a.bcf"]) == False{} : Bool}:
+  {==}
+
+def oo_extra() -> {B.Args.out_opt(["-Oz", "x"]) == False{} : Bool}:
+  {==}
+
 # --- Whole runs ------------------------------------------------------------
 
 def fa() -> String:

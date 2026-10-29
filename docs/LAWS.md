@@ -103,8 +103,26 @@ or without `--threads N` there, and the header's `##framebender_normCommand` doe
 Right after `-f`, `-c` or `-w`, the word `--threads` is that option's value (a path after `-f`, a
 usage error after `-c` or `-w`). Every `--threads` given must be valid, and the last one counts.
 The program uses N to size its work: the pieces normalized at once, the VCF pieces read ahead, the
-reference reads in flight, and Bend's worker threads (at most N; a user's own `BENDRTS` or
-`+RTS --threads` wins). A larger N needs more memory (below).
+reference reads in flight, Bend's worker threads (at most N; a user's own `BENDRTS` or
+`+RTS --threads` wins), and the compressor threads for `-O z`. A larger N needs more memory
+(below).
+
+`output` (in `MACHINE.bend`): the output options choose only where and how the text is written,
+never the text. Wherever the parser expects an option, adding one output option (`-o PATH`,
+`-O T`, or the glued `-OT`, with T one of `v`, `z`, `z0` to `z9`, and PATH not ending in `.bcf`)
+gives the same paths and the same report as the same command line without it. It follows from
+`machine`, as `threads` does: `Args.parse` gives the same result, and the header does not record
+`-o` or `-O`. With `threads`, this gives the rule a user needs: for any accepted command line,
+removing every `--threads`, `-o` and `-O` gives the same text, messages and exit code; those
+options only choose the speed, and where and how the text is written. Where and how is
+`B.Args.output`, in the science layer with its examples: the file of the last `-o` (stdout without
+one, or for `-o -`); BGZF or plain by that path's extension when it names one (`.vcf`, `.vcf.gz`,
+`.vcf.bgz`, in any case, as bcftools 1.24 decides), otherwise by the last `-O`; the last level
+given (a later `-Oz` or `-Ov` keeps it, as in bcftools), otherwise 6. BCF (`-O b`, `-O u`, an
+`-o` path ending in `.bcf`) is a usage error. The parser accepts less than bcftools: no long forms
+(`--output`, `--output-type`), no glued `-oFILE`, no level on `-Ov` or alone (`-O5`), and every `-o`
+and `-O` given must be valid, not only the last. The lemma `output_ok` (`proof_f_out.bend`) proves
+that `B.Args.output` answers for exactly the command lines `Args.parse` accepts.
 
 The program works on bytes, while the science layer reads text. `bytes_enc.bend` connects them:
 each character is one byte, and the law assumes every character the driver passes is below 256,
@@ -136,6 +154,21 @@ machine an empty piece after every N pieces (the machine closes a batch at a sho
 pieces read ahead and N reference reads in flight (16, 16 and 32 without `--threads`), and before
 `main` `io64.c` puts `--threads N` before `BENDRTS` for a command line `Args.parse` accepts, so
 Bend's runtime starts at most N workers. None of these can change what the program writes.
+
+Writing the output where and how `B.Args.output` says is trusted too, and tested instead of
+proven (`test/out.sh`). The `-o` file is opened at the first write, after the first VCF piece was
+read, so a run that fails on its inputs leaves an existing file as it was; it is created with mode
+0666 less the umask, and a regular file is emptied, unless it is the VCF, the FASTA or its `.fai`
+(of any type: a pipe or FIFO given as both the VCF and `-o` is refused too) or stderr's regular
+file (`error: output is an input <path>`). BGZF output is cut into blocks exactly as
+`bgzip` 1.24 cuts text, compressed by N threads with libdeflate at htslib's levels and written in
+order, so the file is byte for byte `bgzip -l L` of the plain output. The 28-byte end-of-file block
+is written only when the run ends with exit code 0: a `.vcf.gz` is complete exactly when the run
+succeeded (if closing a regular `-o` file fails after it, exit 2, the block is cut off again,
+through a duplicate of the file's descriptor kept from its open, unless that take-back fails
+itself, when the file may keep it; a pipe cannot take it back). A file size limit makes the write fail (`SIGXFSZ` is ignored). A run that stops (a `-c e` stop, a driver error, a failed write) leaves the blocks
+written so far, without it; after a failed write nothing more is written (`error: cannot write
+<path>`, exit 2). Compressed output can make a run run out of memory where the plain one does not.
 
 All the real bugs found in this project were in the driver, and three independent reviews of it
 found them. See `NOTES.md`, "Driver review".

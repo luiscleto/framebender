@@ -711,19 +711,22 @@ def Note.render(n: Note) -> String:
 #   strict: True for -c e (the default: a problem stops the run), False for -c w.
 #   w: the sorting window (-w, default 1000, at least 1).
 #   args: the command-line arguments that decide the output, recorded in the
-#     header: all those after "norm" except --threads and its value (which
-#     only size the program's work), so the output is the same for every N.
+#     header: all those after "norm" except --threads, -o and -O and their
+#     values (which only size the program's work, or choose how and where the
+#     text is written), so the text is the same for every N, every output
+#     file and every output type.
 type Opts is Data:
   Opts{strict: Bool, w: Nat, args: List<&2, String>}
 
 # A parsed command line: the options, the FASTA path, the VCF path. The thread
-# count (--threads) is not part of it (see Args.threads).
+# count (--threads) and the output options (-o, -O) are not part of it (see
+# Args.threads, Args.output).
 type Cfg is Data:
   Cfg{opts: Opts, ref: String, vcf: String}
 
 # The usage message, printed on a usage error (exit code 2).
 def usage() -> String:
-  "usage: framebender norm -f ref.fa [-c e|w] [-w N] [--threads N] in.vcf > out.vcf\n"
+  "usage: framebender norm -f ref.fa [-c e|w] [-w N] [--threads N] [-o FILE] [-O v|z|z0-9] in.vcf\n"
 
 # The largest thread count --threads accepts: a chosen limit, the most worker
 # threads Bend's runtime runs and the size of the driver's tables.
@@ -737,12 +740,104 @@ type Pend is Data:
   PCheck{}
   PWin{}
   PThr{}
+  POut{}
+  PType{}
 
-# The command line read so far; ok turns False on any error. thr: the thread
-# count; keep: the arguments recorded in the header (all but --threads and its
-# value), in order.
+# An output type, as -O names it: v, plain VCF (z False), or z, VCF in BGZF
+# (z True), with a compression level from 0 to 9 (level, on htslib's scale;
+# None when -O gives no digit).
+type OType is Data:
+  OType{z: Bool, level: Maybe<&2, Nat>}
+
+# What the command line says about how the program works and writes, never
+# about what it writes: the thread count (--threads N), the output path (-o),
+# the output type (-O: z True for BGZF) and the compression level (the digit
+# of -O z0 ... z9). For each, the last one given; a later -O without a digit
+# keeps the level, as in bcftools 1.24 (-Oz0 -Oz is level 0).
+type Drv is Data:
+  Drv{thr: Maybe<&2, Nat>, out: Maybe<&2, String>, z: Maybe<&2, Bool>, lvl: Maybe<&2, Nat>}
+
+def Drv.none() -> Drv:
+  Drv{None{}, None{}, None{}, None{}}
+
+def Drv.thr(d: Drv) -> Maybe<&2, Nat>:
+  match d:
+    case Drv{t, o, z, l}:
+      t
+
+def Drv.set_thr(+n: Nat, d: Drv) -> Drv:
+  match d:
+    case Drv{t, o, z, l}:
+      Drv{Some{n}, o, z, l}
+
+def Drv.set_out(+x: String, d: Drv) -> Drv:
+  match d:
+    case Drv{t, o, z, l}:
+      Drv{t, Some{x}, z, l}
+
+def Drv.keep_lvl(m: Maybe<&2, Nat>, l: Maybe<&2, Nat>) -> Maybe<&2, Nat>:
+  match m:
+    case Some{+x}:
+      Some{x}
+    case None{}:
+      l
+
+def Drv.set_typ(x: OType, d: Drv) -> Drv:
+  match x d:
+    case OType{y, m} Drv{t, o, z, l}:
+      Drv{t, o, Some{y}, Drv.keep_lvl(m, l)}
+
+# Two characters are equal ignoring ASCII case (b in lower case).
+def Args.ceq(a: Char, b: Char) -> Bool:
+  +x = Char.code(a)
+  +y = Char.code(b)
+  U32.is_eq(x, y) || (U32.is_ge(x, 65) && U32.is_le(x, 90) && U32.is_eq(U32.add(x, 32), y))
+
+def Args.eq_ci(a: String, b: String) -> Bool:
+  match a b:
+    case SNil{} SNil{}:
+      True{}
+    case SCon{x, s} SCon{y, t}:
+      Args.ceq(x, y) && Args.eq_ci(s, t)
+    case _ _:
+      False{}
+
+# The word x ends with e (in lower case), in any case: how bcftools 1.24
+# compares a file name's extension.
+def Args.ends_ci(+x: String, +e: String) -> Bool:
+  Nat.is_le(String.length(e), String.length(x)) && Args.eq_ci(String.drop(x, Nat.sub(String.length(x), String.length(e))), e)
+
+# A path that names a BCF file (.bcf): bcftools writes BCF there, whatever -O
+# says. framebender writes no BCF, so -o refuses it.
+def Args.bcf(+x: String) -> Bool:
+  Args.ends_ci(x, ".bcf")
+
+def Args.otype.lvl(ok: Bool, m: Maybe<&2, Nat>) -> Maybe<&2, OType>:
+  match ok m:
+    case True{} Some{+d}:
+      Some{OType{True{}, Some{d}}}
+    case _ _:
+      None{}
+
+# The value of -O: v, z, or z and one digit (the level). BCF (b, u) is not
+# written: a usage error.
+def Args.otype(+x: String) -> Maybe<&2, OType>:
+  Bool.pick(Maybe<&2, OType>, String.eq(x, "v"), Some{OType{False{}, None{}}},
+  Bool.pick(Maybe<&2, OType>, String.eq(x, "z"), Some{OType{True{}, None{}}},
+  Args.otype.lvl(String.starts_with(x, "z") && Nat.is_eq(String.length(x), 2n), Pos.read(String.drop(x, 1n)))))
+
+# The command line read so far; ok turns False on any error. drv: the thread
+# count and the output options; keep: the arguments recorded in the header
+# (all but --threads, -o, -O and their values), in order.
 type ArgSt is Data:
-  ArgSt{pend: Pend, strict: Bool, w: Maybe<&2, Nat>, thr: Maybe<&2, Nat>, ref: Maybe<&2, String>, vcf: Maybe<&2, String>, ok: Bool, keep: List<&2, String>}
+  ArgSt{pend: Pend, strict: Bool, w: Maybe<&2, Nat>, drv: Drv, ref: Maybe<&2, String>, vcf: Maybe<&2, String>, ok: Bool, keep: List<&2, String>}
+
+def Args.typ(m: Maybe<&2, OType>, st: ArgSt) -> ArgSt:
+  match m st:
+    case Some{y} ArgSt{p, s, w, t, r, v, ok, k}:
+      ArgSt{PNone{}, s, w, Drv.set_typ(y, t), r, v, ok, k}
+    case None{} ArgSt{p, s, w, t, r, v, ok, k}:
+      ArgSt{PNone{}, s, w, t, r, v, False{}, k}
 
 def Args.word(+x: String, st: ArgSt) -> ArgSt:
   match st:
@@ -753,7 +848,10 @@ def Args.word(+x: String, st: ArgSt) -> ArgSt:
       Bool.pick(ArgSt, String.eq(x, "-c"), ArgSt{PCheck{}, s, w, t, r, v, ok, kx},
       Bool.pick(ArgSt, String.eq(x, "-w"), ArgSt{PWin{}, s, w, t, r, v, ok, kx},
       Bool.pick(ArgSt, String.eq(x, "--threads"), ArgSt{PThr{}, s, w, t, r, v, ok, k},
-      ArgSt{PNone{}, s, w, t, r, Some{x}, ok && Bool.not(opt) && Maybe.is_none(&2, String, v), kx}))))
+      Bool.pick(ArgSt, String.eq(x, "-o"), ArgSt{POut{}, s, w, t, r, v, ok, k},
+      Bool.pick(ArgSt, String.eq(x, "-O"), ArgSt{PType{}, s, w, t, r, v, ok, k},
+      Bool.pick(ArgSt, String.starts_with(x, "-O"), Args.typ(Args.otype(String.drop(x, 2n)), ArgSt{PType{}, s, w, t, r, v, ok, k}),
+      ArgSt{PNone{}, s, w, t, r, Some{x}, ok && Bool.not(opt) && Maybe.is_none(&2, String, v), kx})))))))
 
 def Args.win(m: Maybe<&2, Nat>, st: ArgSt) -> ArgSt:
   match m st:
@@ -765,12 +863,12 @@ def Args.win(m: Maybe<&2, Nat>, st: ArgSt) -> ArgSt:
 def Args.thr(m: Maybe<&2, Nat>, st: ArgSt) -> ArgSt:
   match m st:
     case Some{+n} ArgSt{p, s, w, t, r, v, ok, k}:
-      ArgSt{PNone{}, s, w, Some{n}, r, v, ok && Nat.is_le(1n, n) && Nat.is_le(n, Args.max_threads()), k}
+      ArgSt{PNone{}, s, w, Drv.set_thr(n, t), r, v, ok && Nat.is_le(1n, n) && Nat.is_le(n, Args.max_threads()), k}
     case None{} ArgSt{p, s, w, t, r, v, ok, k}:
       ArgSt{PNone{}, s, w, t, r, v, False{}, k}
 
 # The state after one more argument x. Every argument is recorded (keep)
-# except --threads and its value.
+# except --threads, -o and -O (glued -OT too) and their values.
 def Args.step(st: ArgSt, +x: String) -> ArgSt:
   match st:
     case ArgSt{PNone{}, s, w, t, r, v, ok, k}:
@@ -783,6 +881,10 @@ def Args.step(st: ArgSt, +x: String) -> ArgSt:
       Args.win(Pos.read(x), ArgSt{PWin{}, s, w, t, r, v, ok, List.append(&2, String, k, [x])})
     case ArgSt{PThr{}, s, w, t, r, v, ok, k}:
       Args.thr(Pos.read(x), ArgSt{PThr{}, s, w, t, r, v, ok, k})
+    case ArgSt{POut{}, s, w, t, r, v, ok, k}:
+      ArgSt{PNone{}, s, w, Drv.set_out(x, t), r, v, ok && Bool.not(Args.bcf(x)), k}
+    case ArgSt{PType{}, s, w, t, r, v, ok, k}:
+      Args.typ(Args.otype(x), ArgSt{PType{}, s, w, t, r, v, ok, k})
 
 def Args.go(xs: List<&2, String>, st: ArgSt) -> ArgSt:
   match xs:
@@ -800,7 +902,7 @@ def Args.done(st: ArgSt) -> Maybe<&2, Cfg>:
 
 # The state before the first argument after "norm".
 def Args.init() -> ArgSt:
-  ArgSt{PNone{}, True{}, None{}, None{}, None{}, None{}, True{}, Nil{}}
+  ArgSt{PNone{}, True{}, None{}, Drv.none(), None{}, None{}, True{}, Nil{}}
 
 def Args.done.if(ok: Bool, rest: List<&2, String>) -> Maybe<&2, Cfg>:
   match ok:
@@ -811,9 +913,10 @@ def Args.done.if(ok: Bool, rest: List<&2, String>) -> Maybe<&2, Cfg>:
 
 # The command line after the program name: "norm", then the options -f FASTA
 # (required), -c e or -c w (default e), -w N (N at least 1, default 1000),
-# --threads N (N from 1 to Args.max_threads()) in any order, and one VCF path.
-# None for anything else (a usage error). For -c, -w and --threads every one
-# given must be valid, and the last one counts.
+# --threads N (N from 1 to Args.max_threads()), -o PATH (any word not ending
+# in .bcf, in any case), -O T or -OT (T: v, z, z0 to z9) in any order, and one
+# VCF path. None for anything else (a usage error). For -c, -w, --threads, -o
+# and -O every one given must be valid, and the last one counts.
 def Args.parse(argv: List<&2, String>) -> Maybe<&2, Cfg>:
   match argv:
     case Nil{}:
@@ -837,7 +940,7 @@ def Args.expecting(pre: List<&2, String>) -> Bool:
 def Args.thr.done(st: ArgSt) -> Maybe<&2, Nat>:
   match st:
     case ArgSt{PNone{}, s, w, t, Some{r}, Some{v}, True{}, k}:
-      t
+      Drv.thr(t)
     case _:
       None{}
 
@@ -858,3 +961,103 @@ def Args.threads(argv: List<&2, String>) -> Maybe<&2, Nat>:
       None{}
     case +cmd <> +rest:
       Args.threads.if(String.eq(cmd, "norm"), rest)
+
+# ---------------------------------------------------------------------------
+# Output options (they choose how and where the text is written; law output)
+# ---------------------------------------------------------------------------
+
+def Args.out_opt.two(+a: String, +b: String) -> Bool:
+  (String.eq(a, "-o") && Bool.not(Args.bcf(b))) || (String.eq(a, "-O") && Maybe.is_some(&2, OType, Args.otype(b)))
+
+def Args.out_opt.more(+a: String, t: List<&2, String>) -> Bool:
+  match t:
+    case Nil{}:
+      String.starts_with(a, "-O") && Maybe.is_some(&2, OType, Args.otype(String.drop(a, 2n)))
+    case +b <> u:
+      match u:
+        case Nil{}:
+          Args.out_opt.two(a, b)
+        case _:
+          False{}
+
+# One output option, as its words: -o PATH (PATH not ending in .bcf), -O T or
+# the glued -OT (T a type Args.otype accepts).
+def Args.out_opt(o: List<&2, String>) -> Bool:
+  match o:
+    case Nil{}:
+      False{}
+    case +a <> t:
+      Args.out_opt.more(a, t)
+
+# The default compression level of -O z (htslib's and bgzip's default).
+def Args.level() -> Nat:
+  6n
+
+# Where and how the text is written.
+#   file: the path to write, None for stdout (no -o, or -o -);
+#   z: BGZF (True) or plain text; level: the compression level (0 to 9),
+#   unused when z is False.
+type Sink is Data:
+  Sink{file: Maybe<&2, String>, z: Bool, level: Nat}
+
+def Args.file(o: Maybe<&2, String>) -> Maybe<&2, String>:
+  match o:
+    case None{}:
+      None{}
+    case Some{+p}:
+      Bool.pick(Maybe<&2, String>, String.eq(p, "-"), None{}, Some{p})
+
+# The type a path's extension names, as bcftools 1.24 reads it: .vcf plain,
+# .vcf.gz and .vcf.bgz BGZF (in any case); None for any other path.
+def Args.ext(+p: String) -> Maybe<&2, Bool>:
+  Bool.pick(Maybe<&2, Bool>, Args.ends_ci(p, ".vcf"), Some{False{}},
+  Bool.pick(Maybe<&2, Bool>, Args.ends_ci(p, ".vcf.gz") || Args.ends_ci(p, ".vcf.bgz"), Some{True{}}, None{}))
+
+def Args.ext.of(o: Maybe<&2, String>) -> Maybe<&2, Bool>:
+  match o:
+    case None{}:
+      None{}
+    case Some{+p}:
+      Args.ext(p)
+
+def Args.z.of(e: Maybe<&2, Bool>, y: Maybe<&2, Bool>) -> Bool:
+  match e y:
+    case Some{b} _:
+      b
+    case None{} Some{z}:
+      z
+    case None{} None{}:
+      False{}
+
+# The output: to the -o path (stdout without one, or for -o -); BGZF or plain
+# by the path's extension if it names one (as bcftools 1.24, whatever -O
+# says), else by the last -O (plain without one); the last level given, else
+# Args.level().
+def Args.sink(d: Drv) -> Sink:
+  match d:
+    case Drv{t, +o, z, l}:
+      Sink{Args.file(o), Args.z.of(Args.ext.of(o), z), Maybe.default(&2, Nat, l, Args.level())}
+
+def Args.sink.done(st: ArgSt) -> Maybe<&2, Sink>:
+  match st:
+    case ArgSt{PNone{}, s, w, t, Some{r}, Some{v}, True{}, k}:
+      Some{Args.sink(t)}
+    case _:
+      None{}
+
+def Args.output.if(ok: Bool, rest: List<&2, String>) -> Maybe<&2, Sink>:
+  match ok:
+    case True{}:
+      Args.sink.done(Args.go(rest, Args.init()))
+    case False{}:
+      None{}
+
+# The output of a command line Args.parse accepts; None for every command
+# line it refuses. The driver writes the text there; law output
+# (MACHINE.bend) says the output options change nothing in the text.
+def Args.output(argv: List<&2, String>) -> Maybe<&2, Sink>:
+  match argv:
+    case Nil{}:
+      None{}
+    case +cmd <> +rest:
+      Args.output.if(String.eq(cmd, "norm"), rest)

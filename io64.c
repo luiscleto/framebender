@@ -7,7 +7,8 @@
 // block (a BGZF VCF is decompressed; the next piece is read ahead).
 // Io.fa_start, Io.fa_wait: read a FASTA range at a 64-bit offset and pack
 // its letters, on a helper thread (a batch's reads at once).
-// Io.write_block: write the first n bytes of a packed block to a descriptor.
+// Io.out_set, Io.out_write, Io.out_close: the output (stdout or the -o file,
+// plain or BGZF), as B.Args.output says.
 //
 // A packed block is an Array<U32> of 2^d words, byte i in byte i & 3 of word
 // i >> 2 (little-endian). The blocks these effects make are exactly
@@ -106,6 +107,7 @@ static void io64_pad(Env e, u32 d, u64 loc, uint64_t n) {
 #define IO64_NO_DEFLATE 1003
 
 #include <sys/stat.h>
+#include <signal.h>
 #ifdef FB_LIBDEFLATE
 #include <libdeflate.h>
 #endif
@@ -148,6 +150,13 @@ typedef struct {
 } Io64Ahead;
 
 static Io64In io64_in = {.fd = -1};
+
+// The files read so far through Io.read_block (the .fai, the VCF), by device
+// and inode, from fstat of their open descriptors: the -o file must not be
+// one of them (Io.out_write).
+#define IO64_SEEN_MAX 8
+static struct { dev_t dev; ino_t ino; } io64_seen[IO64_SEEN_MAX];
+static int io64_seen_n = 0;
 static Io64Ahead io64_ahead = {.mu = PTHREAD_MUTEX_INITIALIZER, .cv = PTHREAD_COND_INITIALIZER};
 
 #ifdef CID(Io.threads)
@@ -433,6 +442,11 @@ Term io_read_block_run(Env e, Term* f, IoWork* w) {
       return io_tup(e, io_hand(fd), io_fail(e, EBUSY, NULL));
     }
     s->fd = fd; s->dev = st.st_dev; s->ino = st.st_ino; s->kind = 0;
+    if (io64_seen_n < IO64_SEEN_MAX) {
+      io64_seen[io64_seen_n].dev = st.st_dev;
+      io64_seen[io64_seen_n].ino = st.st_ino;
+      io64_seen_n += 1;
+    }
     s->hn = s->hat = s->cn = s->cat = 0;
   }
   if (io64_ahead.on) {
@@ -689,32 +703,490 @@ static void __attribute__((constructor)) io_fa_start_use(void) {
 }
 #endif
 
-#ifdef CID(Io.write_block)
-// Io.write_block(fd, n, block): write the block's first n bytes (n at most
-// its size) to the inherited descriptor fd, all of them; frees the block.
-// Answers 0, or the errno of a failed write (EIO for a write of 0 bytes);
-// EINVAL, writing nothing, if the block is not a packed buffer of at most
-// 2^31 bytes (depth 29).
-Term io_write_block_run(Env e, Term* f, IoWork* w) {
-  int fd = (int)(u32)f[0];
-  uint64_t n = (u32)f[1];
-  Term a = f[2];
+#ifdef CID(Io.out_set)
+// The output: where and how the machine's bytes are written (B.Args.output's
+// Sink; law output). Io.out_set records it before the loop; the -o file is
+// opened at the first Io.out_write (or at Io.out_close for an empty output),
+// after the first VCF piece was read, so a run that fails on its inputs
+// leaves an existing file as it was. Opening: O_WRONLY | O_CREAT, mode 0666
+// less the umask; the file, of any type, is compared (device and inode) with
+// the files read so far (the .fai and the VCF: io64_seen) and the open FASTA,
+// and, when stderr is a regular file, with stderr; it is refused if
+// it is one of them (IO64_OUT_INPUT, before anything is changed). A regular
+// file is then emptied (ftruncate); another (a FIFO, /dev/stdout) is not.
+//
+// Plain: each buffer is written at once, all of its bytes (short writes and
+// EINTR retried). BGZF: the text is cut into blocks as bgzip 1.24 cuts text
+// (htslib's bgzip.c, text mode): windows of IO64_BS bytes, each the bytes
+// carried from the last cut and the next ones; while in the header (lines
+// that start with '#' or '@' at the start of the text) a window is cut after
+// the header's last line, else after its last LF, or kept whole if it has
+// none; at the end, the last short window is cut the same way and the bytes
+// after its cut are one more block. Each block is deflated (libdeflate, the
+// level mapped as htslib maps it; level 0: a stored block as htslib writes
+// it) into a gzip member with the BC extra field, by io64_out.nth compressor
+// threads, and one writer thread writes the blocks in order. The compressed
+// bytes depend only on the text and the level: they are those of bgzip -l L
+// on the same text.
+//
+// Memory: a window inside a buffer is compressed where it lies; the windows
+// that span two buffers are copied, and the bytes carried past a buffer's end
+// are copied out (into win) before the buffer is freed. Io.out_write returns
+// once every block of its buffer is written, and frees the buffer: the
+// compressors work in parallel on one buffer at a time. (Keeping the buffer
+// and compressing it while the machine computes its next step was 3% faster,
+// but made Bend's heap grow by up to 250 MB on files of large records:
+// notes/compress.md.) At most io64_out.limit blocks are taken by a
+// compressor and not yet written (2 x the compressor threads, at least 4).
+//
+// Errors: the first one is kept (err): an errno of a write, open, truncate or
+// close (cannot write), ENOMEM, or IO64_OUT_INPUT. After it nothing more is
+// written to the output; Io.out_write and Io.out_close answer it. The
+// end-of-file block is written by Io.out_close only for exit code 0 and no
+// error: a BGZF file is complete exactly when the run succeeded (if closing a
+// regular -o file then fails, the block is cut off again, through a duplicate
+// of its descriptor kept from the open, unless that take-back fails itself:
+// its truncate, or the duplicate's own close; a pipe cannot take it back). A run that stops otherwise (a driver error, exit 2; Bend's
+// runtime) exits with the threads running: the blocks written so far stay,
+// without the end-of-file block (the bytes carried for the next window are
+// not written: the file is a prefix of the text).
+#define IO64_OUT_INPUT 2001
+#define IO64_OUT_NOLIB 2002
+#define IO64_BS 65280
+#define IO64_BMAX 65536
+#define IO64_JOBS 65536
+
+// A block to compress: the text (src, inside the buffer being written, or
+// own, a copy), its length, and once compressed the BGZF block (out, outn).
+typedef struct {
+  const unsigned char* src; unsigned char* own; size_t n;
+  unsigned char* out; size_t outn; int done;
+} Io64Job;
+
+static struct {
+  int file, z, level, opened, started; unsigned nth; char* path; int fd;
+  dev_t fa_dev; ino_t fa_ino; int fa_ok;
+  u32 err;
+  // The text not cut yet: stream bytes [ws, ps) in win, the stream offset
+  // of the next window (cs), bgzip's header flags.
+  // wend: the end of the last full window (no byte after it: the carried
+  // bytes are written at the end as one block, as bgzip's last bgzf_write).
+  unsigned char* win; uint64_t ws, cs, ps, wend; int in_header, long_line, reg;
+  // A duplicate of a regular -o file's descriptor, kept from its open until
+  // the close (for the take-back: -1 when there is none).
+  int dupfd;
+  // The jobs: appended up to tail, taken by a compressor up to take,
+  // written up to wr (wr <= take <= tail, in a ring of IO64_JOBS).
+  Io64Job* job; uint64_t tail, take, wr, limit;
+  pthread_t th[128], wth; unsigned nrun; int wrun, stop;
+  pthread_mutex_t mu; pthread_cond_t cv;
+} io64_out = {.fd = -1, .dupfd = -1, .mu = PTHREAD_MUTEX_INITIALIZER, .cv = PTHREAD_COND_INITIALIZER};
+
+// All n bytes to fd; 0, or the errno (EIO for a write of 0 bytes).
+static u32 io64_wall(int fd, const unsigned char* p, size_t n) {
+  for (size_t at = 0; at < n;) {
+    ssize_t k = write(fd, p + at, n - at > INT32_MAX ? INT32_MAX : n - at);
+    if (k < 0 && errno == EINTR) continue;
+    if (k <= 0) return k == 0 ? EIO : (u32)errno;
+    at += (size_t)k;
+  }
+  return 0;
+}
+
+#ifdef FB_LIBDEFLATE
+static void io64_put16(unsigned char* p, unsigned v) { p[0] = v & 255; p[1] = (v >> 8) & 255; }
+static void io64_put32(unsigned char* p, uint32_t v) { for (int i = 0; i < 4; i += 1) p[i] = (v >> (8 * i)) & 255; }
+
+// One BGZF block of the n <= IO64_BS bytes at s into d (IO64_BMAX bytes);
+// its length. c is NULL for level 0 (a stored block, as htslib writes it).
+static size_t io64_bgzf_block(struct libdeflate_compressor* c, const unsigned char* s, size_t n, unsigned char* d) {
+  static const unsigned char h[16] = {31, 139, 8, 4, 0, 0, 0, 0, 0, 255, 6, 0, 66, 67, 2, 0};
+  size_t k = 0;
+  if (c != NULL) k = libdeflate_deflate_compress(c, s, n, d + 18, IO64_BMAX - 26);
+  if (k == 0) {
+    // Level 0, or (never for IO64_BS bytes) a deflate that does not fit.
+    d[18] = 1;
+    io64_put16(d + 19, (unsigned)n);
+    io64_put16(d + 21, (unsigned)~n & 0xffff);
+    memcpy(d + 23, s, n);
+    k = n + 5;
+  }
+  memcpy(d, h, 16);
+  io64_put16(d + 16, (unsigned)(k + 25));
+  io64_put32(d + 18 + k, libdeflate_crc32(0, s, n));
+  io64_put32(d + 22 + k, (uint32_t)n);
+  return k + 26;
+}
+
+static void* io64_zrun(void* x) {
+  struct libdeflate_compressor* c = x;
+  pthread_mutex_lock(&io64_out.mu);
+  for (;;) {
+    while (!io64_out.stop && !(io64_out.take < io64_out.tail && io64_out.take - io64_out.wr < io64_out.limit)) {
+      pthread_cond_wait(&io64_out.cv, &io64_out.mu);
+    }
+    if (io64_out.stop) break;
+    Io64Job* j = &io64_out.job[io64_out.take % IO64_JOBS];
+    io64_out.take += 1;
+    pthread_mutex_unlock(&io64_out.mu);
+    unsigned char* out = malloc(IO64_BMAX);
+    size_t on = out != NULL ? io64_bgzf_block(c, j->src != NULL ? j->src : j->own, j->n, out) : 0;
+    pthread_mutex_lock(&io64_out.mu);
+    j->out = out;
+    j->outn = on;
+    j->done = 1;
+    pthread_cond_broadcast(&io64_out.cv);
+  }
+  pthread_mutex_unlock(&io64_out.mu);
+  if (c != NULL) libdeflate_free_compressor(c);
+  return NULL;
+}
+
+// The writer: the blocks in order; after the first error it writes nothing
+// more (and still takes the blocks, so that no one waits).
+static void* io64_wrun(void* x) {
+  pthread_mutex_lock(&io64_out.mu);
+  for (;;) {
+    Io64Job* j = &io64_out.job[io64_out.wr % IO64_JOBS];
+    while (!io64_out.stop && !(io64_out.wr < io64_out.take && j->done)) pthread_cond_wait(&io64_out.cv, &io64_out.mu);
+    if (!(io64_out.wr < io64_out.take && j->done)) break;
+    int skip = io64_out.err != 0;
+    pthread_mutex_unlock(&io64_out.mu);
+    u32 e = 0;
+    if (j->out == NULL) e = ENOMEM;
+    else if (!skip) e = io64_wall(io64_out.fd, j->out, j->outn);
+    free(j->out);
+    free(j->own);
+    pthread_mutex_lock(&io64_out.mu);
+    if (e != 0 && io64_out.err == 0) io64_out.err = e;
+    *j = (Io64Job){0};
+    io64_out.wr += 1;
+    pthread_cond_broadcast(&io64_out.cv);
+  }
+  pthread_mutex_unlock(&io64_out.mu);
+  return NULL;
+}
+
+// Start the compressors and the writer; 0 or ENOMEM.
+static u32 io64_out_start(void) {
+  static const int lvl[10] = {0, 1, 2, 3, 5, 6, 7, 8, 10, 12};
+  io64_out.win = malloc(IO64_BS);
+  io64_out.job = calloc(IO64_JOBS, sizeof(Io64Job));
+  if (io64_out.win == NULL || io64_out.job == NULL) return ENOMEM;
+  io64_out.in_header = 1;
+  io64_out.limit = 2 * (uint64_t)io64_out.nth < 4 ? 4 : 2 * (uint64_t)io64_out.nth;
+  for (unsigned i = 0; i < io64_out.nth; i += 1) {
+    struct libdeflate_compressor* c = NULL;
+    if (io64_out.level != 0) {
+      c = libdeflate_alloc_compressor(lvl[io64_out.level]);
+      if (c == NULL) return ENOMEM;
+    }
+    if (pthread_create(&io64_out.th[i], NULL, io64_zrun, c) != 0) {
+      if (c != NULL) libdeflate_free_compressor(c);
+      break;
+    }
+    io64_out.nrun += 1;
+  }
+  if (io64_out.nrun == 0) return ENOMEM;
+  if (pthread_create(&io64_out.wth, NULL, io64_wrun, NULL) != 0) return ENOMEM;
+  io64_out.wrun = 1;
+  io64_out.started = 1;
+  return 0;
+}
+
+// Queue a block: the n bytes at src (kept by the caller until written) or,
+// with src NULL, a copy of the n bytes at cp.
+static u32 io64_out_job(const unsigned char* src, const unsigned char* cp, size_t n) {
+  unsigned char* own = NULL;
+  if (src == NULL) {
+    own = malloc(n);
+    if (own == NULL) return ENOMEM;
+    memcpy(own, cp, n);
+  }
+  pthread_mutex_lock(&io64_out.mu);
+  while (io64_out.tail - io64_out.wr >= IO64_JOBS) pthread_cond_wait(&io64_out.cv, &io64_out.mu);
+  io64_out.job[io64_out.tail % IO64_JOBS] = (Io64Job){src, own, n, NULL, 0, 0};
+  io64_out.tail += 1;
+  pthread_cond_broadcast(&io64_out.cv);
+  pthread_mutex_unlock(&io64_out.mu);
+  return 0;
+}
+
+// Wait until every queued block is written.
+static void io64_out_drain(void) {
+  pthread_mutex_lock(&io64_out.mu);
+  while (io64_out.wr < io64_out.tail) pthread_cond_wait(&io64_out.cv, &io64_out.mu);
+  pthread_mutex_unlock(&io64_out.mu);
+}
+
+// Where bgzip 1.24 cuts the window w of c2 bytes (text mode): the length of
+// its block.
+static size_t io64_cut(const unsigned char* w, size_t c2) {
+  if (io64_out.in_header && (io64_out.long_line || w[0] == '@' || w[0] == '#')) {
+    size_t last = 0, n = 0;
+    while (n < c2) {
+      if (w[n++] != '\n') continue;
+      last = n;
+      if (n < c2 && !(w[n] == '@' || w[n] == '#')) {
+        io64_out.in_header = 0;
+        break;
+      }
+    }
+    if (last == 0) {
+      io64_out.long_line = 1;
+      return c2;
+    }
+    io64_out.long_line = 0;
+    return last;
+  }
+  for (size_t n = c2; n > 0; n -= 1) {
+    if (w[n - 1] == '\n') return n;
+  }
+  return c2;
+}
+
+// The full windows of the text so far: the bytes [ws, ps) in win, then the
+// n bytes at p (stream offsets ps on); queues their blocks and carries the
+// rest into win. The blocks inside p point into it.
+static u32 io64_out_text(const unsigned char* p, uint64_t n) {
+  u32 r = 0;
+  while (r == 0 && io64_out.ps + n - io64_out.cs >= IO64_BS) {
+    uint64_t cs = io64_out.cs;
+    size_t c;
+    if (cs < io64_out.ps) {
+      // A window across the carried bytes and p: copied.
+      unsigned char* w = malloc(IO64_BS);
+      if (w == NULL) return ENOMEM;
+      size_t l = (size_t)(io64_out.ps - cs);
+      memcpy(w, io64_out.win + (cs - io64_out.ws), l);
+      memcpy(w + l, p, IO64_BS - l);
+      c = io64_cut(w, IO64_BS);
+      r = io64_out_job(NULL, w, c);
+      free(w);
+    } else {
+      const unsigned char* w = p + (cs - io64_out.ps);
+      c = io64_cut(w, IO64_BS);
+      r = io64_out_job(w, NULL, c);
+    }
+    io64_out.cs = cs + c;
+    io64_out.wend = cs + IO64_BS;
+  }
+  if (r != 0) return r;
+  // Carry [cs, ps + n) into win (fewer than IO64_BS bytes).
+  uint64_t cs = io64_out.cs;
+  if (cs < io64_out.ps) {
+    size_t l = (size_t)(io64_out.ps - cs);
+    memmove(io64_out.win, io64_out.win + (cs - io64_out.ws), l);
+    memcpy(io64_out.win + l, p, (size_t)n);
+  } else {
+    memcpy(io64_out.win, p + (cs - io64_out.ps), (size_t)(io64_out.ps + n - cs));
+  }
+  io64_out.ws = cs;
+  io64_out.ps += n;
+  return 0;
+}
+
+// The end of the text, as bgzip ends it: the last short window, cut, and the
+// bytes after its cut as one more block; or, when no byte came after the last
+// full window (bgzip's next read gives nothing), the bytes carried from it as
+// one block, uncut.
+static u32 io64_out_tail(void) {
+  size_t l = (size_t)(io64_out.ps - io64_out.cs);
+  if (l == 0) return 0;
+  const unsigned char* w = io64_out.win + (io64_out.cs - io64_out.ws);
+  size_t c = io64_out.ps == io64_out.wend ? l : io64_cut(w, l);
+  u32 r = io64_out_job(NULL, w, c);
+  if (r == 0 && c < l) r = io64_out_job(NULL, w + c, l - c);
+  io64_out.cs = io64_out.ps;
+  return r;
+}
+
+// Stop the compressors and the writer (every block written first).
+static void io64_out_stop(void) {
+  if (!io64_out.started) return;
+  io64_out_drain();
+  pthread_mutex_lock(&io64_out.mu);
+  io64_out.stop = 1;
+  pthread_cond_broadcast(&io64_out.cv);
+  pthread_mutex_unlock(&io64_out.mu);
+  for (unsigned i = 0; i < io64_out.nrun; i += 1) pthread_join(io64_out.th[i], NULL);
+  if (io64_out.wrun) pthread_join(io64_out.wth, NULL);
+  io64_out.started = 0;
+}
+#endif
+
+static u32 io64_out_get_err(void) {
+  pthread_mutex_lock(&io64_out.mu);
+  u32 e = io64_out.err;
+  pthread_mutex_unlock(&io64_out.mu);
+  return e;
+}
+
+static void io64_out_err(u32 e) {
+  pthread_mutex_lock(&io64_out.mu);
+  if (io64_out.err == 0) io64_out.err = e;
+  pthread_mutex_unlock(&io64_out.mu);
+}
+
+static int io64_same(const struct stat* a, dev_t dev, ino_t ino) {
+  return a->st_dev == dev && a->st_ino == ino;
+}
+
+// Open the output (once): stdout, or the -o file; 0 or the error. SIGXFSZ is
+// ignored from here on, so that a write past a file size limit fails (EFBIG:
+// cannot write) instead of killing the run.
+static u32 io64_out_open(void) {
+  if (io64_out.opened) return 0;
+  io64_out.opened = 1;
+  signal(SIGXFSZ, SIG_IGN);
+  if (!io64_out.file) {
+    io64_out.fd = 1;
+  } else {
+    int fd = open(io64_out.path, O_WRONLY | O_CREAT | O_CLOEXEC, 0666);
+    if (fd < 0) return (u32)errno;
+    struct stat st, er;
+    if (fstat(fd, &st) != 0) {
+      u32 e = (u32)errno;
+      close(fd);
+      return e;
+    }
+    // An input of any type (a FIFO or a pipe too: writing into it would feed
+    // the VCF its own output, and keep its reader from ever seeing the end);
+    // stderr when it is a regular file (emptying it would wipe the messages;
+    // output and messages on one pipe or terminal is what the user asked for,
+    // as with -o /dev/stdout 2>&1).
+    int same = io64_out.fa_ok && io64_same(&st, io64_out.fa_dev, io64_out.fa_ino);
+    for (int i = 0; i < io64_seen_n; i += 1) same = same || io64_same(&st, io64_seen[i].dev, io64_seen[i].ino);
+    if (fstat(2, &er) == 0 && S_ISREG(er.st_mode)) same = same || io64_same(&st, er.st_dev, er.st_ino);
+    if (same) {
+      close(fd);
+      return IO64_OUT_INPUT;
+    }
+    io64_out.reg = S_ISREG(st.st_mode);
+    if (io64_out.reg) {
+      // The duplicate for the take-back (Io.out_close), then the file
+      // emptied.
+      io64_out.dupfd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+      if (io64_out.dupfd < 0 || ftruncate(fd, 0) != 0) {
+        u32 e = (u32)errno;
+        if (io64_out.dupfd >= 0) close(io64_out.dupfd);
+        io64_out.dupfd = -1;
+        close(fd);
+        return e;
+      }
+    }
+    io64_out.fd = fd;
+  }
+#ifdef FB_LIBDEFLATE
+  if (io64_out.z) return io64_out_start();
+#endif
+  return 0;
+}
+
+// Io.out_set(fa, path, file, z, level, n): the output (the -o path's bytes
+// when file is 1, else stdout), BGZF when z is 1, at level (0 to 9, htslib's
+// scale), with n compressor threads (0: 16; at most 128); fa is the open
+// FASTA. Answers (fa, 0), or (fa, IO64_OUT_NOLIB) for BGZF in a build
+// without libdeflate.
+Term io_out_set_run(Env e, Term* f, IoWork* w) {
+  int fd = io_hand_v(f[0]);
+  uint64_t len;
+  io64_out.path = io_cbuf(e, f[1], &len, CID(Con));
+  io64_out.file = (u32)f[2] == 1;
+  io64_out.z = (u32)f[3] == 1;
+  u32 lv = (u32)f[4], n = (u32)f[5];
+  io64_out.level = lv > 9 ? 9 : (int)lv;
+  io64_out.nth = n == 0 ? 16 : n > 128 ? 128 : n;
+  struct stat st;
+  if (fstat(fd, &st) == 0) {
+    io64_out.fa_ok = 1;
+    io64_out.fa_dev = st.st_dev;
+    io64_out.fa_ino = st.st_ino;
+  }
+  u32 r = 0;
+#ifndef FB_LIBDEFLATE
+  if (io64_out.z) r = IO64_OUT_NOLIB;
+#endif
+  if (io64_out.path == NULL || memchr(io64_out.path, 0, len) != NULL) r = EINVAL;
+  return io_tup(e, io_hand(fd), (Term)r);
+}
+
+// Io.out_write(n, block): the block's first n bytes to the output (n at most
+// its size; the block is freed, now or at the next call). Answers 0 or the
+// first error; EINVAL, writing nothing, if the block is not a packed buffer
+// of at most 2^31 bytes (depth 29).
+Term io_out_write_run(Env e, Term* f, IoWork* w) {
+  uint64_t n = (u32)f[0];
+  Term a = f[1];
   if (term_tag(a) != TAG_BUF || blk_cls(a) > 29) return (Term)EINVAL;
   uint64_t cap = (uint64_t)4 << blk_cls(a);
   if (n > cap) n = cap;
-  const char* p = (const char*)(e.mem + blk_loc(e.mem, a));
-  u32 code = 0;
-  ssize_t k = 0;
-  for (uint64_t at = 0; at < n; at += (uint64_t)k) {
-    k = write(fd, p + at, n - at > INT32_MAX ? INT32_MAX : n - at);
-    if (k < 0 && errno == EINTR) { k = 0; continue; }
-    if (k <= 0) { code = k == 0 ? EIO : (u32)errno; break; }
-  }
+  const unsigned char* p = (const unsigned char*)(e.mem + blk_loc(e.mem, a));
+  u32 r = io64_out_get_err();
+  if (r == 0) r = io64_out_open();
+#ifdef FB_LIBDEFLATE
+  if (r == 0 && io64_out.z) {
+    // This buffer's windows, compressed and written before it is freed.
+    r = io64_out_text(p, n);
+    if (r != 0) io64_out_err(r);
+    io64_out_drain();
+    r = io64_out_get_err();
+  } else
+#endif
+  if (r == 0) r = io64_wall(io64_out.fd, p, (size_t)n);
+  if (r != 0) io64_out_err(r);
   blk_free(e, a);
-  return (Term)code;
+  return (Term)r;
 }
-static void __attribute__((constructor)) io_write_block_use(void) {
-  io_eff(CID(Io.write_block), io_write_block_run);
+
+// Io.out_close(c): the end of the output, for a run ending with exit code c:
+// opens it if nothing was written (an empty output), writes the last blocks,
+// and for BGZF the end-of-file block only when c is 0 and nothing failed;
+// closes the -o file. Answers 0 or the first error.
+Term io_out_close_run(Env e, Term* f, IoWork* w) {
+  u32 c = (u32)f[0];
+  off_t at = -1;
+  u32 r = io64_out_get_err();
+  if (r == 0) r = io64_out_open();
+#ifdef FB_LIBDEFLATE
+  if (io64_out.started) {
+    if (r == 0) r = io64_out_tail();
+    if (r != 0) io64_out_err(r);
+    io64_out_stop();
+    r = io64_out_get_err();
+    static const unsigned char eof[28] = {31, 139, 8, 4, 0, 0, 0, 0, 0, 255, 6, 0, 66, 67, 2, 0, 27, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    if (r == 0 && c == 0) {
+      at = io64_out.file && io64_out.reg ? lseek(io64_out.fd, 0, SEEK_CUR) : -1;
+      r = io64_wall(io64_out.fd, eof, 28);
+    }
+  }
+#endif
+  if (io64_out.file && io64_out.fd >= 0) {
+    if (close(io64_out.fd) != 0 && r == 0) {
+      r = (u32)errno;
+      // The end-of-file block written, then close failed: take the block
+      // back through the duplicate (the same open file, whatever its path
+      // names now), so that the file does not look complete. A regular file
+      // always has the duplicate; one written to a pipe or FIFO cannot be
+      // taken back. If this truncate fails, the error stays reported and
+      // the file keeps the block.
+      if (at >= 0 && io64_out.dupfd >= 0 && ftruncate(io64_out.dupfd, at) != 0) {}
+    }
+    // The duplicate's own close, checked too: its failure is reported
+    // (cannot write); with no descriptor left, the end-of-file block (if
+    // written) then stays.
+    if (io64_out.dupfd >= 0 && close(io64_out.dupfd) != 0 && r == 0) r = (u32)errno;
+    io64_out.dupfd = -1;
+    io64_out.fd = -1;
+  }
+  if (r != 0) io64_out_err(r);
+  return (Term)r;
+}
+
+static void __attribute__((constructor)) io_out_use(void) {
+  io_eff(CID(Io.out_set), io_out_set_run);
+  io_eff(CID(Io.out_write), io_out_write_run);
+  io_eff(CID(Io.out_close), io_out_close_run);
 }
 #endif
 
@@ -749,6 +1221,23 @@ static int io64_num(const char* x, unsigned* v) {
   return 1;
 }
 
+// x ends with e (lower case), ignoring ASCII case (B.Args.ends_ci).
+static int io64_ends_ci(const char* x, const char* e) {
+  size_t a = strlen(x), b = strlen(e);
+  if (a < b) return 0;
+  for (size_t i = 0; i < b; i += 1) {
+    char c = x[a - b + i];
+    if (c >= 'A' && c <= 'Z') c = (char)(c + 32);
+    if (c != e[i]) return 0;
+  }
+  return 1;
+}
+
+// A value of -O: v, z, or z and one digit (B.Args.otype).
+static int io64_otype(const char* x) {
+  return !strcmp(x, "v") || !strcmp(x, "z") || (x[0] == 'z' && x[1] >= '0' && x[1] <= '9' && x[2] == 0);
+}
+
 // B.Args.threads of the program's words w[0 .. n): N, or 0 for none (no
 // --threads, or a line Args.parse refuses).
 static unsigned io64_threads_of(char** w, int n) {
@@ -764,10 +1253,15 @@ static unsigned io64_threads_of(char** w, int n) {
       if (io64_num(x, &v)) { thr = v; ok = ok && v >= 1 && v <= 128; } else ok = 0;
       pend = 0;
     }
+    else if (pend == 'o') { ok = ok && !io64_ends_ci(x, ".bcf"); pend = 0; }
+    else if (pend == 'O') { ok = ok && io64_otype(x); pend = 0; }
     else if (!strcmp(x, "-f")) pend = 'f';
     else if (!strcmp(x, "-c")) pend = 'c';
     else if (!strcmp(x, "-w")) pend = 'w';
     else if (!strcmp(x, "--threads")) pend = 't';
+    else if (!strcmp(x, "-o")) pend = 'o';
+    else if (!strcmp(x, "-O")) pend = 'O';
+    else if (!strncmp(x, "-O", 2)) ok = ok && io64_otype(x + 2);
     else { ok = ok && !(x[0] == '-' && x[1] != 0) && !vcf; vcf = 1; }
   }
   return ok && pend == 0 && ref && vcf ? thr : 0;
