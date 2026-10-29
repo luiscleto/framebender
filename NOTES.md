@@ -497,3 +497,63 @@ moved indels (`data/scr.vcf`), where nearly every record is rewritten: 0.12-0.13
 genome: 670 MB against bcftools' 11 MB (the sequential machine used 141 MB). One timing pitfall:
 reusing one output file adds the cost of truncating the previous 2.8 GB output to the next run
 (chr22 measured 0.3 s that way).
+
+## `--threads` and memory (2026-10-29; phase F, branches `threads` and `memory`, merged into `main`)
+
+The owner: the configuration matters for different hardware, and 60 times bcftools' memory is a
+lot, though speed comes first. Two Claude agents worked in parallel in their own git worktrees
+and Herdr workspaces. Notes: `notes/threads.md`, `notes/memory.md`.
+
+**`--threads N`** (1 to 128, anywhere an option is expected, not recorded in the header). New
+`law threads` in `MACHINE.bend`: adding `--threads N` changes nothing the program writes. It went
+through a three-model law review in two rounds (`reviews/*-threads-law*.md`), and the proof
+follows from `law machine` (`proof_f_args.bend`, `proof_f_threads.bend`). The driver sizes its
+read-ahead, the reference reads in flight and the batches by N, and a C constructor sets Bend's
+worker threads to at most N (`BENDRTS`); at small N it removes the idle workers' memory (109 MB
+against 366-402 MB at N = 1, before the memory work).
+
+**Q3: a law already said enough.** The design put the batch size in the machine's state, which
+meant about 200 changed references in 10,000 lines of wrapper proofs. Instead the driver closes
+each batch by sending an empty piece after every N pieces: `law machine` already holds for every
+way the VCF is cut, empty pieces included, so no machine proof changed (only `kmax()` went from
+16 to 128).
+
+**Memory.** Measured first, then four changes: a patch to Bend 2.0.39's allocator in `build.sh`
+(large freed blocks went to a per-thread slot the main thread, which allocates them, never
+reused; about 85 MB), reference-read buffers of 128 KiB in fixed per-slot buffers instead of
+1 MiB from `malloc`, reference windows of at most 4 MiB instead of 32 MiB blocks, and the task
+running on the piece itself instead of a copy. The last needed a new fact from the phase B
+simulation (each advance keeps the sequential machine's input buffer, `S.Kept`) and about 800
+proof lines. A draft upstream report on the allocator, with a 20-line repro, is in
+`notes/memory.md` (not posted).
+
+**Q2/Q4: what the reviews caught** (driver reviews 6 and 7; `reviews/*-driver6.md`,
+`*-driver7.md`). The laws held throughout; both defects were in trusted code:
+- The read buffer had first moved to the thread's stack. Under a small `ulimit -s` (64 or 128
+  KiB) the run crashed, and Claude showed that below the guard page it could write into another
+  thread's stack: wrong letters with exit code 0. All three reviewers found it; GPT and Grok
+  reproduced it. Fixed with the per-slot buffers.
+- `build.sh`'s check that the generated runtime is the one the patch was written for accepted
+  some others (GPT built one with a changed `CAP_WORDS` that passed and broke the patch's
+  one-block argument). Fixed by pinning every constant the argument uses.
+- Grok: the constructor's number reading clamped at 1000, so a `-w` of 2^48 or more looked valid
+  to it (harmless: the run stops anyway). Fixed.
+GPT ran its tests from a scratch directory this time (`--sandbox workspace-write` there, the
+repository outside it), which removed nearly all of its permission prompts.
+
+**Q5.** Whole genome, `-c w`, to a file, pinned, three rounds, identical output at every setting:
+
+| | time | peak RSS |
+|---|---|---|
+| bcftools 1.24 | 8.01-8.15 s | 11-12 MB |
+| phase E | 1.83-1.87 s | 600-670 MB |
+| now, default | 1.83-1.85 s | 344-351 MB |
+| `--threads 8` | 2.07-2.08 s | 203-206 MB |
+| `--threads 4` | 2.66-2.67 s | 129-131 MB |
+| `--threads 1` | 6.09-6.11 s | 44 MB |
+
+What is left of the gap to bcftools' 11 MB is the design: bcftools streams one record at a time
+on one thread, while framebender holds a 3.5 MB piece, a reference window of up to 4 MiB and an
+output buffer per piece in flight (about 20 MB each). Smaller pieces trade memory for time
+(1.6 MiB pieces: about 230 MB for 5-10% more time); not pursued, as under 1 GB is ordinary for
+the pipelines that run `bcftools norm`.
