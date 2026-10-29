@@ -316,6 +316,52 @@ rounds, same session: final 1.92-1.94 s, 344 MB; 1.6 MiB pieces 1.91-2.08 s, 231
 pieces with `ahead()` = 2,031,607 (windows of 2 MiB) 2.08-2.14 s, 208 MB. That is about +5-10%
 for -115 to -135 MB. Not applied.
 
+## Rebased onto `threads` (2026-10-29)
+
+`git rebase threads` onto f35ac0a (`--threads N`), then onto f73e77e (driver review 6: the
+constructor rejects values of 2^48, comment rewraps): both applied with no conflict, and no fix
+was needed. Each side's intent stays: `io64.c` has the variable read-ahead depth
+(`IO64_AHEAD_MAX`), `IO64_FA_MAX` 128, the `BENDRTS` constructor and the 128 KiB stack buffer;
+`norm.bend` has `kmax()` 128 (the driver closes a batch with an empty piece after every N pieces)
+and the task without a copy; `build.sh` has the heap patch (threads did not change it); README and
+`docs/DEVELOPMENT.md` have both sides' text.
+
+Checks on the tree rebased onto f35ac0a (REF: f35ac0a built the same way, without `--threads`):
+- the gate, through `test/bcheck.sh`: `PROOF.bend --check-only` and `--verdict` ALL PROOFS CHECK;
+  `examples.bend` and `MACHINE.bend` 16 TODOs (the imported laws, `threads` included), `main.bend`
+  79 defs rely on unsafe or foreign code (as on `threads`);
+- at piece sizes 3,670,016, 70,001, 1,000 and 300: `same.sh` 128/128, `par.sh` 312/312,
+  `test/threads.sh` (with `--threads 1, 2, 3, 7, 16, 32, 128` at three positions against REF
+  without it) 2,128/2,128 with the usage errors OK and `BENDRTS` read, the gz suite 252/252, the
+  end-of-file suite as expected (at 300 the same 8 known lines as the base build);
+- whole genome `-c w` and `-c e`, plain and `.vcf.gz`: stdout, stderr and exit code identical to
+  REF.
+
+After the second rebase (onto f73e77e), as the lead asked: a rebuild and a smoke test only: chr22
+and the scrambled file under `-c w`/`-c e`, with and without `--threads 4`, identical to f35ac0a's
+build (8/8); `--threads 281474976710656` (2^48) stops as f73e77e's own build does ("bend: a Nat
+past the largest immediate 2^48-1", exit 1).
+
+Timings (whole genome, `-c w`, to a file, pinned 0-15, under the lock, interleaved, 3 rounds; each
+run waited for the 1-minute load average to be under 2, and it was 1.5-1.95):
+
+| build | time | peak RSS |
+|---|---|---|
+| `threads` (f35ac0a), default | 1.83-2.10 s | 541-550 MB |
+| rebased, default | 1.75-1.76 s | 338-346 MB |
+| rebased, `--threads 1` | 5.82-5.87 s | 43-44 MB |
+| rebased, `--threads 2` | 3.81-3.94 s | 82-84 MB |
+| rebased, `--threads 4` | 2.54-2.56 s | 129-132 MB |
+| rebased, `--threads 8` | 1.97-2.14 s | 198-206 MB |
+| rebased, `--threads 16` | 1.78-1.79 s | 336-342 MB |
+| rebased, `--threads 32` | 1.69-1.71 s | 604-610 MB |
+
+All 24 runs wrote the same output (xxh64 `3469a25b962abb21`). The default is 16 pieces per batch
+and Bend's own thread count, which is the number of CPUs the process may use (16 here, pinned);
+`--threads 16` matches it. Memory grows with N by about 18-20 MB per piece of a batch (the piece,
+its read-ahead slot, its window and its output buffer, 4 MiB blocks each), plus about 25-45 MB.
+`--threads 32` on 16 cores is 5% faster than the default for 75% more memory.
+
 ## For Bend upstream (draft; not posted)
 
 **Title: CPU heap: large blocks freed on a worker thread are parked there and not reused, so a
