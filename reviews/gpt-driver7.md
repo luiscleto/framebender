@@ -11,3 +11,9 @@ Answers to the notes: **Q1:** with the actual generated CPU runtime, the singlet
 
 Both build paths matched across 24 edge comparisons and five multipart LF/CRLF layouts; injected short reads and EINTR preserved results. Both `awk` failure points stopped compilation and cleaned temporary files. Repository contents and branch were unchanged.
 
+
+## Round 2 (fixes in 0d6be10)
+
+ACCEPT. The 128 KiB stack reproducer and forced fallback now complete with identical outputs
+(threads 4 and 128). All four altered runtimes (CAP_WORDS, NCLS, QUANTUM and its continuation
+line, a second KEEP) are rejected before compilation. Repository unchanged.
