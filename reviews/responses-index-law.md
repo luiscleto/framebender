@@ -48,3 +48,20 @@ is its own lead, before gVCF users meet it.
 | 22 | The differential oracle "if either refuses" is wrong: at POS 600,000,000 CSI succeeds (equal to `bcftools index`) and TBI is refused | GPT | **Fix:** compare CSI with `bcftools index` and TBI with `tabix -p vcf` separately; a run that stops in normalization keeps its report and output and writes no index. |
 | 23 | The no-curl htslib | all three | **Fix:** install it at `~/.local/opt/htslib-1.24-nocurl`, selected with `PKG_CONFIG_PATH`; `build.sh` refuses a `libhts.a` whose `static_libs` name `-lcurl`, with a message naming the prefix and the three `--disable-*` flags; the build script is tracked (`tools/` or `test/`). |
 | 24 | The usage line about old indexes runs past 130 columns and prints on every usage error | Claude (GPT, Grok: keep it) | **Fix:** keep it, cut to one short clause (e.g. "-W also removes FILE's old .csi/.tbi"); the full explanation goes in the README. |
+
+## Round 3
+
+Claude (`claude-index-law-r3.md`), GPT (`gpt-index-law-r3.md`), Grok (`grok-index-law-r3.md`): no
+blockers; decisions 20-24 carried out (GPT re-ran the staging, rollback and per-format checks on
+a copy). GPT: ACCEPT. Claude and Grok: one should-fix each. All three: keep a failed removal of
+the `.old` files silent; the tracked download script is fine (pinned SHA-256, local tarball path).
+
+| # | finding | by | decision |
+|---|---|---|---|
+| 25 | A failed move back (after `ftruncate` fails, or after step 5 cannot move the second index) leaves `<name>.old` beside the unchanged `-o` file; the law-machine comment, the note and the prototype comment still say steps 1-6 change nothing; the step-5 row is missing from the injection table | Grok | **Fix:** one clause in each place (the index stays as `<name>.old`, the `-o` file unchanged, the message `cannot write <path>` or `cannot write <name>`); add the step-5 move-back row for both formats. The message itself stays as it is (GPT, Grok; Claude would name the `.old` file). |
+| 26 | `renameat2(RENAME_NOREPLACE)` is refused by NFS, some FUSE file systems and old kernels, so every `-W` re-run next to an old index fails there | Claude (GPT, Grok: refusing is enough) | **Fix, a narrow fallback:** shared cluster storage is where this tool runs, and NFS supports hard links. On EINVAL, ENOSYS or EOPNOTSUPP from `renameat2`, use `link(name, t)` (never replaces: EEXIST keeps the `.old1`, `.old2` loop) then `unlink(name)`; if that unlink fails, remove `t` and refuse with nothing changed. Where `link` is not supported either, refuse as now (no check-then-rename, which could replace a file). The same for the move back. Test by injecting EINVAL with `fi_shim`. macOS (`renamex_np`) is a later port; phase J builds on Linux. |
+| 27 | `tools/build_htslib.sh`: `curl --proto '=https'`; `shasum -a 256` where `sha256sum` is missing | Claude | **Fix.** |
+
+The law review of phase J is closed: the laws (`index`, `index_sink`) and the parser are
+accepted by all three; decisions 25-27 are driver text and code, checked in the driver review
+after implementation.
