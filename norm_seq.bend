@@ -6,6 +6,7 @@ import ./norm_line.bend as J
 import ./norm_run.bend as NR
 import ./norm_fast.bend as NF
 import ./norm_fix.bend as NX
+import ./norm_split.bend as NS
 import lawful-bytes@0.1.0.0/defs.bend as D
 import lawful-bytes@0.1.0.0/bytes.bend as BY
 import lawful-bytes@0.1.0.0/fast.bend as F
@@ -32,10 +33,13 @@ import lawful-bytes@0.1.0.0/fast.bend as F
 # ---------------------------------------------------------------------------
 
 # Input not handled yet: a buffer whose lines from at on are not handled
-# (SB), or one complete line's text before its LF (SL).
+# (SB), or one complete line's text before its LF (SL), or the records of a
+# line split by -m, from at on (SP: each is handled as a line with the split
+# line's number, which was counted once when it was split).
 type Src is Type:
   SB{b: D.Bytes, at: U32}
   SL{p: String}
+  SP{b: D.Bytes, at: U32}
 
 # The end of a line not yet complete: bytes, or (past 2^28 bytes) text.
 type Pd is Type:
@@ -67,7 +71,7 @@ type Md is Type:
 # answer; the reads asked last; whether the fast path already asked a read
 # for the waiting line.
 type St is Type:
-  St{o: B.Opts, md: Md, src: List<&1, Src>, pend: Pd, eof: Bool, back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, fneed: Bool}
+  St{o: B.Opts, md: Md, src: List<&1, Src>, pend: Pd, eof: Bool, back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, fneed: Bool, dfs: B.Defs}
 
 # How the program starts: with the state and the paths of the FASTA and VCF
 # files, or with a usage error.
@@ -94,9 +98,12 @@ type Adv is Type:
   Ended{st: St}
   Yield{st: St}
 
-# The input the line paths do not touch.
+# The input the line paths do not touch; the header's definitions (-m); hold:
+# the line is a record of a split line (SP), whose count was taken when the
+# line was split (the run was unticked before it, so its own tick restores
+# the count).
 type Cx is Type:
-  Cx{rest: List<&1, Src>, pend: Pd, eof: Bool}
+  Cx{rest: List<&1, Src>, pend: Pd, eof: Bool, dfs: B.Defs, hold: Bool}
 
 # A read answered from the last answer (Some), or not (None); clen: the
 # contig's length (for grow).
@@ -154,7 +161,7 @@ def start.of(m: Maybe<&2, B.Cfg>) -> Begin:
     case None{}:
       Usage{}
     case Some{B.Cfg{o, r, v}}:
-      Begin{St{o, MB{NR.start()}, Nil{}, PB{BY.empty(0n)}, False{}, 0n, WNone{}, None{}, False{}}, r, v}
+      Begin{St{o, MB{NR.start()}, Nil{}, PB{BY.empty(0n)}, False{}, 0n, WNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}}, r, v}
 
 # The command line after the program's name.
 def start(argv: List<&2, String>) -> Begin:
@@ -478,6 +485,62 @@ def at_of(+n: Nat, +fs: List<&2, String>) -> B.At:
 # The String mode: one line, as run.bend handles it
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Splitting (-m): the context's header definitions, the records written
+# ---------------------------------------------------------------------------
+
+# A header line's definition added (B.Defs.line; lines before #CHROM).
+def Cx.line(cx: Cx, +body: String) -> Cx:
+  match cx:
+    case Cx{rest, pend, eof, +dfs, hold}:
+      Cx{rest, pend, eof, B.Defs.line(dfs, body), hold}
+
+# What B.Rec.parts says of a body line.
+def Cx.parts(cx: Cx, +o: B.Opts, +body: String) -> Cx & B.Parts:
+  match cx:
+    case Cx{rest, pend, eof, +dfs, hold}:
+      (Cx{rest, pend, eof, dfs, hold}, B.Rec.parts(dfs, o, body))
+
+# The records of a split line before the rest of the input.
+def Cx.push(cx: Cx, recs: D.Bytes) -> Cx:
+  match cx:
+    case Cx{rest, pend, eof, dfs, hold}:
+      Cx{SP{recs, 0} <> rest, pend, eof, dfs, hold}
+
+def recs_text(ps: List<&2, String>, +term: String) -> String:
+  match ps:
+    case Nil{}:
+      ""
+    case p <> t:
+      p ++ term ++ recs_text(t, term)
+
+# The outcome stops the run: MALFORMED, UNKNOWN_CHROM, a problem under -c e
+# (LAWS.bend's stops).
+def stops(r: B.Res, strict: Bool) -> Bool:
+  match r:
+    case B.Res{B.Broken{}, k, t, x}:
+      True{}
+    case B.Res{B.NoContig{}, k, t, x}:
+      True{}
+    case B.Res{B.Problem{c}, k, t, x}:
+      strict
+    case _:
+      False{}
+
+def unsplit.res(+c: B.Code, +strict: Bool, +fs: List<&2, String>, +body: String, +r: B.Res) -> B.Res:
+  Bool.pick(B.Res, stops(r, strict), r, B.Res{B.Problem{c}, B.Rec.pos(fs), body, False{}})
+
+# A line -m cannot split (code c): the whole line's outcome when it stops the
+# run, else the problem c (LAWS.bend's unsplit_in).
+def vd.unsplit(+c: B.Code, +strict: Bool, +fs: List<&2, String>, +body: String, v: Vd) -> Vd:
+  match v:
+    case VRes{win, +r}:
+      VRes{win, unsplit.res(c, strict, fs, body, r)}
+    case VSame{win}:
+      VRes{win, B.Res{B.Problem{c}, B.Rec.pos(fs), body, False{}}}
+    case VWant{win, reqs, back}:
+      VWant{win, reqs, back}
+
 def ms.out(s: R.RunSt, qs: List<&2, String>, +ql: Nat) -> Md:
   match s:
     case R.RunSt{n, i, h, c, e, l, b, k, +o, ns, x}:
@@ -485,13 +548,13 @@ def ms.out(s: R.RunSt, qs: List<&2, String>, +ql: Nat) -> Md:
 
 def ms.done(+o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, cx: Cx, win: Win) -> Adv:
   match cx:
-    case Cx{rest, pend, eof}:
-      Went{St{o, ms.out(s, qs, ql), rest, pend, eof, 0n, win, None{}, False{}}}
+    case Cx{rest, pend, eof, dfs, hold}:
+      Went{St{o, ms.out(s, qs, ql), rest, pend, eof, 0n, win, None{}, False{}, dfs}}
 
 def ms.want(+o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +p: String, cx: Cx, win: Win, +reqs: List<&2, P.Req>, +back: Nat) -> Adv:
   match cx:
-    case Cx{rest, pend, eof}:
-      Want{St{o, MS{s, qs, ql, None{}}, SL{p} <> rest, pend, eof, back, win, Some{reqs}, False{}}, reqs}
+    case Cx{rest, pend, eof, dfs, hold}:
+      Want{St{o, MS{s, qs, ql, None{}}, SL{p} <> rest, pend, eof, back, win, Some{reqs}, False{}, dfs}, reqs}
 
 # A body line in the String mode: run.bend's body_line with the verdict.
 def ms.body(+o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +p: String, +l: B.Line, +fs: List<&2, String>, cx: Cx, v: Vd) -> Adv:
@@ -505,13 +568,36 @@ def ms.body(+o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +p: String, 
     case VWant{win, +reqs, +back}:
       ms.want(o, s, qs, ql, p, cx, win, reqs, back)
 
+def ms.parts.k(pt: B.Parts, cx: Cx, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +p: String, +l: B.Line, +back: Nat, win: Win) -> Adv:
+  match pt:
+    case B.Whole{}:
+      +fs = J.pfs(B.Line.body(l))
+      ms.body(o, s, qs, ql, p, l, fs, cx, verdict(back, win, fs, B.Line.body(l)))
+    case B.Pieces{ps}:
+      ms.done(o, R.tick(s), qs, ql, Cx.push(cx, NR.of_str(recs_text(ps, B.Line.term(l)))), win)
+    case B.Unsplit{+c}:
+      +fs = J.pfs(B.Line.body(l))
+      ms.body(o, s, qs, ql, p, l, fs, cx, vd.unsplit(c, R.Opts.strict(o), fs, B.Line.body(l), verdict(back, win, fs, B.Line.body(l))))
+
+def ms.parts(r: Cx & B.Parts, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +p: String, +l: B.Line, +back: Nat, win: Win) -> Adv:
+  (cx, pt) = r
+  ms.parts.k(pt, cx, o, s, qs, ql, p, l, back, win)
+
+# A body line in the String mode: with -m, split first (B.Rec.parts).
+def ms.split(split: Bool, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +p: String, +l: B.Line, +back: Nat, cx: Cx, win: Win) -> Adv:
+  match split:
+    case False{}:
+      +fs = J.pfs(B.Line.body(l))
+      ms.body(o, s, qs, ql, p, l, fs, cx, verdict(back, win, fs, B.Line.body(l)))
+    case True{}:
+      ms.parts(Cx.parts(cx, o, B.Line.body(l)), o, s, qs, ql, p, l, back, win)
+
 def ms.line.k(inbody: Bool, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +p: String, +l: B.Line, +back: Nat, cx: Cx, win: Win) -> Adv:
   match inbody:
     case False{}:
-      ms.done(o, R.head_line(R.is_chrom_line(B.Line.body(l)), R.tick(s), o, l), qs, ql, cx, win)
+      ms.done(o, R.head_line(R.is_chrom_line(B.Line.body(l)), R.tick(s), o, l), qs, ql, Cx.line(cx, B.Line.body(l)), win)
     case True{}:
-      +fs = J.pfs(B.Line.body(l))
-      ms.body(o, s, qs, ql, p, l, fs, cx, verdict(back, win, fs, B.Line.body(l)))
+      ms.split(R.Opts.split(o), o, s, qs, ql, p, l, back, cx, win)
 
 def ms.line.go(inbody: Bool, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +p: String, +back: Nat, cx: Cx, win: Win) -> Adv:
   +l = line(p)
@@ -527,12 +613,30 @@ def ms.line(+o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +p: String, 
 # The byte mode: lines decoded (header lines and the slow path)
 # ---------------------------------------------------------------------------
 
+# The rest of a buffer, as it was: plain lines, or the records of a split
+# line (hold).
+def Src.of(hold: Bool, b: D.Bytes, +at: U32) -> Src:
+  match hold:
+    case True{}:
+      SP{b, at}
+    case False{}:
+      SB{b, at}
+
+# A record of a split line not handled now (it is asked again later, from
+# SP, which unticks again): the count it was unticked by is given back.
+def retick(hold: Bool, run: NR.Run) -> NR.Run:
+  match hold:
+    case True{}:
+      NR.tick(run)
+    case False{}:
+      run
+
 # The line is done: the input moves past it.
 def done.b(+o: B.Opts, p: NR.Run & D.Bytes, +at: U32, cx: Cx, win: Win) -> Adv:
   (run, b) = p
   match cx:
-    case Cx{rest, pend, eof}:
-      Went{St{o, MB{run}, SB{b, at} <> rest, pend, eof, 0n, win, None{}, False{}}}
+    case Cx{rest, pend, eof, dfs, +hold}:
+      Went{St{o, MB{run}, Src.of(hold, b, at) <> rest, pend, eof, 0n, win, None{}, False{}, dfs}}
 
 def ticked(run: NR.Run) -> NR.Run & Nat:
   NR.Run.n(NR.tick(run))
@@ -547,13 +651,13 @@ def to_ms(r: NR.Run) -> Md:
 # The run switches to the String mode; the line at s is handled there next.
 def to_str(+o: B.Opts, run: NR.Run, b: D.Bytes, +s: U32, +back: Nat, cx: Cx, win: Win, +fneed: Bool) -> Adv:
   match cx:
-    case Cx{rest, pend, eof}:
-      Went{St{o, to_ms(run), SB{b, s} <> rest, pend, eof, back, win, None{}, fneed}}
+    case Cx{rest, pend, eof, dfs, +hold}:
+      Went{St{o, to_ms(retick(hold, run)), Src.of(hold, b, s) <> rest, pend, eof, back, win, None{}, fneed, dfs}}
 
 def want.b(+o: B.Opts, run: NR.Run, b: D.Bytes, +s: U32, +back: Nat, cx: Cx, win: Win, +reqs: List<&2, P.Req>, +fneed: Bool) -> Adv:
   match cx:
-    case Cx{rest, pend, eof}:
-      Want{St{o, MB{run}, SB{b, s} <> rest, pend, eof, back, win, Some{reqs}, fneed}, reqs}
+    case Cx{rest, pend, eof, dfs, +hold}:
+      Want{St{o, MB{retick(hold, run)}, Src.of(hold, b, s) <> rest, pend, eof, back, win, Some{reqs}, fneed, dfs}, reqs}
 
 def same_done(+o: B.Opts, p: NR.Run & Nat, +fs: List<&2, String>, +s: U32, +lf: U32, b: D.Bytes, cx: Cx, win: Win) -> Adv:
   (run, +n) = p
@@ -601,9 +705,42 @@ def slow.vd(+o: B.Opts, run: NR.Run, +l: B.Line, +fs: List<&2, String>, +s: U32,
       want.b(o, run, b, s, back, cx, win, reqs, fneed)
 
 # A body line the fast path did not take: judged on its text.
-def slow(+back: Nat, +o: B.Opts, run: NR.Run, +l: B.Line, +s: U32, +lf: U32, b: D.Bytes, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+def slow.whole(+back: Nat, +o: B.Opts, run: NR.Run, +l: B.Line, +s: U32, +lf: U32, b: D.Bytes, cx: Cx, win: Win, +fneed: Bool) -> Adv:
   +fs = J.pfs(B.Line.body(l))
   slow.vd(o, run, l, fs, s, lf, b, cx, fneed, back, verdict(back, win, fs, B.Line.body(l)))
+
+# A split line's records (their bytes, each with its terminator): the line is
+# counted once, and its records are read next, before the rest of the input.
+def inject(+o: B.Opts, run: NR.Run, b: D.Bytes, +lf: U32, recs: D.Bytes, cx: Cx, win: Win) -> Adv:
+  match cx:
+    case Cx{rest, pend, eof, dfs, hold}:
+      Went{St{o, MB{NR.tick(run)}, SP{recs, 0} <> SB{b, (lf + 1 : U32)} <> rest, pend, eof, 0n, win, None{}, False{}, dfs}}
+
+def slow.parts.k(pt: B.Parts, cx: Cx, +back: Nat, +o: B.Opts, run: NR.Run, +l: B.Line, +s: U32, +lf: U32, b: D.Bytes, win: Win, +fneed: Bool) -> Adv:
+  match pt:
+    case B.Whole{}:
+      slow.whole(back, o, run, l, s, lf, b, cx, win, fneed)
+    case B.Pieces{ps}:
+      inject(o, run, b, lf, NR.of_str(recs_text(ps, B.Line.term(l))), cx, win)
+    case B.Unsplit{+c}:
+      +fs = J.pfs(B.Line.body(l))
+      slow.vd(o, run, l, fs, s, lf, b, cx, fneed, back, vd.unsplit(c, R.Opts.strict(o), fs, B.Line.body(l), verdict(back, win, fs, B.Line.body(l))))
+
+def slow.parts(r: Cx & B.Parts, +back: Nat, +o: B.Opts, run: NR.Run, +l: B.Line, +s: U32, +lf: U32, b: D.Bytes, win: Win, +fneed: Bool) -> Adv:
+  (cx, pt) = r
+  slow.parts.k(pt, cx, back, o, run, l, s, lf, b, win, fneed)
+
+def slow.split(split: Bool, +back: Nat, +o: B.Opts, run: NR.Run, +l: B.Line, +s: U32, +lf: U32, b: D.Bytes, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  match split:
+    case False{}:
+      slow.whole(back, o, run, l, s, lf, b, cx, win, fneed)
+    case True{}:
+      slow.parts(Cx.parts(cx, o, B.Line.body(l)), back, o, run, l, s, lf, b, win, fneed)
+
+# A body line the fast path did not take: judged on its text; with -m, split
+# first (B.Rec.parts: the records are read next, or the line is refused).
+def slow(+back: Nat, +o: B.Opts, run: NR.Run, +l: B.Line, +s: U32, +lf: U32, b: D.Bytes, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  slow.split(R.Opts.split(o), back, o, run, l, s, lf, b, cx, win, fneed)
 
 # The held header has at most 2^28 bytes.
 def Run.head(r: NR.Run) -> NR.Run & Bool:
@@ -628,7 +765,7 @@ def head.len(+o: B.Opts, p: NR.Run & Bool, +l: B.Line, +s: U32, +lf: U32, b: D.B
 def head(isc: Bool, +o: B.Opts, run: NR.Run, +l: B.Line, +s: U32, +lf: U32, b: D.Bytes, +back: Nat, cx: Cx, win: Win) -> Adv:
   match isc:
     case False{}:
-      done.b(o, (NR.head_line(False{}, NR.tick(run), o, l), b), (lf + 1 : U32), cx, win)
+      done.b(o, (NR.head_line(False{}, NR.tick(run), o, l), b), (lf + 1 : U32), Cx.line(cx, B.Line.body(l)), win)
     case True{}:
       head.len(o, Run.head(run), l, s, lf, b, back, cx, win)
 
@@ -690,8 +827,8 @@ def Pd.len(pd: Pd) -> Pd & Nat:
 def part.len(+o: B.Opts, md: Md, +back: Nat, +s: U32, r: D.Bytes & U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
   (b, +len) = r
   match cx:
-    case Cx{rest, pend, eof}:
-      Went{St{o, md, rest, pend.add(pend, b, s, (len - s : U32)), eof, back, win, None{}, fneed}}
+    case Cx{rest, pend, eof, dfs, hold}:
+      Went{St{o, md, rest, pend.add(pend, b, s, (len - s : U32)), eof, back, win, None{}, fneed, dfs}}
 
 def decoded.big(big: Bool, +back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +lf: U32, b: D.Bytes, cx: Cx, win: Win, +fneed: Bool) -> Adv:
   match big:
@@ -953,10 +1090,39 @@ def fast.pre(+back: Nat, +o: B.Opts, run: NR.Run, +s: U32, pr: NF.Pr, cx: Cx, wi
     case NF.Pr{b, NF.Incomplete{}}:
       decoded(back, o, run, b, s, cx, win, fneed)
 
+def split.out(o2: NS.Out, +back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  match o2:
+    case NS.Out{b, Some{recs}}:
+      inject(o, run, b, lf, recs, cx, win)
+    case NS.Out{b, None{}}:
+      decoded(back, o, run, b, s, cx, win, fneed)
+
+def split.b(+back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  match cx:
+    case Cx{rest, pend, eof, +dfs, hold}:
+      split.out(NS.split(b, s, lf, R.Opts.over0(o), dfs), back, o, run, s, lf, Cx{rest, pend, eof, dfs, hold}, win, fneed)
+
+def body.multi(r: D.Bytes & Maybe<&2, U32>, +back: Nat, +o: B.Opts, run: NR.Run, +s: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  (b, m) = r
+  match m:
+    case Some{+lf}:
+      split.b(back, o, run, b, s, lf, cx, win, fneed)
+    case None{}:
+      fast.pre(back, o, run, s, NF.line(b, s), cx, win, fneed)
+
+# A body line in the byte mode: with -m, a line whose ALT has a comma is
+# split on its bytes (norm_split.bend), or else on its text (slow).
+def body.m(split: Bool, +back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +s: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  match split:
+    case False{}:
+      fast.pre(back, o, run, s, NF.line(b, s), cx, win, fneed)
+    case True{}:
+      body.multi(NS.multi(b, s), back, o, run, s, cx, win, fneed)
+
 def body.if(inbody: Bool, +back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +s: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
   match inbody:
     case True{}:
-      fast.pre(back, o, run, s, NF.line(b, s), cx, win, fneed)
+      body.m(R.Opts.split(o), back, o, run, b, s, cx, win, fneed)
     case False{}:
       decoded(back, o, run, b, s, cx, win, fneed)
 
@@ -970,81 +1136,116 @@ def Run.rs(r: NR.Run) -> NR.Run & Rs:
       D.Bytes{+len, buf} = ob
       (NR.Run{n, i, h, c, cb, e, l, f, b, bn, tl, k, D.Bytes{len, buf}, ow, ns, x}, Rs{x, U32.is_le(1073741824, ow), U32.is_le(536870912, len)})
 
+def rs_untick(st: R.RunSt) -> R.RunSt:
+  match st:
+    case R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}:
+      R.RunSt{Nat.sub(n, 1n), i, h, c, e, l, b, k, o, ns, x}
+
+def sp.b.if(done: Bool, +back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +s: U32, rest: List<&1, Src>, pend: Pd, eof: Bool, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> Adv:
+  match done:
+    case True{}:
+      Went{St{o, MB{run}, rest, pend, eof, back, win, asked, fneed, dfs}}
+    case False{}:
+      body.k(back, o, Run.inbody(NR.untick(run)), b, s, Cx{rest, pend, eof, dfs, True{}}, win, fneed)
+
+# The next record of a split line, in the byte mode: handled as a line with
+# the split line's number (the run unticked first); a buffer whose records
+# are all handled is dropped.
+def sp.b(+back: Nat, +o: B.Opts, run: NR.Run, r: D.Bytes & U32, +s: U32, rest: List<&1, Src>, pend: Pd, eof: Bool, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> Adv:
+  (b, +len) = r
+  sp.b.if(U32.is_le(len, s), back, o, run, b, s, rest, pend, eof, win, asked, fneed, dfs)
+
 # The next line of the input in the byte mode.
-def mb.src(src: List<&1, Src>, +o: B.Opts, run: NR.Run, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Adv:
+def mb.src(src: List<&1, Src>, +o: B.Opts, run: NR.Run, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> Adv:
   match src:
     case Nil{}:
-      Idle{St{o, MB{run}, Nil{}, pend, eof, back, win, asked, fneed}}
+      Idle{St{o, MB{run}, Nil{}, pend, eof, back, win, asked, fneed, dfs}}
     case SB{b, +s} <> rest:
-      body.k(back, o, Run.inbody(run), b, s, Cx{rest, pend, eof}, win, fneed)
+      body.k(back, o, Run.inbody(run), b, s, Cx{rest, pend, eof, dfs, False{}}, win, fneed)
+    case SP{b, +s} <> rest:
+      sp.b(back, o, run, BY.len(b), s, rest, pend, eof, win, asked, fneed, dfs)
     case SL{p} <> rest:
-      Went{St{o, to_ms(run), SL{p} <> rest, pend, eof, back, win, None{}, fneed}}
+      Went{St{o, to_ms(run), SL{p} <> rest, pend, eof, back, win, None{}, fneed, dfs}}
 
-def mb.rs(p: NR.Run & Rs, +o: B.Opts, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Adv:
+def mb.rs(p: NR.Run & Rs, +o: B.Opts, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> Adv:
   (run, rs) = p
   match rs:
     case Rs{True{}, f, g}:
-      Ended{St{o, MB{run}, src, pend, eof, back, win, asked, fneed}}
+      Ended{St{o, MB{run}, src, pend, eof, back, win, asked, fneed, dfs}}
     case Rs{False{}, True{}, g}:
-      Yield{St{o, MB{run}, src, pend, eof, back, win, asked, fneed}}
+      Yield{St{o, MB{run}, src, pend, eof, back, win, asked, fneed, dfs}}
     case Rs{False{}, False{}, True{}}:
-      Went{St{o, to_ms(run), src, pend, eof, back, win, None{}, fneed}}
+      Went{St{o, to_ms(run), src, pend, eof, back, win, None{}, fneed, dfs}}
     case Rs{False{}, False{}, False{}}:
-      mb.src(src, o, run, pend, eof, back, win, asked, fneed)
+      mb.src(src, o, run, pend, eof, back, win, asked, fneed, dfs)
 
-def ms.part.len(+o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +at: U32, r: D.Bytes & U32, rest: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, +fneed: Bool) -> Adv:
+def ms.part.len(+o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +at: U32, r: D.Bytes & U32, rest: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, +fneed: Bool, dfs: B.Defs, hold: Bool) -> Adv:
   (b, +len) = r
-  Went{St{o, MS{s, qs, ql, None{}}, rest, pend.add(pend, b, at, (len - at : U32)), eof, back, win, None{}, fneed}}
+  Went{St{o, MS{s, qs, ql, None{}}, rest, pend.add(pend, b, at, (len - at : U32)), eof, back, win, None{}, fneed, dfs}}
 
-def ms.sb.k(+o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +at: U32, +lf: U32, p: D.Bytes & String, rest: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win) -> Adv:
+def ms.sb.k(+o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +at: U32, +lf: U32, p: D.Bytes & String, rest: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, dfs: B.Defs, +hold: Bool) -> Adv:
   (b, +t) = p
-  ms.line(o, s, qs, ql, t, back, Cx{SB{b, (lf + 1 : U32)} <> rest, pend, eof}, win)
+  ms.line(o, s, qs, ql, t, back, Cx{Src.of(hold, b, (lf + 1 : U32)) <> rest, pend, eof, dfs, hold}, win)
 
-def ms.sb.if(part: Bool, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, b: D.Bytes, +at: U32, +lf: U32, rest: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, +fneed: Bool) -> Adv:
+def ms.sb.if(part: Bool, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, b: D.Bytes, +at: U32, +lf: U32, rest: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, +fneed: Bool, dfs: B.Defs, hold: Bool) -> Adv:
   match part:
     case True{}:
-      ms.part.len(o, s, qs, ql, at, BY.len(b), rest, pend, eof, back, win, fneed)
+      ms.part.len(o, s, qs, ql, at, BY.len(b), rest, pend, eof, back, win, fneed, dfs, hold)
     case False{}:
-      ms.sb.k(o, s, qs, ql, at, lf, text(b, at, (lf - at : U32)), rest, pend, eof, back, win)
+      ms.sb.k(o, s, qs, ql, at, lf, text(b, at, (lf - at : U32)), rest, pend, eof, back, win, dfs, hold)
 
-def ms.sb(+o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +at: U32, t: NF.Tb, rest: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, +fneed: Bool) -> Adv:
+def ms.sb(+o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +at: U32, t: NF.Tb, rest: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, +fneed: Bool, dfs: B.Defs, hold: Bool) -> Adv:
   match t:
     case NF.Tb{b, +j, +part, x}:
-      ms.sb.if(part, o, s, qs, ql, b, at, j, rest, pend, eof, back, win, fneed)
+      ms.sb.if(part, o, s, qs, ql, b, at, j, rest, pend, eof, back, win, fneed, dfs, hold)
+
+def sp.s.if(done: Bool, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, b: D.Bytes, +at: U32, rest: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> Adv:
+  match done:
+    case True{}:
+      Went{St{o, MS{s, qs, ql, None{}}, rest, pend, eof, back, win, asked, fneed, dfs}}
+    case False{}:
+      ms.sb(o, rs_untick(s), qs, ql, at, NF.lf(b, at), rest, pend, eof, back, win, fneed, dfs, True{})
+
+# The same in the String mode.
+def sp.s(+o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, r: D.Bytes & U32, +at: U32, rest: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> Adv:
+  (b, +len) = r
+  sp.s.if(U32.is_le(len, at), o, s, qs, ql, b, at, rest, pend, eof, back, win, asked, fneed, dfs)
 
 # The next line of the input in the String mode.
-def ms.src(src: List<&1, Src>, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Adv:
+def ms.src(src: List<&1, Src>, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> Adv:
   match src:
     case Nil{}:
-      Idle{St{o, MS{s, qs, ql, None{}}, Nil{}, pend, eof, back, win, asked, fneed}}
+      Idle{St{o, MS{s, qs, ql, None{}}, Nil{}, pend, eof, back, win, asked, fneed, dfs}}
     case SB{b, +at} <> rest:
-      ms.sb(o, s, qs, ql, at, NF.lf(b, at), rest, pend, eof, back, win, fneed)
+      ms.sb(o, s, qs, ql, at, NF.lf(b, at), rest, pend, eof, back, win, fneed, dfs, False{})
     case SL{+p} <> rest:
-      ms.line(o, s, qs, ql, p, back, Cx{rest, pend, eof}, win)
+      ms.line(o, s, qs, ql, p, back, Cx{rest, pend, eof, dfs, False{}}, win)
+    case SP{b, +at} <> rest:
+      sp.s(o, s, qs, ql, BY.len(b), at, rest, pend, eof, back, win, asked, fneed, dfs)
 
-def ms.full(full: Bool, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Adv:
+def ms.full(full: Bool, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> Adv:
   match full:
     case True{}:
-      Yield{St{o, MS{s, qs, ql, None{}}, src, pend, eof, back, win, asked, fneed}}
+      Yield{St{o, MS{s, qs, ql, None{}}, src, pend, eof, back, win, asked, fneed, dfs}}
     case False{}:
-      ms.src(src, o, s, qs, ql, pend, eof, back, win, asked, fneed)
+      ms.src(src, o, s, qs, ql, pend, eof, back, win, asked, fneed, dfs)
 
-def ms.adv(halt: Bool, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, code: Maybe<&2, Nat>, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Adv:
+def ms.adv(halt: Bool, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, code: Maybe<&2, Nat>, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> Adv:
   match halt code:
     case _ Some{c}:
-      Ended{St{o, MS{s, qs, ql, Some{c}}, src, pend, eof, back, win, asked, fneed}}
+      Ended{St{o, MS{s, qs, ql, Some{c}}, src, pend, eof, back, win, asked, fneed, dfs}}
     case True{} None{}:
-      Ended{St{o, MS{s, qs, ql, None{}}, src, pend, eof, back, win, asked, fneed}}
+      Ended{St{o, MS{s, qs, ql, None{}}, src, pend, eof, back, win, asked, fneed, dfs}}
     case False{} None{}:
-      ms.full(Nat.is_le(lim(), ql), o, s, qs, ql, src, pend, eof, back, win, asked, fneed)
+      ms.full(Nat.is_le(lim(), ql), o, s, qs, ql, src, pend, eof, back, win, asked, fneed, dfs)
 
 # Handle the next complete line, if any.
 def advance(st: St) -> Adv:
   match st:
-    case St{+o, MB{run}, src, pend, eof, +back, win, asked, +fneed}:
-      mb.rs(Run.rs(run), o, src, pend, eof, back, win, asked, fneed)
-    case St{+o, MS{+s, qs, +ql, code}, src, pend, eof, +back, win, asked, +fneed}:
-      ms.adv(R.RunSt.halt(s), o, s, qs, ql, code, src, pend, eof, back, win, asked, fneed)
+    case St{+o, MB{run}, src, pend, eof, +back, win, asked, +fneed, dfs}:
+      mb.rs(Run.rs(run), o, src, pend, eof, back, win, asked, fneed, dfs)
+    case St{+o, MS{+s, qs, +ql, code}, src, pend, eof, +back, win, asked, +fneed, dfs}:
+      ms.adv(R.RunSt.halt(s), o, s, qs, ql, code, src, pend, eof, back, win, asked, fneed, dfs)
 
 def ms.take.c(c: Cut2, s: R.RunSt, ns: List<&2, B.Note>, code: Maybe<&2, Nat>) -> (D.Bytes & List<&2, B.Note>) & Md:
   match c:
@@ -1093,17 +1294,21 @@ def out.fin(on: D.Bytes & List<&2, B.Note>, st: St, nx: P.Next) -> Step:
   (b, ns) = on
   Step{st, b, ns, nx}
 
-def out.k(p: (D.Bytes & List<&2, B.Note>) & Md, +o: B.Opts, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, nx: P.Next) -> Step:
+def out.k(p: (D.Bytes & List<&2, B.Note>) & Md, +o: B.Opts, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs, nx: P.Next) -> Step:
   (on, md) = p
-  out.fin(on, St{o, md, src, pend, eof, back, win, asked, fneed}, nx)
+  out.fin(on, St{o, md, src, pend, eof, back, win, asked, fneed, dfs}, nx)
 
-def out.left(+o: B.Opts, md: Md, p: List<&1, Src> & U32, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, nx: P.Next) -> Step:
+def out.left(+o: B.Opts, md: Md, p: List<&1, Src> & U32, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs, nx: P.Next) -> Step:
   (src, +n) = p
-  out.k(md.take(md, n), o, src, pend, eof, back, win, asked, fneed, nx)
+  out.k(md.take(md, n), o, src, pend, eof, back, win, asked, fneed, dfs, nx)
 
 def left.one(+at: U32, r: D.Bytes & U32) -> Src & U32:
   (b, +len) = r
   (SB{b, at}, (len - at : U32))
+
+def left.sp(+at: U32, r: D.Bytes & U32) -> Src & U32:
+  (b, +len) = r
+  (SP{b, at}, (len - at : U32))
 
 def left.cons2(s: Src, +n: U32, q: List<&1, Src> & U32) -> List<&1, Src> & U32:
   (t, +m) = q
@@ -1122,48 +1327,50 @@ def left(src: List<&1, Src>) -> List<&1, Src> & U32:
       left.cons(left.one(at, BY.len(b)), left(t))
     case SL{p} <> t:
       left.cons((SL{p}, 0), left(t))
+    case SP{b, +at} <> t:
+      left.cons(left.sp(at, BY.len(b)), left(t))
 
 # The step ends: what it wrote, and what next.
 def out(st: St, nx: P.Next) -> Step:
   match st:
-    case St{+o, md, src, pend, eof, +back, win, asked, +fneed}:
-      out.left(o, md, left(src), pend, eof, back, win, asked, fneed, nx)
+    case St{+o, md, src, pend, eof, +back, win, asked, +fneed, dfs}:
+      out.left(o, md, left(src), pend, eof, back, win, asked, fneed, dfs, nx)
 
-def fin.mb(+o: B.Opts, p: NR.Run & Nat, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Step:
+def fin.mb(+o: B.Opts, p: NR.Run & Nat, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> Step:
   (run, +code) = p
-  out(St{o, MB{run}, src, pend, eof, back, win, asked, fneed}, P.Finish{code})
+  out(St{o, MB{run}, src, pend, eof, back, win, asked, fneed, dfs}, P.Finish{code})
 
-def fin.ms.go(fits: Bool, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +code: Nat, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Step:
+def fin.ms.go(fits: Bool, +o: B.Opts, s: R.RunSt, qs: List<&2, String>, +ql: Nat, +code: Nat, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> Step:
   match fits:
     case True{}:
-      out(St{o, MS{s, qs, ql, Some{code}}, src, pend, eof, back, win, asked, fneed}, P.Finish{code})
+      out(St{o, MS{s, qs, ql, Some{code}}, src, pend, eof, back, win, asked, fneed, dfs}, P.Finish{code})
     case False{}:
-      out(St{o, MS{s, qs, ql, Some{code}}, src, pend, eof, back, win, asked, fneed}, P.Ask{Nil{}})
+      out(St{o, MS{s, qs, ql, Some{code}}, src, pend, eof, back, win, asked, fneed, dfs}, P.Ask{Nil{}})
 
 # The String mode's report: its output and messages are handed out over as
 # many steps as the output needs, then it stops.
-def fin.ms(rep: R.Report, +o: B.Opts, s: R.RunSt, +qs: List<&2, String>, +ql: Nat, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Step:
+def fin.ms(rep: R.Report, +o: B.Opts, s: R.RunSt, +qs: List<&2, String>, +ql: Nat, src: List<&1, Src>, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> Step:
   match rep s:
     case R.Report{+out, ns, +code} R.RunSt{n, i, h, c, e, l, b, k, o2, ns0, x}:
-      fin.ms.go(len_le(cat(List.reverse(&2, String, out <> qs)), 1073741824), o, R.RunSt{n, i, h, c, e, l, b, k, "", ns, x}, out <> qs, Nat.add(ql, String.length(out)), code, src, pend, eof, back, win, asked, fneed)
+      fin.ms.go(len_le(cat(List.reverse(&2, String, out <> qs)), 1073741824), o, R.RunSt{n, i, h, c, e, l, b, k, "", ns, x}, out <> qs, Nat.add(ql, String.length(out)), code, src, pend, eof, back, win, asked, fneed, dfs)
 
 # The end of the run: the buffer is written (run.bend's finish) and the
 # program stops.
 def finish(st: St) -> Step:
   match st:
-    case St{+o, MB{run}, src, pend, eof, +back, win, asked, +fneed}:
-      fin.mb(o, NR.finish(run, R.Opts.w(o)), src, pend, eof, back, win, asked, fneed)
-    case St{+o, MS{+s, +qs, +ql, None{}}, src, pend, eof, +back, win, asked, +fneed}:
-      fin.ms(R.finish(s), o, s, qs, ql, src, pend, eof, back, win, asked, fneed)
-    case St{+o, MS{s, +qs, +ql, Some{+code}}, src, pend, eof, +back, win, asked, +fneed}:
-      fin.ms.go(len_le(cat(List.reverse(&2, String, qs)), 1073741824), o, s, qs, ql, code, src, pend, eof, back, win, asked, fneed)
+    case St{+o, MB{run}, src, pend, eof, +back, win, asked, +fneed, dfs}:
+      fin.mb(o, NR.finish(run, R.Opts.w(o)), src, pend, eof, back, win, asked, fneed, dfs)
+    case St{+o, MS{+s, +qs, +ql, None{}}, src, pend, eof, +back, win, asked, +fneed, dfs}:
+      fin.ms(R.finish(s), o, s, qs, ql, src, pend, eof, back, win, asked, fneed, dfs)
+    case St{+o, MS{s, +qs, +ql, Some{+code}}, src, pend, eof, +back, win, asked, +fneed, dfs}:
+      fin.ms.go(len_le(cat(List.reverse(&2, String, qs)), 1073741824), o, s, qs, ql, code, src, pend, eof, back, win, asked, fneed, dfs)
 
 def idle(st: St) -> Step:
   match st:
-    case St{o, md, src, pend, True{}, back, win, asked, fneed}:
-      finish(St{o, md, src, pend, True{}, back, win, asked, fneed})
-    case St{o, md, src, pend, False{}, back, win, asked, fneed}:
-      out(St{o, md, src, pend, False{}, back, win, asked, fneed}, P.More{})
+    case St{o, md, src, pend, True{}, back, win, asked, fneed, dfs}:
+      finish(St{o, md, src, pend, True{}, back, win, asked, fneed, dfs})
+    case St{o, md, src, pend, False{}, back, win, asked, fneed, dfs}:
+      out(St{o, md, src, pend, False{}, back, win, asked, fneed, dfs}, P.More{})
 
 # Handle lines until one needs the reference, none is left, the run stops, or
 # the fuel runs out (the step then ends and the next one goes on: P.Ask{[]}
@@ -1199,17 +1406,19 @@ def fuel.src(src: List<&1, Src>) -> List<&1, Src> & Nat:
       fuel.cons(left.one(at, BY.len(b)), fuel.src(t))
     case SL{p} <> t:
       fuel.cons((SL{p}, 0), fuel.src(t))
+    case SP{b, +at} <> t:
+      fuel.cons(left.sp(at, BY.len(b)), fuel.src(t))
 
-def go.k(+o: B.Opts, md: Md, p: List<&1, Src> & Nat, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Step:
+def go.k(+o: B.Opts, md: Md, p: List<&1, Src> & Nat, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> Step:
   (src, +n) = p
-  pump(1n+Nat.add(n, 1n), advance(St{o, md, src, pend, eof, back, win, asked, fneed}))
+  pump(1n+Nat.add(n, 1n), advance(St{o, md, src, pend, eof, back, win, asked, fneed, dfs}))
 
 # Pump with fuel for every line in the input (each takes at least one byte;
 # each buffer two more, and one more for a change of form).
 def go(st: St) -> Step:
   match st:
-    case St{+o, md, src, pend, eof, +back, win, asked, +fneed}:
-      go.k(o, md, fuel.src(src), pend, eof, back, win, asked, fneed)
+    case St{+o, md, src, pend, eof, +back, win, asked, +fneed, dfs}:
+      go.k(o, md, fuel.src(src), pend, eof, back, win, asked, fneed, dfs)
 
 # A complete line as input: bytes (with their LF), or text (without it).
 def Pd.src(pd: Pd) -> Src:
@@ -1223,9 +1432,9 @@ def Pd.src(pd: Pd) -> Src:
 # Input
 # ---------------------------------------------------------------------------
 
-def feed.join(+o: B.Opts, md: Md, +k: U32, p: Pd & D.Bytes, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> St:
+def feed.join(+o: B.Opts, md: Md, +k: U32, p: Pd & D.Bytes, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> St:
   (j, b) = p
-  St{o, md, [Pd.src(j), SB{b, (k + 1 : U32)}], PB{BY.empty(0n)}, eof, back, win, asked, fneed}
+  St{o, md, [Pd.src(j), SB{b, (k + 1 : U32)}], PB{BY.empty(0n)}, eof, back, win, asked, fneed, dfs}
 
 def join.b(p: D.Bytes & D.Bytes) -> Pd & D.Bytes:
   (q, b) = p
@@ -1255,32 +1464,32 @@ def join.k(pd: Pd, b: D.Bytes, +k: U32) -> Pd & D.Bytes:
     case PS{s}:
       join.s(s, text(b, 0, k))
 
-def feed.all(+o: B.Opts, md: Md, r: D.Bytes & U32, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> St:
+def feed.all(+o: B.Opts, md: Md, r: D.Bytes & U32, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> St:
   (b, +n) = r
-  St{o, md, Nil{}, pend.add(pend, b, 0, n), eof, back, win, asked, fneed}
+  St{o, md, Nil{}, pend.add(pend, b, 0, n), eof, back, win, asked, fneed, dfs}
 
-def feed.lf(none: Bool, +o: B.Opts, md: Md, b: D.Bytes, +k: U32, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> St:
+def feed.lf(none: Bool, +o: B.Opts, md: Md, b: D.Bytes, +k: U32, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> St:
   match none:
     case True{}:
-      feed.all(o, md, BY.len(b), pend, eof, back, win, asked, fneed)
+      feed.all(o, md, BY.len(b), pend, eof, back, win, asked, fneed, dfs)
     case False{}:
-      feed.join(o, md, k, join.k(pend, b, k), eof, back, win, asked, fneed)
+      feed.join(o, md, k, join.k(pend, b, k), eof, back, win, asked, fneed, dfs)
 
-def feed.find(+o: B.Opts, md: Md, t: NF.Tb, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> St:
+def feed.find(+o: B.Opts, md: Md, t: NF.Tb, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> St:
   match t:
     case NF.Tb{b, +k, +none, x}:
-      feed.lf(none, o, md, b, k, pend, eof, back, win, asked, fneed)
+      feed.lf(none, o, md, b, k, pend, eof, back, win, asked, fneed, dfs)
 
-def feed.if(empty: Bool, +o: B.Opts, md: Md, src: List<&1, Src>, b: D.Bytes, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> St:
+def feed.if(empty: Bool, +o: B.Opts, md: Md, src: List<&1, Src>, b: D.Bytes, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> St:
   match empty:
     case True{}:
-      St{o, md, List.append(&1, Src, src, [SB{b, 0}]), pend, eof, back, win, asked, fneed}
+      St{o, md, List.append(&1, Src, src, [SB{b, 0}]), pend, eof, back, win, asked, fneed, dfs}
     case False{}:
-      feed.find(o, md, NF.lf(b, 0), pend, eof, back, win, asked, fneed)
+      feed.find(o, md, NF.lf(b, 0), pend, eof, back, win, asked, fneed, dfs)
 
-def feed.k(+o: B.Opts, md: Md, src: List<&1, Src>, b: D.Bytes, r: Pd & Nat, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> St:
+def feed.k(+o: B.Opts, md: Md, src: List<&1, Src>, b: D.Bytes, r: Pd & Nat, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> St:
   (pend, +n) = r
-  feed.if(Nat.is_eq(n, 0n), o, md, src, b, pend, eof, back, win, asked, fneed)
+  feed.if(Nat.is_eq(n, 0n), o, md, src, b, pend, eof, back, win, asked, fneed, dfs)
 
 # The byte run's output buffer gets room for a piece's bytes.
 def md.reserve(md: Md, +n: U32) -> Md:
@@ -1290,16 +1499,16 @@ def md.reserve(md: Md, +n: U32) -> Md:
     case MS{s, qs, ql, c}:
       MS{s, qs, ql, c}
 
-def feed.room(+o: B.Opts, md: Md, src: List<&1, Src>, r: D.Bytes & U32, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> St:
+def feed.room(+o: B.Opts, md: Md, src: List<&1, Src>, r: D.Bytes & U32, pend: Pd, eof: Bool, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> St:
   (b, +n) = r
-  feed.k(o, md.reserve(md, n), src, b, Pd.len(pend), eof, back, win, asked, fneed)
+  feed.k(o, md.reserve(md, n), src, b, Pd.len(pend), eof, back, win, asked, fneed, dfs)
 
 # A piece of the VCF file: its lines are read in place; the end of a line
 # left from the last piece is joined with this piece's first line.
 def feed(st: St, b: D.Bytes) -> St:
   match st:
-    case St{+o, md, src, pend, eof, +back, win, asked, +fneed}:
-      feed.room(o, md, src, BY.len(b), pend, eof, back, win, asked, fneed)
+    case St{+o, md, src, pend, eof, +back, win, asked, +fneed, dfs}:
+      feed.room(o, md, src, BY.len(b), pend, eof, back, win, asked, fneed, dfs)
 
 # The last line, without an LF: given one (its text as B.Text.last has it).
 def eof_src(pd: Pd) -> Src:
@@ -1309,22 +1518,22 @@ def eof_src(pd: Pd) -> Src:
     case PS{s}:
       SL{s}
 
-def feed_eof.if(empty: Bool, +o: B.Opts, md: Md, src: List<&1, Src>, pend: Pd, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> St:
+def feed_eof.if(empty: Bool, +o: B.Opts, md: Md, src: List<&1, Src>, pend: Pd, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> St:
   match empty:
     case True{}:
-      St{o, md, src, pend, True{}, back, win, asked, fneed}
+      St{o, md, src, pend, True{}, back, win, asked, fneed, dfs}
     case False{}:
-      St{o, md, List.append(&1, Src, src, [eof_src(pend)]), PB{BY.empty(0n)}, True{}, back, win, asked, fneed}
+      St{o, md, List.append(&1, Src, src, [eof_src(pend)]), PB{BY.empty(0n)}, True{}, back, win, asked, fneed, dfs}
 
-def feed_eof.k(+o: B.Opts, md: Md, src: List<&1, Src>, r: Pd & Nat, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> St:
+def feed_eof.k(+o: B.Opts, md: Md, src: List<&1, Src>, r: Pd & Nat, +back: Nat, win: Win, asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, dfs: B.Defs) -> St:
   (pend, +n) = r
-  feed_eof.if(Nat.is_eq(n, 0n), o, md, src, pend, back, win, asked, fneed)
+  feed_eof.if(Nat.is_eq(n, 0n), o, md, src, pend, back, win, asked, fneed, dfs)
 
 # The end of the file: what is left after the last LF is the last line.
 def feed_eof(st: St) -> St:
   match st:
-    case St{+o, md, src, pend, eof, +back, win, asked, +fneed}:
-      feed_eof.k(o, md, src, Pd.len(pend), back, win, asked, fneed)
+    case St{+o, md, src, pend, eof, +back, win, asked, +fneed, dfs}:
+      feed_eof.k(o, md, src, Pd.len(pend), back, win, asked, fneed, dfs)
 
 def set_win.of(asked: Maybe<&2, List<&2, P.Req>>, win: Win, as: List<&1, P.Ans>) -> Win:
   match asked:
@@ -1337,8 +1546,8 @@ def set_win.of(asked: Maybe<&2, List<&2, P.Req>>, win: Win, as: List<&1, P.Ans>)
 # answer stays).
 def set_win(st: St, as: List<&1, P.Ans>) -> St:
   match st:
-    case St{o, md, src, pend, eof, back, win, asked, fneed}:
-      St{o, md, src, pend, eof, back, set_win.of(asked, win, as), None{}, fneed}
+    case St{o, md, src, pend, eof, back, win, asked, fneed, dfs}:
+      St{o, md, src, pend, eof, back, set_win.of(asked, win, as), None{}, fneed, dfs}
 
 # One step of the program.
 def step(st: St, i: P.In) -> Step:

@@ -159,6 +159,13 @@ def stop(r: Run, nt: B.Note) -> Run:
     case Run{n, i, h, c, cb, e, l, f, b, bn, tl, k, ob, ow, ns, x}:
       Run{n, i, h, c, cb, e, l, f, b, bn, tl, k, ob, ow, nt <> ns, True{}}
 
+# One line less read (before a record of a split line, whose line was counted
+# when it was split: its own tick gives the count back).
+def untick(r: Run) -> Run:
+  match r:
+    case Run{n, i, h, c, cb, e, l, f, b, bn, tl, k, ob, ow, ns, x}:
+      Run{Nat.sub(n, 1n), i, h, c, cb, e, l, f, b, bn, tl, k, ob, ow, ns, x}
+
 def tick(r: Run) -> Run:
   match r:
     case Run{n, i, h, c, cb, e, l, f, b, bn, tl, k, ob, ow, ns, x}:
