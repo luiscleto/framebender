@@ -16,3 +16,11 @@ the build guards; a 70 KB header line with a `##contig` length gives identical i
 | 4 | "byte for byte" holds only when the reference tools' htslib compresses as the linked one (libdeflate) | Claude | **Fix** the comment. |
 | 5 | `tabix -p vcf` takes the CRAM path for a name ending in `.cram` | Claude | **Fix** the wording: the reference is the same file under a `.vcf.gz` name. |
 | 6 | Tests: two successive spellings can both be CSI, so some cases never test TBI; missing cases: no `##fileformat` (1), a `#` line before it, a stale `<stem>.csi` (2), an index name linking to a directory (3), the `-o` file hard-linked to an index name, stderr's file at an index name, an existing `<name>.old` (the `.old1` path), a header line longer than a block with a `##contig` length | GPT, Claude, Grok | **Fix:** choose CSI and TBI explicitly for every case and rotate the spellings within each; add the cases. |
+
+## Round 2
+
+Claude (`claude-driver9-r2.md`), GPT (`gpt-driver9-r2.md`), Grok (`grok-driver9-r2.md`): ACCEPT.
+All six decisions carried out (4f9f68c). Claude and Grok re-ran the new cases on their own builds:
+the `##fileformat` check across blocks, on a short output and under a `-c e` stop; the stem
+`.csi` rule against htslib 1.24's search order; directory links through a chain of symlinks;
+block-spanning lines, CRLF, a header longer than a block and `END=` at `--threads` 1 and 128.
