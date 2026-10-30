@@ -295,6 +295,123 @@ def oo_bcf() -> {B.Args.out_opt(["-o", "a.bcf"]) == False{} : Bool}:
 def oo_extra() -> {B.Args.out_opt(["-Oz", "x"]) == False{} : Bool}:
   {==}
 
+# --- The index option (-W; law index) ---------------------------------------
+
+# It changes nothing Args.parse returns, and is not recorded in the header.
+def idx_header() -> {B.Args.parse(["norm", "-W", "-f", "r.fa", "-o", "o.vcf.gz", "in.vcf"]) == Some{B.Cfg{B.Opts{True{}, 1000n, ["-f", "r.fa", "in.vcf"]}, "r.fa", "in.vcf"}} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def idx_long() -> {B.Args.parse(["norm", "-f", "r.fa", "in.vcf", "--write-index=tbi"]) == B.Args.parse(["norm", "-f", "r.fa", "in.vcf"]) : Maybe<&2, B.Cfg>}:
+  {==}
+
+# Accepted with stdout or plain output too: Args.index says BadIdx, and the
+# driver refuses it ("-W needs a BGZF -o file").
+def idx_stdout_parse() -> {B.Args.parse(["norm", "-W", "-f", "r.fa", "in.vcf"]) == Some{B.Cfg{B.Opts{True{}, 1000n, ["-f", "r.fa", "in.vcf"]}, "r.fa", "in.vcf"}} : Maybe<&2, B.Cfg>}:
+  {==}
+
+# Refused: another format (bai, a format in upper case), an abbreviated long
+# form; a format in the next word is that word (here a second VCF path).
+def idx_bai() -> {B.Args.parse(["norm", "-Wbai", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def idx_upper() -> {B.Args.parse(["norm", "-W=TBI", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def idx_abbrev() -> {B.Args.parse(["norm", "--write", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def idx_next_word() -> {B.Args.parse(["norm", "-W", "tbi", "-f", "r.fa", "in.vcf"]) == None{} : Maybe<&2, B.Cfg>}:
+  {==}
+
+# B.Args.index: the -o path with .csi or .tbi; the last -W counts.
+def index_none() -> {B.Args.index(["norm", "-f", "r.fa", "-o", "o.vcf.gz", "in.vcf"]) == Some{B.NoIdx{}} : Maybe<&2, B.Idx>}:
+  {==}
+
+def index_csi() -> {B.Args.index(["norm", "-f", "r.fa", "-o", "o.vcf.gz", "-W", "in.vcf"]) == Some{B.Idx{B.Csi{}, "o.vcf.gz.csi"}} : Maybe<&2, B.Idx>}:
+  {==}
+
+def index_tbi() -> {B.Args.index(["norm", "-Wtbi", "-f", "r.fa", "-o", "o.vcf.gz", "in.vcf"]) == Some{B.Idx{B.Tbi{}, "o.vcf.gz.tbi"}} : Maybe<&2, B.Idx>}:
+  {==}
+
+def index_last() -> {B.Args.index(["norm", "-W=tbi", "-f", "r.fa", "--write-index", "-o", "o.vcf.gz", "in.vcf"]) == Some{B.Idx{B.Csi{}, "o.vcf.gz.csi"}} : Maybe<&2, B.Idx>}:
+  {==}
+
+def index_other_ext() -> {B.Args.index(["norm", "-W", "-Oz", "-f", "r.fa", "-o", "out.gz", "in.vcf"]) == Some{B.Idx{B.Csi{}, "out.gz.csi"}} : Maybe<&2, B.Idx>}:
+  {==}
+
+# The type is Args.output's: -Ov with a .vcf.gz path is BGZF (indexed); -Oz
+# with a .vcf path is plain (BadIdx).
+def index_ext_wins() -> {B.Args.index(["norm", "-W", "-Ov", "-f", "r.fa", "-o", "o.vcf.gz", "in.vcf"]) == Some{B.Idx{B.Csi{}, "o.vcf.gz.csi"}} : Maybe<&2, B.Idx>}:
+  {==}
+
+def index_plain_ext() -> {B.Args.index(["norm", "-W", "-Oz", "-f", "r.fa", "-o", "o.vcf", "in.vcf"]) == Some{B.BadIdx{}} : Maybe<&2, B.Idx>}:
+  {==}
+
+# Stdout (no -o, or -o -), and plain output to a file, cannot be indexed.
+def index_stdout() -> {B.Args.index(["norm", "-W", "-Oz", "-f", "r.fa", "in.vcf"]) == Some{B.BadIdx{}} : Maybe<&2, B.Idx>}:
+  {==}
+
+def index_dash() -> {B.Args.index(["norm", "-W", "-Oz", "-o", "-", "-f", "r.fa", "in.vcf"]) == Some{B.BadIdx{}} : Maybe<&2, B.Idx>}:
+  {==}
+
+def index_plain() -> {B.Args.index(["norm", "-W", "-f", "r.fa", "-o", "out.txt", "in.vcf"]) == Some{B.BadIdx{}} : Maybe<&2, B.Idx>}:
+  {==}
+
+def index_refused() -> {B.Args.index(["norm", "-W", "-o", "o.vcf.gz", "in.vcf"]) == None{} : Maybe<&2, B.Idx>}:
+  {==}
+
+# -W leaves the output and the thread count as they are.
+def idx_sink() -> {B.Args.output(["norm", "-Oz1", "-W", "-f", "r.fa", "-o", "o.vcf.gz", "in.vcf"]) == Some{B.Sink{Some{"o.vcf.gz"}, True{}, 1n}} : Maybe<&2, B.Sink>}:
+  {==}
+
+def idx_threads() -> {B.Args.threads(["norm", "-W", "--threads", "4", "-f", "r.fa", "-o", "o.vcf.gz", "in.vcf"]) == Some{4n} : Maybe<&2, Nat>}:
+  {==}
+
+# The index option, one word (law index's B.Args.idx_opt).
+def io_forms() -> {(B.Args.idx_opt("-W") && B.Args.idx_opt("-Wcsi") && B.Args.idx_opt("-Wtbi") && B.Args.idx_opt("-W=csi") && B.Args.idx_opt("-W=tbi") && B.Args.idx_opt("--write-index") && B.Args.idx_opt("--write-index=csi") && B.Args.idx_opt("--write-index=tbi")) == True{} : Bool}:
+  {==}
+
+def io_not() -> {(B.Args.idx_opt("-W=") || B.Args.idx_opt("-Wbai") || B.Args.idx_opt("--write-index=") || B.Args.idx_opt("-w")) == False{} : Bool}:
+  {==}
+
+# The other BGZF extensions, in any case: the suffix is appended to the path
+# as given.
+def index_bgz() -> {B.Args.index(["norm", "-W", "-f", "r.fa", "-o", "x.vcf.bgz", "in.vcf"]) == Some{B.Idx{B.Csi{}, "x.vcf.bgz.csi"}} : Maybe<&2, B.Idx>}:
+  {==}
+
+def index_upper_ext() -> {B.Args.index(["norm", "-Wtbi", "-f", "r.fa", "-o", "x.VCF.GZ", "in.vcf"]) == Some{B.Idx{B.Tbi{}, "x.VCF.GZ.tbi"}} : Maybe<&2, B.Idx>}:
+  {==}
+
+# --write-index tbi: the format is not read from the next word, which is the
+# VCF path (here the only one).
+def idx_tbi_path() -> {B.Args.parse(["norm", "-f", "r.fa", "--write-index", "tbi"]) == Some{B.Cfg{B.Opts{True{}, 1000n, ["-f", "r.fa", "tbi"]}, "r.fa", "tbi"}} : Maybe<&2, B.Cfg>}:
+  {==}
+
+def index_tbi_path() -> {B.Args.index(["norm", "-f", "r.fa", "-o", "o.vcf.gz", "--write-index", "tbi"]) == Some{B.Idx{B.Csi{}, "o.vcf.gz.csi"}} : Maybe<&2, B.Idx>}:
+  {==}
+
+# The index is built on the output's Sink (B.Args.idx.mk): BGZF to a file is
+# indexed, anything else with -W is BadIdx, no -W is NoIdx.
+def idx_mk_file() -> {B.Args.idx.mk(Some{B.Tbi{}}, B.Sink{Some{"o.vcf.gz"}, True{}, 6n}) == B.Idx{B.Tbi{}, "o.vcf.gz.tbi"} : B.Idx}:
+  {==}
+
+def idx_mk_plain() -> {B.Args.idx.mk(Some{B.Csi{}}, B.Sink{Some{"o.vcf"}, False{}, 6n}) == B.BadIdx{} : B.Idx}:
+  {==}
+
+def idx_mk_stdout() -> {B.Args.idx.mk(Some{B.Csi{}}, B.Sink{None{}, True{}, 6n}) == B.BadIdx{} : B.Idx}:
+  {==}
+
+def idx_mk_none() -> {B.Args.idx.mk(None{}, B.Sink{Some{"o.vcf.gz"}, True{}, 6n}) == B.NoIdx{} : B.Idx}:
+  {==}
+
+# Law index_sink on two lines: the same output and thread count with and
+# without -W.
+def route_w() -> {M.route(["norm", "-Wtbi", "-Oz1", "--threads", "4", "-f", "r.fa", "-o", "o.vcf.gz", "in.vcf"]) == M.Route{Some{B.Sink{Some{"o.vcf.gz"}, True{}, 1n}}, Some{4n}} : M.Route}:
+  {==}
+
+def route_same() -> {M.route(["norm", "-f", "r.fa", "-o", "o.vcf.gz", "in.vcf", "--write-index=csi"]) == M.route(["norm", "-f", "r.fa", "-o", "o.vcf.gz", "in.vcf"]) : M.Route}:
+  {==}
+
 # --- Whole runs ------------------------------------------------------------
 
 def fa() -> String:

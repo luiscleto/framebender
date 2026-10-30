@@ -634,7 +634,58 @@ file without its end-of-file block. GPT kept finding injected-failure cases into
 1000 Genomes chr22 `.vcf.gz` in and out: framebender `-Oz` 13.8-14.0 s, bcftools `-Oz --threads
 16` 65 s (the agent's runs).
 
-## The packages on BendHub (2026-10-30)
+## Index output (2026-10-30; phase J, branch `index`, `notes/index.md`)
+
+`-W`, `--write-index[=csi|tbi]` in the eight forms bcftools documents: the output's index, built
+while the BGZF file is written, byte for byte what `bcftools index` (CSI) or `tabix -p vcf` (TBI)
+writes for the same file. Each compressor thread parses its block's lines with htslib 1.24's own
+`tbx_parse1` (not exported by `libhts.so`: htslib is linked statically, built without libcurl,
+`tools/build_htslib.sh`); the writer pushes them in order at the virtual offsets a reader sees.
+Two new laws in `MACHINE.bend`: `index` (a `-W` where an option is expected changes nothing in
+the machine's report) and `index_sink` (nor `B.Args.output` nor `B.Args.threads`); `B.Args.index`
+is built on `B.Args.output`'s `Sink`. Proven in `proof_f_index.bend` (with `index_ok`). The
+writer stays trusted and is tested against the tools with a per-format differential rule,
+failure injection at each step of the open and close, and region queries (`test/index.sh`).
+
+**Law review** (three rounds, `reviews/*-index-law*.md`, `responses-index-law.md`): laws and
+parser accepted in round 1 by all three; 27 decisions, all on the trusted writer and the test
+plan.
+
+**Q2: what the laws did not see.** Law `index` holds throughout; the findings were all in the
+design of the writer:
+- `tbx_parse1` writes a function-static on INFO/END lines: a data race on the compressor
+  threads (GPT); now parsed under a lock for lines holding `END=`, at no measurable cost.
+- Removing the old indexes before the truncate could leave an emptied output with stale
+  indexes, and `-o` symlinked to its own `.csi` would unlink the data (GPT, Grok); now the old
+  indexes are renamed aside first and moved back on failure, with a `link` fallback where
+  `RENAME_NOREPLACE` is missing (NFS: Claude).
+- htslib opens index names like `file:x` or `http:` as URLs (Claude, confirmed).
+- An index failure stored as the output's error made what was printed depend on thread timing,
+  and turned a `-c e` stop into exit 2 (Claude).
+- The empty CSI had 8 levels where htslib has 6 (GPT, confirmed); the constructor's
+  `--threads` parser did not know `-W` (GPT).
+- The differential oracle first said "if either tool refuses", but at POS 600,000,000 CSI
+  succeeds and TBI is refused (GPT).
+
+**Q4.** Claude alone found the URL names, the timing-dependent messages and the `_exit` that
+leaves the temporary file; GPT alone found the static's race (round 1 blocker), the empty CSI,
+the truncate-before-unlink order (confirmed by injection) and the per-format oracle; Grok alone
+found the free-before-index risk and the move-back gap of round 3.
+
+**Q5** (pinned to 16 CPUs, interleaved; chr22 5 rounds, whole genome 3; `-c w`):
+
+| | chr22 | whole genome | peak memory (whole) |
+|---|---|---|---|
+| bcftools `-Oz --threads 16` | 0.12–0.13 s | 6.1–6.6 s | 17 MB |
+| bcftools `-Oz -W --threads 16` | 0.13–0.14 s | 6.5–6.6 s | 30–31 MB |
+| framebender `-Oz` | 0.07–0.08 s | 3.0–3.3 s | 344–350 MB |
+| framebender `-Oz -W` | 0.09–0.10 s | 3.4–3.6 s | 359–360 MB |
+| framebender `-Oz -Wtbi` | 0.09 s | 3.3–3.5 s | 359–361 MB |
+| framebender `-Oz1 -W` | 0.08–0.09 s | 2.5–2.6 s | 358–362 MB |
+
+Whole genome `-Oz -W` at `--threads` 1, 4, 8, 32: 16.4, 5.3, 3.8, 3.8 s (62, 141, 221, 637
+MB). A lead: framebender's own INFO/END check is slow (chr22 with END on every record: 13×).
+
 
 The five packages are published as 0.1.0.0 (below 1.0: laws reviewed by three models, not yet by
 a human expert), each from its `PROOF.bend`, so a package carries its code, laws and proofs:

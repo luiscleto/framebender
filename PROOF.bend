@@ -8,6 +8,7 @@ import ./proof_b_machine.bend as PM
 import ./proof_e_machine.bend as EM
 import ./proof_f_threads.bend as FT
 import ./proof_f_out.bend as FO
+import ./proof_f_index.bend as FI
 
 # Proofs of the laws: `def L.name` proves `law name` of LAWS.bend (the
 # science), `def M.name` proves `law name` of MACHINE.bend (the
@@ -80,3 +81,13 @@ def M.threads(pre, x, n, post, fasta, vcf, cs, he, hx, hn, hf, h, hb):
 
 def M.output(pre, o, post, fasta, vcf, cs, he, ho, hf, h, hb):
   FO.output(pre, o, post, fasta, vcf, cs, he, ho, hf, h, hb)
+
+# The index option (-W) changes nothing the program writes, nor where and how
+# the output is written, nor the thread count (proof_f_index.bend, from law
+# machine, law usage and the parser).
+
+def M.index(pre, x, post, fasta, vcf, cs, he, hx, hf, h, hb):
+  FI.index(pre, x, post, fasta, vcf, cs, he, hx, hf, h, hb)
+
+def M.index_sink(pre, x, post, he, hx):
+  FI.index_sink(pre, x, post, he, hx)

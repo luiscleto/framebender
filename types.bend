@@ -712,21 +712,24 @@ def Note.render(n: Note) -> String:
 #   w: the sorting window (-w, default 1000, at least 1).
 #   args: the command-line arguments that decide the output, recorded in the
 #     header: all those after "norm" except --threads, -o and -O and their
-#     values (which only size the program's work, or choose how and where the
-#     text is written), so the text is the same for every N, every output
-#     file and every output type.
+#     values, and -W (which only size the program's work, choose how and
+#     where the text is written, or ask for its index), so the text is the
+#     same for every N, every output file and type, with or without an
+#     index.
 type Opts is Data:
   Opts{strict: Bool, w: Nat, args: List<&2, String>}
 
 # A parsed command line: the options, the FASTA path, the VCF path. The thread
-# count (--threads) and the output options (-o, -O) are not part of it (see
-# Args.threads, Args.output).
+# count (--threads), the output options (-o, -O) and the index option (-W)
+# are not part of it (see Args.threads, Args.output, Args.index).
 type Cfg is Data:
   Cfg{opts: Opts, ref: String, vcf: String}
 
-# The usage message, printed on a usage error (exit code 2).
+# The usage message, printed on a usage error (exit code 2). Its second line
+# says that -W replaces an old index of the -o file (the README says what a
+# run without -W leaves).
 def usage() -> String:
-  "usage: framebender norm -f ref.fa [-c e|w] [-w N] [--threads N] [-o FILE] [-O v|z|z0-9] in.vcf\n"
+  "usage: framebender norm -f ref.fa [-c e|w] [-w N] [--threads N] [-o FILE] [-O v|z|z0-9] [-W[=csi|tbi]] in.vcf\n  -W also removes FILE's old .csi/.tbi\n"
 
 # The largest thread count --threads accepts: a chosen limit, the most worker
 # threads Bend's runtime runs and the size of the driver's tables.
@@ -749,31 +752,47 @@ type Pend is Data:
 type OType is Data:
   OType{z: Bool, level: Maybe<&2, Nat>}
 
+# An index format, as -W names it: CSI (the default) or TBI.
+type IFmt is Data:
+  Csi{}
+  Tbi{}
+
 # What the command line says about how the program works and writes, never
 # about what it writes: the thread count (--threads N), the output path (-o),
-# the output type (-O: z True for BGZF) and the compression level (the digit
-# of -O z0 ... z9). For each, the last one given; a later -O without a digit
-# keeps the level, as in bcftools 1.24 (-Oz0 -Oz is level 0).
+# the output type (-O: z True for BGZF), the compression level (the digit
+# of -O z0 ... z9) and the index format (-W). For each, the last one given; a
+# later -O without a digit keeps the level, as in bcftools 1.24 (-Oz0 -Oz is
+# level 0).
 type Drv is Data:
-  Drv{thr: Maybe<&2, Nat>, out: Maybe<&2, String>, z: Maybe<&2, Bool>, lvl: Maybe<&2, Nat>}
+  Drv{thr: Maybe<&2, Nat>, out: Maybe<&2, String>, z: Maybe<&2, Bool>, lvl: Maybe<&2, Nat>, idx: Maybe<&2, IFmt>}
 
 def Drv.none() -> Drv:
-  Drv{None{}, None{}, None{}, None{}}
+  Drv{None{}, None{}, None{}, None{}, None{}}
 
 def Drv.thr(d: Drv) -> Maybe<&2, Nat>:
   match d:
-    case Drv{t, o, z, l}:
+    case Drv{t, o, z, l, i}:
       t
 
 def Drv.set_thr(+n: Nat, d: Drv) -> Drv:
   match d:
-    case Drv{t, o, z, l}:
-      Drv{Some{n}, o, z, l}
+    case Drv{t, o, z, l, i}:
+      Drv{Some{n}, o, z, l, i}
 
 def Drv.set_out(+x: String, d: Drv) -> Drv:
   match d:
-    case Drv{t, o, z, l}:
-      Drv{t, Some{x}, z, l}
+    case Drv{t, o, z, l, i}:
+      Drv{t, Some{x}, z, l, i}
+
+def Drv.idx(d: Drv) -> Maybe<&2, IFmt>:
+  match d:
+    case Drv{t, o, z, l, i}:
+      i
+
+def Drv.set_idx(m: Maybe<&2, IFmt>, d: Drv) -> Drv:
+  match d:
+    case Drv{t, o, z, l, i}:
+      Drv{t, o, z, l, m}
 
 def Drv.keep_lvl(m: Maybe<&2, Nat>, l: Maybe<&2, Nat>) -> Maybe<&2, Nat>:
   match m:
@@ -784,8 +803,8 @@ def Drv.keep_lvl(m: Maybe<&2, Nat>, l: Maybe<&2, Nat>) -> Maybe<&2, Nat>:
 
 def Drv.set_typ(x: OType, d: Drv) -> Drv:
   match x d:
-    case OType{y, m} Drv{t, o, z, l}:
-      Drv{t, o, Some{y}, Drv.keep_lvl(m, l)}
+    case OType{y, m} Drv{t, o, z, l, i}:
+      Drv{t, o, Some{y}, Drv.keep_lvl(m, l), i}
 
 # Two characters are equal ignoring ASCII case (b in lower case).
 def Args.ceq(a: Char, b: Char) -> Bool:
@@ -826,9 +845,19 @@ def Args.otype(+x: String) -> Maybe<&2, OType>:
   Bool.pick(Maybe<&2, OType>, String.eq(x, "z"), Some{OType{True{}, None{}}},
   Args.otype.lvl(String.starts_with(x, "z") && Nat.is_eq(String.length(x), 2n), Pos.read(String.drop(x, 1n)))))
 
+# The index option, one word, in the eight forms bcftools 1.24 documents: -W
+# or --write-index (CSI), -Wcsi, -Wtbi, -W=csi, -W=tbi, --write-index=csi or
+# --write-index=tbi. None for any other word (bcftools' abbreviations and
+# --write-index==tbi are not taken). (A value in the next word is not read:
+# in bcftools, -W tbi is -W and the word tbi.)
+def Args.wfmt(+x: String) -> Maybe<&2, IFmt>:
+  Bool.pick(Maybe<&2, IFmt>, String.eq(x, "-W") || String.eq(x, "--write-index") || String.eq(x, "-Wcsi") || String.eq(x, "-W=csi") || String.eq(x, "--write-index=csi"), Some{Csi{}},
+  Bool.pick(Maybe<&2, IFmt>, String.eq(x, "-Wtbi") || String.eq(x, "-W=tbi") || String.eq(x, "--write-index=tbi"), Some{Tbi{}}, None{}))
+
 # The command line read so far; ok turns False on any error. drv: the thread
-# count and the output options; keep: the arguments recorded in the header
-# (all but --threads, -o, -O and their values), in order.
+# count, the output options and the index format; keep: the arguments
+# recorded in the header (all but --threads, -o, -O and their values, and
+# -W), in order.
 type ArgSt is Data:
   ArgSt{pend: Pend, strict: Bool, w: Maybe<&2, Nat>, drv: Drv, ref: Maybe<&2, String>, vcf: Maybe<&2, String>, ok: Bool, keep: List<&2, String>}
 
@@ -851,7 +880,8 @@ def Args.word(+x: String, st: ArgSt) -> ArgSt:
       Bool.pick(ArgSt, String.eq(x, "-o"), ArgSt{POut{}, s, w, t, r, v, ok, k},
       Bool.pick(ArgSt, String.eq(x, "-O"), ArgSt{PType{}, s, w, t, r, v, ok, k},
       Bool.pick(ArgSt, String.starts_with(x, "-O"), Args.typ(Args.otype(String.drop(x, 2n)), ArgSt{PType{}, s, w, t, r, v, ok, k}),
-      ArgSt{PNone{}, s, w, t, r, Some{x}, ok && Bool.not(opt) && Maybe.is_none(&2, String, v), kx})))))))
+      Bool.pick(ArgSt, Maybe.is_some(&2, IFmt, Args.wfmt(x)), ArgSt{PNone{}, s, w, Drv.set_idx(Args.wfmt(x), t), r, v, ok, k},
+      ArgSt{PNone{}, s, w, t, r, Some{x}, ok && Bool.not(opt) && Maybe.is_none(&2, String, v), kx}))))))))
 
 def Args.win(m: Maybe<&2, Nat>, st: ArgSt) -> ArgSt:
   match m st:
@@ -868,7 +898,7 @@ def Args.thr(m: Maybe<&2, Nat>, st: ArgSt) -> ArgSt:
       ArgSt{PNone{}, s, w, t, r, v, False{}, k}
 
 # The state after one more argument x. Every argument is recorded (keep)
-# except --threads, -o and -O (glued -OT too) and their values.
+# except --threads, -o and -O (glued -OT too) and their values, and -W.
 def Args.step(st: ArgSt, +x: String) -> ArgSt:
   match st:
     case ArgSt{PNone{}, s, w, t, r, v, ok, k}:
@@ -914,9 +944,10 @@ def Args.done.if(ok: Bool, rest: List<&2, String>) -> Maybe<&2, Cfg>:
 # The command line after the program name: "norm", then the options -f FASTA
 # (required), -c e or -c w (default e), -w N (N at least 1, default 1000),
 # --threads N (N from 1 to Args.max_threads()), -o PATH (any word not ending
-# in .bcf, in any case), -O T or -OT (T: v, z, z0 to z9) in any order, and one
-# VCF path. None for anything else (a usage error). For -c, -w, --threads, -o
-# and -O every one given must be valid, and the last one counts.
+# in .bcf, in any case), -O T or -OT (T: v, z, z0 to z9), the index option
+# (Args.wfmt) in any order, and one VCF path. None for anything else (a usage
+# error). For -c, -w, --threads, -o and -O every one given must be valid, and
+# the last one counts (for -W too).
 def Args.parse(argv: List<&2, String>) -> Maybe<&2, Cfg>:
   match argv:
     case Nil{}:
@@ -1035,7 +1066,7 @@ def Args.z.of(e: Maybe<&2, Bool>, y: Maybe<&2, Bool>) -> Bool:
 # Args.level().
 def Args.sink(d: Drv) -> Sink:
   match d:
-    case Drv{t, +o, z, l}:
+    case Drv{t, +o, z, l, i}:
       Sink{Args.file(o), Args.z.of(Args.ext.of(o), z), Maybe.default(&2, Nat, l, Args.level())}
 
 def Args.sink.done(st: ArgSt) -> Maybe<&2, Sink>:
@@ -1061,3 +1092,68 @@ def Args.output(argv: List<&2, String>) -> Maybe<&2, Sink>:
       None{}
     case +cmd <> +rest:
       Args.output.if(String.eq(cmd, "norm"), rest)
+
+# ---------------------------------------------------------------------------
+# The index option (it asks for the output's index; law index)
+# ---------------------------------------------------------------------------
+
+# One index option, one word (law index's premise).
+def Args.idx_opt(+x: String) -> Bool:
+  Maybe.is_some(&2, IFmt, Args.wfmt(x))
+
+# The index file's suffix, appended to the -o path as bcftools 1.24 does.
+def IFmt.ext(f: IFmt) -> String:
+  match f:
+    case Csi{}:
+      ".csi"
+    case Tbi{}:
+      ".tbi"
+
+# Whether the output is indexed, and where.
+#   NoIdx: no -W;
+#   Idx{fmt, path}: the index of the -o file, in format fmt, at path (the -o
+#     path, as Args.output's Sink names it, and IFmt.ext(fmt));
+#   BadIdx: -W, but the output is stdout or plain text: an index needs a BGZF
+#     file named by -o (as in bcftools 1.24, which also refuses both).
+type Idx is Data:
+  NoIdx{}
+  Idx{fmt: IFmt, path: String}
+  BadIdx{}
+
+# The index of the output Sink s, for the index format m (None: no -W): the
+# Sink's own file and type, so the index is always that of the file the
+# driver writes.
+def Args.idx.mk(m: Maybe<&2, IFmt>, s: Sink) -> Idx:
+  match m s:
+    case None{} _:
+      NoIdx{}
+    case Some{+x} Sink{Some{+p}, True{}, l}:
+      Idx{x, p ++ IFmt.ext(x)}
+    case Some{x} _:
+      BadIdx{}
+
+def Args.index.done(st: ArgSt) -> Maybe<&2, Idx>:
+  match st:
+    case ArgSt{PNone{}, s, w, +t, Some{r}, Some{v}, True{}, k}:
+      Some{Args.idx.mk(Drv.idx(t), Args.sink(t))}
+    case _:
+      None{}
+
+def Args.index.if(ok: Bool, rest: List<&2, String>) -> Maybe<&2, Idx>:
+  match ok:
+    case True{}:
+      Args.index.done(Args.go(rest, Args.init()))
+    case False{}:
+      None{}
+
+# The index of a command line Args.parse accepts, built on the Sink
+# Args.output gives for it (Args.idx.mk); None for every command line it
+# refuses. The driver writes the index there once the output is complete;
+# law index (MACHINE.bend) says -W changes nothing in the machine's report,
+# law index_sink that it changes neither Args.output nor Args.threads.
+def Args.index(argv: List<&2, String>) -> Maybe<&2, Idx>:
+  match argv:
+    case Nil{}:
+      None{}
+    case +cmd <> +rest:
+      Args.index.if(String.eq(cmd, "norm"), rest)

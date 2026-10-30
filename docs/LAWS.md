@@ -124,6 +124,27 @@ given (a later `-Oz` or `-Ov` keeps it, as in bcftools), otherwise 6. BCF (`-O b
 and `-O` given must be valid, not only the last. The lemma `output_ok` (`proof_f_out.bend`) proves
 that `B.Args.output` answers for exactly the command lines `Args.parse` accepts.
 
+`index` (in `MACHINE.bend`): `-W` asks for the output's index and changes nothing in the
+machine's report. Wherever the parser expects an option, adding one index option (`-W`, `-Wcsi`,
+`-Wtbi`, `-W=csi`, `-W=tbi`, `--write-index`, `--write-index=csi` or `--write-index=tbi`, the
+eight forms bcftools 1.24 documents) gives the same paths and the same report (output bytes,
+messages, exit code) as the same command line without it. It follows from `machine`, as `threads`
+and `output` do; the header does not record `-W`. The law speaks of the machine's report, not of
+the process: with an index error of the driver (below), the process exits 2 where the machine's
+code is 0.
+
+`index_sink` (in `MACHINE.bend`): `-W` changes neither where and how the output is written nor
+the thread count. Wherever the parser expects an option, adding one index option gives the same
+`B.Args.output` and the same `B.Args.threads`. Where the index goes is `B.Args.index`, built on
+`B.Args.output`'s `Sink` (`B.Args.idx.mk`), so it is by definition the index of the file the
+driver writes: `<-o path>.csi` (or `.tbi` for the TBI forms; the last `-W` counts) for BGZF
+output to a file, and a refusal (`error: -W needs a BGZF -o file`, exit 2, before any input is
+opened) for stdout or plain output. A format in the next word is not read (`-W tbi` makes `tbi`
+the VCF path, as in bcftools). The lemma `index_ok` (`proof_f_index.bend`) proves that
+`B.Args.index` answers for exactly the command lines `Args.parse` accepts. With `threads` and
+`output`, removing every `--threads`, `-o`, `-O` and `-W` from an accepted command line gives the
+same text, messages and exit code.
+
 The program works on bytes, while the science layer reads text. `bytes_enc.bend` connects them:
 each character is one byte, and the law assumes every character the driver passes is below 256,
 which holds for anything read from a file. Each piece is at most 2^31 bytes (2 GiB). The driver
@@ -169,6 +190,24 @@ through a duplicate of the file's descriptor kept from its open, unless that tak
 itself, when the file may keep it; a pipe cannot take it back). A file size limit makes the write fail (`SIGXFSZ` is ignored). A run that stops (a `-c e` stop, a driver error, a failed write) leaves the blocks
 written so far, without it; after a failed write nothing more is written (`error: cannot write
 <path>`, exit 2). Compressed output can make a run run out of memory where the plain one does not.
+
+Writing the index (`-W`) is trusted too, and tested instead of proven (`test/index.sh`): the
+index must be byte for byte what `bcftools index` (CSI, `min_shift` 14) or `tabix -p vcf` (TBI)
+writes for the same file, and `error: cannot index <path>` must come exactly when that tool
+refuses the file. Each compressor thread parses its block's lines with htslib 1.24's own parser
+(`tbx_parse1`, linked statically; a line holding `END=` under a lock), and the writer thread
+pushes them in order at the virtual offsets a reader would see. At the open of the `-o` file the
+driver, before it changes anything, checks the file is regular (a FIFO with no reader is refused,
+not waited on) and that neither index name is a directory, the `-o` file or an input; it creates
+a temporary file and renames both old indexes aside (never replacing a file), then empties the
+`-o` file and removes them (htslib reads `.csi` before `.tbi`, so a stale one would hide the new
+one). A failure up to the emptying leaves the old file and indexes as they were, except an index
+whose move back fails, which stays as `<name>.old`. Only for exit code 0, after the end-of-file
+block, is the index saved to the temporary file and renamed into place; a line the tool would
+refuse gives, after all of the run's messages, `error: cannot index <path>`, exit 2, and no
+end-of-file block; any other end leaves no index at either name. Bend's runtime stops with
+`_exit`, so then (and on a kill) the temporary `<index>.tmp` stays, a file htslib never reads.
+A run without `-W` leaves an old index of the `-o` file as it is.
 
 All the real bugs found in this project were in the driver, and three independent reviews of it
 found them. See `NOTES.md`, "Driver review".
