@@ -1,0 +1,9 @@
+The other round-2 decisions are in the laws and definitions, and the approved laws still say the same thing when `-m` is off. One change should be made before approval.
+
+1. **Should fix.** `B.Gt.ploidy` (`types.bend`), `split_when` (through `split_problem`), `split_format_values`, and example `pl_dotgt`. A GT value `.` is one missing allele. VCF 4.3 §1.6.2 says a missing call is written `.` once per missing allele (`.` haploid, `./.` diploid), and it assumes diploidy only when the GT field is absent. The arm `String.eq(g, ".") → 2` applies that sentence to a GT that is present. `pl_dotgt` then splits `.:0,1,2,3,4,5` into `.:0,1,2` and `.:0,3,5`: a one-allele GT beside a diploid PL of 3. The same shape with a real allele, `1` and six PL values, is already `BAD_COUNT`. The spec-correct line `.:7,8,9` (two ALTs) is the one `BAD_COUNT` refuses. bcftools 1.24 splits that line as haploid (`.:7,8`, `.:7,9`) and splits the six-value line only by ignoring the GT and using the count. **Fix:** delete that arm. Ploidy is then one plus the number of separators, so `.` is 1 and `./.` is 2. A missing GT value stays 2. `.:7,8,9` splits; `.:0,1,2,3,4,5` is `BAD_COUNT`. Update the plain sentences (Terms already calls `.` one unknown copy) and `pl_dotgt`.
+
+**Questions**
+
+1. Yes. Trim spaces only. A tab leaves the Number unread, and a value on that tag is `UNDEFINED_TAG`. htslib 1.24 reads `Number=A` with spaces around it as A; `Number=A` followed by a tab is "no Number" and the value is copied whole; a tab in `Number=A` makes the header line unreadable.
+2. Ploidy 1. See item 1. `./.` and a sample with no GT value stay diploid.
+3. Keep the exact code. `split_when` is what makes a splitter that never splits fail, and the message shows one code. Left to right is the check: equal ALTs, then each INFO entry, then each sample in FORMAT order, with extra values after that sample's keys. `split_problem` is the right place for that list.
