@@ -3,14 +3,14 @@ import ./types.bend as B
 import ./norm_seq.bend as Norm
 import ./norm_fast.bend as NF
 import ./proof_b_cachedefs.bend as CD
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_same.bend as SM
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_same.bend as SM
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_b_lit.bend as LT
 import ./norm_line.bend as J
 import ./bytes_enc.bend as E
@@ -21,10 +21,10 @@ import ./proof_b_run_num.bend as NM
 import ./proof_b_run_sz.bend as SZ
 import ./proof_b_run_buf.bend as BF
 import ./proof_b_cache_lem.bend as X
-import ../lawful-bytes/proof_grow.bend as G
-import ../lawful-bytes/proof_seq.bend as Q
-import ../lawful-bytes/proof_list.bend as PLS
-import ../lawful-bytes/proof_ops.bend as O
+import lawful-bytes@0.1.0.0/proof_grow.bend as G
+import lawful-bytes@0.1.0.0/proof_seq.bend as Q
+import lawful-bytes@0.1.0.0/proof_list.bend as PLS
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
 
 # The fast path's REF test (NF.refeq) for proof_b_cache.bend's against_hit:
 # the loop hands both buffers back; a passed test means each REF byte equals

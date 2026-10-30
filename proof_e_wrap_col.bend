@@ -18,9 +18,9 @@ import ./proof_e_wrap_defs.bend as WD
 import ./proof_e_defs.bend as SD
 import ./proof_e_wrap_base.bend as WB
 import ./proof_e_wrap_comb.bend as WC
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-halves/halves.bend as HH
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-halves@0.1.0.0/halves.bend as HH
 
 # Helpers for proof_e_wrap.bend (area E1): no batch (a piece starts one or
 # goes to Q), collecting, and a complete batch's plan (its Ask, or its tasks

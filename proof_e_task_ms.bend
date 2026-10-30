@@ -10,11 +10,11 @@ import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
 import ./proof_b_fasteq.bend as FE
 import ./proof_e_task_buf.bend as BUF
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/fast.bend as F
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/fast.bend as F
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Phase E, area D (task): once Q is in the String mode it stays there:
 # advance on a String-mode state gives a String-mode state, whatever it

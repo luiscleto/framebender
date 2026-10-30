@@ -2,19 +2,19 @@ import Base
 import ./norm_fast.bend as NF
 import ./proof_b_fasteq.bend as FE
 import ./proof_b_alleles_list.bend as LS
-import ../lawful-bytes/defs.bend as D
-import ../lawful-fields/defs.bend as FD
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/fast.bend as FA
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_seq.bend as Q
-import ../lawful-bytes/proof_find.bend as F
-import ../lawful-bytes/proof_same.bend as S
-import ../lawful-bytes/proof_list.bend as BL
-import ../lawful-bytes/proof_ops.bend as O
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
-import ../lawful-arrays/proof_tree.bend as P
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-fields@0.1.0.0/defs.bend as FD
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/fast.bend as FA
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_seq.bend as Q
+import lawful-bytes@0.1.0.0/proof_find.bend as F
+import lawful-bytes@0.1.0.0/proof_same.bend as S
+import lawful-bytes@0.1.0.0/proof_list.bend as BL
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
+import lawful-arrays@0.1.0.0/proof_tree.bend as P
 
 # The fast path's allele loops (norm_fast.bend) on the mirror C.BT(len, t),
 # described by list functions of its view X. Positions are U32 words;

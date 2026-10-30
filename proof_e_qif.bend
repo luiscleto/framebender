@@ -13,9 +13,9 @@ import ./proof_b_simdefs.bend as S
 import ./proof_b_drivedefs.bend as DR
 import ./proof_b_drive_out.bend as DO
 import ./proof_e_qif_step.bend as QS
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Phase E, area "qif": what the parallel machine needs of norm.bend's machine
 # (Q) beyond phase B's statements (notes/parallel_proofs.md, "Area F"):

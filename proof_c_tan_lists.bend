@@ -2,10 +2,10 @@ import Base
 import ./types.bend as B
 import ./norm_fix.bend as NX
 import ./proof_c_defs.bend as Q
-import ../lawful-bytes/proof_seq.bend as BQ
-import ../lawful-bytes/proof_same.bend as BS
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/proof_seq.bend as BQ
+import lawful-bytes@0.1.0.0/proof_same.bend as BS
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # Phase C, area "tan": lemmas on lists of bytes, on Q.BF (bytes to bases),
 # on numbers and words, and NX.code against B.Base.of_fasta.

@@ -9,10 +9,10 @@ import ./proof_base.bend as P
 import ./proof_c_defs.bend as Q
 import ./proof_c_pre.bend as PE
 import ./proof_b_run_buf.bend as BF
-import ../lawful-bytes/defs.bend as D
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # Phase C: facts the rewrite path's verdict needs (proof_c_judge.bend's
 # fix_res hypotheses), on the alleles' bytes and the window. Every variable

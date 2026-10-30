@@ -3,8 +3,8 @@ import ./types.bend as B
 import ./tan.bend as V
 import ./LAWS.bend as L
 import ./proof_base.bend as P
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # The normalizer never lengthens a record (for the output-length bound,
 # notes/bytes_proofs_budget.md): its end (POS + len(REF)) never moves right,

@@ -3,9 +3,9 @@ import ./types.bend as B
 import ./protocol.bend as Pr
 import ./norm_seq.bend as Norm
 import ./bytes_enc.bend as E
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_u32.bend as U
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # Lemmas for proof_b_cache.bend that hold no buffer: Nat facts, the reads
 # Norm.parts asks (for an abstract bound k), and taking and dropping letters.

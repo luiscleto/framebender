@@ -7,10 +7,10 @@ import ./proof_c_tan_lists.bend as TL
 import ./proof_c_tan_num.bend as TN
 import ./proof_c_tan_alk.bend as TA
 import ./proof_c_tan_sim.bend as TS
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Phase C, area "tan": tan.bend's right and left on the closed form
 # (alleles Q.ALKS at position pos - k) take the steps Q.RIGHT and Q.LEFT

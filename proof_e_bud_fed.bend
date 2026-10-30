@@ -15,17 +15,17 @@ import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BDs
 import ./proof_b_budget_lem.bend as BL
 import ./proof_base.bend as PB
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
 import ./proof_e_qif_fed.bend as F
 import ./proof_b_drive_out.bend as DO
 import ./proof_b_drive_step.bend as DS
 import ./proof_b_run.bend as RN
 import ./LAWS.bend as L
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import ./proof_e_qif_step.bend as QS
 
 # Phase E, area E2: a piece fed to Q (Q.feed after the room, or W.feed_line)

@@ -1,11 +1,11 @@
 import Base
 import ./norm_run.bend as NR
 import ./proof_b_run_lem.bend as LM
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-arrays/proof_index.bend as I
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-arrays@0.1.0.0/proof_index.bend as I
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # Numbers for the run area: U32 shifts as powers of two, NR.depth's bounds,
 # and the sizes the machine works with. Big bounds stay symbolic

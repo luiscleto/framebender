@@ -4,9 +4,9 @@ import ./run.bend as R
 import ./norm_run.bend as NR
 import ./norm_seq.bend as Norm
 import ./bytes_enc.bend as E
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Shared definitions of the phase-B proofs (notes/bytes_proofs.md): Data
 # pictures of the machine's Type values (a D.Bytes is pictured by the mirror

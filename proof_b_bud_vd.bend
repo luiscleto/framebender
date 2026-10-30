@@ -9,8 +9,8 @@ import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
 import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BD
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import ./LAWS.bend as L
 import ./norm_line.bend as J
 import ./proof_b_budget.bend as BG
@@ -20,12 +20,12 @@ import ./proof_b_adv_msx.bend as MSX
 import ./proof_b_adv_wf.bend as W
 import ./proof_b_cache_lem.bend as X
 import ./proof_fast.bend as PF
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./bytes_enc.bend as E
 import ./proof_window_lists.bend as WL
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
 
 # ---------------------------------------------------------------------------
 # The verdict's Want pays: tools

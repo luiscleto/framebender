@@ -1,13 +1,13 @@
 import Base
 import ./bytes_enc.bend as E
-import ../lawful-words/defs.bend as W
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
-import ../lawful-words/proof_bytes.bend as Y
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_seq.bend as SQ
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-words@0.1.0.0/defs.bend as W
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
+import lawful-words@0.1.0.0/proof_bytes.bend as Y
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_seq.bend as SQ
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # Helpers for proof_b_enc.bend: list facts about codes, words and padding,
 # and the bounds on E.depth. Every variable is reusable.

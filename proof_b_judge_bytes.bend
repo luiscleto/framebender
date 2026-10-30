@@ -8,8 +8,8 @@ import ./proof_b_cachedefs.bend as PC
 import ./proof_b_lines_str.bend as LS
 import ./proof_b_lines_pd.bend as LP
 import ./proof_b_fa_bytes.bend as FB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # The judge's text is bytes for a body of bytes (judge_bytes,
 # proof_b_adv_slow.bend). Every outcome keeps the body as its text, except

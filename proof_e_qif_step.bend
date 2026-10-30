@@ -18,10 +18,10 @@ import ./proof_b_drive_step.bend as DS
 import ./proof_b_run.bend as RN
 import ./proof_base.bend as PB
 import ./proof_e_qif_fed.bend as F
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # Phase E, area "qif": the deliverables of proof_e_qif.bend from the fed
 # state (proof_e_qif_fed.bend): step_chunk (the room in the output buffer,

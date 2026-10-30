@@ -15,12 +15,11 @@ You need [Bend 2](https://bend-lang.com) (2.0.39), clang,
 [libdeflate](https://github.com/ebiggers/libdeflate) (to read `.vcf.gz`), and
 [samtools](https://www.htslib.org/) to index the reference.
 
-framebender builds on five proven utility packages, which must sit next to it:
+framebender builds on five proven utility packages, which Bend fetches from
+[BendHub](https://hub.bend-lang.com) on the first build:
 
 ```
-for r in framebender lawful-words lawful-arrays lawful-bytes lawful-fields lawful-halves; do
-  git clone https://github.com/luiscleto/$r
-done
+git clone https://github.com/luiscleto/framebender
 cd framebender
 ./build.sh
 ```

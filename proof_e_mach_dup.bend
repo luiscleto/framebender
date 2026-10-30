@@ -12,8 +12,8 @@ import ./proof_b_drivedefs.bend as DR
 import ./proof_e_defs.bend as SD
 import ./proof_e_task.bend as PT
 import ./proof_e_wrap_defs.bend as WD
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
 
 # Phase E, area E2: a good wrapper state's facts, twice. InvW is a Type (a
 # proof of it is used once), but every leaf is an equality (Data) or a

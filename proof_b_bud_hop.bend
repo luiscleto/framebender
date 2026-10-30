@@ -14,9 +14,9 @@ import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BD
 import ./proof_b_lines_pd.bend as LP
 import ./proof_machine_nat.bend as PN
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_b_drive_out.bend as DO
 import ./proof_b_run.bend as RN
 import ./proof_b_run_inv.bend as PI
@@ -24,10 +24,10 @@ import ./proof_b_run_ins.bend as RI
 import ./proof_b_enc.bend as EN
 import ./proof_b_lit.bend as LIT
 import ./proof_b_lines_str.bend as LS
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_ops.bend as O
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Two budget lemmas (notes/bytes_proofs_budget.md, "For pb-run", R1 and
 # R2), with the statements fixed there:

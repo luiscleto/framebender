@@ -1,12 +1,12 @@
 import Base
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_list.bend as BL
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_nat.bend as NN
-import ../lawful-words/proof_u32.bend as U
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_list.bend as BL
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_nat.bend as NN
+import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./LAWS.bend as L
 import ./bytes_enc.bend as E
 import ./norm_seq.bend as Norm
@@ -52,7 +52,7 @@ import ./proof_b_budget_dec.bend as BDe
 import ./proof_c_bud.bend as CB
 import ./proof_b_budget_mb.bend as BM
 import ./proof_b_budget_fl.bend as FL
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # The fast path and the budget (generated from proof_b_adv_fast.bend and proof_b_adv_hit.bend: the same
 # walk, BD.AdvC in place of S.AdvG, nothing asked, bi carried; leaves: proof_b_budget_mb.bend).

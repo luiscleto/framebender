@@ -27,15 +27,15 @@ import ./proof_c_pre.bend as PE
 import ./proof_c_advf.bend as AF
 import ./proof_c_tan_pair.bend as TP
 import ./proof_c_text.bend as TX
-import ../lawful-bytes/defs.bend as D
+import lawful-bytes@0.1.0.0/defs.bend as D
 import ./bytes_enc.bend as E
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_same.bend as SMB
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_same.bend as SMB
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # Phase C: the budget on the rewrite path once the window holds the record
 # and REF matches it (norm.bend fix.hit .. fix.tick): every way out is a

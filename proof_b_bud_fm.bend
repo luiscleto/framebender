@@ -1,8 +1,8 @@
 import Base
 import ./types.bend as B
 import ./proof_b_budget_need.bend as BN
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # A contig B.Fasta.find returns is no longer than BN.FM, the longest
 # contig's length (for the budget, proof_b_budget_need.bend).

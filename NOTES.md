@@ -633,3 +633,25 @@ file without its end-of-file block. GPT kept finding injected-failure cases into
 
 1000 Genomes chr22 `.vcf.gz` in and out: framebender `-Oz` 13.8-14.0 s, bcftools `-Oz --threads
 16` 65 s (the agent's runs).
+
+## The packages on BendHub (2026-10-30)
+
+The five packages are published as 0.1.0.0 (below 1.0: laws reviewed by three models, not yet by
+a human expert), each from its `PROOF.bend`, so a package carries its code, laws and proofs:
+lawful-words `0x5845906e4d684390fe5255aea46f9808`, lawful-halves
+`0x4491e44095d47e1e063354e32a033566`, lawful-arrays `0x13527df86b638e4649c15a58682c998e`,
+lawful-bytes `0xc018b2b7a70e32edf065f462beb7dcfd`, lawful-fields
+`0x7c3e9469664fbd34c188709d61f7e109`. Each repo has the tag `v0.1.0.0`, and its files match the
+hub's manifest byte for byte.
+
+`bend --publish` refuses an import that climbs out of the package (`../lawful-words/...`), and a
+hub file may only import hub files, so the packages and framebender now import each other by name
+(`lawful-words@0.1.0.0/...`), published in dependency order: words and halves, then arrays,
+bytes, fields, each re-checked (both modes, spot tests) against the versions just published.
+framebender needs no sibling clones any more. Its gate passes in both modes against the hub
+packages; `test/same.sh` (128 runs), `test/par.sh` (312), `test/threads.sh` and `test/out.sh`
+give the previous build's results, and the whole genome's output is unchanged (f70d8639223b).
+
+Q2-like: `same.sh` and `par.sh` first reported differences. Both cached the reference binary's
+results and reused them for any reference, so they compared against a build from before `-w`
+became 1000. They now start the cache afresh when the reference binary changes.

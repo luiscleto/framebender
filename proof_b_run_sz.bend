@@ -2,8 +2,8 @@ import Base
 import ./norm_seq.bend as Norm
 import ./proof_b_lit.bend as PL
 import ./proof_b_run_num.bend as NM
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Size bounds of the run area from the program's word checks (Norm.len_le),
 # through proof_b_lit.bend's bridges. Exponents stay variables until the end.

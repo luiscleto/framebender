@@ -11,17 +11,17 @@ import ./proof_c_pre_lp.bend as G
 import ./proof_b_alleles.bend as AL
 import ./proof_b_alleles_list.bend as LS
 import ./proof_b_alleles_loop.bend as LP
-import ../lawful-bytes/defs.bend as D
-import ../lawful-fields/defs.bend as FD
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_find.bend as PF
-import ../lawful-bytes/proof_list.bend as PL
-import ../lawful-bytes/proof_same.bend as PSm
-import ../lawful-bytes/proof_seq.bend as SQ
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-fields@0.1.0.0/defs.bend as FD
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_find.bend as PF
+import lawful-bytes@0.1.0.0/proof_list.bend as PL
+import lawful-bytes@0.1.0.0/proof_same.bend as PSm
+import lawful-bytes@0.1.0.0/proof_seq.bend as SQ
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # INFO's stale keys: when NX.nostale passes on INFO's bytes, B.Info.has is
 # False on INFO's text for CIGAR, HOMLEN, HOMSEQ and AA. The scan (P.SG)

@@ -12,10 +12,10 @@ import ./proof_b_run_add.bend as AD
 import ./proof_b_run_sr.bend as SR
 import ./proof_b_run_nr.bend as NW
 import ./proof_run_base.bend as RBS
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # run.bend's keyed on a pictured run: the line's messages and counts, then
 # its CHROM run (same_run) or a new one (new_run).

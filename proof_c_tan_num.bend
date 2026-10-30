@@ -1,7 +1,7 @@
 import Base
 import ./proof_c_tan_lists.bend as TL
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # Phase C, area "tan": the index arithmetic of NX.el, on Nat. p: POS, k:
 # shifts, o: the window's first contig index, w: the window's length, j: a

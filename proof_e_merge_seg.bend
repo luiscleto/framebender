@@ -9,7 +9,7 @@ import ./proof_e_defs.bend as SD
 import ./proof_e_merge_lem.bend as ML
 import ./proof_e_merge_sp.bend as MS
 import ./proof_e_merge_ok.bend as OK
-import ../lawful-words/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Phase E, area "merge": merge.ok on the byte runs gives SD.segok on the
 # states they stand for (merge_segok, at the level of the runs' fields).

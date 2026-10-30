@@ -15,8 +15,8 @@ import ./proof_b_adv_wf.bend as W
 import ./proof_b_adv_ms.bend as MS
 import ./proof_b_adv_tostr.bend as TS
 import ./proof_b_adv_dec.bend as DE
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import ./proof_b_adv_fast.bend as FA
 import ./proof_b_adv_msx.bend as MX
 

@@ -7,12 +7,12 @@ import ./proof_c_tan_lists.bend as TL
 import ./proof_c_tan_num.bend as TN
 import ./proof_c_tan_el.bend as TE
 import ./proof_var_lists.bend as VL
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_ops.bend as O
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # Phase C, area "tan": one allele on the closed form. With k shifts and tr
 # right trims the allele is take(XA, L - tr) (XA = R_k ++ a); after d left

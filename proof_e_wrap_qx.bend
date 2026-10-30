@@ -13,14 +13,14 @@ import ./proof_b_sim.bend as SA
 import ./proof_b_drivedefs.bend as DR
 import ./proof_b_drive_out.bend as DO
 import ./proof_b_drive_step.bend as DS
-import ../lawful-bytes/bytes.bend as BY
+import lawful-bytes@0.1.0.0/bytes.bend as BY
 import ./proof_base.bend as PB
 import ./proof_b_run.bend as RN
 import ./proof_e_qif.bend as QI
 import ./proof_e_qif_fed.bend as F
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import ./proof_e_wrap_base.bend as WB
 
 # Helpers for proof_e_wrap.bend (area E1): a step of Q keeps its options and,

@@ -28,12 +28,12 @@ import ./proof_b_budget_sdefs.bend as BD
 import ./proof_b_budget_mb.bend as BM
 import ./proof_b_budget_lem.bend as BL
 import ./proof_b_bud_vd.bend as BV
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # The budget walk's decoded paths (proof_b_budget_dec.bend's c.dec), as
 # proof_b_adv_dec.bend walks them for adv_ok. The leaves: a line handled

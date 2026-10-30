@@ -5,22 +5,22 @@ import ./proof_b_run_lem.bend as LM
 import ./proof_b_rundefs.bend as RD
 import ./proof_b_run_num.bend as NM
 import ./proof_b_enc_lem.bend as X
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_ops.bend as O
-import ../lawful-bytes/proof_grow.bend as G
-import ../lawful-bytes/proof_append.bend as PA
-import ../lawful-bytes/proof_seq.bend as Q
-import ../lawful-bytes/fast.bend as F
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-bytes@0.1.0.0/proof_grow.bend as G
+import lawful-bytes@0.1.0.0/proof_append.bend as PA
+import lawful-bytes@0.1.0.0/proof_seq.bend as Q
+import lawful-bytes@0.1.0.0/fast.bend as F
 import ./proof_b_fasteq.bend as FE
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_index.bend as I
-import ../lawful-arrays/defs.bend as A
-import ../lawful-words/defs.bend as W
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_index.bend as I
+import lawful-arrays@0.1.0.0/defs.bend as A
+import lawful-words@0.1.0.0/defs.bend as W
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # The run's buffer operations on mirrors (C.BT(len, t)): room, put_str.
 # Each is named by a Data function of the mirror (the tree it leaves), so the

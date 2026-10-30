@@ -6,21 +6,21 @@ import ./norm_fast.bend as NF
 import ./bytes_enc.bend as E
 import ./proof_b_defs.bend as P
 import ./proof_b_fasteq.bend as FE
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import ./proof_b_lines_str.bend as S
 import ./proof_b_lines_bt.bend as X
 import ./proof_b_lines_pd.bend as Y
 import ./proof_b_lines_room.bend as R
 import ./proof_b_lines_piece.bend as PS
 import ./proof_b_lit.bend as LT
-import ../lawful-words/proof_u32.bend as U
+import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_b_enc.bend as EN
-import ../lawful-bytes/proof_find.bend as FD
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/proof_find.bend as FD
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # The machine's input (norm.bend: Src, Pd, NF.lf, pend.add, join.k,
 # eof_src, line): the text not handled yet, P.srcstext of the sources then

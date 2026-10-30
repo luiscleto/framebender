@@ -4,19 +4,19 @@ import ./norm_seq.bend as Norm
 import ./norm_line.bend as J
 import ./norm_fast.bend as NF
 import ./proof_b_fasteq.bend as FE
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
 import ./proof_b_cut_pair.bend as M
 import ./proof_b_cut_inv.bend as V
 import ./proof_b_cut_nat.bend as Z
 import ./proof_b_cut_fx.bend as FX
 import ./proof_b_cut_str.bend as S
 import ./proof_b_cut_pos.bend as PO
-import ../lawful-fields/proof_num.bend as LN
+import lawful-fields@0.1.0.0/proof_num.bend as LN
 
 # The fast path's line tests on bytes (norm_fast.bend: NF.line = NF.pre of
 # NF.cut) against the String path: when a line passes, its LF is the first

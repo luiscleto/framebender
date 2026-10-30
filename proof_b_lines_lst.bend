@@ -1,15 +1,15 @@
 import Base
 import ./norm_run.bend as NR
 import ./proof_b_defs.bend as P
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_find.bend as FD
-import ../lawful-bytes/proof_append.bend as PA
-import ../lawful-bytes/proof_fast_append.bend as FA
-import ../lawful-bytes/proof_shift.bend as SH
-import ../lawful-bytes/proof_grow.bend as G
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_find.bend as FD
+import lawful-bytes@0.1.0.0/proof_append.bend as PA
+import lawful-bytes@0.1.0.0/proof_fast_append.bend as FA
+import lawful-bytes@0.1.0.0/proof_shift.bend as SH
+import lawful-bytes@0.1.0.0/proof_grow.bend as G
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # List facts for the lines area: a buffer's bytes up to and after its first
 # LF (byte 10), as D.first and D.run_len give it.

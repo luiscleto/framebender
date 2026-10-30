@@ -26,8 +26,8 @@ import ./proof_window_lists.bend as WL
 import ./proof_b_lit.bend as LT
 import ./proof_b_lines_pd.bend as Y
 import ./proof_b_lines_str.bend as LSS
-import ../lawful-words/proof_nat.bend as NN
-import ../lawful-bytes/bytes.bend as BY
+import lawful-words@0.1.0.0/proof_nat.bend as NN
+import lawful-bytes@0.1.0.0/bytes.bend as BY
 import ./proof_c_defs.bend as Q
 import ./proof_c_pre.bend as PE
 import ./proof_c_cache.bend as CC
@@ -40,13 +40,13 @@ import ./proof_c_tk.bend as TKK
 import ./proof_b_enc.bend as EN
 import ./proof_b_adv_slow.bend as SLW
 import ./proof_b_adv_tostr.bend as TSS
-import ../lawful-bytes/proof_same.bend as SMB
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/proof_same.bend as SMB
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # Phase C: adv_ok's rewrite path once the window holds the record and REF
 # matches it (norm.bend fix.hit .. fix.tick): the rewrite, or (any doubt)

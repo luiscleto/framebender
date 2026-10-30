@@ -7,7 +7,7 @@ import ./proof_b_defs.bend as P
 import ./proof_b_rundefs.bend as RD
 import ./proof_e_defs.bend as SD
 import ./proof_run_base.bend as RB
-import ../lawful-words/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Phase E, area "merge": general lemmas (Bools, Nat.max, Maybe, strings) and
 # the item lists of norm_par.bend's merge against proof_e_defs.bend's

@@ -13,15 +13,15 @@ import ./proof_b_cut_ne.bend as E
 import ./proof_b_alleles_loop.bend as LP
 import ./proof_c_pre_str.bend as T
 import ./proof_c_pre_lp.bend as G
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_find.bend as PF
-import ../lawful-bytes/proof_list.bend as PL
-import ../lawful-bytes/proof_shift.bend as PSh
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_find.bend as PF
+import lawful-bytes@0.1.0.0/proof_list.bend as PL
+import lawful-bytes@0.1.0.0/proof_shift.bend as PSh
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # INFO as the String path's full field split has it (B.Rec.fields, field 7)
 # is the text of INFO's bytes, and J.scan finds no END entry in it: phase

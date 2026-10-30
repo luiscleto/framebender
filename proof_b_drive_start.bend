@@ -15,7 +15,7 @@ import ./proof_b_drivedefs.bend as DR
 import ./proof_b_drive_out.bend as DO
 import ./proof_base.bend as PB
 import ./proof_b_frame_fr.bend as FR
-import ../lawful-bytes/bytes.bend as BY
+import lawful-bytes@0.1.0.0/bytes.bend as BY
 import ./proof_f_args.bend as A
 
 # Helpers for proof_b_drive.bend's start_ok. start_ok as stated is false

@@ -2,11 +2,11 @@ import Base
 import ./norm_fast.bend as NF
 import ./norm_fix.bend as NX
 import ./proof_b_cut_pair.bend as M
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/fast.bend as F
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/fast.bend as F
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Every call NX.line makes on a buffer mirror C.BT(len, t) hands the mirror
 # back, and what it answers is mirrored by a function on Data (len and t

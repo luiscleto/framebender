@@ -2,10 +2,10 @@ import Base
 import ./types.bend as B
 import ./norm_fix.bend as NX
 import ./proof_c_defs.bend as Q
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Phase C, area "tan": every loop of NX.norm (norm_fix.bend) on the mirrors
 # C.BT(bl, bt) (the line) and C.BT(wl, wt) (the window) hands both back, with

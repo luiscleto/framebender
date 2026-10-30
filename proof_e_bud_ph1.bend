@@ -10,8 +10,8 @@ import ./proof_b_bud_start.bend as BSt
 import ./proof_b_drive_out.bend as DO
 import ./proof_b_budget_need.bend as BN
 import ./proof_base.bend as PB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./proof_e_task.bend as PT
 import ./proof_e_bud_defs.bend as BD
 import ./proof_e_bud_step.bend as ST

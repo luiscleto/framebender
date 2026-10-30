@@ -5,7 +5,7 @@ import ./run.bend as R
 import ./bytes_enc.bend as E
 import ./proof_b_simdefs.bend as S
 import ./proof_base.bend as PB
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./proof_e_task.bend as PT
 import ./proof_e_wrap_defs.bend as WD
 

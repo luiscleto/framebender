@@ -25,11 +25,11 @@ import ./proof_b_adv_ib.bend as IB
 import ./proof_b_adv_wr.bend as WR
 import ./proof_b_adv_hit.bend as FH
 import ./proof_b_adv_msx.bend as MSX
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as NN
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as NN
+import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_b_judge_bytes.bend as JB
 
 # adv_ok on a body line the fast path did not take (norm.bend slow): the

@@ -4,7 +4,7 @@ import ./run.bend as R
 import ./norm_run.bend as NR
 import ./bytes_enc.bend as E
 import ./proof_b_defs.bend as P
-import ../lawful-bytes/defs.bend as D
+import lawful-bytes@0.1.0.0/defs.bend as D
 import ./norm.bend as Norm
 
 # Counterexamples to deliverables of proof_b_run.bend, run on concrete

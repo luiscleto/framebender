@@ -1,6 +1,6 @@
 import Base
-import ../lawful-words/defs.bend as W
-import ../lawful-bytes/defs.bend as D
+import lawful-words@0.1.0.0/defs.bend as W
+import lawful-bytes@0.1.0.0/defs.bend as D
 import ./protocol.bend as P
 
 # framebender: text as packed bytes (implementation layer, used by

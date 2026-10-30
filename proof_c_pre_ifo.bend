@@ -11,11 +11,11 @@ import ./proof_c_pre_inf.bend as IN
 import ./proof_c_pre_key.bend as KY
 import ./proof_window_info.bend as W
 import ./proof_b_alleles_loop.bend as LP
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # fix_info from its parts: INFO in the full field split is INFO's bytes
 # (proof_c_pre_inf.bend), with no END entry (J.scan, then

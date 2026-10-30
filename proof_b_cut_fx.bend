@@ -3,21 +3,21 @@ import ./norm_fast.bend as NF
 import ./proof_b_cut_pair.bend as M
 import ./proof_b_cut_inv.bend as V
 import ./proof_b_cut_nat.bend as Z
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./types.bend as B
 import ./norm_seq.bend as Norm
 import ./norm_line.bend as J
 import ./proof_b_cut_str.bend as S
 import ./proof_b_cut_ne2.bend as NE2
 import ./proof_b_cut_ne.bend as E
-import ../lawful-bytes/proof_find.bend as PF
-import ../lawful-bytes/proof_list.bend as PL
-import ../lawful-bytes/proof_shift.bend as PSh
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/proof_find.bend as PF
+import lawful-bytes@0.1.0.0/proof_list.bend as PL
+import lawful-bytes@0.1.0.0/proof_shift.bend as PSh
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # The field ends of a passed line as facts about its view (E-form: the ends
 # are M.E0 .. M.E7 of s), and the LF of the line.

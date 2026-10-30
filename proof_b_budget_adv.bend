@@ -15,10 +15,10 @@ import ./proof_b_budget_sdefs.bend as BD
 import ./proof_b_budget_dec.bend as BDe
 import ./proof_b_budget_fast.bend as BFa
 import ./proof_b_budget_ms.bend as BMS
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # What advance does to the budget (BD.AdvC: WA and bi), by advance's paths
 # as proof_b_adv.bend walks them for adv_ok. Every leaf is one of:

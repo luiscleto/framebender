@@ -12,11 +12,11 @@ import ./proof_b_alleles.bend as AL
 import ./proof_b_alleles_list.bend as LS
 import ./proof_b_alleles_loop.bend as LP
 import ./proof_b_alleles_spec.bend as SP
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # fix_als from the line's tests: the allele list is REF then the ALT loop's
 # alleles (A.XN), whose facts A.aloop gives.

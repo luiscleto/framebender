@@ -2,15 +2,15 @@ import Base
 import ./types.bend as B
 import ./norm_seq.bend as Norm
 import ./norm_line.bend as J
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_shift.bend as PSh
-import ../lawful-bytes/proof_append.bend as PA
-import ../lawful-bytes/proof_seq.bend as PSq
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_find.bend as PF
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_shift.bend as PSh
+import lawful-bytes@0.1.0.0/proof_append.bend as PA
+import lawful-bytes@0.1.0.0/proof_seq.bend as PSq
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_find.bend as PF
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # Lines and fields as text: Norm.chars of slices of a list of bytes.
 

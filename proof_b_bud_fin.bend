@@ -4,7 +4,7 @@ import ./protocol.bend as Pr
 import ./run.bend as R
 import ./proof_b_simdefs.bend as S
 import ./proof_b_budget_need.bend as BN
-import ../lawful-words/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # The budget's Finish cases (bud_chunk_fin, bud_eof_fin, bud_ref_fin of
 # proof_b_budget_api.bend): a step that ends the run leaves need at least

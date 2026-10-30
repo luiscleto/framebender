@@ -24,16 +24,16 @@ import ./proof_b_run_buf.bend as BF
 import ./proof_window_lists.bend as WL
 import ./proof_b_adv_wf.bend as W
 import ./proof_b_bud_vd.bend as BV
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_same.bend as SM
-import ../lawful-bytes/proof_list.bend as PLS
-import ../lawful-bytes/proof_seq.bend as SQ
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_same.bend as SM
+import lawful-bytes@0.1.0.0/proof_list.bend as PLS
+import lawful-bytes@0.1.0.0/proof_seq.bend as SQ
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # Z4's proof (proof_b_bud_z4.bend's against_zero calls against_zero.k): with
 # the line's zero window held and fitting (bi's zheld), the fast path's window

@@ -17,13 +17,13 @@ import ./proof_e_task_buf.bend as BUF
 import ./proof_e_task_piece.bend as PI
 import ./proof_e_task_loop.bend as LPP
 import ./proof_e_task_one.bend as ON
-import ../lawful-halves/proof_all.bend as HA
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-halves/defs.bend as HD
-import ../lawful-halves/halves.bend as HH
+import lawful-halves@0.1.0.0/proof_all.bend as HA
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-halves@0.1.0.0/defs.bend as HD
+import lawful-halves@0.1.0.0/halves.bend as HH
 
 # Phase E, area "task": a batch's plan and tasks (notes/parallel_proofs.md).
 # A batch's pieces arrive as E.enc of their texts; the plan hands each back

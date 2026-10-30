@@ -18,17 +18,17 @@ import ./proof_b_lines_str.bend as LS
 import ./proof_b_lines_pd.bend as LP
 import ./proof_b_lines_lst.bend as LT
 import ./proof_base.bend as PB
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_find.bend as FD
-import ../lawful-bytes/proof_list.bend as Q
-import ../lawful-bytes/proof_ops.bend as O
-import ../lawful-bytes/proof_grow.bend as G
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_find.bend as FD
+import lawful-bytes@0.1.0.0/proof_list.bend as Q
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-bytes@0.1.0.0/proof_grow.bend as G
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # Phase E, area "qif": norm.bend's feed (after the room in the output buffer)
 # for a piece given as any good buffer C.BT(len, t) of depth d whose view is

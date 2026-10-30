@@ -17,9 +17,9 @@ import ./proof_b_drive_pump.bend as DP
 import ./proof_b_frame_fr.bend as FR
 import ./proof_base.bend as PB
 import ./proof_machine_nat.bend as PN
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Helpers for proof_b_drive.bend: one driver input (a piece, the end of the
 # file) given to a state waiting for more, then go: the fuel go computes is

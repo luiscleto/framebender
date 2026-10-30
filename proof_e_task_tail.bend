@@ -3,22 +3,22 @@ import ./norm_run.bend as NR
 import ./proof_b_defs.bend as P
 import ./proof_b_run_buf.bend as BF
 import ./proof_e_task_piece.bend as PI
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_ops.bend as O
-import ../lawful-bytes/proof_find.bend as FD
-import ../lawful-bytes/proof_shift.bend as SH
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_u32.bend as U
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-bytes@0.1.0.0/proof_find.bend as FD
+import lawful-bytes@0.1.0.0/proof_shift.bend as SH
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_u32.bend as U
+import lawful-words@0.1.0.0/proof_nat.bend as N
 import ./proof_b_rundefs.bend as RD
 import ./proof_b_run_num.bend as NM
 import ./proof_b_run_sz.bend as SZ
 import ./proof_b_lit.bend as PL
 import ./proof_b_run_lem.bend as LM
-import ../lawful-bytes/proof_grow.bend as G
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-bytes@0.1.0.0/proof_grow.bend as G
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # Phase F (memory): a task runs on its piece itself and takes it back from
 # Q's input before Q reaches the piece's last partial line. Two facts about

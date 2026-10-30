@@ -7,8 +7,8 @@ import ./bytes_enc.bend as E
 import ./proof_b_rundefs.bend as RD
 import ./proof_b_run_inv.bend as PI
 import ./proof_e_merge_lem.bend as ML
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Phase E, area "merge": the run merge.if builds is good (merge_inv, at the
 # level of the runs' fields): T's buffers and counts with the line numbers

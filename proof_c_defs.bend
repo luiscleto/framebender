@@ -4,9 +4,9 @@ import ./tan.bend as V
 import ./norm_seq.bend as Norm
 import ./norm_fast.bend as NF
 import ./norm_fix.bend as NX
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Phase C (notes/rewrite.md): pictures shared by the proofs of the rewrite
 # path (norm_fix.bend). A buffer is its mirror C.BT(len, t) (lawful-bytes);

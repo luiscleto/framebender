@@ -4,7 +4,7 @@ import ./norm_fix.bend as NX
 import ./proof_b_cut_pair.bend as M
 import ./proof_b_cut_inv.bend as V
 import ./proof_c_pre_pair.bend as P
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # What a line that passes NX.line's tests is made of: from
 # P.FX(len, t, s) == Fix{pos, Cut8{e0 .. lf}, als, up}, the cut (M.MC is

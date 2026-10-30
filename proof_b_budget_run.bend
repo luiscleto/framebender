@@ -5,8 +5,8 @@ import ./LAWS.bend as L
 import ./proof_base.bend as P
 import ./proof_b_budget_dig.bend as G
 import ./proof_b_budget_rec.bend as Q
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # The output-length lemma (notes/bytes_proofs_budget.md): a run writes at most
 # 2 (63 (|vcf| + 1) + 61 + |args text|) bytes.

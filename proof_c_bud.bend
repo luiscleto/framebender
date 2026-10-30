@@ -15,9 +15,9 @@ import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BD
 import ./proof_b_budget_dec.bend as BDe
 import ./proof_c_bud_k.bend as BK
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Phase C: the budget on the rewrite path (norm.bend fix): a rewritten line
 # is one Went that asks nothing; the declined cases are the decoded path's.

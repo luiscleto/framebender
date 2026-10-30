@@ -15,17 +15,17 @@ import ./proof_b_enc.bend as EN
 import ./proof_e_defs.bend as SD
 import ./proof_e_task_buf.bend as BUF
 import ./proof_e_task_first.bend as FL
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/fast.bend as F
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_same.bend as SM
-import ../lawful-bytes/proof_list.bend as BL
-import ../lawful-bytes/proof_ops.bend as O
-import ../lawful-bytes/proof_find.bend as FD
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/fast.bend as F
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_same.bend as SM
+import lawful-bytes@0.1.0.0/proof_list.bend as BL
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-bytes@0.1.0.0/proof_find.bend as FD
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # Phase E, area D (task): one piece's plan, on its buffer C.BT(len, t) whose
 # view is the piece's codes. K: its first LF; s1 = K + 1; E1: the LF of the

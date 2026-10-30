@@ -2,7 +2,7 @@ import Base
 import ./types.bend as B
 import ./norm.bend as Norm
 import ./bytes_enc.bend as E
-import ../lawful-bytes/bytes.bend as BY
+import lawful-bytes@0.1.0.0/bytes.bend as BY
 
 # A counterexample to proof_b_cache.bend's against_hit (second conjunct) as
 # stated: the window's contig name c has a character past 255 (nothing says

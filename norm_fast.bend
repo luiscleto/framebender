@@ -1,7 +1,7 @@
 import Base
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/fast.bend as F
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/fast.bend as F
 
 # framebender: the fast path's tests on the bytes of one line (code, not
 # spec). They decide, without decoding the line, that a body record is valid,

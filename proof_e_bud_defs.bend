@@ -7,7 +7,7 @@ import ./bytes_enc.bend as E
 import ./norm_run.bend as NR
 import ./norm.bend as W
 import ./proof_b_budget_need.bend as BN
-import ../lawful-bytes/defs.bend as D
+import lawful-bytes@0.1.0.0/defs.bend as D
 
 # Phase E, area E2: the parallel machine's budget (notes/parallel_proofs_e2.md).
 # The potential of a wrapper state is phase B's (BN.needS) for Q's state over

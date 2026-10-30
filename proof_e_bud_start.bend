@@ -13,9 +13,9 @@ import ./proof_b_budget_run.bend as BR
 import ./proof_b_budget_dig.bend as G
 import ./proof_b_bud_start.bend as BSt
 import ./proof_base.bend as PB
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./proof_e_bud_defs.bend as BD
 
 # Phase E, area E2: the budget at the start. Phase B's bound (proof_b_bud_start)

@@ -21,15 +21,15 @@ import ./proof_b_adv_wr.bend as WR
 import ./proof_b_adv_part.bend as DPT
 import ./proof_b_adv_slow.bend as SLW
 import ./proof_b_adv_nat.bend as LP
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_same.bend as SM
-import ../lawful-bytes/proof_list.bend as BL
-import ../lawful-bytes/proof_ops.bend as O
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_same.bend as SM
+import lawful-bytes@0.1.0.0/proof_list.bend as BL
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_base.bend as PB
 
 # The byte mode's decoded path (norm.bend's decoded): a source with no

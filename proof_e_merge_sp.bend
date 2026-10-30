@@ -7,7 +7,7 @@ import ./proof_b_defs.bend as P
 import ./proof_b_rundefs.bend as RD
 import ./proof_e_defs.bend as SD
 import ./proof_e_merge_lem.bend as ML
-import ../lawful-words/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Phase E, area "merge": a run's items as run.bend's (NR.spec.items, the
 # picture's buffer) against norm_par.bend's tests on the byte items: keys,

@@ -14,12 +14,12 @@ import ./proof_b_run_kd.bend as KD
 import ./proof_b_run_bl.bend as BL
 import ./proof_b_lit.bend as PL
 import ./proof_run_base.bend as RBS
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # Phase C: the run's step for a record rewritten on its bytes
 # (norm_run.bend's NR.fix_done): it is run.bend's body_line for the

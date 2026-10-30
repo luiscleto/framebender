@@ -8,9 +8,9 @@ import ./proof_b_defs.bend as P
 import ./proof_b_cut_str.bend as CS
 import ./proof_b_cut_ne.bend as CN
 import ./proof_b_lines_str.bend as LSS
-import ../lawful-bytes/defs.bend as D
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Phase E, area D (task): the plan's first line. Its CHROM (the bytes before
 # the first tab) is field 0 of the line B.Text.lines reads, also when the

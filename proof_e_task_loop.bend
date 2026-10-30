@@ -22,13 +22,13 @@ import ./proof_e_task_piece.bend as PI
 import ./proof_e_task_tail.bend as TL
 import ./proof_b_rundefs.bend as RD
 import ./proof_b_run_buf.bend as BF
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_grow.bend as G
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_grow.bend as G
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Phase E, area D (task): a task's loop (norm_par.bend's task.loop), run
 # with adv_ok from a good state. Invariant: Q's state is a good picture p

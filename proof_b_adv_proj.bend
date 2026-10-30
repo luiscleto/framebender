@@ -5,9 +5,9 @@ import ./norm_fast.bend as NF
 import ./proof_b_defs.bend as P
 import ./proof_b_cut.bend as CU
 import ./proof_b_alleles.bend as AA
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Projections of the tuples other areas' lemmas give (pass_lf, pass_pos,
 # pass_alleles, alleles_pass): inner components of a pair pattern cannot be

@@ -3,8 +3,8 @@ import ./protocol.bend as Pr
 import ./norm_seq.bend as Norm
 import ./proof_base.bend as P
 import ./proof_b_cut_str.bend as S
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # The budget of the law machine (notes/bytes_proofs_budget.md): how many
 # reads one Want asks. The count is generic (no fact about 2^31 is needed):

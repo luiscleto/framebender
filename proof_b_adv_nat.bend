@@ -1,12 +1,12 @@
 import Base
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_find.bend as F
-import ../lawful-bytes/proof_ops.bend as O
-import ../lawful-words/proof_u32.bend as U
-import ../lawful-arrays/proof_tree.bend as P
-import ../lawful-bytes/proof_seq.bend as Q
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_find.bend as F
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-words@0.1.0.0/proof_u32.bend as U
+import lawful-arrays@0.1.0.0/proof_tree.bend as P
+import lawful-bytes@0.1.0.0/proof_seq.bend as Q
+import lawful-words@0.1.0.0/proof_nat.bend as N
 import ./proof_b_alleles_list.bend as LS
 
 # Small word and buffer facts for adv_ok (the same as proof_b_alleles_loop's,

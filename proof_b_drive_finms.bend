@@ -19,10 +19,10 @@ import ./proof_b_drive_out.bend as DO
 import ./proof_b_drive_fin.bend as DF
 import ./proof_base.bend as PB
 import ./proof_machine_nat.bend as PN
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Helpers for proof_b_drive.bend: the end of the run in the String mode
 # (Norm.finish of an MS state). The report's output is queued (fin.ms) and

@@ -25,15 +25,15 @@ import ./proof_b_adv_judge.bend as JG
 import ./proof_b_adv_wr.bend as WR
 import ./proof_b_lines.bend as LN
 import ./proof_b_alleles_loop.bend as ALP
-import ../lawful-bytes/proof_list.bend as BL
+import lawful-bytes@0.1.0.0/proof_list.bend as BL
 import ./proof_b_run.bend as PR
 import ./proof_b_adv_ib.bend as IB
 import ./proof_b_adv_line.bend as LI
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_b_adv_hit.bend as FH
 import ./proof_b_adv_dec.bend as DE
 import ./proof_b_budget_need.bend as BN
@@ -43,7 +43,7 @@ import ./proof_b_budget.bend as BG
 import ./proof_b_budget_mb.bend as MB
 import ./proof_b_budget_sdefs.bend as BD
 import ./proof_b_bud_z4.bend as Z4
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # The line the fast path handles, as WA sees it (proof_b_budget_need.bend's
 # lfs, lchrom, lpos, lref, lgate on B.Text.line of the line's text): the

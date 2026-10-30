@@ -11,12 +11,12 @@ import ./proof_b_cut_fx.bend as FX
 import ./proof_b_cut_pos.bend as PO
 import ./proof_c_pre_pair.bend as P
 import ./proof_c_pre_inv.bend as I
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-fields/proof_num.bend as LN
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-fields@0.1.0.0/proof_num.bend as LN
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # The cut, POS, CR and tab facts of a passed line, from phase B's lemmas.
 

@@ -8,8 +8,8 @@ import ./proof_run_text.bend as X
 import ./proof_run_line.bend as RL
 import ./proof_b_budget_tan.bend as T
 import ./proof_b_budget_dig.bend as G
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # A rewritten record is at most 10 (|body| + 1) + 10 bytes long
 # (notes/bytes_proofs_budget.md, the output-length bound).

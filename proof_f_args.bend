@@ -3,7 +3,7 @@ import ./types.bend as B
 import ./MACHINE.bend as M
 import ./bytes_enc.bend as E
 import ./proof_base.bend as PB
-import ../lawful-words/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Phases F and H: the command-line parser (types.bend's Args) with --threads
 # and the output options. The parser records the arguments it keeps (keep)

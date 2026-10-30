@@ -36,15 +36,15 @@ import ./proof_b_enc.bend as EN
 import ./proof_b_cache_hit.bend as H
 import ./proof_b_cache_lem.bend as XL
 import ./proof_window_lists.bend as WL
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_list.bend as BL
-import ../lawful-bytes/proof_same.bend as SMB
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_list.bend as BL
+import lawful-bytes@0.1.0.0/proof_same.bend as SMB
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # Phase C: the bytes norm_fix.bend writes for a rewritten line are the
 # String path's text for it (B.Rec.rebuild of the line's fields for the

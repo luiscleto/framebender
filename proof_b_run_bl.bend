@@ -18,15 +18,15 @@ import ./proof_b_run_sr.bend as SR
 import ./proof_b_run_kd.bend as KD
 import ./proof_b_lit.bend as PL
 import ./proof_run_base.bend as RBS
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_ops.bend as O
-import ../lawful-bytes/proof_seq.bend as Q
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-arrays/proof_index.bend as I
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-bytes@0.1.0.0/proof_seq.bend as Q
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-arrays@0.1.0.0/proof_index.bend as I
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_b_enc_lem.bend as X
 
 # The body-line deliverables of proof_b_run.bend (fast_done, same_done,

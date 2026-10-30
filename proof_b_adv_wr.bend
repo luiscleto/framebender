@@ -16,8 +16,8 @@ import ./proof_b_cut_str.bend as CS
 import ./proof_b_adv_wf.bend as W
 import ./proof_b_adv_tostr.bend as TS
 import ./proof_b_adv_line.bend as LI
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # adv_ok on the #CHROM line in the byte mode (norm.bend head with isc True):
 # the header written (run_head_write), or the switch to the String mode when

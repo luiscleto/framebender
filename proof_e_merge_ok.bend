@@ -3,7 +3,7 @@ import ./types.bend as B
 import ./run.bend as R
 import ./norm_run.bend as NR
 import ./norm.bend as W
-import ../lawful-words/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Phase E, area "merge": norm_par.bend's merge.ok taken apart, one test at a
 # time (ok1 .. ok12, in merge.ok's order; generated).

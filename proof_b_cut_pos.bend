@@ -8,16 +8,16 @@ import ./proof_b_cut_str.bend as S
 import ./proof_run_dec.bend as RD
 import ./proof_run_base.bend as RB
 import ./proof_base.bend as P
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_find.bend as PF
-import ../lawful-bytes/proof_append.bend as PA
-import ../lawful-bytes/proof_seq.bend as PSq
-import ../lawful-fields/proof_num.bend as LN
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_find.bend as PF
+import lawful-bytes@0.1.0.0/proof_append.bend as PA
+import lawful-bytes@0.1.0.0/proof_seq.bend as PSq
+import lawful-fields@0.1.0.0/proof_num.bend as LN
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # POS: what NF.num reads is the number the digits stand for (no overflow:
 # at most 9 digits, each step bounded by a word constant 9 .. 999999999),

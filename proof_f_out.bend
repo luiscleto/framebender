@@ -9,7 +9,7 @@ import ./proof_run_base.bend as Q
 import ./proof_run_text.bend as T
 import ./proof_f_args.bend as A
 import ./proof_f_threads.bend as FT
-import ../lawful-words/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Phase H: law output (MACHINE.bend). Where no option waits for its value,
 # the words of one output option (-o PATH, -O T, -OT; B.Args.out_opt) change

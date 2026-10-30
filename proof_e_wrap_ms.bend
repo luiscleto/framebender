@@ -9,8 +9,8 @@ import ./proof_b_defs.bend as P
 import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
 import ./proof_base.bend as PB
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
 
 # Helpers for proof_e_wrap.bend (area E1): once Q is in the String mode,
 # advance keeps it there (code level): a clean piece met in the String mode

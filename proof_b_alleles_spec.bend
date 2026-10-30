@@ -1,9 +1,9 @@
 import Base
 import ./proof_b_alleles_list.bend as LS
 import ./proof_b_alleles_loop.bend as LP
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_list.bend as BL
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_list.bend as BL
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # What the alleles' list test (LP.spec) says: every ALT allele is non-empty
 # and all bases; REF and the ALT alleles are distinct; the alleles do not all

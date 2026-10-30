@@ -13,7 +13,14 @@ steps: `bend main.bend -o framebender.c` writes the program as C (with the drive
 plus libdeflate, which reads BGZF (`.vcf.gz`) input. `./build.sh out` writes the binary to `out`.
 Between the two, `build.sh` patches Bend's heap in the generated C so that a large block freed on
 one thread can be reused by any (`notes/memory.md`); it stops if the generated runtime is not the
-one the patch was written for.
+one the patch was written for. Bend fixed this upstream after 2.0.39 (bendlang/bend#1856), so on
+a later Bend the patch and its check go.
+
+The `lawful-*` packages are imported by name and version (`lawful-bytes@0.1.0.0/...`): Bend
+fetches each from BendHub once into `~/.bend/lib` and checks it against the package's hash. To
+change a package, edit its own repository, publish a new version (`bend PROOF.bend --publish
+lawful-x@0.1.0.1` from its directory) and raise the version here, in every file that imports it
+and in the packages that depend on it. The proofs here are then checked against the new version.
 
 `bend main.bend -o framebender` still builds in one step, without libdeflate or the heap patch.
 That binary reads plain VCF only and stops on a `.vcf.gz` with `error: no BGZF in this build
@@ -116,8 +123,8 @@ only when every check passes.
 |---|---|
 | `LAWS.bend`, `types.bend`, `run.bend`, `tan.bend` | science layer: definitions and laws |
 | `protocol.bend`, `MACHINE.bend`, `bytes_enc.bend` | implementation contract: the machine law, the FASTA premise, and how bytes encode the spec's text |
-| `norm.bend` | the program: pieces judged in parallel in batches of 16 (`../lawful-halves`) and spliced in order, falling back to the sequential machine |
-| `norm_seq.bend`, `norm_fast.bend`, `norm_line.bend`, `norm_run.bend`, `norm_fix.bend` | the sequential machine on packed bytes (`../lawful-*`) |
+| `norm.bend` | the program: pieces judged in parallel in batches of 16 (`lawful-halves`) and spliced in order, falling back to the sequential machine |
+| `norm_seq.bend`, `norm_fast.bend`, `norm_line.bend`, `norm_run.bend`, `norm_fix.bend` | the sequential machine on packed bytes (`lawful-*`, from BendHub) |
 | `main.bend`, `io64.c`, `io64.js` | the trusted driver: file I/O and the `.fai` reader |
 | `build.sh` | the two-step build with libdeflate |
 | `PROOF.bend`, `proof_*.bend` | the proofs; `PROOF.bend` proves every law by importing the rest (`proof_b_*`: the bytes machine, `proof_c_*`: rewritten records, `proof_e_*`: the parallel machine; `proof_f_*`: the command line, laws `threads` and `output`; notes in `notes/*proofs*.md`) |

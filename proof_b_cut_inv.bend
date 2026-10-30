@@ -1,7 +1,7 @@
 import Base
 import ./norm_fast.bend as NF
 import ./proof_b_cut_pair.bend as M
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # What a line that passes NF.line's tests is made of: from
 # PRE(len, t, s) == Pass{pos, e0 .. lf}, the cut's flags (each field ends

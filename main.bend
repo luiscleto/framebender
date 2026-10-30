@@ -2,8 +2,8 @@ import Base
 import ./types.bend as B
 import ./protocol.bend as P
 import ./norm.bend as Norm
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
 
 # framebender: the driver (trusted, not proven; see the comment on law machine
 # in MACHINE.bend).

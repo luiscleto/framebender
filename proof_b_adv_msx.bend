@@ -15,8 +15,8 @@ import ./proof_window_defs.bend as WS
 import ./proof_window_lists.bend as WL
 import ./proof_window.bend as PW
 import ./proof_fast.bend as PF
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./proof_b_lines_str.bend as LS
 import ./proof_b_frame.bend as FR
 import ./proof_b_frame_fr.bend as FF
@@ -34,13 +34,13 @@ import ./proof_b_lines.bend as LN
 import ./proof_b_adv_line.bend as LI
 import ./proof_b_adv_nat.bend as LP
 import ./proof_b_adv_part.bend as DPT
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_same.bend as SM
-import ../lawful-bytes/proof_list.bend as BL
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_same.bend as SM
+import lawful-bytes@0.1.0.0/proof_list.bend as BL
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # The String mode's line holes of adv_ok (proof_b_adv.bend: adv.ms.sb,
 # adv.ms.sl), and the verdict lemma they share with the byte mode's slow path

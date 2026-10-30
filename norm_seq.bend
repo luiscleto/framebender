@@ -6,9 +6,9 @@ import ./norm_line.bend as J
 import ./norm_run.bend as NR
 import ./norm_fast.bend as NF
 import ./norm_fix.bend as NX
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/fast.bend as F
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/fast.bend as F
 
 # framebender: the program (code, not spec). MACHINE.bend states what it must
 # do; the law reaches the code through Norm.start and Norm.step.

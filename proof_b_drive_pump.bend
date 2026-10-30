@@ -13,8 +13,8 @@ import ./proof_b_drive_out.bend as DO
 import ./proof_b_drive_fin.bend as DF
 import ./proof_b_drive_finms.bend as FMS
 import ./proof_base.bend as PB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # Helpers for proof_b_drive.bend: pump_ok. Norm.pump handles lines while
 # advance says Went (each lowers S.measure, so the fuel never runs out), then

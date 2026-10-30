@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 # test/same.sh NEW [REF]: stdout, stderr and exit code of binary NEW
 # against REF (default data/tmp/fb_ref, main's build) on every phase C case.
-# REF's results are cached in data/tmp/rw/ref (delete it when REF changes).
+# REF's results are cached in data/tmp/rw/ref (started afresh when REF is
+# a different binary).
 # Inputs: run `python3 test/gen_edge.py` and `python3 test/gen_rw.py` first, from
 # the repository root (they write data/tmp/edge2 and data/tmp/rw).
 cd "$(dirname "$0")/.."
 N=$1; R=${2:-data/tmp/fb_ref}
 export BEND_NO_TELEMETRY=1
+# The cache belongs to one REF binary: another one starts it afresh.
+id=$(md5sum < "$R" | cut -c1-32)
+[ "$(cat data/tmp/rw/ref.id 2>/dev/null)" = "$id" ] || { rm -rf data/tmp/rw/ref; mkdir -p data/tmp/rw; echo "$id" > data/tmp/rw/ref.id; }
 mkdir -p data/tmp/rw/ref data/tmp/rw/new
 bad=0; cnt=0
 one() { # name fasta vcf mode [w]

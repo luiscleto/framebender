@@ -15,13 +15,13 @@ import ./proof_b_run_fin.bend as FN
 import ./proof_b_run_add.bend as AD
 import ./proof_b_run_sr.bend as SR
 import ./proof_run_base.bend as RBS
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_grow.bend as G
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as N
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_grow.bend as G
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # run.bend's new_run on a pictured run: the buffer written, then a stop
 # (UNSORTED, or this CHROM's run ended) or the new CHROM's run started.

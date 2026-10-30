@@ -16,11 +16,11 @@ import ./proof_b_adv_wf.bend as W
 import ./proof_b_adv_str.bend as T
 import ./proof_b_alleles_list.bend as AL
 import ./proof_b_adv_nat.bend as LP
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # A line of a byte source handled in the byte mode (norm.bend's done.b):
 # the source moves past the line's LF, the run makes one L.line_step (up to

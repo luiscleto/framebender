@@ -23,17 +23,17 @@ import ./proof_e_merge.bend as MC
 import ./proof_b_sim.bend as SA
 import ./proof_e_bud_fed.bend as FD
 import ./proof_e_bud_list.bend as LI
-import ../lawful-bytes/defs.bend as D
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./proof_b_defs.bend as P
 import ./proof_b_drive_out.bend as DO
 import ./proof_b_bud_start.bend as BSt
 import ./proof_b_budget_lem.bend as BL
 import ./proof_b_lines_str.bend as LS
 import ./proof_e_wrap_edge.bend as ED
-import ../lawful-words/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Phase E, area E2: the combine, one piece per step (W.comb.next), from a
 # good Q state waiting for more with the batch's pieces ps (results xs) still

@@ -11,9 +11,9 @@ import ./proof_b_lines_str.bend as LSS
 import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BD
 import ./proof_b_budget_lem.bend as BL
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./proof_base.bend as PB
 
 # The budget walk's byte-mode leaves (proof_b_budget_adv.bend's c.mb.sb).

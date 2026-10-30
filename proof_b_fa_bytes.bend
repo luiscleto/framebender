@@ -4,7 +4,7 @@ import ./bytes_enc.bend as E
 import ./proof_b_cachedefs.bend as PC
 import ./proof_b_lines_str.bend as LS
 import ./proof_b_lines_pd.bend as LP
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # B.Fasta.parse keeps the file's bytes: every contig's letters are a header
 # line's following lines (split at LF) with their spaces, tabs and CRs

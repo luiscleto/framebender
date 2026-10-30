@@ -18,21 +18,21 @@ import ./proof_e_task_buf.bend as BUF
 import ./proof_e_task_loop.bend as LP
 import ./proof_e_task_start.bend as ST
 import ./proof_e_task_win.bend as WN
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_grow.bend as G
-import ../lawful-bytes/proof_ops.bend as O
-import ../lawful-bytes/proof_find.bend as FD
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_grow.bend as G
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-bytes@0.1.0.0/proof_find.bend as FD
 import ./proof_b_run_buf.bend as BF
 import ./proof_b_run_lem.bend as LM
 import ./proof_b_run_num.bend as NM
 import ./proof_b_run_sz.bend as SZ
 import ./proof_b_lit.bend as PL
 import ./proof_e_task_piece.bend as PI
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Phase E, area D (task): one task (norm_par.bend's task) on a piece with
 # reads: the loop from the start picture, which hands the piece back (phase

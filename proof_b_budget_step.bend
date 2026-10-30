@@ -20,8 +20,8 @@ import ./proof_b_bud_hop.bend as BH
 import ./proof_b_bud_out.bend as BO
 import ./proof_b_budget_ho.bend as HO
 import ./proof_b_budget_dig.bend as G
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./proof_base.bend as PB
 
 # The budget's per-step lemmas (notes/bytes_proofs_budget.md): one driver step

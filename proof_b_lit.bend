@@ -1,6 +1,6 @@
 import Base
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_b_defs.bend as P
 import ./norm_seq.bend as Norm
 

@@ -1,15 +1,15 @@
 import Base
 import ./norm_fast.bend as NF
 import ./proof_b_cut_pair.bend as M
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_find.bend as PF
-import ../lawful-bytes/proof_list.bend as PL
-import ../lawful-bytes/proof_ops.bend as PO
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_find.bend as PF
+import lawful-bytes@0.1.0.0/proof_list.bend as PL
+import lawful-bytes@0.1.0.0/proof_ops.bend as PO
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # The searches of the cut as facts about the view: each field end is the
 # first tab or LF from the field's start, below len, and a tab; LF searches

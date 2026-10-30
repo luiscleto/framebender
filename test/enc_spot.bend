@@ -1,6 +1,6 @@
 import Base
 import ../bytes_enc.bend as E
-import ../../lawful-bytes/defs.bend as D
+import lawful-bytes@0.1.0.0/defs.bend as D
 
 # text(enc(s)) == s on a few texts, and the block depth.
 def main() -> List<Bool>:

@@ -8,20 +8,20 @@ import ./proof_b_lines_str.bend as S
 import ./proof_b_lines_lst.bend as T
 import ./proof_b_lines_room.bend as R
 import ./proof_b_lit.bend as LT
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/fast.bend as F
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-bytes/proof_ops.bend as O
-import ../lawful-bytes/proof_find.bend as FD
-import ../lawful-bytes/proof_same.bend as SM
-import ../lawful-bytes/proof_seq.bend as SQ
-import ../lawful-bytes/proof_grow.bend as G
-import ../lawful-bytes/proof_fast_append.bend as FA
-import ../lawful-arrays/proof_tree.bend as AT
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/fast.bend as F
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-bytes@0.1.0.0/proof_find.bend as FD
+import lawful-bytes@0.1.0.0/proof_same.bend as SM
+import lawful-bytes@0.1.0.0/proof_seq.bend as SQ
+import lawful-bytes@0.1.0.0/proof_grow.bend as G
+import lawful-bytes@0.1.0.0/proof_fast_append.bend as FA
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # The line end (norm.bend's Pd): what pend.add, join.k, eof_src and Pd.len
 # do to it, on pictures (P.PdP). A byte line end grows through NR.put_bytes

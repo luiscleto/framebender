@@ -11,9 +11,9 @@ import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BDs
 import ./proof_b_budget_step.bend as BS
 import ./proof_base.bend as PB
-import ../lawful-bytes/defs.bend as D
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./proof_e_task.bend as PT
 import ./proof_e_wrap_defs.bend as WD
 import ./proof_e_bud_defs.bend as BD

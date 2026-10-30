@@ -15,19 +15,19 @@ import ./proof_b_run_same.bend as SA
 import ./proof_b_run_head.bend as HD
 import ./proof_b_run_fin.bend as FN
 import ./proof_b_run_bl.bend as BL
-import ../lawful-bytes/proof_grow.bend as G
-import ../lawful-bytes/proof_same.bend as SM
-import ../lawful-bytes/proof_ops.bend as O
-import ../lawful-arrays/proof_base.bend as AB
-import ../lawful-arrays/proof_index.bend as I
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/proof_grow.bend as G
+import lawful-bytes@0.1.0.0/proof_same.bend as SM
+import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
+import lawful-arrays@0.1.0.0/proof_index.bend as I
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./bytes_enc.bend as E
 import ./proof_b_fasteq.bend as FE
-import ../lawful-bytes/defs.bend as D
-import ../lawful-bytes/bytes.bend as BY
-import ../lawful-bytes/proof_core.bend as C
-import ../lawful-arrays/proof_tree.bend as AT
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # The run on bytes (norm_run.bend) refines run.bend's: each operation the
 # machine uses, on a pictured run (P.mkRun) that satisfies RunInv, gives a

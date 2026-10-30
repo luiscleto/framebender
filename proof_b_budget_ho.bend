@@ -1,6 +1,6 @@
 import Base
-import ../lawful-words/proof_nat.bend as N
-import ../lawful-arrays/proof_base.bend as AB
+import lawful-words@0.1.0.0/proof_nat.bend as N
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # Arithmetic of the hand-out term HO = (X - |O|) / d (proof_b_budget_need.bend,
 # d = 256): writing more never raises it, and writing t >= d bytes (within X)

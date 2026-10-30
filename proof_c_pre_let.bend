@@ -4,8 +4,8 @@ import ./norm_seq.bend as Norm
 import ./norm_fix.bend as NX
 import ./proof_c_defs.bend as Q
 import ./proof_b_alleles_list.bend as LS
-import ../lawful-bytes/defs.bend as D
-import ../lawful-words/proof_u32.bend as U
+import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-words@0.1.0.0/proof_u32.bend as U
 
 # Letters A, C, G, T, N in either case (NX.isl): their bases (Q.bf), the
 # letters written for them, and their comparison up to case; Strings of
