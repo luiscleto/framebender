@@ -31,3 +31,20 @@ trusted part.
 | 17 | The static `libhts.a` pulls in libcurl and libcrypto (4.3 MB) | Claude | **Fix:** build it with `--disable-libcurl --disable-gcs --disable-s3`; add an `nm` check for `tbx_parse1` and `hts_adjust_csi_settings`; a `static_assert` on the `tbx_intv_t` layout (Grok). |
 | 18 | Test oracles: `bgzip -t` exits 0 without the EOF block (check the bytes); MALFORMED POS and blank lines stop with exit 1 even under `-c w`; `-c e` and Bend OOM exit codes; differential rule over the whole corpus (refused by tabix or bcftools index exactly when "cannot index", else equal bytes); block-boundary lines (65,279/65,280/65,281 bytes), a header ending at a block end, NUL in a line, stderr across `--threads` 1/16/128, injected save/rename/close failures, region queries at boundaries; `-W -o x.vcf.bgz`, `x.VCF.GZ`, `--write-index tbi` as the VCF path; the failure-order tests of decision 2 | GPT, Claude, Grok | **Fix** all. |
 | 19 | Wording: "all of bcftools' one-word forms" (bcftools also takes `==csi` and abbreviations) | Claude | **Fix:** "the eight documented forms". |
+
+## Round 2
+
+Claude (`claude-index-law-r2.md`), GPT (`gpt-index-law-r2.md`), Grok (`grok-index-law-r2.md`): no
+blockers; decisions 1-19 carried out; `index_sink` is true and says what decision 5 asks; no
+approved law weakened; every old command line keeps its `Cfg`. Grok: ACCEPT. All three: the lock
+on any line containing `END=` is right and costs nothing measurable; temporary names `.tmp`,
+`.tmp1` ... with `O_EXCL` are fine; no removal of old indexes without `-W`; the `END=` slowness
+is its own lead, before gVCF users meet it.
+
+| # | finding | by | decision |
+|---|---|---|---|
+| 20 | Removing the old indexes after `ftruncate` can fail (sticky directory, `EPERM`): exit 2, an emptied output, both old indexes kept (GPT confirmed by injection) | Claude, GPT | **Fix (GPT's order):** after steps 1-4, rename both old indexes aside to temporary names (`O_EXCL`-style, as decision 9); a failure aborts with nothing changed. Then `ftruncate`; if it fails, rename them back. Then unlink the moved names; a failure there leaves a stray file htslib never reads, not a stale index. Test a failure at each step and on each index name. |
+| 21 | "no run leaves the temporary file unless it is killed": Bend's runtime stops with `_exit(1)` (out of memory, a Nat past 2^48), so `atexit` never runs | Claude | **Fix** the wording ("unless it is killed or Bend's runtime stops it"); add the case to the test plan (a stray `.tmp`, no index). |
+| 22 | The differential oracle "if either refuses" is wrong: at POS 600,000,000 CSI succeeds (equal to `bcftools index`) and TBI is refused | GPT | **Fix:** compare CSI with `bcftools index` and TBI with `tabix -p vcf` separately; a run that stops in normalization keeps its report and output and writes no index. |
+| 23 | The no-curl htslib | all three | **Fix:** install it at `~/.local/opt/htslib-1.24-nocurl`, selected with `PKG_CONFIG_PATH`; `build.sh` refuses a `libhts.a` whose `static_libs` name `-lcurl`, with a message naming the prefix and the three `--disable-*` flags; the build script is tracked (`tools/` or `test/`). |
+| 24 | The usage line about old indexes runs past 130 columns and prints on every usage error | Claude (GPT, Grok: keep it) | **Fix:** keep it, cut to one short clause (e.g. "-W also removes FILE's old .csi/.tbi"); the full explanation goes in the README. |
