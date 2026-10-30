@@ -131,16 +131,21 @@ only when every check passes.
 index writer. On the cases above, `test/gen_out.py`'s and `test/gen_index.py`'s (index edge
 cases: a NUL byte, no `##contig` lengths, lengths past 2^32 and 2^41, 300 contigs out of header
 order, `#` body lines, INFO/END, SVLEN and FORMAT/LEN ends, `END=` on every line, and lines
-`tabix` refuses: a leading-zero POS, positions past 2^29, 2^32 and 2^38), it applies the
+`tabix` refuses: a leading-zero POS, positions past 2^29, 2^32 and 2^38; no `##fileformat`
+line, or a `#` line before it, which `bcftools index` refuses; `##contig` lines longer than a
+block), it applies the
 differential rule per format: the run without `-W` first; if its code is not 0, the `-W` run
 must be that run exactly with no index; otherwise CSI is judged by `bcftools index` and TBI by
 `tabix -p vcf`, each on its own (refused: "cannot index", exit 2, no end-of-file block, no index;
-accepted: the same report and output, and the tool's index bytes). Each `-W` run turns the
-spelling, its place, `--threads N` and the `-o` form, and starts with an old index at both names.
+accepted: the same report and output, and the tool's index bytes). Each case runs with CSI and
+with TBI; each `-W` run turns the spelling within its format, its place, `--threads N` and the
+`-o` form, and starts with an old index at both names.
 Then region queries on chr22, the order at the open and the close by failure injection
 (`test/fi_shim.c`, an `LD_PRELOAD` shim: each step, each index name, CSI and TBI, and
 `renameat2` without `RENAME_NOREPLACE`), URL-like `-o` paths, FIFOs and devices, index names that
-are the `-o` file or an input, a driver error and Bend's runtime stopping after the open, file
+are the `-o` file (symlink, hard link), an input or stderr's file, or a directory (through a
+symlink too), an older `<stem>.csi` that htslib reads before the `.tbi`, an existing `<name>.old`,
+a driver error and Bend's runtime stopping after the open, file
 modes, the builds (`NOHTS=binary` from `FB_NO_HTSLIB=1 ./build.sh`, `PLAIN=binary` from `bend
 main.bend -o`, `build.sh`'s refusals; `SKIPBUILD=1` skips the last), the usage errors and the
 threads seen. `PIECES="b1 b2 ..."` runs the small cases on the small-piece builds too, `BIG=1`

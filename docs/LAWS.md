@@ -192,13 +192,16 @@ written so far, without it; after a failed write nothing more is written (`error
 <path>`, exit 2). Compressed output can make a run run out of memory where the plain one does not.
 
 Writing the index (`-W`) is trusted too, and tested instead of proven (`test/index.sh`): the
-index must be byte for byte what `bcftools index` (CSI, `min_shift` 14) or `tabix -p vcf` (TBI)
-writes for the same file, and `error: cannot index <path>` must come exactly when that tool
-refuses the file. Each compressor thread parses its block's lines with htslib 1.24's own parser
+index must be what `bcftools index` (CSI, `min_shift` 14) or `tabix -p vcf` (TBI) writes for the
+same file under a `.vcf.gz` name (byte for byte when their htslib compresses with libdeflate, as
+the linked one does), and `error: cannot index <path>` must come exactly when that tool refuses
+the file (for CSI also a file not beginning with `##fileformat=VCF`). Each compressor thread parses its block's lines with htslib 1.24's own parser
 (`tbx_parse1`, linked statically; a line holding `END=` under a lock), and the writer thread
 pushes them in order at the virtual offsets a reader would see. At the open of the `-o` file the
 driver, before it changes anything, checks the file is regular (a FIFO with no reader is refused,
-not waited on) and that neither index name is a directory, the `-o` file or an input; it creates
+not waited on), that neither index name is a directory (itself or through a symlink), the `-o`
+file or an input, and, for TBI, that no `<stem>.csi` (`out.vcf.csi` for `out.vcf.gz`), which
+htslib reads before `<path>.tbi`, exists; it creates
 a temporary file and renames both old indexes aside (never replacing a file), then empties the
 `-o` file and removes them (htslib reads `.csi` before `.tbi`, so a stale one would hide the new
 one). A failure up to the emptying leaves the old file and indexes as they were, except an index

@@ -637,8 +637,8 @@ file without its end-of-file block. GPT kept finding injected-failure cases into
 ## Index output (2026-10-30; phase J, branch `index`, `notes/index.md`)
 
 `-W`, `--write-index[=csi|tbi]` in the eight forms bcftools documents: the output's index, built
-while the BGZF file is written, byte for byte what `bcftools index` (CSI) or `tabix -p vcf` (TBI)
-writes for the same file. Each compressor thread parses its block's lines with htslib 1.24's own
+while the BGZF file is written, what `bcftools index` (CSI) or `tabix -p vcf` (TBI) writes for the
+same file under a `.vcf.gz` name (byte for byte with libdeflate). Each compressor thread parses its block's lines with htslib 1.24's own
 `tbx_parse1` (not exported by `libhts.so`: htslib is linked statically, built without libcurl,
 `tools/build_htslib.sh`); the writer pushes them in order at the virtual offsets a reader sees.
 Two new laws in `MACHINE.bend`: `index` (a `-W` where an option is expected changes nothing in

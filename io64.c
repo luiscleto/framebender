@@ -834,6 +834,9 @@ static struct {
   hts_idx_t* idx; khash_t(s2i)* dict; uint64_t last_off; int64_t max_ref_len;
   kstring_t carry; int carrying; char* lname; size_t llen; int ltid;
   uint64_t addr;
+  // The first bytes of the text (CSI: bcftools index reads the format from
+  // the first 16, and refuses a file not starting with ##fileformat=VCF).
+  unsigned char head[16]; size_t nhead;
 } io64_ix;
 
 // The name htslib is given for path: "./" before a relative path.
@@ -862,13 +865,15 @@ static void idx_atexit(void) {
 // The index errors (main.bend's out_fail turns them into messages): 2004
 // cannot index, 2005 not a regular file, then for the index name n (.csi or
 // .tbi): 2006/2007 cannot write n, 2008/2009 n is an input, 2010/2011 n is
-// the -o file.
+// the -o file; 2012 an older <stem>.csi, which htslib reads before
+// <path>.tbi.
 #define IO64_IX_NOLIB 2003
 #define IO64_IX_BAD 2004
 #define IO64_IX_NOTREG 2005
 #define IO64_IX_WRITE 2006
 #define IO64_IX_INPUT 2008
 #define IO64_IX_SELF 2010
+#define IO64_IX_HIDDEN 2012
 
 static u32 idx_code(u32 base, const char* n) {
   size_t l = strlen(n);
@@ -991,6 +996,12 @@ static void idx_carry_done(uint64_t v) {
 // lines rs (nrec; scan: idx_scan's answer).
 static void idx_block(const unsigned char* b, size_t n, uint64_t a, size_t sz, int scan, IdxRec* rs, size_t nrec, size_t fs, size_t ls) {
   if (scan != 0) io64_ix.bad = 1;
+  if (io64_ix.nhead < 16) {
+    size_t k = 16 - io64_ix.nhead < n ? 16 - io64_ix.nhead : n;
+    memcpy(io64_ix.head + io64_ix.nhead, b, k);
+    io64_ix.nhead += k;
+    if (io64_ix.nhead == 16 && io64_ix.fmt == HTS_FMT_CSI && memcmp(io64_ix.head, "##fileformat=VCF", 16) != 0) io64_ix.bad = 1;
+  }
   if (io64_ix.bad) return;
 #define VO(o) ((o) == n ? (a + sz) << 16 : a << 16 | (o))
   if (io64_ix.carrying) {
@@ -1031,9 +1042,10 @@ static u32 idx_begin(u32 fmt, char* p) {
 // eof the end-of-file block's address: the carried line, then the index
 // finished (an empty one as tbx_index makes it: the first settings, no
 // level adjustment) with its metadata (tbx_set_meta's bytes). 0, or -1
-// (cannot index).
+// (cannot index; CSI: also a text shorter than 16 bytes).
 static int idx_finish(uint64_t eof) {
   if (io64_ix.carrying) idx_carry_done(eof << 16);
+  if (io64_ix.fmt == HTS_FMT_CSI && io64_ix.nhead < 16) io64_ix.bad = 1;
   if (io64_ix.bad) return -1;
   if (io64_ix.idx == NULL) io64_ix.idx = hts_idx_init(0, io64_ix.fmt, io64_ix.last_off, io64_ix.min_shift, io64_ix.n_lvls);
   if (io64_ix.idx == NULL) return -1;
@@ -1382,17 +1394,40 @@ static int idx_alias(const struct stat* st, const struct stat* o) {
 }
 
 // Step 3, for one index name p: refused (nothing changed) if it is a
-// directory, cannot be looked at, or is (itself, or the file a symlink there
-// names) the output, an input or stderr's file. 0 or the error.
+// directory (itself, or through a symlink), cannot be looked at, or is
+// (itself, or the file a symlink there names) the output, an input or
+// stderr's file. 0 or the error.
 static u32 idx_check_name(const char* p, const struct stat* o) {
   struct stat l, s;
   if (lstat(p, &l) != 0) return errno == ENOENT ? 0 : idx_code(IO64_IX_WRITE, p);
-  if (S_ISDIR(l.st_mode)) return idx_code(IO64_IX_WRITE, p);
+  if (S_ISDIR(l.st_mode) || (stat(p, &s) == 0 && S_ISDIR(s.st_mode))) return idx_code(IO64_IX_WRITE, p);
   if (idx_alias(&l, o) || (stat(p, &s) == 0 && idx_alias(&s, o))) {
     if (io64_same(&l, o->st_dev, o->st_ino) || (stat(p, &s) == 0 && io64_same(&s, o->st_dev, o->st_ino))) return idx_code(IO64_IX_SELF, p);
     return idx_code(IO64_IX_INPUT, p);
   }
   return 0;
+}
+
+// Step 3, the names htslib 1.24 reads before ours (hts_idx_check_local, for
+// the -o path f: f.csi, then f up to its last '.' after the first byte with
+// .csi, then the same two with .tbi; the first that stat finds is read).
+// <path>.csi is first, so nothing comes before a CSI; before a TBI, f.csi
+// (step 5 moves it aside) and that <stem>.csi, which is not ours to remove
+// (it may index another file, f without its extension): refused while stat
+// finds it. 0 or the error.
+static u32 idx_check_hidden(void) {
+  if (io64_ix.fmt != HTS_FMT_TBI) return 0;
+  size_t n = strlen(io64_ix.path) - 4, i;
+  if (n < 2) return 0;
+  for (i = n - 1; i > 0 && io64_ix.path[i] != '.'; i -= 1) {}
+  if (i == 0) return 0;
+  char* c = malloc(i + 5);
+  if (c == NULL) return ENOMEM;
+  memcpy(c, io64_ix.path, i); memcpy(c + i, ".csi", 5);
+  struct stat s;
+  int hid = stat(c, &s) == 0;
+  free(c);
+  return hid ? IO64_IX_HIDDEN : 0;
 }
 
 // Steps 3 and 4 (after the open and the checks of the -o file st, before it
@@ -1402,6 +1437,7 @@ static u32 idx_check_name(const char* p, const struct stat* o) {
 static u32 idx_open(const struct stat* st) {
   u32 r = idx_check_name(io64_ix.path, st);
   if (r == 0) r = idx_check_name(io64_ix.other, st);
+  if (r == 0) r = idx_check_hidden();
   if (r != 0) return r;
   size_t n = strlen(io64_ix.path);
   char* t = malloc(n + 16);

@@ -36,10 +36,11 @@ import lawful-bytes@0.1.0.0/bytes.bend as BY
 #   proof_f_index.bend), "-W needs a BGZF -o file" (B.Args.index is BadIdx:
 #   before any input is opened), "no index in this build <path>" (-W with
 #   BGZF output, built without htslib: see build.sh), "cannot index <path>
-#   (not a regular file)", "cannot index <path>" (a line tabix -p vcf or
+#   (not a regular file)", "cannot index <path>" (a file tabix -p vcf or
 #   bcftools index refuses, or no memory for the index: only for a run whose
 #   code is 0, after all of its messages), "cannot write <path>.csi" (or
-#   .tbi; also "... (it is the -o file)"), "output is an input <path>.csi"
+#   .tbi; also "... (it is the -o file)", and "cannot write <path>.tbi
+#   (htslib would read <stem>.csi first)"), "output is an input <path>.csi"
 #   (or .tbi), as law machine's comment lists them,
 #   "out of memory" (no room for libdeflate's decompressor), "unsupported
 #   gzip <path> (not BGZF; use gzip -dc
@@ -129,7 +130,7 @@ def Io.out_index(fmt: U32, path: List<&2, U32>) -> IO(U32):
 # Write the first n bytes of a block to the output; answers 0 or the first
 # error of the output: an errno (cannot write), 12 (out of memory), 2001 (the
 # -o file is an input or stderr's file), or with -W an index error of the
-# open (2005, 2006 to 2011: see out_fail).
+# open (2005, 2006 to 2012: see out_fail).
 def Io.out_write(n: U32, a: Array<U32>) -> IO(U32):
   import "./io64.c"
   import "./io64.js"
@@ -270,10 +271,10 @@ def cannot_write?(out: Maybe<&2, String>) -> String:
 
 # An error of the output (Io.out_set, Io.out_index, Io.out_write,
 # Io.out_close): "out of memory" (12), "output is an input <path>" (2001), "no
-# BGZF in this build <path>" (2002), an index error (2003 to 2011:
+# BGZF in this build <path>" (2002), an index error (2003 to 2012:
 # ix_msg), else "cannot write" (stdout) or "cannot write <path>".
 def out_fail?(-A: Type, +c: U32, +out: Maybe<&2, String>) -> IO(A):
-  out_fail.ix(A, U32.is_lt(c, 2003) || U32.is_lt(2011, c), c, out)
+  out_fail.ix(A, U32.is_lt(c, 2003) || U32.is_lt(2012, c), c, out)
 
 def out_fail.ix?(-A: Type, other: Bool, +c: U32, +out: Maybe<&2, String>) -> IO(A):
   match other:
@@ -284,7 +285,8 @@ def out_fail.ix?(-A: Type, other: Bool, +c: U32, +out: Maybe<&2, String>) -> IO(
 
 # The index errors: 2003 no index in this build, 2004 cannot index, 2005 not
 # a regular file, then for <path>.csi and <path>.tbi: 2006/2007 cannot write,
-# 2008/2009 an input, 2010/2011 the -o file itself.
+# 2008/2009 an input, 2010/2011 the -o file itself; 2012 an older
+# <stem>.csi that htslib reads before <path>.tbi.
 def ix_msg?(+c: U32, +p: String) -> String:
   Bool.pick(String, U32.is_eq(c, 2003), "no index in this build " ++ p,
   Bool.pick(String, U32.is_eq(c, 2004), "cannot index " ++ p,
@@ -294,7 +296,41 @@ def ix_msg?(+c: U32, +p: String) -> String:
   Bool.pick(String, U32.is_eq(c, 2008), "output is an input " ++ p ++ ".csi",
   Bool.pick(String, U32.is_eq(c, 2009), "output is an input " ++ p ++ ".tbi",
   Bool.pick(String, U32.is_eq(c, 2010), "cannot write " ++ p ++ ".csi (it is the -o file)",
-  "cannot write " ++ p ++ ".tbi (it is the -o file)"))))))))
+  Bool.pick(String, U32.is_eq(c, 2011), "cannot write " ++ p ++ ".tbi (it is the -o file)",
+  "cannot write " ++ p ++ ".tbi (htslib would read " ++ ix_stem(p) ++ ".csi first)")))))))))
+
+# <stem>: the path p up to its last '.' after the first byte, as htslib's
+# hts_idx_check_local cuts it (p itself when there is none).
+def ix_stem?(+p: String) -> String:
+  match p:
+    case SNil{}:
+      SNil{}
+    case SCon{+c, +t}:
+      ix_stem.k(c, ix_cut(t), t)
+
+def ix_stem.k?(+c: Char, m: Maybe<&2, String>, t: String) -> String:
+  match m:
+    case None{}:
+      SCon{c, t}
+    case Some{q}:
+      SCon{c, q}
+
+# The text before the last '.' of s, or None when s has no '.'.
+def ix_cut?(+s: String) -> Maybe<&2, String>:
+  match s:
+    case SNil{}:
+      None{}
+    case SCon{+c, t}:
+      ix_cut.k(ix_cut(t), Char.is_eq(c, '.'), c)
+
+def ix_cut.k?(m: Maybe<&2, String>, dot: Bool, +c: Char) -> Maybe<&2, String>:
+  match m dot:
+    case Some{q} _:
+      Some{SCon{c, q}}
+    case None{} True{}:
+      Some{SNil{}}
+    case None{} False{}:
+      None{}
 
 def out_fail.go?(-A: Type, oom: Bool, inp: Bool, nolib: Bool, out: Maybe<&2, String>) -> IO(A):
   match oom inp nolib:

@@ -15,9 +15,10 @@
 #    vcf, each on its own: if the tool refuses the output, the -W run gives
 #    the same stdout and stderr, then "error: cannot index <path>", exit 2,
 #    the output less its end-of-file block, and no index; else the same
-#    report and output, and the tool's index bytes. Each -W run turns its
-#    spelling (all eight), its place in the line (three), --threads N (1, 2,
-#    3, 7, 16, 32, 128) and the -o form (.vcf.gz, -Ov with .vcf.gz,
+#    report and output, and the tool's index bytes. Each case runs once with
+#    CSI and once with TBI; each -W run turns its spelling (within its
+#    format: five for CSI, three for TBI), its place in the line (three),
+#    --threads N (1, 2, 3, 7, 16, 32, 128) and the -o form (.vcf.gz, -Ov with .vcf.gz,
 #    .vcf.bgz, .VCF.GZ), and starts with an old index at both names: one must
 #    be the new index, the other gone, and no .tmp or .old file left. chr22
 #    and the scrambled file also at every level of z, z0, z1, z9. With
@@ -31,9 +32,12 @@
 #    (test/fi_shim.c), each step and each index name, for CSI and TBI; -o
 #    paths htslib could read as URLs; a FIFO with no reader (under a
 #    timeout), with a reader, /dev/null; index names that are the -o file or
-#    an input; BadIdx; a driver error and Bend's runtime stopping after the
-#    open; a taken temporary name; the new index's mode and mtime; a run
-#    without -W after one with it.
+#    an input (a symlink, a hard link, stderr's file); index names that are
+#    directories (themselves, or through a symlink); an older <stem>.csi
+#    that htslib reads before the .tbi; an existing <name>.old; BadIdx; a
+#    driver error and Bend's runtime stopping after the open; a taken
+#    temporary name; the new index's mode and mtime; a run without -W after
+#    one with it.
 # 4. Builds: with NOHTS=binary (FB_NO_HTSLIB=1 ./build.sh) "no index in this
 #    build"; with PLAIN=binary (bend main.bend -o) "no BGZF in this build";
 #    build.sh's refusals of a libcurl htslib and of none; tools/build_htslib.sh
@@ -51,6 +55,8 @@ EOF28=1f8b08040000000000ff0600424302001b0003000000000000000000
 bad=0; cnt=0
 NS=(1 2 3 7 16 32 128)
 SP=(-W -Wtbi -Wcsi -W=tbi -W=csi --write-index=tbi --write-index --write-index=csi)
+SPC=(-W -Wcsi -W=csi --write-index --write-index=csi)
+SPT=(-Wtbi -W=tbi --write-index=tbi)
 fail() { echo "FAIL $*"; bad=1; }
 eofhex() { tail -c 28 "$1" | od -An -tx1 | tr -d ' \n'; }
 fmt_of() { case $1 in *tbi) echo tbi ;; *) echo csi ;; esac; }
@@ -70,12 +76,13 @@ ref() { # tag fasta vcf mode level
   rm -f $r.c.vcf.gz $r.t.vcf.gz
 }
 
-# One -W run of $tag, judged by the rule above.
-k=0
-wrun() { # bin tag fasta vcf mode level
-  local B=$1 tag=$2 fa=$3 v=$4 m=$5 lv=$6
-  local w=${SP[$((k % 8))]} n=${NS[$((k % 7))]} p=$((k % 3)) form=$((k % 4)); k=$((k + 1))
-  local f=$(fmt_of $w) o=$D/new/$tag opts
+# One -W run of $tag for format f (csi or tbi), judged by the rule above.
+k=0; kc=0; kt=0
+wrun() { # bin tag fasta vcf mode level f
+  local B=$1 tag=$2 fa=$3 v=$4 m=$5 lv=$6 f=$7 w
+  if [ $f = csi ]; then w=${SPC[$((kc % 5))]}; kc=$((kc + 1)); else w=${SPT[$((kt % 3))]}; kt=$((kt + 1)); fi
+  local n=${NS[$((k % 7))]} p=$((k % 3)) form=$((k % 4)); k=$((k + 1))
+  local o=$D/new/$tag opts
   case $form in
     0) o=$o.vcf.gz; opts="-O$lv -o $o" ;;
     1) o=$o.vcf.gz; lv=z; opts="-Ov -o $o" ;;
@@ -116,8 +123,8 @@ LVS=(z z0 z1 z9)
 lk=0
 one() { # bin name fasta vcf mode
   local lv=${LVS[$((lk % 4))]}; lk=$((lk + 1))
-  wrun $1 $2.$5 $3 $4 $5 $lv
-  wrun $1 $2.$5 $3 $4 $5 $lv
+  wrun $1 $2.$5 $3 $4 $5 $lv csi
+  wrun $1 $2.$5 $3 $4 $5 $lv tbi
 }
 
 G=$D/gen; GI=$D/gi
@@ -138,15 +145,15 @@ if [ -n "$QUICK" ]; then echo "QUICK: identity runs skipped"; else
       one $N rw_$n $fa $v $m
     done
     for lv in z z0 z1 z9; do
-      wrun $N chr22.$m data/chr22.fa data/hg002.chr22.vcf $m $lv; wrun $N chr22.$m data/chr22.fa data/hg002.chr22.vcf $m $lv
-      wrun $N scr.$m data/chr22.fa data/scr.vcf $m $lv; wrun $N scr.$m data/chr22.fa data/scr.vcf $m $lv
+      wrun $N chr22.$m data/chr22.fa data/hg002.chr22.vcf $m $lv csi; wrun $N chr22.$m data/chr22.fa data/hg002.chr22.vcf $m $lv tbi
+      wrun $N scr.$m data/chr22.fa data/scr.vcf $m $lv csi; wrun $N scr.$m data/chr22.fa data/scr.vcf $m $lv tbi
     done
   done
   for B in $PIECES; do small $(realpath $B) w; done
   if [ -n "$BIG" ]; then
     for spec in "kgsub data/hg38.fa data/kg/sub.vcf" "kg22 data/hg38.fa data/kg/chr22.vcf.gz" "all data/hg38.fa data/hg002.all.vcf"; do
       set -- $spec
-      wrun $N $1.w $2 $3 w z; wrun $N $1.w $2 $3 w z
+      wrun $N $1.w $2 $3 w z csi; wrun $N $1.w $2 $3 w z tbi
     done
   fi
   refused=$(ls $D/new/*.refused 2>/dev/null | sed 's|.*/||; s|\.refused$||' | sort | tr '\n' ' ')
@@ -296,6 +303,53 @@ $N norm -W -f $FAA -o o.vcf.gz in.vcf 2> err; e=$?
 oldf; rm o.vcf.gz.csi; ln -s $FAA.fai o.vcf.gz.csi
 $N norm -W -f $FAA -o o.vcf.gz in.vcf 2> err; e=$?
 [ $e = 2 ] && grep -qx "error: output is an input o.vcf.gz.csi" err || f3 ".csi a symlink to the .fai: exit $e, $(cat err)"
+oldf; rm o.vcf.gz.tbi; ln o.vcf.gz o.vcf.gz.tbi
+$N norm -W -f $FAA -o o.vcf.gz in.vcf 2> err; e=$?
+[ $e = 2 ] && grep -qx "error: cannot write o.vcf.gz.tbi (it is the -o file)" err && same o.vcf.gz 'old output' && same o.vcf.gz.csi 'old csi' || f3 ".tbi a hard link to the -o file: exit $e, $(cat err)"
+oldf; $N norm -Wtbi -f $FAA -o o.vcf.gz in.vcf 2>> o.vcf.gz.tbi; e=$?
+[ $e = 2 ] && [ "$(head -1 o.vcf.gz.tbi)" = "old tbi" ] && [ "$(tail -1 o.vcf.gz.tbi)" = "error: output is an input o.vcf.gz.tbi" ] && same o.vcf.gz 'old output' && same o.vcf.gz.csi 'old csi' || f3 "stderr's file at .tbi: exit $e, $(tail -1 o.vcf.gz.tbi)"
+# an index name that is a symlink to a directory (also the one the -o path
+# goes through)
+rm -rf o.* dd; mkdir dd; printf 'old output\n' > dd/data; ln -s dd o.vcf.gz.csi; ln -s o.vcf.gz.csi/data o.vcf.gz
+$N norm -W -f $FAA -o o.vcf.gz in.vcf 2> err; e=$?
+[ $e = 2 ] && grep -qx "error: cannot write o.vcf.gz.csi" err && same dd/data 'old output' && [ -L o.vcf.gz.csi ] && [ "$(ls -A dd)" = data ] || f3 "-o through .csi, a symlink to a directory: exit $e, $(cat err)"
+rm -f o.*; oldf; rm o.vcf.gz.tbi; ln -s dd o.vcf.gz.tbi
+$N norm -W -f $FAA -o o.vcf.gz in.vcf 2> err; e=$?
+[ $e = 2 ] && grep -qx "error: cannot write o.vcf.gz.tbi" err && same o.vcf.gz 'old output' && same o.vcf.gz.csi 'old csi' && [ -L o.vcf.gz.tbi ] || f3 ".tbi a symlink to a directory: exit $e, $(cat err)"
+rm -rf o.* dd
+# An older <stem>.csi: htslib reads o.vcf.csi before o.vcf.gz.tbi (shown
+# first: a stray one breaks tabix), so -Wtbi is refused, nothing changed, and
+# the file left; a CSI is read first, so -W runs; a dangling symlink there is
+# not read (stat), so it is not refused. Also a stem cut in a directory name
+# (d.x/out: d.csi), and -o x.csi, whose <stem>.csi is the -o file.
+mkdir -p st; pushd st > /dev/null
+rm -f o.*; $N norm -Wtbi -f $FAA -o o.vcf.gz ../in.vcf 2> /dev/null; tabix -l o.vcf.gz > /dev/null 2>&1 || f3 "tabix -l fails without o.vcf.csi"
+printf 'other csi\n' > o.vcf.csi; tabix -l o.vcf.gz > /dev/null 2>&1 && f3 "tabix -l does not read o.vcf.csi"
+oldf; printf 'other csi\n' > o.vcf.csi
+$N norm -Wtbi -f $FAA -o o.vcf.gz ../in.vcf 2> err; e=$?
+[ $e = 2 ] && [ "$(cat err)" = "error: cannot write o.vcf.gz.tbi (htslib would read o.vcf.csi first)" ] && [ "$(state tbi)" = "old old old o.vcf.csi," ] && same o.vcf.csi 'other csi' || f3 "an older o.vcf.csi, -Wtbi: exit $e, $(cat err), $(state tbi)"
+oldf; printf 'other csi\n' > o.vcf.csi
+$N norm -W -f $FAA -o o.vcf.gz ../in.vcf 2> /dev/null; e=$?
+[ $e = 0 ] && [ "$(state csi)" = "complete new none o.vcf.csi," ] && same o.vcf.csi 'other csi' || f3 "an older o.vcf.csi, -W: exit $e, $(state csi)"
+oldf; ln -s nowhere o.vcf.csi
+$N norm -Wtbi -f $FAA -o o.vcf.gz ../in.vcf 2> /dev/null; e=$?
+[ $e = 0 ] && [ "$(state tbi)" = "complete new none o.vcf.csi," ] || f3 "a dangling o.vcf.csi, -Wtbi: exit $e, $(state tbi)"
+rm -rf o.* d.x d.csi; mkdir d.x; printf 'other csi\n' > d.csi
+$N norm -Oz -Wtbi -f $FAA -o d.x/out ../in.vcf 2> err; e=$?
+[ $e = 2 ] && [ "$(cat err)" = "error: cannot write d.x/out.tbi (htslib would read d.csi first)" ] && [ ! -s d.x/out ] && [ "$(ls -A d.x)" = out ] || f3 "an older d.csi for d.x/out: exit $e, $(cat err)"
+rm -rf d.x d.csi x.csi x.csi.*
+$N norm -Oz -Wtbi -f $FAA -o x.csi ../in.vcf 2> err; e=$?
+[ $e = 2 ] && [ "$(cat err)" = "error: cannot write x.csi.tbi (htslib would read x.csi first)" ] && [ ! -e x.csi.tbi ] || f3 "-o x.csi with -Wtbi: exit $e, $(cat err)"
+rm -f x.csi x.csi.*
+# An existing <name>.old: the moved index goes to <name>.old1 (left there
+# when its removal fails), the .old untouched.
+oldf; printf 'keep\n' > o.vcf.gz.csi.old
+$N norm -W -f $FAA -o o.vcf.gz ../in.vcf 2> /dev/null; e=$?
+[ $e = 0 ] && [ "$(state csi)" = "complete new none o.vcf.gz.csi.old," ] && same o.vcf.gz.csi.old keep || f3 "an existing .csi.old: exit $e, $(state csi)"
+oldf; printf 'keep\n' > o.vcf.gz.csi.old
+LD_PRELOAD=$SHIM FI_OP=unlink FI_PATH=o.vcf.gz.csi.old1 $N norm -W -f $FAA -o o.vcf.gz ../in.vcf 2> /dev/null; e=$?
+[ $e = 0 ] && [ "$(state csi)" = "complete new none o.vcf.gz.csi.old,o.vcf.gz.csi.old1," ] && same o.vcf.gz.csi.old keep && same o.vcf.gz.csi.old1 'old csi' || f3 "an existing .csi.old, unlink of .old1 fails: exit $e, $(state csi)"
+rm -f o.* err; popd > /dev/null
 oldf; chmod 444 o.vcf.gz
 $N norm -W -f $FAA -o o.vcf.gz in.vcf 2> err; e=$?
 [ $e = 2 ] && grep -qx "error: cannot write o.vcf.gz" err && same o.vcf.gz.csi 'old csi' && same o.vcf.gz.tbi 'old tbi' || f3 "a read-only -o: exit $e, $(cat err)"

@@ -57,16 +57,21 @@ samtools faidx ref.fa                                # once: writes ref.fa.fai
   never leaves a file that looks complete. `-o` refuses to overwrite an input, and a run that
   cannot read its inputs leaves an existing file as it was.
 - `-W` (or `--write-index`): also write the output's index, `FILE.csi`; `-W=tbi` (or `-Wtbi`,
-  `--write-index=tbi`) writes `FILE.tbi` instead. It is byte for byte what `bcftools index` (or
-  `tabix -p vcf`) writes for the same file, built while the file is written. It needs a BGZF `-o`
+  `--write-index=tbi`) writes `FILE.tbi` instead. It is what `bcftools index` (or `tabix -p vcf`)
+  writes for the same file under a `.vcf.gz` name, built while the file is written; byte for byte
+  when their htslib compresses with libdeflate, as framebender's does. It needs a BGZF `-o`
   file (`error: -W needs a BGZF -o file` otherwise, before anything is read), and it never
   changes the output (laws `index` and `index_sink`). The index is written only when the run
-  succeeds, after the file is complete; a line `tabix` would refuse (such as a passed-through
-  POS with a leading zero, or a position past 2^29 with `-W=tbi`) ends the run with `error:
-  cannot index FILE` and no index. `-W` first removes an old `FILE.csi` and `FILE.tbi`: htslib
-  reads `.csi` before `.tbi`, so a stale one would silently answer region queries for the new
-  file. A run without `-W` leaves an old index as it is, and htslib warns about it only when it
-  is a second or more older than the file: remove it, or use `-W`.
+  succeeds, after the file is complete; a file `bcftools index` or `tabix` would refuse (such as
+  a passed-through POS with a leading zero, a position past 2^29 with `-W=tbi`, or, for CSI, an
+  input that does not begin with `##fileformat=VCF`) ends the run with `error: cannot index
+  FILE` and no index. `-W` first removes an old `FILE.csi` and `FILE.tbi`: htslib reads `.csi`
+  before `.tbi`, so a stale one would silently answer region queries for the new file. For
+  `out.vcf.gz`, htslib also reads `out.vcf.csi` before `out.vcf.gz.tbi`; `-W=tbi` does not remove
+  that file (it may index `out.vcf`) and refuses to run while it exists (`error: cannot write
+  out.vcf.gz.tbi (htslib would read out.vcf.csi first)`). A run without `-W` leaves an old index
+  as it is, and htslib warns about it only when it is a second or more older than the file:
+  remove it, or use `-W`.
 - Input is plain VCF or bgzip-compressed `.vcf.gz` (a file that is cut short is refused).
 
 ## What is guaranteed
@@ -125,7 +130,7 @@ panel, chr22: 1,066,557 records of about 14 KB each, 14.8 GB uncompressed):
 framebender reads the file in pieces and normalizes 16 at a time in parallel; the proof covers
 the parallel version, which gives byte-for-byte the output of the sequential one. The `-W` rows write a
 compressed file and its CSI index (bcftools with `--threads 16`, both on 16 CPUs; framebender's
-index is byte for byte bcftools index's of the same file). A file where
+index is byte for byte bcftools index's of the same file, both with libdeflate). A file where
 nearly every record needs rewriting is still slower than bcftools. framebender uses more memory,
 which `--threads` trades against speed (HG002 whole genome; the output is identical at every
 setting):

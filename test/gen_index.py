@@ -19,7 +19,12 @@
 #   tbipos.vcf    a POS past 2^29 (TBI refuses, CSI holds it);
 #   tbiend.vcf    an INFO/END past 2^29 (the same);
 #   csi38.vcf     no ##contig length and a POS past 2^38 (both refuse);
-#   csi32.vcf     a short ##contig length and a POS past 2^32 (both refuse).
+#   csi32.vcf     a short ##contig length and a POS past 2^32 (both refuse);
+#   noff.vcf      no ##fileformat line (bcftools index refuses: it reads the
+#                 format from the first 16 bytes; tabix holds it);
+#   cfirst.vcf    a '#' line before ##fileformat (the same);
+#   biglen.vcf    ##contig lines longer than a block, a length past 2^32
+#                 before and after 70000 bytes (the lengths set CSI's levels).
 import os
 import sys
 
@@ -63,3 +68,8 @@ put("tbipos.vcf", H + CTG + INFO + COLS + rec("t1", 5, "SVLEN=-2") + rec("t1", 6
 put("tbiend.vcf", H + CTG + INFO + COLS + rec("t1", 5, "SVLEN=-2") + rec("t1", 10, "END=600000000;SVLEN=-2"))
 put("csi38.vcf", H + INFO + COLS + rec("t1", 5, "SVLEN=-2") + rec("t1", 300000000000, "SVLEN=-2"))
 put("csi32.vcf", H + "##contig=<ID=t1,length=1000>\n" + INFO + COLS + rec("t1", 5, "SVLEN=-2") + rec("t1", 5000000000, "SVLEN=-2"))
+put("noff.vcf", INFO + COLS + rec("t1", 5, "SVLEN=-2") + rec("t1", 9, "SVLEN=-2"))
+put("cfirst.vcf", "#a comment first\n" + H + CTG + INFO + COLS + rec("t1", 5, "SVLEN=-2") + rec("t1", 9, "SVLEN=-2"))
+pad = "x" * 70000
+put("biglen.vcf", H + '##contig=<ID=t1,Description="%s",length=5000000000>\n' % pad + '##contig=<ID=t2,length=6000000000,Description="%s">\n' % pad
+    + INFO + COLS + rec("t1", 4, "SVLEN=-2") + rec("t1", 4500000000, "SVLEN=-2") + rec("t2", 5900000000, "SVLEN=-2"))

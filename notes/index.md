@@ -6,7 +6,8 @@ Brief: `notes/briefs/INDEX.md`. Branch `index`.
 
 - **Step 1 (design and draft): the law review is closed** after round 3. Decisions 25–27 (driver
   text and code) are applied.
-- **Step 2 (the implementation) is done:** "Step 2" below. It waits for the driver review.
+- **Step 2 (the implementation) is done:** "Step 2" below. Driver review 9's decisions 1–6 are
+  applied ("Driver review 9" below); it waits for round 2 of the driver review.
   - The reviews: `reviews/{claude,gpt,grok}-index-law.md` and `-r2.md` in the main checkout
     (round 2: Grok ACCEPT, Claude and GPT should-fix only; round 3: GPT ACCEPT, Claude and Grok
     one should-fix each).
@@ -34,6 +35,87 @@ Brief: `notes/briefs/INDEX.md`. Branch `index`.
   - framebender alone: 2.85–3.03 s (step 1), 2.87–3.03 s (round 1);
   - with the on-the-fly index: 3.33–3.41 s with round 1's prototype (`bench6.txt`), 3.26–3.42 s with step 1's;
   - `bcftools norm -Oz -W --threads 16`: 6.38–6.62 s (step 1).
+
+## Driver review 9
+
+Reports `reviews/{claude,gpt,grok}-driver9.md` in the main checkout and the lead's decisions 1–6
+in `reviews/responses-driver9.md`. There was no blocker, and every finding was in the trusted
+driver, its comment or its tests. The laws are unchanged.
+
+1. **CSI needs `##fileformat=VCF` first** (`io64.c`). The writer keeps the text's first 16 bytes
+   (`head`, `nhead`, filled block by block in `idx_block`). For CSI, once there are 16 that are
+   not `##fileformat=VCF`, the index's error flag is set. `idx_finish` also sets it for a text
+   shorter than 16 bytes. The run then ends as any "cannot index" does: exit 2, no end-of-file
+   block, no index. That is what `bcftools index` does, because htslib's `hts_detect_format`
+   reads the format from those bytes (`hts.c:687`). TBI is unchanged, since `tabix -p vcf`
+   accepts such a file. The cost is one comparison per run, off the per-line path.
+2. **An older `<stem>.csi` hides a new `.tbi`** (`io64.c`'s `idx_check_hidden` at step 3; code
+   2012; `main.bend`'s `ix_msg`, `ix_stem`, `ix_cut`). htslib 1.24's local search order is
+   `hts_idx_check_local`'s, which `idx_find_and_load` uses for every local index load:
+   - `f.csi`;
+   - `<stem>.csi`;
+   - for a TBI load, `f.tbi`, then `<stem>.tbi`.
+
+   `<stem>` is `f` cut at its last `.` after the first byte, even inside a directory name. The
+   first name `stat` finds is read. `f.csi` and `f.tbi` are the names step 5 moves aside, and a
+   CSI comes first, so the only name that can hide ours is `<stem>.csi` before a TBI. While it
+   exists, the run is refused with nothing changed: `error: cannot write o.vcf.gz.tbi (htslib
+   would read o.vcf.csi first)`. The file is left alone. This is stated in law machine's comment
+   (step 3 and the list of errors), the README, `docs/LAWS.md` and "The files" above. One case
+   follows from htslib's rule: with `-o x.csi -Oz -Wtbi`, `<stem>.csi` is the `-o` file itself,
+   so the run is always refused.
+3. **An index name that is a symlink to a directory** (`idx_check_name`): `stat` is now checked
+   too, and a name that resolves to a directory is refused ("cannot write <name>") before
+   anything is moved or emptied.
+4. **"Byte for byte" needs libdeflate:** law machine's comment now says "byte for byte when
+   their htslib compresses as the linked one does (libdeflate), else the same index once
+   decompressed". The same goes for the README, `docs/LAWS.md` and `NOTES.md`.
+5. **The reference is "the same file under a `.vcf.gz` name"**, since tabix takes a `.cram` name
+   down its CRAM path: the same files.
+6. **Tests:**
+   - `test/index.sh` runs each case once with CSI and once with TBI, choosing the format
+     explicitly. Each format rotates its own spellings: five for CSI, three for TBI.
+   - `test/gen_index.py` adds three inputs:
+     - `noff.vcf`: no `##fileformat` line;
+     - `cfirst.vcf`: a `#` line before `##fileformat`;
+     - `biglen.vcf`: two `##contig` lines of 70 KB, with lengths past 2^32 before and after the
+       padding, so they set CSI's levels across a block boundary.
+   - The new file cases:
+     - the `-o` file hard-linked to `.tbi`;
+     - stderr appending to `.tbi`;
+     - GPT's case: the `-o` path through `.csi`, a symlink to a directory;
+     - `.tbi` as a symlink to a directory;
+     - an older `o.vcf.csi`, shown first to break `tabix -l`, then with `-Wtbi` (refused, file
+       left), with `-W` (runs), and as a dangling symlink (runs);
+     - `d.csi` for `-o d.x/out`;
+     - `-o x.csi -Wtbi`;
+     - an existing `.csi.old`: the moved index goes to `.old1`, left there when its removal is
+       made to fail; the `.old` itself is never touched.
+
+   On the previous binary (`fbw2`), the directory-symlink and `<stem>.csi` cases fail
+   (exit 0). The differential rule catches finding 1 on `noff` and `cfirst`.
+
+Files changed: `io64.c`, `main.bend` (the 2012 message, which must name `<stem>.csi`),
+`MACHINE.bend` (comment only), `README.md`, `docs/LAWS.md`, `docs/DEVELOPMENT.md`, `NOTES.md`,
+`test/index.sh`, `test/gen_index.py` and this note.
+
+**Results** (binary `data/tmp/index/fbw3`, plus `fbw3_nohts`, `fbw3_plain` and the rebuilt
+small-piece builds; `build_r4.sh`, `check_r4.sh`, `tests_r4.sh`):
+- **check.sh, through `test/bcheck.sh`:**
+  - `PROOF.bend --check-only` and `--verdict`: ALL PROOFS CHECK;
+  - `examples.bend`: 19 TODOs, no errors;
+  - `main.bend`: the "rely on unsafe" list, now with `ix_stem` and `ix_cut`.
+- **`test/index.sh` with `PIECES`** (`t4_index.txt`): 840 `-W` runs follow the per-format rule,
+  and every other section passes (queries, injection with 50 runs, files, builds, usage, threads).
+  36 case-and-format pairs are refused by the tool and give "cannot index". With both formats
+  run on every case, the list now also has the TBI of `e2_posbig`, `len41`, `rw_crlf` and
+  `rw_multi`, which the old rotation never ran; it also has `noff` and `cfirst` for CSI only, and
+  `biglen` for TBI only (positions past 2^29). `biglen`'s CSI is `bcftools index`'s, byte for
+  byte.
+- **`test/index.sh` with `BIG=1`** (`t4_index_big.txt`): 438 runs, ALL PASS.
+- **`test/out.sh`** (`t4_out.txt`, `NOLIB` the plain build): 1,700 identical, every section OK.
+- **No timing:** the hot path gains one 16-byte comparison per run (in `idx_block` until 16 bytes
+  are seen) and one `stat` per name at the open.
 
 ## Step 2: the implementation (for the driver review)
 
@@ -523,9 +605,12 @@ whatever the path is (`-o o.gz -W` gives `o.gz.csi`). A path `out##idx##name` wr
 - `bcftools index -t` gives the same bytes as `tabix -p vcf`, and `tabix -C` the same as
   `bcftools index`.
 
-Both reference tools run htslib's `tbx_index` loop on the file (`tbx.c`). So the target "the same
-bytes as `bcftools index` / `tabix -p vcf` of our file" is also what `bcftools norm -W` would
-write for our file. bcftools' own `.vcf.gz` is cut into different blocks, so its index differs,
+Both reference tools run htslib's `tbx_index` loop on the file (`tbx.c`), on a file named
+`.vcf.gz` (tabix decides some formats by the name: a `.cram` name takes its CRAM path, even with
+`-p vcf`). Before that, `bcftools index` detects the format: it refuses a file whose text does not
+begin with the 16 bytes `##fileformat=VCF` (driver review 9, finding 1); `tabix -p vcf` does not
+look. So the target "the same bytes as `bcftools index` / `tabix -p vcf` of our file" is also what
+`bcftools norm -W` would write for our file. bcftools' own `.vcf.gz` is cut into different blocks, so its index differs,
 as it should.
 
 The index file is itself BGZF, compressed by htslib. So byte identity also needs the reference
@@ -1475,7 +1560,20 @@ in this order (decision 2). Each check comes before anything is changed:
      -o file)". This is GPT's case: `-o` a symlink to its own `.csi`, which the removal of the old
      indexes would otherwise unlink;
    - an input or stderr's file, itself or the file a symlink there names (`stat`): "output is an
-     input <path>.csi".
+     input <path>.csi";
+   - a name that `stat` resolves to a directory, through a symlink (driver review 9, finding 3):
+     "cannot write <path>.csi". Otherwise a `-o` path through that link would be replaced by the
+     index.
+
+   **For TBI, the names htslib reads first** (driver review 9, finding 2). htslib 1.24
+   (`hts_idx_check_local`, used by `tabix`, `bcftools view -r` and `tbx_index_load3`) tries, for
+   the `-o` path `f`: `f.csi`, then `<stem>.csi` (`f` up to its last `.` after the first byte,
+   with `.csi`: `o.vcf.csi` for `o.vcf.gz`, `d.csi` for `d.x/out`), then `f.tbi`, then
+   `<stem>.tbi`, and reads the first that `stat` finds. `f.csi` is moved aside in step 5. While
+   `<stem>.csi` exists, `-W=tbi` is refused with nothing changed: "cannot write <path>.tbi
+   (htslib would read <stem>.csi first)" (code 2012). The file is not removed: it may be the index
+   of another file (`o.vcf`). A dangling symlink there is not refused, since `stat` does not find
+   it. A CSI comes first in every order, so nothing hides it.
 4. **The temporary file,** `<index>.tmp` (`.tmp1`, `.tmp2`, ... when that name exists), is created
    with `O_CREAT | O_EXCL`, mode 0666 less the umask, and closed. If it cannot be created (a
    directory without write permission, a name past `NAME_MAX`): "cannot write <index>"
@@ -1556,14 +1654,16 @@ New messages, each listed in law machine's comment, in the order a run meets the
 | `error: cannot index <path> (not a regular file)` | the `-o` file at its open, a FIFO with no reader too |
 | `error: cannot write <path>.csi (it is the -o file)` | an index name is the `-o` file (symlink or hard link) |
 | `error: output is an input <path>.csi` | an index name is an input or stderr's file |
-| `error: cannot write <path>.csi` | an index name is a directory or cannot be looked at; the temporary file cannot be made; an old index cannot be renamed aside (all before anything is changed); the index cannot be saved or renamed |
-| `error: cannot index <path>` | exit code 0 only, after all messages: a line tabix refuses, or no memory for the index |
+| `error: cannot write <path>.csi` | an index name is a directory (itself or through a symlink) or cannot be looked at; the temporary file cannot be made; an old index cannot be renamed aside (all before anything is changed); the index cannot be saved or renamed |
+| `error: cannot write <path>.tbi (htslib would read <stem>.csi first)` | TBI only: an older `<stem>.csi` exists (step 3), before anything is changed |
+| `error: cannot index <path>` | exit code 0 only, after all messages: a line tabix refuses, for CSI a text that does not begin with `##fileformat=VCF`, or no memory for the index |
 
 Each `.csi` message has a `.tbi` twin, naming the index name concerned. `<path>` is the `-o`
 path, written as today (`\\`, `\n`, `\r` escaped). The prototype prints these messages itself
 (`idx_die`). In step 2 they become codes that `main.bend`'s `out_fail` turns into messages:
 2003–2005 for the three without a name, and one code per message and index name for the rest
-(2006–2011).
+(2006–2011), and 2012 for the `<stem>.csi` refusal (driver review 9; `main.bend`'s `ix_stem`
+cuts `<stem>` from the escaped path as the driver cuts it).
 
 ### Effects and main.bend
 

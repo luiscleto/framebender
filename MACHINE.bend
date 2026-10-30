@@ -197,9 +197,16 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 #   this order: (1) it is opened without being emptied, and without waiting
 #   for a reader (a FIFO with no reader is refused, not waited on); (2) it
 #   must be a regular file and not an input (as above); (3) neither
-#   <-o path>.csi nor <-o path>.tbi may be a directory, a name that cannot be
-#   looked at, or (itself, or the file a symlink there names) the -o file, an
-#   input or stderr's regular file; (4) a temporary file is created next to
+#   <-o path>.csi nor <-o path>.tbi may be a directory (itself, or through a
+#   symlink), a name that cannot be looked at, or (itself, or the file a
+#   symlink there names) the -o file, an input or stderr's regular file; and
+#   for TBI, no older index may be at a name htslib 1.24 reads before
+#   <-o path>.tbi: it tries <-o path>.csi (moved aside in (5)), then <stem>.csi
+#   (the -o path up to its last '.' after the first byte: o.vcf.csi for
+#   o.vcf.gz), then <-o path>.tbi, taking the first name stat finds; while
+#   <stem>.csi exists the run is refused and the file is left alone (it may
+#   be the index of another file, such as o.vcf); a CSI comes first, so
+#   nothing hides it; (4) a temporary file is created next to
 #   path, path.tmp (path.tmp1, path.tmp2, ... when that name exists), mode
 #   0666 less the umask; (5) each of <-o path>.csi and <-o path>.tbi that
 #   exists is renamed aside, to <name>.old (.old1, ... when that name exists;
@@ -208,12 +215,13 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 #   refused); (6) the -o file is emptied, and if that fails the
 #   old indexes are renamed back; (7) the renamed old indexes are removed (an
 #   index of either format there describes the file being replaced, and
-#   htslib reads .csi before .tbi; if one cannot be removed, it stays as
-#   <name>.old, a name htslib never reads, and the run goes on). A failure in
-#   (1) to (6) leaves the old -o file and both old indexes as they were (a -o
-#   file that did not exist stays, empty), except that an index whose move
-#   back fails stays as <name>.old beside the unchanged -o file (the message
-#   is the step's own: "cannot write <path>" or "cannot write <name>"). Each line of the output is parsed as
+#   htslib reads <-o path>.csi before <-o path>.tbi; if one cannot be removed,
+#   it stays as <name>.old, a name htslib never reads, and the run goes on). A
+#   failure in (1) to (6) leaves the old -o file and both old indexes as they
+#   were (a -o file that did not exist stays, empty), except that an index whose
+#   move back fails stays as <name>.old beside the unchanged -o file (the
+#   message is the step's own: "cannot write <path>" or "cannot write <name>").
+#   Each line of the output is parsed as
 #   tabix -p vcf parses it (htslib 1.24's tbx_parse1, on the compressor
 #   threads; a line holding END= under a lock, as tbx_parse1 then touches a
 #   static; lines longer than a block are joined first) and pushed
@@ -225,8 +233,11 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 #   after the end-of-file block is written and the file closed, saved
 #   (hts_idx_save_as, given a name htslib cannot take for a URL: ./ before a
 #   relative path) to the temporary file, then renamed to path: the index is
-#   byte for byte what tabix -p vcf (TBI) or bcftools index (CSI, min_shift
-#   14) writes for the -o file. Once the open is done, a run that does not
+#   what tabix -p vcf (TBI) or bcftools index (CSI, min_shift 14) writes for
+#   the -o file under a .vcf.gz name (tabix decides some formats by the name:
+#   a name ending in .cram takes its CRAM path), byte for byte when their
+#   htslib compresses as the linked one does (libdeflate), else the same
+#   index once decompressed. Once the open is done, a run that does not
 #   exit 0 leaves no index at either name; no run leaves the temporary file
 #   unless it is killed or Bend's runtime stops it (with _exit: out of memory,
 #   a Nat past 2^48), and a stray path.tmp or <name>.old is a file htslib
@@ -267,16 +278,21 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 #   first), "error: cannot index <path> (not a regular file)" (the -o file,
 #   with -W; a FIFO with no reader too), "error: cannot index <path>" (with
 #   -W, for a run whose code is 0, after all of its messages: exactly when
-#   tabix -p vcf (TBI) or bcftools index (CSI) refuses the same file; known
-#   causes: a POS that htslib reads otherwise, such as one with a leading
-#   zero, octal to its strtoll, or 0x, on a line passed unchanged; a position
+#   tabix -p vcf (TBI) or bcftools index (CSI) refuses the same file under a
+#   .vcf.gz name; known causes: for CSI, a text that does not begin with the
+#   16 bytes ##fileformat=VCF (bcftools index reads the format from them:
+#   an input without that line, or with a # line before it); a POS that
+#   htslib reads otherwise, such as one with a leading zero, octal to its
+#   strtoll, or 0x, on a line passed unchanged; a position
 #   (POS or INFO/END) past what the index holds: 2^29 for TBI, and for CSI
 #   past the levels the longest ##contig length sets, or 2^38 with no length;
 #   or no memory for the index), "error: cannot write <path>.csi" or ".tbi"
-#   (with -W: an index name that is a directory or cannot be looked at, the
-#   temporary file cannot be created, an old index cannot be renamed aside,
-#   all before anything is changed; or the index cannot be saved or
-#   renamed),
+#   (with -W: an index name that is a directory, itself or through a
+#   symlink, or cannot be looked at, the temporary file cannot be created,
+#   an old index cannot be renamed aside, all before anything is changed; or
+#   the index cannot be saved or renamed), "error: cannot write <path>.tbi
+#   (htslib would read <stem>.csi first)" (with -W=tbi: an older index there,
+#   step (3), before anything is changed),
 #   "error: cannot write <path>.csi (it is the -o file)" (or .tbi: the -o
 #   path names that index, through a symlink or a hard link),
 #   "error: unsupported gzip <path> (not BGZF; ...)", "error:
