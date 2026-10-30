@@ -39,8 +39,8 @@ samtools faidx ref.fa                                    # once: indexes the ref
 | `-c e` / `-c w` | on a REF that does not match the reference: stop (default) or warn and pass the record through |
 | `-w N` | how far, in bases, a record may move left (default 1000, as bcftools) |
 | `--threads N` | how much runs in parallel (1 to 128, default 16); trades memory for speed, never changes the output |
-| `-o FILE` | write to a file; a `.vcf.gz` name is compressed |
-| `-Oz`, `-Oz0`..`-Oz9` | compress the output (default level 6), byte for byte as bgzip |
+| `-o FILE` | write to a file; a `.vcf.gz` or `.vcf.bgz` name is compressed |
+| `-Oz`, `-Oz0`..`-Oz9`, `-Ov` | compress the output (default level 6, byte for byte as bgzip), or not |
 | `-W`, `-W=tbi` | also write the output's index (`.csi`, or `.tbi`), as `bcftools index` / `tabix` |
 
 The full reference, with every option's details and the differences from bcftools, is in

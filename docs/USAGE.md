@@ -36,14 +36,15 @@ refused.
 
 ### `-o FILE`: write to a file instead of stdout
 
-A name ending in `.vcf.gz` gets bgzip-compressed VCF (BGZF, ready for `tabix`), as in bcftools.
+A name ending in `.vcf.gz` or `.vcf.bgz` (in any case) gets bgzip-compressed VCF (BGZF, ready for
+`tabix`), and one ending in `.vcf` plain VCF, as in bcftools; the name decides over `-O`.
 
 - `-o` refuses to overwrite an input.
 - A run that cannot read its inputs leaves an existing file as it was.
 
-### `-O z`, `-Oz`, `-Oz0` to `-Oz9`: compress
+### `-O z`, `-Oz`, `-Oz0` to `-Oz9`: compress (`-O v`, `-Ov`: don't)
 
-This also works on stdout. The default level is 6, as in bcftools and bgzip; `-Oz1` is faster
+This also works on stdout, and for an `-o` name the extension does not decide. The default level is 6, as in bcftools and bgzip; `-Oz1` is faster
 for a larger file.
 
 - The file is byte for byte what `bgzip` makes of the plain output, at every `--threads`
