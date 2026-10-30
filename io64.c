@@ -110,6 +110,9 @@ static void io64_pad(Env e, u32 d, u64 loc, uint64_t n) {
 #include <signal.h>
 #ifdef FB_LIBDEFLATE
 #include <libdeflate.h>
+#if defined(FB_HTSLIB) && defined(FB_LIBDEFLATE)
+#define IO64_IX 1
+#endif
 #endif
 
 // The stream: the file (descriptor, device, inode), its format (0 not known
@@ -756,11 +759,336 @@ static void __attribute__((constructor)) io_fa_start_use(void) {
 #define IO64_BMAX 65536
 #define IO64_JOBS 65536
 
+#ifdef IO64_IX
+// The index writer (-W, phase J; law machine's comment in MACHINE.bend): the
+// index built while the BGZF output is written, with htslib 1.24's own code.
+// Each compressor thread parses the whole lines of its block with tbx_parse1
+// (the parser tabix uses); the writer thread, in block order, knows each
+// block's compressed address and pushes the records with hts_idx_push at the
+// virtual offsets bgzf_tell would give a reader (tbx_index's loop). Lines
+// across blocks (only those longer than a block) are joined and parsed by
+// the writer. Io.out_index starts it. Built only with htslib and libdeflate
+// (build.sh); without them Io.out_index answers 2003.
+// Parts of htslib's tbx.c (MIT/Expat, Genome Research Ltd.) are restated
+// here, as they are static there: the ##contig length scan
+// (adjust_max_ref_len_vcf), the metadata (tbx_set_meta), the level formula
+// without a length, the empty index, and the name-to-id order (get_tid).
+//
+// Memory: the writer indexes a block (idx_block) before it frees the block's
+// copy (j->own) and before it counts the block written; a buffer of the
+// machine is freed by Io.out_write only after io64_out_drain, that is after
+// every block inside it was indexed; the bytes of a line that runs past a
+// block are copied (io64_ix.carry) inside idx_block. The last short blocks
+// (io64_out_tail at Io.out_close) are copies (own), indexed the same way.
+//
+// Data race: tbx_parse1 reads and writes a function-static (reported, tbx.c
+// 1.24 line 218) when INFO/END is not past POS; it only gates a log line
+// (and the log is off), but two compressor threads must not touch it at
+// once. The static is reached only for a line whose INFO has END=; a line
+// holding "END=" anywhere (a superset of htslib's test) is parsed under
+// io64_ix_mu, every other line without a lock.
+//
+// Two end cases kept as tbx_index has them: a last line with no LF is pushed
+// at the end-of-file block's address, offset 0 (bgzf_getline moves to the
+// next block even without the LF), and hts_idx_finish gets that same
+// address: where the 28-byte end-of-file block is written, not the offset
+// after it.
+#include <stddef.h>
+#include <htslib/hts.h>
+#include <htslib/tbx.h>
+#include <htslib/hts_log.h>
+#include <htslib/khash.h>
+#include <htslib/kstring.h>
+
+#if HTS_VERSION != 102400
+#error "the index writer is written for htslib 1.24 (tbx_parse1, tbx_intv_t)"
+#endif
+
+// tbx_intv_t as tbx.c 1.24 defines it (not in a header).
+typedef struct { int64_t beg, end; char *ss, *se; int tid; } tbx_intv_t;
+_Static_assert(offsetof(tbx_intv_t, beg) == 0 && offsetof(tbx_intv_t, end) == 8 && offsetof(tbx_intv_t, ss) == 16
+  && offsetof(tbx_intv_t, se) == 24 && offsetof(tbx_intv_t, tid) == 32 && sizeof(tbx_intv_t) == 40, "tbx_intv_t of htslib 1.24");
+int tbx_parse1(const tbx_conf_t* conf, size_t len, char* line, tbx_intv_t* intv);
+void hts_adjust_csi_settings(int64_t max_len_in, int* min_shift_, int* n_lvls_);
+KHASH_MAP_INIT_STR(s2i, int)
+
+// One whole line of a block: its end (after the LF), kind 0 a record (beg,
+// end, CHROM at ss, sl bytes), 1 a meta line (clen: a ##contig length, or 0),
+// 2 a line tbx_parse1 refuses.
+typedef struct { uint32_t eo, ss, sl; int kind; int64_t beg, end, clen; } IdxRec;
+
+static pthread_mutex_t io64_ix_mu = PTHREAD_MUTEX_INITIALIZER;
+
+static struct {
+  int on, fmt, min_shift, n_lvls;
+  // bad: the index cannot be built (a line tabix refuses, a push refused, no
+  // memory). Its own flag, never io64_out.err: it is acted on
+  // only at Io.out_close with code 0. Set and read by the writer thread, read
+  // by Io.out_close after the writer stopped.
+  int bad;
+  // path: the index (B.Args.index's path); other: the other format's name;
+  // tmp: the temporary file, made at the open, NULL when there is none; htmp:
+  // its name as htslib is given it ("./" before a relative path, so that no
+  // scheme such as file: or http: is read).
+  char *path, *other, *tmp, *htmp;
+  hts_idx_t* idx; khash_t(s2i)* dict; uint64_t last_off; int64_t max_ref_len;
+  kstring_t carry; int carrying; char* lname; size_t llen; int ltid;
+  uint64_t addr;
+  // The first bytes of the text (CSI: bcftools index reads the format from
+  // the first 16, and refuses a file not starting with ##fileformat=VCF).
+  unsigned char head[16]; size_t nhead;
+} io64_ix;
+
+// The name htslib is given for path: "./" before a relative path.
+static char* idx_hname(const char* p) {
+  size_t n = strlen(p);
+  char* h = malloc(n + 3);
+  if (h == NULL) return NULL;
+  if (p[0] == '/') memcpy(h, p, n + 1);
+  else { h[0] = '.'; h[1] = '/'; memcpy(h + 2, p, n + 1); }
+  return h;
+}
+
+static void idx_rm_tmp(void) {
+  if (io64_ix.tmp != NULL) unlink(io64_ix.tmp);
+  free(io64_ix.tmp);
+  io64_ix.tmp = NULL;
+}
+
+// A run that exits otherwise (a driver error) removes the temporary file
+// too. A kill leaves it, and so does Bend's runtime, which stops with _exit
+// (out of memory, a Nat past 2^48): atexit does not run.
+static void idx_atexit(void) {
+  if (io64_ix.tmp != NULL) unlink(io64_ix.tmp);
+}
+
+// The index errors (main.bend's out_fail turns them into messages): 2004
+// cannot index, 2005 not a regular file, then for the index name n (.csi or
+// .tbi): 2006/2007 cannot write n, 2008/2009 n is an input, 2010/2011 n is
+// the -o file; 2012 an older <stem>.csi, which htslib reads before
+// <path>.tbi.
+#define IO64_IX_NOLIB 2003
+#define IO64_IX_BAD 2004
+#define IO64_IX_NOTREG 2005
+#define IO64_IX_WRITE 2006
+#define IO64_IX_INPUT 2008
+#define IO64_IX_SELF 2010
+#define IO64_IX_HIDDEN 2012
+
+static u32 idx_code(u32 base, const char* n) {
+  size_t l = strlen(n);
+  return base + (l >= 4 && strcmp(n + l - 4, ".tbi") == 0);
+}
+
+static int64_t idx_clen(const char* s) {
+  if (strncmp(s, "##contig", 8) != 0) return 0;
+  const char* p = strstr(s + 8, "length");
+  if (!p) return 0;
+  for (p += 6; *p == ' ' || *p == '='; p++) {}
+  return strtoll(p, NULL, 10);
+}
+
+// Parse the line s (NUL-terminated copy, CR stripped, l bytes) into r.
+static void idx_parse(char* s, size_t l, IdxRec* r) {
+  r->ss = r->sl = 0; r->beg = r->end = 0; r->clen = 0;
+  if (s[0] == '#') { r->kind = 1; r->clen = idx_clen(s); return; }
+  tbx_intv_t iv;
+  int lock = memmem(s, l, "END=", 4) != NULL, k;
+  if (lock) pthread_mutex_lock(&io64_ix_mu);
+  k = tbx_parse1(&tbx_conf_vcf, l, s, &iv);
+  if (lock) pthread_mutex_unlock(&io64_ix_mu);
+  if (k != 0 || iv.beg < 0 || iv.end < 0) { r->kind = 2; return; }
+  r->kind = 0; r->beg = iv.beg; r->end = iv.end; r->ss = (uint32_t)(iv.ss - s); r->sl = (uint32_t)(iv.se - iv.ss);
+}
+
+// In a compressor thread: the whole lines of block b (n bytes; cont: it
+// starts inside a line) into *out (*nrec entries; NULL when there is none).
+// Sets the first line start (*fs; n + 1 when no LF ends the line it starts
+// inside) and the start of the last partial line (*ls). 0, or -1 for no
+// memory (then the index is bad).
+static int idx_scan(const unsigned char* b, size_t n, int cont, IdxRec** out, size_t* nrec, size_t* fs, size_t* ls, kstring_t* k) {
+  size_t at = 0;
+  *out = NULL; *nrec = 0;
+  if (cont) {
+    const unsigned char* e = memchr(b, '\n', n);
+    if (e == NULL) { *fs = *ls = n + 1; return 0; }
+    at = (size_t)(e - b) + 1;
+  }
+  *fs = at;
+  size_t cap = 0; IdxRec* rs = NULL;
+  for (;;) {
+    const unsigned char* e = at < n ? memchr(b + at, '\n', n - at) : NULL;
+    if (e == NULL) break;
+    size_t le = (size_t)(e - b), l = le - at;
+    k->l = 0;
+    if (kputsn((const char*)b + at, l, k) < 0) { free(rs); return -1; }
+    if (k->l > 0 && k->s[k->l - 1] == '\r') k->s[--k->l] = 0;
+    if (*nrec == cap) {
+      cap = cap == 0 ? 64 : 2 * cap;
+      IdxRec* q = realloc(rs, cap * sizeof(IdxRec));
+      if (q == NULL) { free(rs); return -1; }
+      rs = q;
+    }
+    IdxRec* r = &rs[(*nrec)++];
+    idx_parse(k->s, k->l, r);
+    if (r->kind == 0) r->ss += (uint32_t)at;
+    r->eo = (uint32_t)(le + 1);
+    at = le + 1;
+  }
+  *ls = at;
+  *out = rs;
+  return 0;
+}
+
+// The first record: the levels (CSI: from the ##contig lengths, else from
+// min_shift), then the index.
+static void idx_first(void) {
+  if (io64_ix.idx != NULL) return;
+  if (io64_ix.fmt == HTS_FMT_CSI) {
+    if (io64_ix.max_ref_len) hts_adjust_csi_settings(io64_ix.max_ref_len, &io64_ix.min_shift, &io64_ix.n_lvls);
+    else io64_ix.n_lvls = io64_ix.min_shift < 10 ? 9 : io64_ix.min_shift < 25 ? 9 - (io64_ix.min_shift - 10) / 3 : 4;
+  }
+  io64_ix.idx = hts_idx_init(0, io64_ix.fmt, io64_ix.last_off, io64_ix.min_shift, io64_ix.n_lvls);
+  if (io64_ix.idx == NULL) io64_ix.bad = 1;
+}
+
+// In the writer: one line (its CHROM name at nm, r->sl bytes), ending at
+// voff v.
+static void idx_take(const IdxRec* r, const char* nm, uint64_t v) {
+  if (io64_ix.bad) return;
+  if (r->kind == 1) {
+    if (io64_ix.idx == NULL && io64_ix.fmt == HTS_FMT_CSI && io64_ix.max_ref_len < r->clen) io64_ix.max_ref_len = r->clen;
+    io64_ix.last_off = v;
+    return;
+  }
+  if (r->kind == 2) { io64_ix.bad = 1; return; }
+  idx_first();
+  if (io64_ix.bad) return;
+  int tid;
+  if (io64_ix.lname != NULL && io64_ix.llen == r->sl && memcmp(io64_ix.lname, nm, r->sl) == 0) {
+    tid = io64_ix.ltid;
+  } else {
+    char* key = malloc(r->sl + 1);
+    if (key == NULL) { io64_ix.bad = 1; return; }
+    memcpy(key, nm, r->sl); key[r->sl] = 0;
+    int absent; khint_t k = kh_put(s2i, io64_ix.dict, key, &absent);
+    if (absent < 0) { free(key); io64_ix.bad = 1; return; }
+    if (absent) kh_val(io64_ix.dict, k) = kh_size(io64_ix.dict) - 1; else free(key);
+    tid = kh_val(io64_ix.dict, k);
+    io64_ix.lname = (char*)kh_key(io64_ix.dict, k); io64_ix.llen = r->sl; io64_ix.ltid = tid;
+  }
+  if (hts_idx_push(io64_ix.idx, tid, r->beg, r->end, v, 1) < 0) io64_ix.bad = 1;
+}
+
+// The carried line, complete: parsed here.
+static void idx_carry_done(uint64_t v) {
+  kstring_t* c = &io64_ix.carry;
+  io64_ix.carrying = 0;
+  if (io64_ix.bad) return;
+  if (c->s == NULL && kputs("", c) < 0) { io64_ix.bad = 1; return; }
+  if (c->l > 0 && c->s[c->l - 1] == '\r') c->s[--c->l] = 0;
+  IdxRec r; idx_parse(c->s, c->l, &r);
+  idx_take(&r, c->s + r.ss, v);
+  c->l = 0;
+}
+
+// In the writer, block b (n bytes) at compressed address a, size sz; its
+// lines rs (nrec; scan: idx_scan's answer).
+static void idx_block(const unsigned char* b, size_t n, uint64_t a, size_t sz, int scan, IdxRec* rs, size_t nrec, size_t fs, size_t ls) {
+  if (scan != 0) io64_ix.bad = 1;
+  if (io64_ix.nhead < 16) {
+    size_t k = 16 - io64_ix.nhead < n ? 16 - io64_ix.nhead : n;
+    memcpy(io64_ix.head + io64_ix.nhead, b, k);
+    io64_ix.nhead += k;
+    if (io64_ix.nhead == 16 && io64_ix.fmt == HTS_FMT_CSI && memcmp(io64_ix.head, "##fileformat=VCF", 16) != 0) io64_ix.bad = 1;
+  }
+  if (io64_ix.bad) return;
+#define VO(o) ((o) == n ? (a + sz) << 16 : a << 16 | (o))
+  if (io64_ix.carrying) {
+    if (fs == n + 1) { if (kputsn((const char*)b, n, &io64_ix.carry) < 0) io64_ix.bad = 1; return; }
+    if (kputsn((const char*)b, fs - 1, &io64_ix.carry) < 0) { io64_ix.bad = 1; return; }
+    idx_carry_done(VO(fs));
+  }
+  for (size_t i = 0; i < nrec; i += 1) idx_take(&rs[i], (const char*)b + rs[i].ss, VO(rs[i].eo));
+  if (ls < n) {
+    io64_ix.carry.l = 0;
+    if (kputsn((const char*)b + ls, n - ls, &io64_ix.carry) < 0) { io64_ix.bad = 1; return; }
+    io64_ix.carrying = 1;
+  }
+#undef VO
+}
+
+// Io.out_index: the index of format fmt (1 CSI, 2 TBI) at path p (ending in
+// .csi or .tbi), before the output opens. 0, or ENOMEM.
+static u32 idx_begin(u32 fmt, char* p) {
+  size_t n = strlen(p);
+  if (n < 4) return EINVAL;
+  io64_ix.path = p;
+  io64_ix.other = strdup(p);
+  if (io64_ix.other == NULL) return ENOMEM;
+  int tbi = fmt == 2;
+  memcpy(io64_ix.other + n - 4, tbi ? ".csi" : ".tbi", 4);
+  hts_set_log_level(HTS_LOG_OFF);
+  if (!tbi) io64_ix.fmt = HTS_FMT_CSI, io64_ix.min_shift = 14, io64_ix.n_lvls = (TBX_MAX_SHIFT - 14 + 2) / 3;
+  else io64_ix.fmt = HTS_FMT_TBI, io64_ix.min_shift = 14, io64_ix.n_lvls = 5;
+  io64_ix.dict = kh_init(s2i);
+  if (io64_ix.dict == NULL) return ENOMEM;
+  atexit(idx_atexit);
+  io64_ix.on = 1;
+  return 0;
+}
+
+// At Io.out_close with code 0, the last blocks written (the writer stopped),
+// eof the end-of-file block's address: the carried line, then the index
+// finished (an empty one as tbx_index makes it: the first settings, no
+// level adjustment) with its metadata (tbx_set_meta's bytes). 0, or -1
+// (cannot index; CSI: also a text shorter than 16 bytes).
+static int idx_finish(uint64_t eof) {
+  if (io64_ix.carrying) idx_carry_done(eof << 16);
+  if (io64_ix.fmt == HTS_FMT_CSI && io64_ix.nhead < 16) io64_ix.bad = 1;
+  if (io64_ix.bad) return -1;
+  if (io64_ix.idx == NULL) io64_ix.idx = hts_idx_init(0, io64_ix.fmt, io64_ix.last_off, io64_ix.min_shift, io64_ix.n_lvls);
+  if (io64_ix.idx == NULL) return -1;
+  if (hts_idx_finish(io64_ix.idx, eof << 16) != 0) return -1;
+  khash_t(s2i)* d = io64_ix.dict;
+  int nn = kh_size(d), l = 0;
+  char** name = calloc(nn + 1, sizeof(char*));
+  if (name == NULL) return -1;
+  for (khint_t k = kh_begin(d); k != kh_end(d); ++k) if (kh_exist(d, k)) { name[kh_val(d, k)] = (char*)kh_key(d, k); l += strlen(kh_key(d, k)) + 1; }
+  uint8_t* meta = malloc(28 + (size_t)l);
+  if (meta == NULL) { free(name); return -1; }
+  uint32_t x[7];
+  memcpy(x, &tbx_conf_vcf, 24); x[6] = (uint32_t)l;
+  if (ed_is_big()) for (int i = 0; i < 7; ++i) x[i] = ed_swap_4(x[i]);
+  memcpy(meta, x, 28);
+  for (int i = 0, o = 28; i < nn; i++) { int w = strlen(name[i]) + 1; memcpy(meta + o, name[i], w); o += w; }
+  free(name);
+  if (hts_idx_set_meta(io64_ix.idx, 28 + l, meta, 0) != 0) { free(meta); return -1; }
+  return 0;
+}
+
+// After the end-of-file block is written and the -o file closed: the index
+// saved to the temporary file and renamed to path. 0, or -1 (cannot write
+// <path>; the temporary file removed).
+static int idx_save(void) {
+  if (hts_idx_save_as(io64_ix.idx, io64_ix.htmp, io64_ix.htmp, io64_ix.fmt) != 0 || rename(io64_ix.tmp, io64_ix.path) != 0) {
+    idx_rm_tmp();
+    return -1;
+  }
+  free(io64_ix.tmp);
+  io64_ix.tmp = NULL;
+  return 0;
+}
+#endif
+
 // A block to compress: the text (src, inside the buffer being written, or
 // own, a copy), its length, and once compressed the BGZF block (out, outn).
 typedef struct {
   const unsigned char* src; unsigned char* own; size_t n;
   unsigned char* out; size_t outn; int done;
+#ifdef IO64_IX
+  int cont, scan; IdxRec* rec; size_t nrec, fs, ls;
+#endif
 } Io64Job;
 
 static struct {
@@ -820,6 +1148,9 @@ static size_t io64_bgzf_block(struct libdeflate_compressor* c, const unsigned ch
 
 static void* io64_zrun(void* x) {
   struct libdeflate_compressor* c = x;
+#ifdef IO64_IX
+  kstring_t ks = {0, 0, NULL};
+#endif
   pthread_mutex_lock(&io64_out.mu);
   for (;;) {
     while (!io64_out.stop && !(io64_out.take < io64_out.tail && io64_out.take - io64_out.wr < io64_out.limit)) {
@@ -831,6 +1162,9 @@ static void* io64_zrun(void* x) {
     pthread_mutex_unlock(&io64_out.mu);
     unsigned char* out = malloc(IO64_BMAX);
     size_t on = out != NULL ? io64_bgzf_block(c, j->src != NULL ? j->src : j->own, j->n, out) : 0;
+#ifdef IO64_IX
+    if (io64_ix.on) j->scan = idx_scan(j->src != NULL ? j->src : j->own, j->n, j->cont, &j->rec, &j->nrec, &j->fs, &j->ls, &ks);
+#endif
     pthread_mutex_lock(&io64_out.mu);
     j->out = out;
     j->outn = on;
@@ -838,6 +1172,9 @@ static void* io64_zrun(void* x) {
     pthread_cond_broadcast(&io64_out.cv);
   }
   pthread_mutex_unlock(&io64_out.mu);
+#ifdef IO64_IX
+  free(ks.s);
+#endif
   if (c != NULL) libdeflate_free_compressor(c);
   return NULL;
 }
@@ -855,6 +1192,14 @@ static void* io64_wrun(void* x) {
     u32 e = 0;
     if (j->out == NULL) e = ENOMEM;
     else if (!skip) e = io64_wall(io64_out.fd, j->out, j->outn);
+#ifdef IO64_IX
+    // Indexed before the frees below.
+    if (io64_ix.on && !skip && e == 0) {
+      idx_block(j->src != NULL ? j->src : j->own, j->n, io64_ix.addr, j->outn, j->scan, j->rec, j->nrec, j->fs, j->ls);
+      io64_ix.addr += j->outn;
+    }
+    free(j->rec);
+#endif
     free(j->out);
     free(j->own);
     pthread_mutex_lock(&io64_out.mu);
@@ -906,6 +1251,11 @@ static u32 io64_out_job(const unsigned char* src, const unsigned char* cp, size_
   pthread_mutex_lock(&io64_out.mu);
   while (io64_out.tail - io64_out.wr >= IO64_JOBS) pthread_cond_wait(&io64_out.cv, &io64_out.mu);
   io64_out.job[io64_out.tail % IO64_JOBS] = (Io64Job){src, own, n, NULL, 0, 0};
+#ifdef IO64_IX
+  static int nl = 1;
+  io64_out.job[io64_out.tail % IO64_JOBS].cont = !nl;
+  if (n > 0) nl = (src != NULL ? src : own)[n - 1] == '\n';
+#endif
   io64_out.tail += 1;
   pthread_cond_broadcast(&io64_out.cv);
   pthread_mutex_unlock(&io64_out.mu);
@@ -1032,6 +1382,158 @@ static int io64_same(const struct stat* a, dev_t dev, ino_t ino) {
   return a->st_dev == dev && a->st_ino == ino;
 }
 
+#ifdef IO64_IX
+// A file st is the output o, the FASTA, a file read so far, or stderr's
+// regular file (step 3 of the open).
+static int idx_alias(const struct stat* st, const struct stat* o) {
+  struct stat er;
+  int same = io64_same(st, o->st_dev, o->st_ino) || (io64_out.fa_ok && io64_same(st, io64_out.fa_dev, io64_out.fa_ino));
+  for (int i = 0; i < io64_seen_n; i += 1) same = same || io64_same(st, io64_seen[i].dev, io64_seen[i].ino);
+  if (fstat(2, &er) == 0 && S_ISREG(er.st_mode)) same = same || io64_same(st, er.st_dev, er.st_ino);
+  return same;
+}
+
+// Step 3, for one index name p: refused (nothing changed) if it is a
+// directory (itself, or through a symlink), cannot be looked at, or is
+// (itself, or the file a symlink there names) the output, an input or
+// stderr's file. 0 or the error.
+static u32 idx_check_name(const char* p, const struct stat* o) {
+  struct stat l, s;
+  if (lstat(p, &l) != 0) return errno == ENOENT ? 0 : idx_code(IO64_IX_WRITE, p);
+  if (S_ISDIR(l.st_mode) || (stat(p, &s) == 0 && S_ISDIR(s.st_mode))) return idx_code(IO64_IX_WRITE, p);
+  if (idx_alias(&l, o) || (stat(p, &s) == 0 && idx_alias(&s, o))) {
+    if (io64_same(&l, o->st_dev, o->st_ino) || (stat(p, &s) == 0 && io64_same(&s, o->st_dev, o->st_ino))) return idx_code(IO64_IX_SELF, p);
+    return idx_code(IO64_IX_INPUT, p);
+  }
+  return 0;
+}
+
+// Step 3, the names htslib 1.24 reads before ours (hts_idx_check_local, for
+// the -o path f: f.csi, then f up to its last '.' after the first byte with
+// .csi, then the same two with .tbi; the first that stat finds is read).
+// <path>.csi is first, so nothing comes before a CSI; before a TBI, f.csi
+// (step 5 moves it aside) and that <stem>.csi, which is not ours to remove
+// (it may index another file, f without its extension): refused while stat
+// finds it. 0 or the error.
+static u32 idx_check_hidden(void) {
+  if (io64_ix.fmt != HTS_FMT_TBI) return 0;
+  size_t n = strlen(io64_ix.path) - 4, i;
+  if (n < 2) return 0;
+  for (i = n - 1; i > 0 && io64_ix.path[i] != '.'; i -= 1) {}
+  if (i == 0) return 0;
+  char* c = malloc(i + 5);
+  if (c == NULL) return ENOMEM;
+  memcpy(c, io64_ix.path, i); memcpy(c + i, ".csi", 5);
+  struct stat s;
+  int hid = stat(c, &s) == 0;
+  free(c);
+  return hid ? IO64_IX_HIDDEN : 0;
+}
+
+// Steps 3 and 4 (after the open and the checks of the -o file st, before it
+// is emptied): the index names checked, the temporary file made (O_EXCL,
+// mode 0666 less the umask; <path>.tmp, then .tmp1 ... on EEXIST). 0 or the
+// error, nothing changed.
+static u32 idx_open(const struct stat* st) {
+  u32 r = idx_check_name(io64_ix.path, st);
+  if (r == 0) r = idx_check_name(io64_ix.other, st);
+  if (r == 0) r = idx_check_hidden();
+  if (r != 0) return r;
+  size_t n = strlen(io64_ix.path);
+  char* t = malloc(n + 16);
+  if (t == NULL) return ENOMEM;
+  for (int k = 0;; k += 1) {
+    if (k == 0) sprintf(t, "%s.tmp", io64_ix.path); else sprintf(t, "%s.tmp%d", io64_ix.path, k);
+    int fd = open(t, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0666);
+    if (fd >= 0) { close(fd); break; }
+    if (errno != EEXIST || k == 999) { free(t); return idx_code(IO64_IX_WRITE, io64_ix.path); }
+  }
+  io64_ix.tmp = t;
+  io64_ix.htmp = idx_hname(t);
+  if (io64_ix.htmp == NULL) { idx_rm_tmp(); return ENOMEM; }
+  return 0;
+}
+
+// Step 5 (before the -o file is emptied): each old index that
+// exists is renamed aside, to <name>.old (.old1, .old2, ... when that name
+// exists: renameat2 with RENAME_NOREPLACE, so nothing is ever replaced). If
+// one cannot be moved, the one moved already is moved back, the temporary
+// file removed, and the run refused ("cannot write <name>"): nothing changed,
+// unless that move back fails too, when that index stays as <name>.old
+// beside the unchanged -o file. Where renameat2 cannot do
+// RENAME_NOREPLACE (EINVAL, ENOSYS, EOPNOTSUPP: NFS, some FUSE file systems,
+// old kernels), a move is link(from, to), which never replaces a file
+// either, then unlink(from); if that unlink fails, the link is removed and
+// the move fails with nothing changed. Where link is not
+// supported either, the move fails: no check-then-rename, which could
+// replace a file. Linux only (renameat2; macOS would use renamex_np).
+#ifndef RENAME_NOREPLACE
+#define RENAME_NOREPLACE 1
+#endif
+extern int renameat2(int, const char*, int, const char*, unsigned int);
+static char* io64_ix_aside[2];
+
+static int idx_move(const char* from, const char* to) {
+  if (renameat2(AT_FDCWD, from, AT_FDCWD, to, RENAME_NOREPLACE) == 0) return 0;
+  if (errno != EINVAL && errno != ENOSYS && errno != EOPNOTSUPP) return -1;
+  if (link(from, to) != 0) return -1;
+  if (unlink(from) != 0) {
+    int e = errno;
+    unlink(to);
+    errno = e;
+    return -1;
+  }
+  return 0;
+}
+
+// Moves name aside; 0 (also when there is no such name), or -1.
+static int idx_aside1(const char* name, char** got) {
+  *got = NULL;
+  size_t n = strlen(name);
+  char* t = malloc(n + 16);
+  if (t == NULL) return -1;
+  for (int k = 0; k < 1000; k += 1) {
+    if (k == 0) sprintf(t, "%s.old", name); else sprintf(t, "%s.old%d", name, k);
+    if (idx_move(name, t) == 0) { *got = t; return 0; }
+    if (errno == ENOENT) { free(t); return 0; }
+    if (errno != EEXIST) break;
+  }
+  free(t);
+  return -1;
+}
+
+// Step 6's undo (and step 5's, for the first index): the old indexes moved
+// back. If a move back fails, that index stays as <name>.old, the -o file
+// unchanged; the message is the step's own.
+static void idx_unstage(void) {
+  if (io64_ix_aside[0] != NULL) idx_move(io64_ix_aside[0], io64_ix.path);
+  if (io64_ix_aside[1] != NULL) idx_move(io64_ix_aside[1], io64_ix.other);
+}
+
+// 0, or the error (the temporary file removed).
+static u32 idx_stage(void) {
+  if (idx_aside1(io64_ix.path, &io64_ix_aside[0]) != 0) { idx_rm_tmp(); return idx_code(IO64_IX_WRITE, io64_ix.path); }
+  if (idx_aside1(io64_ix.other, &io64_ix_aside[1]) != 0) {
+    idx_unstage();
+    idx_rm_tmp();
+    return idx_code(IO64_IX_WRITE, io64_ix.other);
+  }
+  return 0;
+}
+
+// Step 7 (after the -o file was emptied): the moved files
+// removed. A failure leaves <name>.old, a file htslib never reads; the run
+// goes on.
+static void idx_drop_old(void) {
+  for (int i = 0; i < 2; i += 1) {
+    if (io64_ix_aside[i] != NULL && unlink(io64_ix_aside[i]) != 0) {}
+    free(io64_ix_aside[i]);
+    io64_ix_aside[i] = NULL;
+  }
+}
+
+#endif
+
 // Open the output (once): stdout, or the -o file; 0 or the error. SIGXFSZ is
 // ignored from here on, so that a write past a file size limit fails (EFBIG:
 // cannot write) instead of killing the run.
@@ -1042,7 +1544,22 @@ static u32 io64_out_open(void) {
   if (!io64_out.file) {
     io64_out.fd = 1;
   } else {
-    int fd = open(io64_out.path, O_WRONLY | O_CREAT | O_CLOEXEC, 0666);
+    // With -W: (1) opened without emptying it, O_NONBLOCK so that a FIFO
+    // with no reader fails (ENXIO) instead of blocking; (2) a regular file,
+    // not an input; (3) the index names checked; (4) the temporary file made;
+    // (5) the old indexes renamed aside; (6) the file emptied (the old
+    // indexes moved back if that fails); (7) the moved old indexes removed. A
+    // failure in (1) to (6) leaves the old file and both old indexes (a new
+    // -o file stays, empty), except an index whose move back fails, which
+    // stays as <name>.old.
+    int ix = 0;
+#ifdef IO64_IX
+    ix = io64_ix.on;
+#endif
+    int fd = open(io64_out.path, O_WRONLY | O_CREAT | O_CLOEXEC | (ix ? O_NONBLOCK : 0), 0666);
+#ifdef IO64_IX
+    if (fd < 0 && ix && errno == ENXIO) return IO64_IX_NOTREG;
+#endif
     if (fd < 0) return (u32)errno;
     struct stat st, er;
     if (fstat(fd, &st) != 0) {
@@ -1063,6 +1580,22 @@ static u32 io64_out_open(void) {
       return IO64_OUT_INPUT;
     }
     io64_out.reg = S_ISREG(st.st_mode);
+#ifdef IO64_IX
+    if (ix) {
+      if (!io64_out.reg) {
+        close(fd);
+        return IO64_IX_NOTREG;
+      }
+      int fl = fcntl(fd, F_GETFL);
+      u32 e = fl < 0 || fcntl(fd, F_SETFL, fl & ~O_NONBLOCK) != 0 ? (u32)errno : 0;
+      if (e == 0) e = idx_open(&st);
+      if (e == 0) e = idx_stage();
+      if (e != 0) {
+        close(fd);
+        return e;
+      }
+    }
+#endif
     if (io64_out.reg) {
       // The duplicate for the take-back (Io.out_close), then the file
       // emptied.
@@ -1072,9 +1605,16 @@ static u32 io64_out_open(void) {
         if (io64_out.dupfd >= 0) close(io64_out.dupfd);
         io64_out.dupfd = -1;
         close(fd);
+#ifdef IO64_IX
+        if (ix) idx_unstage();
+        idx_rm_tmp();
+#endif
         return e;
       }
     }
+#ifdef IO64_IX
+    if (ix) idx_drop_old();
+#endif
     io64_out.fd = fd;
   }
 #ifdef FB_LIBDEFLATE
@@ -1155,6 +1695,11 @@ Term io_out_close_run(Env e, Term* f, IoWork* w) {
     io64_out_stop();
     r = io64_out_get_err();
     static const unsigned char eof[28] = {31, 139, 8, 4, 0, 0, 0, 0, 0, 255, 6, 0, 66, 67, 2, 0, 27, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+#ifdef IO64_IX
+    // An index failure counts only for code 0, after all of the machine's
+    // messages: no end-of-file block, "cannot index" (2004).
+    if (io64_ix.on && r == 0 && c == 0 && idx_finish(io64_ix.addr) != 0) r = IO64_IX_BAD;
+#endif
     if (r == 0 && c == 0) {
       at = io64_out.file && io64_out.reg ? lseek(io64_out.fd, 0, SEEK_CUR) : -1;
       r = io64_wall(io64_out.fd, eof, 28);
@@ -1175,15 +1720,55 @@ Term io_out_close_run(Env e, Term* f, IoWork* w) {
     // The duplicate's own close, checked too: its failure is reported
     // (cannot write); with no descriptor left, the end-of-file block (if
     // written) then stays.
+#ifdef IO64_IX
+    // The index, after the end-of-file block and the close: saved to the
+    // temporary file, renamed. If that fails, the block is taken back
+    // (cannot write <path>.csi or .tbi).
+    if (io64_ix.on && r == 0 && c == 0 && idx_save() != 0) {
+      if (at >= 0 && io64_out.dupfd >= 0 && ftruncate(io64_out.dupfd, at) != 0) {}
+      r = idx_code(IO64_IX_WRITE, io64_ix.path);
+    }
+    // The duplicate's close failing after the rename: the index removed, the
+    // error phase H's (cannot write <path>).
+    if (io64_ix.on && io64_out.dupfd >= 0) {
+      int ok = r == 0;
+      if (close(io64_out.dupfd) != 0 && ok) {
+        r = (u32)errno;
+        if (c == 0) unlink(io64_ix.path);
+      }
+      io64_out.dupfd = -1;
+    }
+#endif
     if (io64_out.dupfd >= 0 && close(io64_out.dupfd) != 0 && r == 0) r = (u32)errno;
     io64_out.dupfd = -1;
     io64_out.fd = -1;
   }
+#ifdef IO64_IX
+  // No index for any other end (the temporary file removed).
+  if (io64_ix.on && io64_ix.tmp != NULL) idx_rm_tmp();
+#endif
   if (r != 0) io64_out_err(r);
   return (Term)r;
 }
 
+// Io.out_index(fmt, path): -W, before the first step (B.Args.index's Idx:
+// fmt 1 CSI, 2 TBI; path the index's bytes). Answers 0, ENOMEM, EINVAL (a
+// path with a NUL byte), or IO64_IX_NOLIB (2003) in a build without htslib
+// and libdeflate.
+Term io_out_index_run(Env e, Term* f, IoWork* w) {
+#ifdef IO64_IX
+  u32 fmt = (u32)f[0];
+  uint64_t len;
+  char* p = io_cbuf(e, f[1], &len, CID(Con));
+  if (p == NULL || memchr(p, 0, len) != NULL) return (Term)EINVAL;
+  return (Term)idx_begin(fmt, p);
+#else
+  return (Term)2003;
+#endif
+}
+
 static void __attribute__((constructor)) io_out_use(void) {
+  io_eff(CID(Io.out_index), io_out_index_run);
   io_eff(CID(Io.out_set), io_out_set_run);
   io_eff(CID(Io.out_write), io_out_write_run);
   io_eff(CID(Io.out_close), io_out_close_run);
@@ -1240,6 +1825,13 @@ static int io64_otype(const char* x) {
 
 // B.Args.threads of the program's words w[0 .. n): N, or 0 for none (no
 // --threads, or a line Args.parse refuses).
+// The eight index options (B.Args.wfmt), one word each.
+static int io64_wfmt(const char* x) {
+  static const char* const f[8] = {"-W", "--write-index", "-Wcsi", "-W=csi", "--write-index=csi", "-Wtbi", "-W=tbi", "--write-index=tbi"};
+  for (int i = 0; i < 8; i += 1) if (!strcmp(x, f[i])) return 1;
+  return 0;
+}
+
 static unsigned io64_threads_of(char** w, int n) {
   if (n < 1 || strcmp(w[0], "norm") != 0) return 0;
   int pend = 0, ok = 1, ref = 0, vcf = 0;
@@ -1262,6 +1854,7 @@ static unsigned io64_threads_of(char** w, int n) {
     else if (!strcmp(x, "-o")) pend = 'o';
     else if (!strcmp(x, "-O")) pend = 'O';
     else if (!strncmp(x, "-O", 2)) ok = ok && io64_otype(x + 2);
+    else if (io64_wfmt(x)) {}
     else { ok = ok && !(x[0] == '-' && x[1] != 0) && !vcf; vcf = 1; }
   }
   return ok && pend == 0 && ref && vcf ? thr : 0;

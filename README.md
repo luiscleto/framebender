@@ -12,8 +12,11 @@ implementation can then be rewritten freely: a change that breaks a law fails th
 ## Install
 
 You need [Bend 2](https://bend-lang.com) (2.0.39), clang,
-[libdeflate](https://github.com/ebiggers/libdeflate) (to read `.vcf.gz`), and
-[samtools](https://www.htslib.org/) to index the reference.
+[libdeflate](https://github.com/ebiggers/libdeflate) (to read `.vcf.gz`),
+[samtools](https://www.htslib.org/) to index the reference, and for `-W` (the output's index)
+[htslib](https://www.htslib.org/) 1.24 built without libcurl: `tools/build_htslib.sh` builds it
+into `~/.local/opt/htslib-1.24-nocurl`, where `build.sh` looks for it (or set
+`PKG_CONFIG_PATH`; `FB_NO_HTSLIB=1 ./build.sh` builds without `-W`).
 
 framebender builds on five proven utility packages, which Bend fetches from
 [BendHub](https://hub.bend-lang.com) on the first build:
@@ -21,6 +24,7 @@ framebender builds on five proven utility packages, which Bend fetches from
 ```
 git clone https://github.com/luiscleto/framebender
 cd framebender
+tools/build_htslib.sh      # once: htslib 1.24 for -W
 ./build.sh
 ```
 
@@ -29,6 +33,7 @@ cd framebender
 ```
 samtools faidx ref.fa                                # once: writes ref.fa.fai
 ./framebender norm -f ref.fa -o out.vcf.gz in.vcf.gz  # or a plain in.vcf
+./framebender norm -f ref.fa -o out.vcf.gz -W in.vcf  # and its index, out.vcf.gz.csi
 ./framebender norm -f ref.fa in.vcf > out.vcf         # plain VCF to stdout
 ```
 
@@ -51,6 +56,22 @@ samtools faidx ref.fa                                # once: writes ref.fa.fai
 - A `.vcf.gz` ends with BGZF's end-of-file block only when the run succeeded, so a run that stops
   never leaves a file that looks complete. `-o` refuses to overwrite an input, and a run that
   cannot read its inputs leaves an existing file as it was.
+- `-W` (or `--write-index`): also write the output's index, `FILE.csi`; `-W=tbi` (or `-Wtbi`,
+  `--write-index=tbi`) writes `FILE.tbi` instead. It is what `bcftools index` (or `tabix -p vcf`)
+  writes for the same file under a `.vcf.gz` name, built while the file is written; byte for byte
+  when their htslib compresses with libdeflate, as framebender's does. It needs a BGZF `-o`
+  file (`error: -W needs a BGZF -o file` otherwise, before anything is read), and it never
+  changes the output (laws `index` and `index_sink`). The index is written only when the run
+  succeeds, after the file is complete; a file `bcftools index` or `tabix` would refuse (such as
+  a passed-through POS with a leading zero, a position past 2^29 with `-W=tbi`, or, for CSI, an
+  input that does not begin with `##fileformat=VCF`) ends the run with `error: cannot index
+  FILE` and no index. `-W` first removes an old `FILE.csi` and `FILE.tbi`: htslib reads `.csi`
+  before `.tbi`, so a stale one would silently answer region queries for the new file. For
+  `out.vcf.gz`, htslib also reads `out.vcf.csi` before `out.vcf.gz.tbi`; `-W=tbi` does not remove
+  that file (it may index `out.vcf`) and refuses to run while it exists (`error: cannot write
+  out.vcf.gz.tbi (htslib would read out.vcf.csi first)`). A run without `-W` leaves an old index
+  as it is, and htslib warns about it only when it is a second or more older than the file:
+  remove it, or use `-W`.
 - Input is plain VCF or bgzip-compressed `.vcf.gz` (a file that is cut short is refused).
 
 ## What is guaranteed
@@ -85,8 +106,12 @@ The intentional differences:
   Everything else on a line is kept byte for byte, including sample columns that bcftools pads
   (`1/0:1,1` for `GT:AD:PS` stays as is).
 - The header gets two added lines with no date, so the output is reproducible. Its command line
-  leaves out `--threads`, `-o` and `-O`, which do not change the records.
+  leaves out `--threads`, `-o`, `-O` and `-W`, which do not change the records.
 - No BCF output, and no long forms of `-o`/`-O` (details in `docs/LAWS.md`).
+- `-W` takes the eight documented forms (no abbreviated `--write`, no `##idx##` in the path), is
+  refused for stdout or plain output before anything is read (bcftools leaves a header-only
+  file), writes the index after the end-of-file block and only on success, and removes old
+  indexes; bcftools saves it first and leaves stale ones.
 
 Speed, on one sample (GIAB HG002) and on a cohort of 3,202 (the 1000 Genomes high-coverage
 panel, chr22: 1,066,557 records of about 14 KB each, 14.8 GB uncompressed):
@@ -99,9 +124,13 @@ panel, chr22: 1,066,557 records of about 14 KB each, 14.8 GB uncompressed):
 | HG002, 20,739 indels moved to random positions | 0.07–0.08 s | 0.12–0.13 s |
 | 1000 Genomes chr22, first 800 MB | 3.5–3.7 s | 0.29–0.30 s |
 | 1000 Genomes chr22, `.vcf.gz` (425 MiB) | 69.8 s | 6.9 s |
+| HG002 chr22, `-Oz -W` (with its index) | 0.13–0.14 s | 0.09–0.10 s |
+| HG002 whole genome, `-Oz -W` (with its index) | 6.5–6.6 s | 3.4–3.6 s |
 
 framebender reads the file in pieces and normalizes 16 at a time in parallel; the proof covers
-the parallel version, which gives byte-for-byte the output of the sequential one. A file where
+the parallel version, which gives byte-for-byte the output of the sequential one. The `-W` rows write a
+compressed file and its CSI index (bcftools with `--threads 16`, both on 16 CPUs; framebender's
+index is byte for byte bcftools index's of the same file, both with libdeflate). A file where
 nearly every record needs rewriting is still slower than bcftools. framebender uses more memory,
 which `--threads` trades against speed (HG002 whole genome; the output is identical at every
 setting):

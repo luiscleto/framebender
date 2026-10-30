@@ -8,7 +8,7 @@ import lawful-bytes@0.1.0.0/bytes.bend as BY
 # framebender: the driver (trusted, not proven; see the comment on law machine
 # in MACHINE.bend).
 #
-#   framebender norm -f ref.fa [-c e|w] [-w N] [--threads N] [-o FILE] [-O v|z|z0-9] in.vcf
+#   framebender norm -f ref.fa [-c e|w] [-w N] [--threads N] [-o FILE] [-O v|z|z0-9] [-W[=csi|tbi]] in.vcf
 #
 # It only runs the proven machine (Norm.start, Norm.step): it reads the VCF
 # file in pieces (its bytes, or for a BGZF file the bytes its blocks
@@ -22,14 +22,26 @@ import lawful-bytes@0.1.0.0/bytes.bend as BY
 # the machine writes); io64.c also sets Bend's worker threads from it. It
 # writes the output where and how B.Args.output says (law output): stdout or
 # the -o file, plain or BGZF (Io.out_set, Io.out_write, Io.out_close in
-# io64.c; the BGZF end-of-file block only for exit code 0). Every error of
-# its own prints one line "error: ..." and exits with code 2:
+# io64.c; the BGZF end-of-file block only for exit code 0), and with -W the
+# output's index where B.Args.index says (law index, law index_sink;
+# Io.out_index, and the index writer in io64.c: see law machine's comment).
+# Every error of its own prints one line "error: ..." and exits with code 2:
 #   usage (B.usage), "cannot read <path>", "cannot write" (stdout/stderr),
 #   "cannot write <path>" (the -o file), "output is an input <path>" (the -o
 #   file is the VCF, the FASTA, its .fai or stderr's file), "no BGZF in this
 #   build <path>" also for BGZF output (<path> the -o file, "-" for stdout),
 #   "internal error: no output" (B.Args.output refused a command line that
-#   Norm.start accepted; never, by output_ok in proof_f_out.bend),
+#   Norm.start accepted; never, by output_ok in proof_f_out.bend), "internal
+#   error: no index" (the same for B.Args.index: never, by index_ok in
+#   proof_f_index.bend), "-W needs a BGZF -o file" (B.Args.index is BadIdx:
+#   before any input is opened), "no index in this build <path>" (-W with
+#   BGZF output, built without htslib: see build.sh), "cannot index <path>
+#   (not a regular file)", "cannot index <path>" (a file tabix -p vcf or
+#   bcftools index refuses, or no memory for the index: only for a run whose
+#   code is 0, after all of its messages), "cannot write <path>.csi" (or
+#   .tbi; also "... (it is the -o file)", and "cannot write <path>.tbi
+#   (htslib would read <stem>.csi first)"), "output is an input <path>.csi"
+#   (or .tbi), as law machine's comment lists them,
 #   "out of memory" (no room for libdeflate's decompressor), "unsupported
 #   gzip <path> (not BGZF; use gzip -dc
 #   <path> | framebender ... /dev/stdin)" (a VCF whose first two bytes are
@@ -107,16 +119,27 @@ def Io.out_set(fa: File, path: List<&2, U32>, file: U32, z: U32, level: U32, n: 
   import "./io64.c"
   import "./io64.js"
 
+# The index of the -o file, with -W (B.Args.index's Idx): fmt 1 for CSI, 2
+# for TBI; path its bytes. Called once, after Io.out_set accepted the output
+# and before the first step. Answers 0, 2003 in a build without htslib (no
+# index in this build), or 12 (out of memory).
+def Io.out_index(fmt: U32, path: List<&2, U32>) -> IO(U32):
+  import "./io64.c"
+  import "./io64.js"
+
 # Write the first n bytes of a block to the output; answers 0 or the first
 # error of the output: an errno (cannot write), 12 (out of memory), 2001 (the
-# -o file is an input or stderr's file).
+# -o file is an input or stderr's file), or with -W an index error of the
+# open (2005, 2006 to 2012: see out_fail).
 def Io.out_write(n: U32, a: Array<U32>) -> IO(U32):
   import "./io64.c"
   import "./io64.js"
 
 # The end of the output, for a run ending with exit code c: the last blocks,
-# the BGZF end-of-file block only when c is 0, the -o file closed. Answers 0
-# or the first error of the output.
+# the BGZF end-of-file block only when c is 0, the -o file closed; with -W,
+# for c = 0, the index finished, saved and renamed into place. Answers 0 or
+# the first error of the output (with -W: 2004 when the index cannot be
+# built, 2006 or 2007 when it cannot be written).
 def Io.out_close(c: U32) -> IO(U32):
   import "./io64.c"
   import "./io64.js"
@@ -246,11 +269,68 @@ def cannot_write?(out: Maybe<&2, String>) -> String:
     case Some{p}:
       "cannot write " ++ esc(p)
 
-# An error of the output (Io.out_set, Io.out_write, Io.out_close): "out of
-# memory" (12), "output is an input <path>" (2001), "no BGZF in this build
-# <path>" (2002), else "cannot write" (stdout) or "cannot write <path>".
-def out_fail?(-A: Type, +c: U32, out: Maybe<&2, String>) -> IO(A):
-  out_fail.go(A, U32.is_eq(c, 12), U32.is_eq(c, 2001), U32.is_eq(c, 2002), out)
+# An error of the output (Io.out_set, Io.out_index, Io.out_write,
+# Io.out_close): "out of memory" (12), "output is an input <path>" (2001), "no
+# BGZF in this build <path>" (2002), an index error (2003 to 2012:
+# ix_msg), else "cannot write" (stdout) or "cannot write <path>".
+def out_fail?(-A: Type, +c: U32, +out: Maybe<&2, String>) -> IO(A):
+  out_fail.ix(A, U32.is_lt(c, 2003) || U32.is_lt(2012, c), c, out)
+
+def out_fail.ix?(-A: Type, other: Bool, +c: U32, +out: Maybe<&2, String>) -> IO(A):
+  match other:
+    case True{}:
+      out_fail.go(A, U32.is_eq(c, 12), U32.is_eq(c, 2001), U32.is_eq(c, 2002), out)
+    case False{}:
+      die(A, ix_msg(c, out_name(out)))
+
+# The index errors: 2003 no index in this build, 2004 cannot index, 2005 not
+# a regular file, then for <path>.csi and <path>.tbi: 2006/2007 cannot write,
+# 2008/2009 an input, 2010/2011 the -o file itself; 2012 an older
+# <stem>.csi that htslib reads before <path>.tbi.
+def ix_msg?(+c: U32, +p: String) -> String:
+  Bool.pick(String, U32.is_eq(c, 2003), "no index in this build " ++ p,
+  Bool.pick(String, U32.is_eq(c, 2004), "cannot index " ++ p,
+  Bool.pick(String, U32.is_eq(c, 2005), "cannot index " ++ p ++ " (not a regular file)",
+  Bool.pick(String, U32.is_eq(c, 2006), "cannot write " ++ p ++ ".csi",
+  Bool.pick(String, U32.is_eq(c, 2007), "cannot write " ++ p ++ ".tbi",
+  Bool.pick(String, U32.is_eq(c, 2008), "output is an input " ++ p ++ ".csi",
+  Bool.pick(String, U32.is_eq(c, 2009), "output is an input " ++ p ++ ".tbi",
+  Bool.pick(String, U32.is_eq(c, 2010), "cannot write " ++ p ++ ".csi (it is the -o file)",
+  Bool.pick(String, U32.is_eq(c, 2011), "cannot write " ++ p ++ ".tbi (it is the -o file)",
+  "cannot write " ++ p ++ ".tbi (htslib would read " ++ ix_stem(p) ++ ".csi first)")))))))))
+
+# <stem>: the path p up to its last '.' after the first byte, as htslib's
+# hts_idx_check_local cuts it (p itself when there is none).
+def ix_stem?(+p: String) -> String:
+  match p:
+    case SNil{}:
+      SNil{}
+    case SCon{+c, +t}:
+      ix_stem.k(c, ix_cut(t), t)
+
+def ix_stem.k?(+c: Char, m: Maybe<&2, String>, t: String) -> String:
+  match m:
+    case None{}:
+      SCon{c, t}
+    case Some{q}:
+      SCon{c, q}
+
+# The text before the last '.' of s, or None when s has no '.'.
+def ix_cut?(+s: String) -> Maybe<&2, String>:
+  match s:
+    case SNil{}:
+      None{}
+    case SCon{+c, t}:
+      ix_cut.k(ix_cut(t), Char.is_eq(c, '.'), c)
+
+def ix_cut.k?(m: Maybe<&2, String>, dot: Bool, +c: Char) -> Maybe<&2, String>:
+  match m dot:
+    case Some{q} _:
+      Some{SCon{c, q}}
+    case None{} True{}:
+      Some{SNil{}}
+    case None{} False{}:
+      None{}
 
 def out_fail.go?(-A: Type, oom: Bool, inp: Bool, nolib: Bool, out: Maybe<&2, String>) -> IO(A):
   match oom inp nolib:
@@ -695,15 +775,36 @@ def path_bytes?(m: Maybe<&2, String>) -> List<&2, U32>:
     case Some{p}:
       str_bytes(p)
 
+# The index format for Io.out_index.
+def ifmt_u32?(f: B.IFmt) -> U32:
+  match f:
+    case B.Csi{}:
+      1
+    case B.Tbi{}:
+      2
+
+# With -W, the index of the output (Io.out_index), once the output is set.
+def run.ix?(ix: B.Idx, +out: Maybe<&2, String>) -> IO(Unit):
+  match ix:
+    case B.NoIdx{}:
+      IO.pure(Unit, Unit{})
+    case B.Idx{f, p}:
+      do IO<Unit>:
+        r : U32 <- Io.out_index(ifmt_u32(f), str_bytes(p))
+        out_code(r, out)
+    case B.BadIdx{}:
+      die(Unit, "-W needs a BGZF -o file")
+
 # Start the loop once the output is set (Io.out_set's answer q).
-def run.set?(q: File & U32, v: File, +ref: String, fai: Map<&2, Maybe<&2, Fai>>, +k: Nat, +g: Nat, +out: Maybe<&2, String>, +vcf: String, st: Norm.St) -> IO(Unit):
+def run.set?(q: File & U32, v: File, +ref: String, fai: Map<&2, Maybe<&2, Fai>>, +k: Nat, +g: Nat, +out: Maybe<&2, String>, +vcf: String, st: Norm.St, ix: B.Idx) -> IO(Unit):
   match q:
     case (fa, +r):
       do IO<Unit>:
         out_code(r, out)
+        run.ix(ix, out)
         loop(Io{v, fa, ref, fai, k, g, 0n, out}, vcf, st, P.More{})
 
-def run.fai?(m: Maybe<&2, Map<&2, Maybe<&2, Fai>>>, st: Norm.St, +ref: String, +vcf: String, +k: Nat, +g: Nat, sk: B.Sink, +n: Nat) -> IO(Unit):
+def run.fai?(m: Maybe<&2, Map<&2, Maybe<&2, Fai>>>, st: Norm.St, +ref: String, +vcf: String, +k: Nat, +g: Nat, sk: B.Sink, +n: Nat, ix: B.Idx) -> IO(Unit):
   match m sk:
     case None{} _:
       die(Unit, "bad .fai index " ++ esc(ref ++ ".fai"))
@@ -712,36 +813,43 @@ def run.fai?(m: Maybe<&2, Map<&2, Maybe<&2, Fai>>>, st: Norm.St, +ref: String, +
         fa : File <- open(ref)
         v : File <- open(vcf)
         q : File & U32 <- Io.out_set(fa, path_bytes(out), bool_u32(Maybe.is_some(&2, String, out)), bool_u32(z), U32.from_nat(level), U32.from_nat(n))
-        run.set(q, v, ref, fai, k, g, out, vcf, st)
+        run.set(q, v, ref, fai, k, g, out, vcf, st, ix)
 
-def run?(st: Norm.St, +ref: String, +vcf: String, +k: Nat, +g: Nat, sk: B.Sink, +n: Nat) -> IO(Unit):
+def run?(st: Norm.St, +ref: String, +vcf: String, +k: Nat, +g: Nat, sk: B.Sink, +n: Nat, ix: B.Idx) -> IO(Unit):
   do IO<Unit>:
     fi : File <- open(ref ++ ".fai")
     cs : List<&2, List<&2, U32>> <- read_all(fi, ref ++ ".fai", Nil{})
-    run.fai(fai_load(String.split(bytes_str(concat_rev(cs, Nil{})), '\n'), Map.new(&2, Maybe<&2, Fai>)), st, ref, vcf, k, g, sk, n)
+    run.fai(fai_load(String.split(bytes_str(concat_rev(cs, Nil{})), '\n'), Map.new(&2, Maybe<&2, Fai>)), st, ref, vcf, k, g, sk, n, ix)
 
 # A command line Norm.start accepted has an output (B.Args.output; output_ok
-# in proof_f_out.bend): None there is an internal error, never a fallback.
-def main.k?(b: Norm.Begin, m: Maybe<&2, B.Sink>, +k: Nat, +g: Nat, +n: Nat) -> IO(Unit):
-  match b m:
-    case Norm.Usage{} _:
+# in proof_f_out.bend) and an index answer (B.Args.index; index_ok in
+# proof_f_index.bend): None there is an internal error, never a fallback.
+# BadIdx (-W with stdout or plain output) stops here, before any input is
+# opened.
+def main.k?(b: Norm.Begin, m: Maybe<&2, B.Sink>, x: Maybe<&2, B.Idx>, +k: Nat, +g: Nat, +n: Nat) -> IO(Unit):
+  match b m x:
+    case Norm.Usage{} _ _:
       usage(Unit)
-    case Norm.Begin{st, ref, vcf} Some{sk}:
-      run(st, ref, vcf, k, g, sk, n)
-    case Norm.Begin{st, ref, vcf} None{}:
+    case Norm.Begin{st, ref, vcf} Some{sk} Some{B.BadIdx{}}:
+      die(Unit, "-W needs a BGZF -o file")
+    case Norm.Begin{st, ref, vcf} Some{sk} Some{ix}:
+      run(st, ref, vcf, k, g, sk, n, ix)
+    case Norm.Begin{st, ref, vcf} None{} _:
       die(Unit, "internal error: no output")
+    case Norm.Begin{st, ref, vcf} Some{sk} None{}:
+      die(Unit, "internal error: no index")
 
 # The thread count n (0 when none) sizes the driver's work: the read-ahead
 # (Io.threads), the pieces per batch (16, or n), the reads started at once
 # (32, or n) and the BGZF compressor threads (16, or n). n is at most 128
 # (Args.threads, proof_f_args.bend's threads_ok).
-def main.t?(+n: Nat, b: Norm.Begin, m: Maybe<&2, B.Sink>) -> IO(Unit):
+def main.t?(+n: Nat, b: Norm.Begin, m: Maybe<&2, B.Sink>, x: Maybe<&2, B.Idx>) -> IO(Unit):
   do IO<Unit>:
     r : U32 <- Io.threads(U32.from_nat(n))
-    main.k(b, m, Bool.pick(Nat, Nat.is_eq(n, 0n), 16n, n), Bool.pick(Nat, Nat.is_eq(n, 0n), 32n, n), n)
+    main.k(b, m, x, Bool.pick(Nat, Nat.is_eq(n, 0n), 16n, n), Bool.pick(Nat, Nat.is_eq(n, 0n), 32n, n), n)
 
 def main.n?(+xs: List<&2, String>) -> IO(Unit):
-  main.t(Maybe.default(&2, Nat, B.Args.threads(xs), 0n), Norm.start(xs), B.Args.output(xs))
+  main.t(Maybe.default(&2, Nat, B.Args.threads(xs), 0n), Norm.start(xs), B.Args.output(xs), B.Args.index(xs))
 
 def main.args?(args: List<List<&2, U32>>) -> IO(Unit):
   match args:

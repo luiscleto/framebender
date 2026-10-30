@@ -11,6 +11,16 @@ Arch, `libdeflate-dev` on Debian and Ubuntu, `libdeflate` in Homebrew). `build.s
 steps: `bend main.bend -o framebender.c` writes the program as C (with the driver's effects from
 `io64.c`), then `clang -std=c11 -O3 -DFB_LIBDEFLATE ... -ldeflate` compiles it, as `bend -o` would
 plus libdeflate, which reads BGZF (`.vcf.gz`) input. `./build.sh out` writes the binary to `out`.
+For `-W` it also links htslib 1.24 statically (`-DFB_HTSLIB`, `libhts.a` and its `static_libs`):
+the index writer calls `tbx_parse1` and `hts_adjust_csi_settings`, which `libhts.so` does not
+export. It must be htslib 1.24 built without libcurl, GCS and S3, so that the binary pulls in
+neither libcurl nor libcrypto and htslib never opens a URL: `tools/build_htslib.sh [PREFIX]
+[TARBALL]` builds it (from the 1.24 release, checked by its SHA-256) into
+`~/.local/opt/htslib-1.24-nocurl`, which `build.sh` finds through `PKG_CONFIG_PATH` (by default
+that prefix's). Before running `bend`, `build.sh` stops with a message naming that script if
+`pkg-config` finds no htslib 1.24, if its `static_libs` name `-lcurl`, or if `libhts.a` does not
+define the two functions. `FB_NO_HTSLIB=1 ./build.sh out` builds without htslib; that binary
+stops on `-W` with `error: no index in this build <path>`.
 Between the two, `build.sh` patches Bend's heap in the generated C so that a large block freed on
 one thread can be reused by any (`notes/memory.md`); it stops if the generated runtime is not the
 one the patch was written for. Bend fixed this upstream after 2.0.39 (bendlang/bend#1856), so on
@@ -22,9 +32,9 @@ change a package, edit its own repository, publish a new version (`bend PROOF.be
 lawful-x@0.1.0.1` from its directory) and raise the version here, in every file that imports it
 and in the packages that depend on it. The proofs here are then checked against the new version.
 
-`bend main.bend -o framebender` still builds in one step, without libdeflate or the heap patch.
-That binary reads plain VCF only and stops on a `.vcf.gz` with `error: no BGZF in this build
-<path>`, and uses more memory.
+`bend main.bend -o framebender` still builds in one step, without libdeflate, htslib or the heap
+patch. That binary reads plain VCF only and stops on a `.vcf.gz` with `error: no BGZF in this
+build <path>` (and on BGZF output, `-W` included), and uses more memory.
 
 Set `BEND_NO_TELEMETRY=1` to turn off Bend's telemetry (`build.sh` sets it). `--threads N` sets
 Bend's worker threads too (`io64.c` puts `--threads N` before `BENDRTS` before `main`); the binary
@@ -117,6 +127,30 @@ framebender's own reader, and the threads a run starts. `QUICK=1` skips the iden
 `NOLIB=binary` also checks a build without libdeflate (`bend main.bend -o binary`). It exits 0
 only when every check passes.
 
+`test/index.sh new_binary [dir]` checks the index option (laws `index` and `index_sink`) and the
+index writer. On the cases above, `test/gen_out.py`'s and `test/gen_index.py`'s (index edge
+cases: a NUL byte, no `##contig` lengths, lengths past 2^32 and 2^41, 300 contigs out of header
+order, `#` body lines, INFO/END, SVLEN and FORMAT/LEN ends, `END=` on every line, and lines
+`tabix` refuses: a leading-zero POS, positions past 2^29, 2^32 and 2^38; no `##fileformat`
+line, or a `#` line before it, which `bcftools index` refuses; `##contig` lines longer than a
+block), it applies the
+differential rule per format: the run without `-W` first; if its code is not 0, the `-W` run
+must be that run exactly with no index; otherwise CSI is judged by `bcftools index` and TBI by
+`tabix -p vcf`, each on its own (refused: "cannot index", exit 2, no end-of-file block, no index;
+accepted: the same report and output, and the tool's index bytes). Each case runs with CSI and
+with TBI; each `-W` run turns the spelling within its format, its place, `--threads N` and the
+`-o` form, and starts with an old index at both names.
+Then region queries on chr22, the order at the open and the close by failure injection
+(`test/fi_shim.c`, an `LD_PRELOAD` shim: each step, each index name, CSI and TBI, and
+`renameat2` without `RENAME_NOREPLACE`), URL-like `-o` paths, FIFOs and devices, index names that
+are the `-o` file (symlink, hard link), an input or stderr's file, or a directory (through a
+symlink too), an older `<stem>.csi` that htslib reads before the `.tbi`, an existing `<name>.old`,
+a driver error and Bend's runtime stopping after the open, file
+modes, the builds (`NOHTS=binary` from `FB_NO_HTSLIB=1 ./build.sh`, `PLAIN=binary` from `bend
+main.bend -o`, `build.sh`'s refusals; `SKIPBUILD=1` skips the last), the usage errors and the
+threads seen. `PIECES="b1 b2 ..."` runs the small cases on the small-piece builds too, `BIG=1`
+adds the 1000 Genomes files and the whole genome, `QUICK=1` skips the identity runs.
+
 ## Files
 
 | files | role |
@@ -125,9 +159,9 @@ only when every check passes.
 | `protocol.bend`, `MACHINE.bend`, `bytes_enc.bend` | implementation contract: the machine law, the FASTA premise, and how bytes encode the spec's text |
 | `norm.bend` | the program: pieces judged in parallel in batches of 16 (`lawful-halves`) and spliced in order, falling back to the sequential machine |
 | `norm_seq.bend`, `norm_fast.bend`, `norm_line.bend`, `norm_run.bend`, `norm_fix.bend` | the sequential machine on packed bytes (`lawful-*`, from BendHub) |
-| `main.bend`, `io64.c`, `io64.js` | the trusted driver: file I/O and the `.fai` reader |
-| `build.sh` | the two-step build with libdeflate |
-| `PROOF.bend`, `proof_*.bend` | the proofs; `PROOF.bend` proves every law by importing the rest (`proof_b_*`: the bytes machine, `proof_c_*`: rewritten records, `proof_e_*`: the parallel machine; `proof_f_*`: the command line, laws `threads` and `output`; notes in `notes/*proofs*.md`) |
+| `main.bend`, `io64.c`, `io64.js` | the trusted driver: file I/O, the `.fai` reader, the BGZF and index writers |
+| `build.sh`, `tools/build_htslib.sh` | the two-step build with libdeflate and htslib; the htslib build it needs |
+| `PROOF.bend`, `proof_*.bend` | the proofs; `PROOF.bend` proves every law by importing the rest (`proof_b_*`: the bytes machine, `proof_c_*`: rewritten records, `proof_e_*`: the parallel machine; `proof_f_*`: the command line, laws `threads`, `output`, `index` and `index_sink`; notes in `notes/*proofs*.md`) |
 | `examples.bend`, `examples_machine.bend` | concrete cases checked by evaluation; the machine's cases are outside the gate (they pass 4 GB in the checker) |
 | `test/` | the bcftools comparison, the scrambler, edge cases, FASTA premise cases |
 | `reviews/` | every law and driver review, with the responses |
