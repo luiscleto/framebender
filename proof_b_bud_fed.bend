@@ -21,6 +21,7 @@ import ./proof_run_base.bend as RB
 import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BD
 import ./proof_b_budget_lem.bend as BL
+import ./proof_b_adv_wf.bend as W
 import ./proof_b_enc.bend as EN
 import ./proof_b_lines.bend as PL
 import ./proof_b_lines_str.bend as LS
@@ -78,18 +79,24 @@ law lines_eq:
   for +wp: PC.WP
   for +fneed: Bool
   for +hl: {B.Text.lines(S.intext(S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs}, cs2)) == B.Text.lines(S.intext(S.StP{o, md, src, pd, eof, back, wp, None{}, fneed, dfs}, cs)) : List<&2, B.Line>}
-  {BN.lines(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2) == BN.lines(P.mkSrcs(src), P.mkPd(pd), eof, cs) : List<&2, B.Line>}
+  for +hn2: {S.no_recs(src2) == True{} : Bool}
+  for +hn0: {S.no_recs(src) == True{} : Bool}
+  {BN.ALL(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2) == BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs) : List<&2, B.Line>}
 
-def lines_eq(dfs,cs2, cs, o, md, src2, pd2, eof2, src, pd, eof, back, wp, fneed, hl):
+def lines_eq(dfs,cs2, cs, o, md, src2, pd2, eof2, src, pd, eof, back, wp, fneed, hl, hn2, hn0):
   +Q2 = {S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs} : S.StP}
   +Q0 = {S.StP{o, md, src, pd, eof, back, wp, None{}, fneed, dfs} : S.StP}
   +A2 = String.append(BN.srcT(P.mkSrcs(src2)), String.append(BN.pdT(P.mkPd(pd2)), S.concat_if(eof2, cs2)))
   +A0 = String.append(BN.srcT(P.mkSrcs(src)), String.append(BN.pdT(P.mkPd(pd)), S.concat_if(eof, cs)))
-  Equal.trans(List<&2, B.Line>, B.Text.lines(A2), B.Text.lines(S.intext(Q2, cs2)), B.Text.lines(A0),
-    Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), A2, S.intext(Q2, cs2), BL.text_pic(Q2, cs2)),
+  +L2 = BN.lines(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2)
+  +L0 = BN.lines(P.mkSrcs(src), P.mkPd(pd), eof, cs)
+  +el = Equal.trans(List<&2, B.Line>, B.Text.lines(A2), B.Text.lines(S.intext(Q2, cs2)), B.Text.lines(A0),
+    Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), A2, S.intext(Q2, cs2), BL.text_pic(Q2, cs2, W.nr_first(src2, hn2))),
     Equal.trans(List<&2, B.Line>, B.Text.lines(S.intext(Q2, cs2)), B.Text.lines(S.intext(Q0, cs)), B.Text.lines(A0), hl,
       Equal.sym(List<&2, B.Line>, B.Text.lines(A0), B.Text.lines(S.intext(Q0, cs)),
-        Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), A0, S.intext(Q0, cs), BL.text_pic(Q0, cs)))))
+        Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), A0, S.intext(Q0, cs), BL.text_pic(Q0, cs, W.nr_first(src, hn0))))))
+  Equal.trans(List<&2, B.Line>, BN.ALL(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2), L2, BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs), BL.all_nr(src2, pd2, eof2, cs2, hn2),
+    Equal.trans(List<&2, B.Line>, L2, L0, BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs), el, Equal.sym(List<&2, B.Line>, BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs), L0, BL.all_nr(src, pd, eof, cs, hn0))))
 
 # A fed state that is the picture Q1 of Q0 with other sources, line end and
 # eof, whose text has the same lines.
@@ -116,19 +123,27 @@ law fed_leaf:
   for +hr1: {S.report(fa, cs2, O, N, S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs}) == T : R.Report}
   for +hg: {S.guard(O, N, S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs}) == True{} : Bool}
   for +hbi: {BN.biS(S.mkSt(fa, S.StP{o, md, src, pd, eof, back, wp, None{}, fneed, dfs}), cs) == True{} : Bool}
-  for +hl: {B.Text.lines(S.intext(S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs}, cs2)) == B.Text.lines(S.intext(S.StP{o, md, src, pd, eof, back, wp, None{}, fneed, dfs}, cs)) : List<&2, B.Line>}
+  for +hla: {BN.ALL(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2) == BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs) : List<&2, B.Line>}
   BD.FedG(fa, T, cs2, O, N, BD.WP(fa, cs, S.StP{o, md, src, pd, eof, back, wp, None{}, fneed, dfs}), S.mkSt(fa, S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs}))
 
-def fed_leaf(dfs,fa, T, cs, cs2, O, N, o, md, src, pd, eof, src2, pd2, eof2, back, wp, fneed, hw1, hr1, hg, hbi, hl):
-  +L2 = BN.lines(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2)
-  +L0 = BN.lines(P.mkSrcs(src), P.mkPd(pd), eof, cs)
-  +leq = lines_eq(dfs, cs2, cs, o, md, src2, pd2, eof2, src, pd, eof, back, wp, fneed, hl)
+def fed_leaf(dfs,fa, T, cs, cs2, O, N, o, md, src, pd, eof, src2, pd2, eof2, back, wp, fneed, hw1, hr1, hg, hbi, hla):
+  +L2 = BN.ALL(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2)
+  +L0 = BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs)
+  +leq = hla
   +fl = BN.fast_left(S.mkMd(md), fneed)
   (S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs}, ({==}, (hw1, (hr1, (hg, ({==},
-    (le_eq(BN.WA.ls(fa, fl, back, PC.mkWin(fa, wp), None{}, L2), BN.WA.ls(fa, fl, back, PC.mkWin(fa, wp), None{}, L0),
-       Equal.cong(List<&2, B.Line>, Nat, z => BN.WA.ls(fa, fl, back, PC.mkWin(fa, wp), None{}, z), L2, L0, leq)),
+    (le_eq(BN.WAX(fa, o, fl, back, PC.mkWin(fa, wp), None{}, L2), BN.WAX(fa, o, fl, back, PC.mkWin(fa, wp), None{}, L0),
+       Equal.cong(List<&2, B.Line>, Nat, z => BN.WAX(fa, o, fl, back, PC.mkWin(fa, wp), None{}, z), L2, L0, leq)),
      Equal.trans(Bool, BN.bi.ls(back, PC.mkWin(fa, wp), None{}, L2), BN.bi.ls(back, PC.mkWin(fa, wp), None{}, L0), True{},
        Equal.cong(List<&2, B.Line>, Bool, z => BN.bi.ls(back, PC.mkWin(fa, wp), None{}, z), L2, L0, leq), hbi))))))))
+
+# A line end's source (PL.pdsrc) is not a record.
+def pds_nr(+pp: P.PdP, +r: List<&2, P.SrcP>, +h: {S.no_recs(r) == True{} : Bool}) -> {S.no_recs(Con{PL.pdsrc(pp), r}) == True{} : Bool}:
+  match pp:
+    case P.PBP{+len, +t, +d}:
+      h
+    case P.PSP{+q}:
+      h
 
 # F1: the piece (proof_b_drive_chunk.bend's chain, ending in FedG)
 # ==========================================================
@@ -145,7 +160,19 @@ def ch_empty(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +c
   +hv: {D.view(CH.BTc(c)) == E.codes(c) : List<&2, U32>},
   +he: {String.is_empty(P.pdtext(pd)) == True{} : Bool}) ->
   BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.St{o, S.mkMd(md), List.append(&1, Norm.Src, Nil{}, [Norm.SB{CH.BTc(c), 0}]), P.mkPd(pd), False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs}):
-  ?TODO
+  +sp0 = {P.SBP{CH.L0(c), CH.ET(c), CH.DD(c), 0} : P.SrcP}
+  +hw1 = DO.x9_mk(S.md_ok(md), S.srcs_ok([sp0]), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty([sp0]), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext([sp0])))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), DO.x8_a(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw),
+    LP.and_le0(D.ok(CH.BTc(c), CH.DD(c)), CH.L0(c), hok),
+    DO.x9_2(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_3(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), he, {==},
+    DO.x9_6(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_7(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_8(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw))
+  +p0 = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+  +p1 = {S.StP{o, md, [sp0], pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+  +tx = CH.txt_e(P.srctext(sp0), c, P.pdtext(pd), String.concat(cs), CH.src0_text(c, hv), CH.emp_eq(P.pdtext(pd), he))
+  +hl = Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), S.intext(p1, cs), S.intext(p0, c <> cs), tx)
+  +hr1 = Equal.trans(R.Report, S.report(fa, cs, O, N, p1), S.report(fa, c <> cs, O, N, p0), T,
+    DS.rep_lines(dfs, fa, c <> cs, cs, O, N, o, md, Nil{}, pd, False{}, [sp0], pd, False{}, back, wp, None{}, back, wp, None{}, fneed, fneed, hl, {==}), hr)
+  fed_leaf(dfs, fa, T, c <> cs, cs, O, N, o, md, Nil{}, pd, False{}, [sp0], pd, False{}, back, wp, fneed, hw1, hr1, hg, hbi,
+    lines_eq(dfs, cs, c <> cs, o, md, [sp0], pd, False{}, Nil{}, pd, False{}, back, wp, fneed, hl, {==}, {==}))
 
 
 # No LF in the piece: it goes to the line end.
@@ -163,7 +190,22 @@ def ch_all3(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs
   +hpt: {P.pdtext(pp2) == String.append(P.pdtext(pd), P.btext(CH.L0(c), CH.ET(c), 0, CH.L0(c))) : String},
   +hnc: {P.nolf(c) == True{} : Bool}) ->
   BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.St{o, S.mkMd(md), Nil{}, Norm.pend.add(P.mkPd(pd), CH.BTc(c), 0, CH.L0(c)), False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs}):
-  ?TODO
+  %Equal.sym(Norm.Pd, Norm.pend.add(P.mkPd(pd), CH.BTc(c), 0, CH.L0(c)), P.mkPd(pp2), e2) :
+    BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.St{o, S.mkMd(md), Nil{}, _, False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs})
+  +hba = CH.bt_all(c, hok, hv)
+  +hn3 = AB.subst(String, z => {P.nolf(z) == True{} : Bool}, String.append(P.pdtext(pd), P.btext(CH.L0(c), CH.ET(c), 0, CH.L0(c))), P.pdtext(pp2), Equal.sym(String, P.pdtext(pp2), String.append(P.pdtext(pd), P.btext(CH.L0(c), CH.ET(c), 0, CH.L0(c))), hpt),
+    LS.nolf_app(P.pdtext(pd), P.btext(CH.L0(c), CH.ET(c), 0, CH.L0(c)), DO.x9_3(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw),
+      AB.subst(String, z => {P.nolf(z) == True{} : Bool}, c, P.btext(CH.L0(c), CH.ET(c), 0, CH.L0(c)), Equal.sym(String, P.btext(CH.L0(c), CH.ET(c), 0, CH.L0(c)), c, hba), hnc)))
+  +hw1 = DO.x9_mk(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pp2), P.nolf(P.pdtext(pp2)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pp2))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pp2)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), DO.x8_a(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), {==}, hpo, hn3, {==}, {==},
+    DO.x9_6(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_7(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_8(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw))
+  +p0 = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+  +p1 = {S.StP{o, md, Nil{}, pp2, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+  +tx = CH.txt_a(P.pdtext(pp2), P.pdtext(pd), P.btext(CH.L0(c), CH.ET(c), 0, CH.L0(c)), c, String.concat(cs), hpt, hba)
+  +hl = Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), S.intext(p1, cs), S.intext(p0, c <> cs), tx)
+  +hr1 = Equal.trans(R.Report, S.report(fa, cs, O, N, p1), S.report(fa, c <> cs, O, N, p0), T,
+    DS.rep_lines(dfs, fa, c <> cs, cs, O, N, o, md, Nil{}, pd, False{}, Nil{}, pp2, False{}, back, wp, None{}, back, wp, None{}, fneed, fneed, hl, {==}), hr)
+  fed_leaf(dfs, fa, T, c <> cs, cs, O, N, o, md, Nil{}, pd, False{}, Nil{}, pp2, False{}, back, wp, fneed, hw1, hr1, hg, hbi,
+    lines_eq(dfs, cs, c <> cs, o, md, Nil{}, pp2, False{}, Nil{}, pd, False{}, back, wp, fneed, hl, {==}, {==}))
 
 
 def ch_all2(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
@@ -206,7 +248,36 @@ def ch_join3(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +c
   +hc2: {c == String.append(P.btext(CH.L0(c), CH.ET(c), 0, j), String.append("\n", P.srctext(P.SBP{CH.L0(c), CH.ET(c), CH.DD(c), (j + 1 : U32)}))) : String},
   +hj1: {U32.is_le((j + 1 : U32), CH.L0(c)) == True{} : Bool}) ->
   BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed.join(o, S.mkMd(md), j, Norm.join.k(P.mkPd(pd), CH.BTc(c), j), False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs)):
-  ?TODO
+  %Equal.sym(Norm.Pd & D.Bytes, Norm.join.k(P.mkPd(pd), CH.BTc(c), j), (P.mkPd(pp2), CH.BTc(c)), ej) :
+    BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed.join(o, S.mkMd(md), j, _, False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs))
+  %Equal.sym(Norm.Src, Norm.Pd.src(P.mkPd(pp2)), P.mkSrc(PL.pdsrc(pp2)), esrc) :
+    BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.St{o, S.mkMd(md), [_, Norm.SB{CH.BTc(c), (j + 1 : U32)}], Norm.PB{BY.empty(0n)}, False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs})
+  %Equal.sym(Norm.Pd, Norm.PB{BY.empty(0n)}, P.mkPd(pp0), f1) :
+    BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.St{o, S.mkMd(md), [P.mkSrc(PL.pdsrc(pp2)), Norm.SB{CH.BTc(c), (j + 1 : U32)}], _, False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs})
+  +sp1 = PL.pdsrc(pp2)
+  +sp2 = {P.SBP{CH.L0(c), CH.ET(c), CH.DD(c), (j + 1 : U32)} : P.SrcP}
+  +A = P.pdtext(pd)
+  +Bq = P.btext(CH.L0(c), CH.ET(c), 0, j)
+  +hs1e = AB.subst(String, z => {S.ends_lf(z) == True{} : Bool}, String.append(String.append(A, Bq), "\n"), P.srctext(sp1),
+    Equal.trans(String, String.append(String.append(A, Bq), "\n"), String.append(A, String.append(Bq, "\n")), P.srctext(sp1), LS.sassoc(A, Bq, "\n"),
+      Equal.sym(String, P.srctext(sp1), String.append(A, String.append(Bq, "\n")),
+        Equal.trans(String, P.srctext(sp1), String.append(A, P.btext(CH.L0(c), CH.ET(c), 0, (j + 1 : U32))), String.append(A, String.append(Bq, "\n")), hst,
+          Equal.cong(String, String, z => String.append(A, z), P.btext(CH.L0(c), CH.ET(c), 0, (j + 1 : U32)), String.append(Bq, "\n"), hlf2)))),
+    DS.ends_lf_lf(String.append(A, Bq)))
+  +hsrcs = LP.and_tt(Bool.and(P.src_ok(sp1), S.ends_lf(P.srctext(sp1))), P.src_ok(sp2), LP.and_tt(P.src_ok(sp1), S.ends_lf(P.srctext(sp1)), hso, hs1e),
+    LP.and_tt(D.ok(CH.BTc(c), CH.DD(c)), U32.is_le((j + 1 : U32), CH.L0(c)), hok, hj1))
+  +hn0 = AB.subst(String, z => {P.nolf(z) == True{} : Bool}, "", P.pdtext(pp0), Equal.sym(String, P.pdtext(pp0), "", hpt0), {==})
+  +he0 = AB.subst(String, z => {String.is_empty(z) == True{} : Bool}, "", P.pdtext(pp0), Equal.sym(String, P.pdtext(pp0), "", hpt0), {==})
+  +hw1 = DO.x9_mk(S.md_ok(md), S.srcs_ok([sp1, sp2]), P.pd_ok(pp0), P.nolf(P.pdtext(pp0)), Bool.or(S.src_empty([sp1, sp2]), String.is_empty(P.pdtext(pp0))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pp0)), S.ends_lf(P.srcstext([sp1, sp2])))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first([sp1, sp2])), S.recs_run(md, [sp1, sp2])), DO.x8_a(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), hsrcs, hpo0, hn0, he0, {==},
+    DO.x9_6(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_7(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), CH.pds_w8(o, md, pp2, [sp2], DO.x9_8(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw)))
+  +p0 = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+  +p1 = {S.StP{o, md, [sp1, sp2], pp0, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+  +tx = CH.txt_j(P.srctext(sp1), P.srctext(sp2), P.pdtext(pp0), A, P.btext(CH.L0(c), CH.ET(c), 0, (j + 1 : U32)), Bq, c, String.concat(cs), hst, hlf2, hpt0, hc2)
+  +hl = Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), S.intext(p1, cs), S.intext(p0, c <> cs), CH.pds_tx(pp2, [sp2], String.append(P.pdtext(pp0), String.concat(cs)), S.intext(p0, c <> cs), tx))
+  +hr1 = Equal.trans(R.Report, S.report(fa, cs, O, N, p1), S.report(fa, c <> cs, O, N, p0), T,
+    DS.rep_lines(dfs, fa, c <> cs, cs, O, N, o, md, Nil{}, pd, False{}, [sp1, sp2], pp0, False{}, back, wp, None{}, back, wp, None{}, fneed, fneed, hl, CH.pds_recs(pp2, [sp2])), hr)
+  fed_leaf(dfs, fa, T, c <> cs, cs, O, N, o, md, Nil{}, pd, False{}, [sp1, sp2], pp0, False{}, back, wp, fneed, hw1, hr1, hg, hbi,
+    lines_eq(dfs, cs, c <> cs, o, md, [sp1, sp2], pp0, False{}, Nil{}, pd, False{}, back, wp, fneed, hl, pds_nr(pp2, [sp2], {==}), {==}))
 
 
 def ch_join2(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
@@ -254,7 +325,17 @@ def ch_join(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs
   & ({U32.is_le((j + 1 : U32), CH.L0(c)) == True{} : Bool}
   & {E.is_bytes(P.btext(CH.L0(c), CH.ET(c), 0, (j - 0 : U32))) == True{} : Bool}))) ->
   BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed.join(o, S.mkMd(md), j, Norm.join.k(P.mkPd(pd), CH.BTc(c), j), False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs)):
-  ?TODO
+  (+h1, s1) = sl
+  (+h2, s2) = s1
+  (+h3, h4) = s2
+  +hn2 = AB.subst(String, z => {P.nolf(z) == True{} : Bool}, P.btext(CH.L0(c), CH.ET(c), 0, (j - 0 : U32)), P.btext(CH.L0(c), CH.ET(c), 0, j), CH.bt0(CH.L0(c), CH.ET(c), j), h2)
+  +hc2 = Equal.trans(String, c, P.srctext(P.SBP{CH.L0(c), CH.ET(c), CH.DD(c), 0}), String.append(P.btext(CH.L0(c), CH.ET(c), 0, j), String.append("\n", P.srctext(P.SBP{CH.L0(c), CH.ET(c), CH.DD(c), (j + 1 : U32)}))),
+    Equal.sym(String, P.srctext(P.SBP{CH.L0(c), CH.ET(c), CH.DD(c), 0}), c, CH.src0_text(c, hv)),
+    AB.subst(String, z => {P.srctext(P.SBP{CH.L0(c), CH.ET(c), CH.DD(c), 0}) == String.append(z, String.append("\n", P.srctext(P.SBP{CH.L0(c), CH.ET(c), CH.DD(c), (j + 1 : U32)}))) : String},
+      P.btext(CH.L0(c), CH.ET(c), 0, (j - 0 : U32)), P.btext(CH.L0(c), CH.ET(c), 0, j), CH.bt0(CH.L0(c), CH.ET(c), j), h1))
+  ch_join2(dfs, fa, T, c, cs, O, N, o, md, pd, back, wp, fneed, hb, hw, hr, hg, hbi, hok, hv, j, LP.bt_lf(CH.L0(c), CH.ET(c), CH.DD(c), j, hok, hk, hlf), hc2, h3,
+    PL.join_ok(pd, CH.L0(c), CH.ET(c), CH.DD(c), j, DO.x9_2(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), hok, hk, hlf, DO.x9_3(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), hn2),
+    PL.pd_empty())
 
 
 # After the piece's first LF search.
@@ -270,7 +351,32 @@ def ch_z(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: L
   +ez: {U32.is_eq(j, CH.L0(c)) == z : Bool},
   +hf: {U32.to_nat(j) == D.first(D.view(CH.BTc(c)), U32.to_nat(0), U32.to_nat(CH.L0(c)), 10) : Nat}) ->
   BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed.lf(z, o, S.mkMd(md), CH.BTc(c), j, P.mkPd(pd), False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs)):
-  ?TODO
+  match z:
+    case True{}:
+      +V = D.view(CH.BTc(c))
+      +nL = U32.to_nat(CH.L0(c))
+      +hlen = Equal.sym(Nat, List.length(&2, U32, V), nL, O.view_size_t(CH.L0(c), CH.ET(c), CH.DD(c), hok))
+      +ht = AB.subst(Nat, w => {Nat.is_le(nL, w) == True{} : Bool}, nL, List.length(&2, U32, V), hlen, N.le_refl(nL))
+      +ejL = U.is_eq_true(j, CH.L0(c), ez)
+      +hfL = AB.subst(U32, w => {U32.to_nat(w) == D.first(V, U32.to_nat(0), nL, 10) : Nat}, j, CH.L0(c), ejL, hf)
+      sn = PL.src_nolf(CH.L0(c), CH.ET(c), CH.DD(c), 0, hok, LP.u32_le0(CH.L0(c)), Equal.sym(Nat, nL, D.first(V, U32.to_nat(0), nL, 10), hfL))
+      ch_all2(dfs, fa, T, c, cs, O, N, o, md, pd, back, wp, fneed, hb, hw, hr, hg, hbi, hok, hv, CH.ch_nolf(c, sn, hv), PL.pend_add(pd, CH.L0(c), CH.ET(c), CH.DD(c), 0, CH.L0(c), DO.x9_2(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), hok, N.le_refl(nL)))
+    case False{}:
+      +V = D.view(CH.BTc(c))
+      +nL = U32.to_nat(CH.L0(c))
+      +hlen = Equal.sym(Nat, List.length(&2, U32, V), nL, O.view_size_t(CH.L0(c), CH.ET(c), CH.DD(c), hok))
+      +ht = AB.subst(Nat, w => {Nat.is_le(nL, w) == True{} : Bool}, nL, List.length(&2, U32, V), hlen, N.le_refl(nL))
+      +hr0 = Q.first_range(V, U32.to_nat(0), nL, 10, N.le_zero_l(nL), ht)
+      +hjl = AB.subst(Nat, w => {Nat.is_le(w, nL) == True{} : Bool}, D.first(V, U32.to_nat(0), nL, 10), U32.to_nat(j), Equal.sym(Nat, U32.to_nat(j), D.first(V, U32.to_nat(0), nL, 10), hf),
+        AB.and_true_r(Nat.is_le(U32.to_nat(0), D.first(V, U32.to_nat(0), nL, 10)), Nat.is_le(D.first(V, U32.to_nat(0), nL, 10), nL), hr0))
+      +hne = Equal.trans(Bool, Nat.is_eq(U32.to_nat(j), nL), U32.is_eq(j, CH.L0(c)), False{}, Equal.sym(Bool, U32.is_eq(j, CH.L0(c)), Nat.is_eq(U32.to_nat(j), nL), U.is_eq_to_nat(j, CH.L0(c))), ez)
+      +hk = Equal.trans(Bool, Nat.is_lt(U32.to_nat(j), nL), Nat.is_le(1n+U32.to_nat(j), nL), True{}, Equal.sym(Bool, Nat.is_le(1n+U32.to_nat(j), nL), Nat.is_lt(U32.to_nat(j), nL), N.le_succ_lt(U32.to_nat(j), nL)),
+        N.le_ne(U32.to_nat(j), nL, hjl, hne))
+      +hfl = AB.subst(Nat, w => {Nat.is_lt(w, nL) == True{} : Bool}, U32.to_nat(j), D.first(V, U32.to_nat(0), nL, 10), hf, hk)
+      +hhit = AB.subst(Nat, w => {D.has(V, w, 10) == True{} : Bool}, D.first(V, U32.to_nat(0), nL, 10), U32.to_nat(j), Equal.sym(Nat, U32.to_nat(j), D.first(V, U32.to_nat(0), nL, 10), hf),
+        Q.first_hit(V, U32.to_nat(0), nL, 10, N.le_zero_l(nL), ht, hfl))
+      +hlf = LT.has_get(List.get(&2, U32, V, U32.to_nat(j)), 10, hhit)
+      ch_join(dfs, fa, T, c, cs, O, N, o, md, pd, back, wp, fneed, hb, hw, hr, hg, hbi, hok, hv, j, hk, hlf, PL.src_line(CH.L0(c), CH.ET(c), CH.DD(c), 0, j, hok, LP.u32_le0(CH.L0(c)), Equal.sym(Nat, U32.to_nat(j), D.first(V, U32.to_nat(0), nL, 10), hf), hk))
 
 
 def ch_lf2(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
@@ -332,7 +438,9 @@ def core(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: L
   +hok: {D.ok(CH.BTc(c), CH.DD(c)) == True{} : Bool},
   +hv: {D.view(CH.BTc(c)) == E.codes(c) : List<&2, U32>}) ->
   BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed.k(o, S.mkMd(md), Nil{}, C.BT(CH.L0(c), EN.enc_t(c)), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs)):
-  ?TODO
+  %Equal.sym(Norm.Pd & Nat, Norm.Pd.len(P.mkPd(pd)), (P.mkPd(pd), String.length(P.pdtext(pd))), PL.pd_len(pd, DO.x9_2(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw))) :
+    BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed.k(o, S.mkMd(md), Nil{}, C.BT(CH.L0(c), EN.enc_t(c)), _, False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs))
+  core_if(dfs, fa, T, c, cs, O, N, o, md, pd, back, wp, fneed, hb, hw, hr, hg, hbi, hok, hv, Nat.is_eq(String.length(P.pdtext(pd)), 0n), {==})
 
 
 # The run gets room for the piece
@@ -351,7 +459,20 @@ def chunk_mb2(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +
   +hi2: {RN.RunInv(rp2) == True{} : Bool},
   +hs: {P.specRun(rp2) == P.specRun(rp) : R.RunSt}) ->
   BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed.k(o, Norm.MB{NR.reserve(P.mkRun(rp), CH.L0(c))}, Nil{}, C.BT(CH.L0(c), EN.enc_t(c)), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs)):
-  ?TODO
+  +md = {S.MBP{rp} : S.MdP}
+  +md2 = {S.MBP{rp2} : S.MdP}
+  +hw2 = DO.x9_mk(S.md_ok(md2), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md2, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hi2,
+    DO.x9_1(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_2(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_3(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_4(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw),
+    DO.x9_5(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_6(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_7(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_8(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw))
+  +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+  +q2 = {S.StP{o, md2, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+  +hr2 = Equal.trans(R.Report, S.report(fa, c <> cs, O, N, q2), S.report(fa, c <> cs, O, N, q), T,
+    Equal.cong(R.RunSt, R.Report, z => DO.RPX(fa, O, N, o, dfs, z, B.Text.lines(S.intext(q, c <> cs)), S.recs(Nil{})), P.specRun(rp2), P.specRun(rp), hs), hr)
+  +hg2 = AB.subst(R.RunSt, z => {Bool.or(R.RunSt.inbody(z), Bool.and(String.is_empty(O), List.is_empty(&2, B.Note, N))) == True{} : Bool}, P.specRun(rp), P.specRun(rp2),
+    Equal.sym(R.RunSt, P.specRun(rp2), P.specRun(rp), hs), hg)
+  %Equal.sym(NR.Run, NR.reserve(P.mkRun(rp), CH.L0(c)), P.mkRun(rp2), e) :
+    BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed.k(o, Norm.MB{_}, Nil{}, C.BT(CH.L0(c), EN.enc_t(c)), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs))
+  core(dfs, fa, T, c, cs, O, N, o, md2, pd, back, wp, fneed, hb, hw2, hr2, hg2, hbi, hok, hv)
 
 
 def chunk_mb(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
@@ -385,7 +506,12 @@ def chunk_md(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +c
   +hok: {D.ok(C.BT(CH.L0(c), EN.enc_t(c)), E.depth(String.length(c))) == True{} : Bool},
   +hv: {D.view(C.BT(CH.L0(c), EN.enc_t(c))) == E.codes(c) : List<&2, U32>}) ->
   BD.FedG(fa, T, cs, O, N, BD.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed(S.mkSt(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), C.BT(CH.L0(c), EN.enc_t(c)))):
-  ?TODO
+  match md:
+    case S.MBP{+rp}:
+      chunk_mb(dfs, fa, T, c, cs, O, N, o, rp, pd, back, wp, fneed, hb, hw, hr, hg, hbi, hok, hv,
+        RN.run_reserve(rp, CH.L0(c), DO.x8_a(S.md_ok(S.MBP{rp}), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(S.MBP{rp}, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw)))
+    case S.MSP{+s, +qs, +ql, +code}:
+      core(dfs, fa, T, c, cs, O, N, o, S.MSP{s, qs, ql, code}, pd, back, wp, fneed, hb, hw, hr, hg, hbi, hok, hv)
 
 
 # The piece's facts from the enc area.
@@ -440,6 +566,28 @@ def chunk_fed(+fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, S
 # F2: the end of the file (proof_b_drive_step.bend's eof chain, ending in FedG)
 # ======================================================================
 
+# The source the end of the file gives is not a record.
+law nr_one:
+  for +pd: P.PdP
+  for +sp: P.SrcP
+  for +e1: {Norm.eof_src(P.mkPd(pd)) == P.mkSrc(sp) : Norm.Src}
+  {S.no_recs([sp]) == True{} : Bool}
+
+def nr_one(pd, sp, e1):
+  match sp:
+    case P.SBP{+len, +t, +d, +at}:
+      {==}
+    case P.SLP{+q}:
+      {==}
+    case P.SPP{+len, +t, +d, +at}:
+      Empty.absurd({S.no_recs([P.SPP{len, t, d, at}]) == True{} : Bool}, PB.false_ne_true(
+        Equal.trans(Bool, False{}, DS.is_rs(Norm.eof_src(P.mkPd(pd))), True{}, Equal.sym(Bool, DS.is_rs(Norm.eof_src(P.mkPd(pd))), False{}, DS.eof_not_rs(pd)),
+          Equal.cong(Norm.Src, Bool, z => DS.is_rs(z), Norm.eof_src(P.mkPd(pd)), P.mkSrc(P.SPP{len, t, d, at}), e1))))
+    case P.SRP{+l}:
+      Empty.absurd({S.no_recs([P.SRP{l}]) == True{} : Bool}, PB.false_ne_true(
+        Equal.trans(Bool, False{}, DS.is_rs(Norm.eof_src(P.mkPd(pd))), True{}, Equal.sym(Bool, DS.is_rs(Norm.eof_src(P.mkPd(pd))), False{}, DS.eof_not_rs(pd)),
+          Equal.cong(Norm.Src, Bool, z => DS.is_rs(z), Norm.eof_src(P.mkPd(pd)), P.mkSrc(P.SRP{l}), e1))))
+
 law eof_empty:
   for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
@@ -461,7 +609,16 @@ law eof_empty:
   BD.FedG(fa, T, Nil{}, O, N, BD.WP(fa, Nil{}, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), S.mkSt(fa, S.StP{o, md, Nil{}, pd, True{}, back, wp, None{}, fneed, dfs}))
 
 def eof_empty(dfs,fa, T, O, N, o, md, pd, back, wp, fneed, hb, hw, hr, hg, hbi, he):
-  ?TODO
+  +hw1 = DO.x9_mk(S.md_ok(md), True{}, P.pd_ok(pd), P.nolf(P.pdtext(pd)), True{}, Bool.and(String.is_empty(P.pdtext(pd)), True{}), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})),
+    DO.x8_a(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), {==}, DO.x9_2(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_3(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), {==},
+    %Equal.sym(Bool, String.is_empty(P.pdtext(pd)), True{}, he) : {Bool.and(_, True{}) == True{} : Bool}; {==},
+    DO.x9_6(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_7(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_8(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw))
+  +p1 = {S.StP{o, md, Nil{}, pd, True{}, back, wp, None{}, fneed, dfs} : S.StP}
+  +p0 = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+  fed_leaf(dfs, fa, T, Nil{}, Nil{}, O, N, o, md, Nil{}, pd, False{}, Nil{}, pd, True{}, back, wp, fneed, hw1,
+    Equal.trans(R.Report, S.report(fa, Nil{}, O, N, p1), S.report(fa, Nil{}, O, N, p0), T,
+      DS.rep_lines(dfs, fa, Nil{}, Nil{}, O, N, o, md, Nil{}, pd, False{}, Nil{}, pd, True{}, back, wp, None{}, back, wp, None{}, fneed, fneed, {==}, {==}), hr),
+    hg, hbi, {==})
 
 
 law eof_full2:
@@ -493,7 +650,25 @@ law eof_full2:
   BD.FedG(fa, T, Nil{}, O, N, BD.WP(fa, Nil{}, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.St{o, S.mkMd(md), List.append(&1, Norm.Src, Nil{}, [Norm.eof_src(P.mkPd(pd))]), Norm.PB{BY.empty(0n)}, True{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs})
 
 def eof_full2(dfs,fa, T, O, N, o, md, pd, back, wp, fneed, sp, pp0, hb, hw, hr, hg, hbi, hne, e1, hso, hst, f1, hpo, hpt):
-  ?TODO
+  %Equal.sym(Norm.Src, Norm.eof_src(P.mkPd(pd)), P.mkSrc(sp), e1) :
+    BD.FedG(fa, T, Nil{}, O, N, BD.WP(fa, Nil{}, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.St{o, S.mkMd(md), List.append(&1, Norm.Src, Nil{}, [_]), Norm.PB{BY.empty(0n)}, True{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs})
+  %Equal.sym(Norm.Pd, Norm.PB{BY.empty(0n)}, P.mkPd(pp0), f1) :
+    BD.FedG(fa, T, Nil{}, O, N, BD.WP(fa, Nil{}, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.St{o, S.mkMd(md), [P.mkSrc(sp)], _, True{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs})
+  +X = P.pdtext(pd)
+  +hw2 = DO.x9_mk(S.md_ok(md), P.src_ok(sp), P.pd_ok(pp0), P.nolf(P.pdtext(pp0)), String.is_empty(P.pdtext(pp0)),
+    Bool.and(String.is_empty(P.pdtext(pp0)), S.ends_lf(String.append(P.srctext(sp), ""))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first([sp])), S.recs_run(md, [sp])),
+    DO.x8_a(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), hso, hpo,
+    %Equal.sym(String, P.pdtext(pp0), "", hpt) : {P.nolf(_) == True{} : Bool}; {==},
+    %Equal.sym(String, P.pdtext(pp0), "", hpt) : {String.is_empty(_) == True{} : Bool}; {==},
+    DS.b5_eof(X, P.srctext(sp), P.pdtext(pp0), hst, hpt),
+    DO.x9_6(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DO.x9_7(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), DS.w8_one(o, md, pd, sp, DO.x9_8(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), e1))
+  +p2 = {S.StP{o, md, [sp], pp0, True{}, back, wp, None{}, fneed, dfs} : S.StP}
+  +p0 = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+  +hl = DS.lines_plain(pd, sp, String.append(P.pdtext(pp0), ""), B.Text.lines(String.append(X, "")), e1, DS.lines_eof2(X, P.srctext(sp), P.pdtext(pp0), hst, hpt, DO.x9_3(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw), hne))
+  fed_leaf(dfs, fa, T, Nil{}, Nil{}, O, N, o, md, Nil{}, pd, False{}, [sp], pp0, True{}, back, wp, fneed, hw2,
+    Equal.trans(R.Report, S.report(fa, Nil{}, O, N, p2), S.report(fa, Nil{}, O, N, p0), T,
+      DS.rep_lines(dfs, fa, Nil{}, Nil{}, O, N, o, md, Nil{}, pd, False{}, [sp], pp0, True{}, back, wp, None{}, back, wp, None{}, fneed, fneed, hl, DS.rec_one(pd, sp, e1)), hr),
+    hg, hbi, lines_eq(dfs, Nil{}, Nil{}, o, md, [sp], pp0, True{}, Nil{}, pd, False{}, back, wp, fneed, hl, nr_one(pd, sp, e1), {==}))
 
 
 law eof_full:
@@ -549,7 +724,12 @@ law eof_if:
   BD.FedG(fa, T, Nil{}, O, N, BD.WP(fa, Nil{}, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed_eof.if(c, o, S.mkMd(md), Nil{}, P.mkPd(pd), back, PC.mkWin(fa, wp), None{}, fneed, dfs))
 
 def eof_if(dfs,c, fa, T, O, N, o, md, pd, back, wp, fneed, hb, hw, hr, hg, hbi, hc):
-  ?TODO
+  match c:
+    case True{}:
+      eof_empty(dfs, fa, T, O, N, o, md, pd, back, wp, fneed, hb, hw, hr, hg, hbi, DS.empty_of_len(P.pdtext(pd), hc))
+    case False{}:
+      +hp = DO.x9_2(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw)
+      eof_full(dfs, fa, T, O, N, o, md, pd, back, wp, fneed, hb, hw, hr, hg, hbi, DS.nonempty_of_len(P.pdtext(pd), hc), PL.eof_ok(pd, hp, DO.x9_3(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw)), PL.pd_empty())
 
 
 # F2: the end of the file fed to a state waiting for more.
@@ -567,7 +747,26 @@ law eof_fed:
   BD.FedG(fa, T, Nil{}, O, N, BD.WP(fa, Nil{}, p), Norm.feed_eof(S.mkSt(fa, p)))
 
 def eof_fed(fa, T, O, N, p, hb, hm, hr, hg, hbi):
-  ?TODO
+  match p:
+    case S.StP{+o, +md, Con{+x, +t}, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      +q = {S.StP{o, md, Con{x, t}, pd, eof, back, wp, asked, fneed, dfs} : S.StP}
+      Empty.absurd(BD.FedG(fa, T, Nil{}, O, N, BD.WP(fa, Nil{}, q), Norm.feed_eof(S.mkSt(fa, q))),
+        PB.false_ne_true(DS.mo_se(S.WF(fa, q), False{}, Bool.not(eof), Maybe.is_none(&2, List<&2, Pr.Req>, asked), hm)))
+    case S.StP{+o, +md, Nil{}, +pd, True{}, +back, +wp, +asked, +fneed, +dfs}:
+      +q = {S.StP{o, md, Nil{}, pd, True{}, back, wp, asked, fneed, dfs} : S.StP}
+      Empty.absurd(BD.FedG(fa, T, Nil{}, O, N, BD.WP(fa, Nil{}, q), Norm.feed_eof(S.mkSt(fa, q))),
+        PB.false_ne_true(DS.mo_ne(S.WF(fa, q), True{}, False{}, Maybe.is_none(&2, List<&2, Pr.Req>, asked), hm)))
+    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, Some{+rs}, +fneed, +dfs}:
+      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, Some{rs}, fneed, dfs} : S.StP}
+      Empty.absurd(BD.FedG(fa, T, Nil{}, O, N, BD.WP(fa, Nil{}, q), Norm.feed_eof(S.mkSt(fa, q))),
+        PB.false_ne_true(DS.mo_no(S.WF(fa, q), True{}, True{}, False{}, hm)))
+    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, None{}, +fneed, +dfs}:
+      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+      +hw = DS.mo_w(S.WF(fa, q), True{}, True{}, True{}, hm)
+      +hp = DO.x9_2(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw)
+      %Equal.sym(Norm.Pd & Nat, Norm.Pd.len(P.mkPd(pd)), (P.mkPd(pd), String.length(P.pdtext(pd))), PL.pd_len(pd, hp)) :
+        BD.FedG(fa, T, Nil{}, O, N, BD.WP(fa, Nil{}, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed_eof.k(o, S.mkMd(md), Nil{}, _, back, PC.mkWin(fa, wp), None{}, fneed, dfs))
+      eof_if(dfs, Nat.is_eq(String.length(P.pdtext(pd)), 0n), fa, T, O, N, o, md, pd, back, wp, fneed, hb, hw, hr, hg, hbi, {==})
 
 
 
@@ -855,7 +1054,21 @@ def ref_some(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, 
   +wt2: {PC.wp_ok(fa, PC.wpOf(fa, c, a, Norm.last_b(t, b))) == True{} : Bool}) ->
   BD.FedG(fa, T, cs, O, N, BD.WP(fa, cs, S.StP{o, md, src, pd, eof, back, wp, Some{Pr.Req{c, a, b} <> t}, fneed, dfs}),
     S.mkSt(fa, S.StP{o, md, src, pd, eof, back, PC.wpOf(fa, c, a, Norm.last_b(t, b)), None{}, fneed, dfs})):
-  ?TODO
+  +bb = Norm.last_b(t, b)
+  +hw2 = DO.x9_mk(S.md_ok(md), S.srcs_ok(src), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(src), String.is_empty(P.pdtext(pd))),
+    Bool.or(Bool.not(eof), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(src)))), PC.wp_ok(fa, PC.wpOf(fa, c, a, bb)), S.mb_win(md, PC.wpOf(fa, c, a, bb)), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(src)), S.recs_run(md, src)),
+    DO.x8_a(S.md_ok(md), S.srcs_ok(src), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(src), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(eof), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(src)))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(src)), S.recs_run(md, src)), hw),
+    DO.x9_1(S.md_ok(md), S.srcs_ok(src), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(src), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(eof), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(src)))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(src)), S.recs_run(md, src)), hw),
+    DO.x9_2(S.md_ok(md), S.srcs_ok(src), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(src), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(eof), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(src)))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(src)), S.recs_run(md, src)), hw),
+    DO.x9_3(S.md_ok(md), S.srcs_ok(src), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(src), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(eof), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(src)))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(src)), S.recs_run(md, src)), hw),
+    DO.x9_4(S.md_ok(md), S.srcs_ok(src), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(src), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(eof), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(src)))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(src)), S.recs_run(md, src)), hw),
+    DO.x9_5(S.md_ok(md), S.srcs_ok(src), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(src), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(eof), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(src)))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(src)), S.recs_run(md, src)), hw), wt2, hmw, DO.x9_8(S.md_ok(md), S.srcs_ok(src), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(src), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(eof), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(src)))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(src)), S.recs_run(md, src)), hw))
+  +p1 = {S.StP{o, md, src, pd, eof, back, PC.wpOf(fa, c, a, bb), None{}, fneed, dfs} : S.StP}
+  +L0 = BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs)
+  +fl = BN.fast_left(S.mkMd(md), fneed)
+  (p1, ({==}, (hw2, (Equal.trans(R.Report, S.report(fa, cs, O, N, p1), S.report(fa, cs, O, N, S.StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs}), T,
+      DS.rep_lines(dfs, fa, cs, cs, O, N, o, md, src, pd, eof, src, pd, eof, back, wp, asked, back, PC.wpOf(fa, c, a, bb), None{}, fneed, fneed, {==}, {==}), hr),
+    (hg, ({==}, (N.le_add_mono_r(BN.XA(o, fa, L0), BN.WA.ls(fa, fl, back, PC.mkWin(fa, PC.wpOf(fa, c, a, bb)), None{}, L0), BN.WA.ls(fa, fl, back, PC.mkWin(fa, wp), Some{Pr.Req{c, a, b} <> t}, L0), wa_ref(fa, fl, back, wp, c, a, b, t, L0)), bi_ref(fa, back, wp, c, a, b, t, L0, hbi))))))))
 
 
 def ref_win2(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
