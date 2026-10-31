@@ -281,7 +281,7 @@ def c.mssrc(+dfs: B.Defs, +src: List<&2, P.SrcP>, +fa: List<&2, B.Contig>, +T: R
   +hbi: {BN.biS(S.mkSt(fa, BD.StM(dfs, o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, None{}, fneed)), cs) == True{} : Bool}) ->
   BD.AdvC(fa, cs, BD.StM(dfs, o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, None{}, fneed),
     Norm.ms.src(P.mkSrcs(src), o, s, qs, ql, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), None{}, fneed, dfs)):
-  ?TODO
+  BMS.c_mssrc_h(dfs, src, fa, T, cs, O, N, o, s, qs, ql, pd, eof, back, wp, fneed, hb, hw, hr, hg, hx, hbi)
 
 
 def c.msfull(+dfs: B.Defs, +full: Bool, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
