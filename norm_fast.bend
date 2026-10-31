@@ -50,7 +50,8 @@ type Ab is Type:
 
 # ---------------------------------------------------------------------------
 # INFO has no END entry (an entry whose key, the text before its first '=',
-# is END): norm_fix.bend's test (the fast path's is endok, below)
+# is END): norm_fix.bend's test, and the fast path's quick one (then ends,
+# below)
 # ---------------------------------------------------------------------------
 
 type B4 is Type:
@@ -569,8 +570,9 @@ def ek.go(n: Nat, x: Ek) -> D.Bytes & Bool:
     case 1n+k Ek{b, j, to, pos, rl, ok, seen, True{}}:
       ek.go(k, ek.step(Ek{b, j, to, pos, rl, ok, seen, True{}}))
 
-# INFO (from .. to-1) passes the END check for POS pos and a REF of rl bytes.
-def endok(b: D.Bytes, +from: U32, +to: U32, +pos: U32, +rl: U32) -> D.Bytes & Bool:
+# INFO's END entries (from .. to-1) as B.Info.end_ok asks for POS pos and a
+# REF of rl bytes.
+def ends(b: D.Bytes, +from: U32, +to: U32, +pos: U32, +rl: U32) -> D.Bytes & Bool:
   ek.go(U32.to_nat((to - from + 2 : U32)), Ek{b, from, to, pos, rl, True{}, False{}, True{}})
 
 # ---------------------------------------------------------------------------
@@ -663,10 +665,25 @@ def sk.ref(+pos: U32, +c: Cut, +ne: Bool, +s4: U32, +e4: U32, r: D.Bytes & Bool)
   (b, lets) = r
   sk.ref.if(ne && lets, pos, c, s4, e4, b)
 
+# INFO passes the END check: it has no END entry (noend, the quick test), or
+# its END entries pass ends.
+def pre.info.ne.k(none: Bool, +pos: U32, +c: Cut, b: D.Bytes) -> Pr:
+  match none c:
+    case True{} _:
+      pre.info.if(True{}, pos, c, b)
+    case False{} Cut8{e0, e1, +e2, +e3, e4, e5, +e6, +e7, lf}:
+      pre.info(pos, c, ends(b, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)))
+    case False{} _:
+      Pr{b, Slow{}}
+
+def pre.info.ne(+pos: U32, +c: Cut, r: D.Bytes & Bool) -> Pr:
+  (b, none) = r
+  pre.info.ne.k(none, pos, c, b)
+
 def pre.al.if(ok: Bool, +pos: U32, +c: Cut, b: D.Bytes) -> Pr:
   match ok c:
-    case True{} Cut8{e0, e1, +e2, +e3, e4, e5, +e6, +e7, lf}:
-      pre.info(pos, c, endok(b, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)))
+    case True{} Cut8{e0, e1, e2, e3, e4, e5, +e6, +e7, lf}:
+      pre.info.ne(pos, c, noend(b, (e6 + 1 : U32), e7))
     case False{} Cut8{e0, e1, +e2, +e3, +e4, e5, e6, e7, lf}:
       sk.ref(pos, c, U32.is_lt((e2 + 1 : U32), e3), (e3 + 1 : U32), e4, letters(b, (e2 + 1 : U32), e3))
     case _ _:

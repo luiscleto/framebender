@@ -706,7 +706,7 @@ def noend_t(+len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32) ->
   neg_t(U32.to_nat((to - from + 2 : U32)), len, t, from, to, from, True{}, True{})
 
 # ---------------------------------------------------------------------------
-# INFO: endok (its END entries, one entry at a time)
+# INFO: ends (its END entries, one entry at a time)
 # ---------------------------------------------------------------------------
 
 def LO(ok: Bool, +len: U32, +t: AT.Tree<U32>, +k: U32, +j: U32) -> Bool:
@@ -886,13 +886,26 @@ def eg_t(+n: Nat, +len: U32, +t: AT.Tree<U32>, +to: U32, +pos: U32, +rl: U32, +x
         {NF.ek.go(k, _) == (C.BT(len, t), EG(k, len, t, to, pos, rl, ES(len, t, to, pos, rl, j, ok, seen))) : D.Bytes & Bool}
       eg_t(k, len, t, to, pos, rl, ES(len, t, to, pos, rl, j, ok, seen))
 
-# INFO (from .. to-1) passes NF.endok for POS pos and a REF of rl bytes.
+# INFO's END entries (from .. to-1) pass NF.ends for POS pos and a REF of
+# rl bytes.
 def EK(+len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32, +pos: U32, +rl: U32) -> Bool:
   EG(U32.to_nat((to - from + 2 : U32)), len, t, to, pos, rl, ED{from, True{}, False{}, True{}})
 
-def endok_t(+len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32, +pos: U32, +rl: U32) ->
-  {NF.endok(C.BT(len, t), from, to, pos, rl) == (C.BT(len, t), EK(len, t, from, to, pos, rl)) : D.Bytes & Bool}:
+def ends_t(+len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32, +pos: U32, +rl: U32) ->
+  {NF.ends(C.BT(len, t), from, to, pos, rl) == (C.BT(len, t), EK(len, t, from, to, pos, rl)) : D.Bytes & Bool}:
   eg_t(U32.to_nat((to - from + 2 : U32)), len, t, to, pos, rl, ED{from, True{}, False{}, True{}})
+
+def EKI(ne: Bool, +len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32, +pos: U32, +rl: U32) -> Bool:
+  match ne:
+    case True{}:
+      True{}
+    case False{}:
+      EK(len, t, from, to, pos, rl)
+
+# INFO passes the END check (NF.pre.info.ne): no END entry (NE), or its
+# END entries pass (EK).
+def EKQ(+len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32, +pos: U32, +rl: U32) -> Bool:
+  EKI(NE(len, t, from, to), len, t, from, to, pos, rl)
 
 # ---------------------------------------------------------------------------
 # Out of scope: letters, oos (the ALT alleles, one at a time)
@@ -1033,7 +1046,7 @@ def PSk(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e
 def PAl(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, ok: Bool) -> NF.Pre:
   match ok:
     case True{}:
-      PInfo(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, EK(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)))
+      PInfo(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, EKQ(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)))
     case False{}:
       PSk(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf)
 
@@ -1105,14 +1118,27 @@ def sref_t(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32,
     case False{}:
       {==}
 
+# pre.info.ne on the mirror: NE's answer, then ends when it found an END
+# entry.
+def pine_t(+ne: Bool, +len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32) ->
+  {NF.pre.info.ne(pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, (C.BT(len, t), ne)) == NF.Pr{C.BT(len, t), PInfo(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, EKI(ne, len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)))} : NF.Pr}:
+  match ne:
+    case True{}:
+      pinfo_t(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, True{})
+    case False{}:
+      +ek = EK(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32))
+      %Equal.sym(D.Bytes & Bool, NF.ends(C.BT(len, t), (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)), (C.BT(len, t), ek), ends_t(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32))) :
+        {NF.pre.info(pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, _) == NF.Pr{C.BT(len, t), PInfo(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ek)} : NF.Pr}
+      pinfo_t(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ek)
+
 def pal_t(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, +ok: Bool) ->
   {NF.pre.al.if(ok, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, C.BT(len, t)) == NF.Pr{C.BT(len, t), PAl(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ok)} : NF.Pr}:
   match ok:
     case True{}:
-      +ne = EK(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32))
-      %Equal.sym(D.Bytes & Bool, NF.endok(C.BT(len, t), (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)), (C.BT(len, t), ne), endok_t(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32))) :
-        {NF.pre.info(pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, _) == NF.Pr{C.BT(len, t), PInfo(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ne)} : NF.Pr}
-      pinfo_t(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ne)
+      +ne = NE(len, t, (e6 + 1 : U32), e7)
+      %Equal.sym(D.Bytes & Bool, NF.noend(C.BT(len, t), (e6 + 1 : U32), e7), (C.BT(len, t), ne), noend_t(len, t, (e6 + 1 : U32), e7)) :
+        {NF.pre.info.ne(pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, _) == NF.Pr{C.BT(len, t), PInfo(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, EKQ(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)))} : NF.Pr}
+      pine_t(ne, len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf)
     case False{}:
       +lt = LETT(len, t, (e2 + 1 : U32), e3)
       %Equal.sym(D.Bytes & Bool, NF.letters(C.BT(len, t), (e2 + 1 : U32), e3), (C.BT(len, t), lt), letters_t(len, t, (e2 + 1 : U32), e3)) :

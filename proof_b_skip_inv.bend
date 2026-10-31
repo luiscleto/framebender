@@ -106,7 +106,7 @@ def jal(+len: U32, +t: AT.Tree<U32>, +pos: U32, +a0: U32, +a1: U32, +a2: U32, +a
   +h: {M.PAl(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, ok) == k : NF.Pre}) -> JAL(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, ok, k):
   match ok:
     case True{}:
-      Empty.absurd(JAL(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, True{}, k), jinfo_no(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, M.EK(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)), k, u, h))
+      Empty.absurd(JAL(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, True{}, k), jinfo_no(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, M.EKQ(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)), k, u, h))
     case False{}:
       ({==}, jref(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, (U32.is_lt((a2 + 1 : U32), a3) && M.LETT(len, t, (a2 + 1 : U32), a3)), k, u, h))
 

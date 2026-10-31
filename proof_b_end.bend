@@ -21,7 +21,7 @@ import ./proof_b_cut_nat.bend as Z
 # INFO/END on the fast path: when a line passes NF.line, INFO as the String
 # path keeps it (field 7 of J.pfs) passes J.end_ok for POS + len(REF) - 1.
 # The chain: J.pfs's INFO reads as the full split's (pfs_end), which is
-# INFO's bytes (proof_b_end_inf.bend), on which NF.endok passing gives
+# INFO's bytes (proof_b_end_inf.bend), on which NF.ends passing gives
 # B.Info.end_ok (proof_b_end_key.bend), which is J.end_ok
 # (proof_window_info.bend's end_ok_eq).
 
@@ -67,11 +67,35 @@ def info_k(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +e0: U32, +e1: U32, +e
 def PEG(+len: U32, +t: AT.Tree<U32>, +s: U32, +pos: U32, +e2: U32, +e3: U32, +lf: U32) -> Type:
   {J.end_ok(B.Rec.field(J.pfs(CU.lbody(Q.xs(len, t), s, lf)), 7n), EK.EV0(pos, (e3 - e2 - 1 : U32))) == True{} : Bool}
 
+def ige2(+len: U32, +t: AT.Tree<U32>, +s: U32, +e6: U32, +e7: U32, +lf: U32, r: IF.IGe(len, t, s, e6, e7, lf)) ->
+  {J.scan(IF.INFO(len, t, e6, e7), True{}) == Nil{} : List<&2, Maybe<&2, Nat>>}:
+  match r:
+    case (a, b):
+      b
+
+def iend(+ne: Bool, +len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32,
+  +hok: {D.ok(C.BT(len, t), d) == True{} : Bool}, +hs: {U32.is_le(s, len) == True{} : Bool}, +h0: {M.TP(len, t, s) == False{} : Bool}, +h1: {M.TT(len, t, s) == True{} : Bool}, +h2: {M.TP(len, t, (M.E0(len, t, s) + 1 : U32)) == False{} : Bool}, +h3: {M.TT(len, t, (M.E0(len, t, s) + 1 : U32)) == True{} : Bool}, +h4: {M.TP(len, t, (M.E1(len, t, s) + 1 : U32)) == False{} : Bool}, +h5: {M.TT(len, t, (M.E1(len, t, s) + 1 : U32)) == True{} : Bool}, +h6: {M.TP(len, t, (M.E2(len, t, s) + 1 : U32)) == False{} : Bool}, +h7: {M.TT(len, t, (M.E2(len, t, s) + 1 : U32)) == True{} : Bool}, +h8: {M.TP(len, t, (M.E3(len, t, s) + 1 : U32)) == False{} : Bool}, +h9: {M.TT(len, t, (M.E3(len, t, s) + 1 : U32)) == True{} : Bool}, +h10: {M.TP(len, t, (M.E4(len, t, s) + 1 : U32)) == False{} : Bool}, +h11: {M.TT(len, t, (M.E4(len, t, s) + 1 : U32)) == True{} : Bool}, +h12: {M.TP(len, t, (M.E5(len, t, s) + 1 : U32)) == False{} : Bool}, +h13: {M.TT(len, t, (M.E5(len, t, s) + 1 : U32)) == True{} : Bool}, +h14: {M.TP(len, t, (M.E6(len, t, s) + 1 : U32)) == False{} : Bool},
+  +hc: {V.ME(len, t, s, V.LFm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32)))) == V.K8(e0, e1, e2, e3, e4, e5, e6, e7, lf) : NF.Cut},
+  +hl: {V.LPm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32))) == False{} : Bool},
+  +hne: {M.EKQ(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)) == True{} : Bool}, +hcr: {M.CRT(len, t, e7, lf) == True{} : Bool},
+  +hneq: {M.NE(len, t, (e6 + 1 : U32), e7) == ne : Bool},
+  +b6: {Nat.is_lt(Q.n(e6), Q.n(len)) == True{} : Bool}, +b67: {Nat.is_le(Q.n((e6 + 1 : U32)), Q.n(e7)) == True{} : Bool}, +b7: {Nat.is_le(Q.n(e7), Q.n(len)) == True{} : Bool}) ->
+  {J.end_ok(IF.INFO(len, t, e6, e7), EK.EV0(pos, (e3 - e2 - 1 : U32))) == True{} : Bool}:
+  match ne:
+    case True{}:
+      AB.subst(List<&2, Maybe<&2, Nat>>, z => {B.Info.end_ok.go(z, EK.EV0(pos, (e3 - e2 - 1 : U32))) == True{} : Bool}, Nil{}, J.scan(IF.INFO(len, t, e6, e7), True{}),
+        Equal.sym(List<&2, Maybe<&2, Nat>>, J.scan(IF.INFO(len, t, e6, e7), True{}), Nil{}, ige2(len, t, s, e6, e7, lf, IF.info_k(len, t, d, s, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13, h14, hc, hl, hneq, hcr))), {==})
+    case False{}:
+      Equal.trans(Bool, J.end_ok(IF.INFO(len, t, e6, e7), EK.EV0(pos, (e3 - e2 - 1 : U32))), B.Info.end_ok(IF.INFO(len, t, e6, e7), EK.EV0(pos, (e3 - e2 - 1 : U32))), True{},
+        W.end_ok_eq(IF.INFO(len, t, e6, e7), EK.EV0(pos, (e3 - e2 - 1 : U32))),
+        EK.info_end(len, t, d, e6, e7, pos, (e3 - e2 - 1 : U32), hok, b6, b67, b7,
+          AB.subst(Bool, z => {M.EKI(z, len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)) == True{} : Bool}, M.NE(len, t, (e6 + 1 : U32), e7), False{}, hneq, hne)))
+
 def pass_end.k(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32,
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool}, +hs: {U32.is_le(s, len) == True{} : Bool}, +h0: {M.TP(len, t, s) == False{} : Bool}, +h1: {M.TT(len, t, s) == True{} : Bool}, +h2: {M.TP(len, t, (M.E0(len, t, s) + 1 : U32)) == False{} : Bool}, +h3: {M.TT(len, t, (M.E0(len, t, s) + 1 : U32)) == True{} : Bool}, +h4: {M.TP(len, t, (M.E1(len, t, s) + 1 : U32)) == False{} : Bool}, +h5: {M.TT(len, t, (M.E1(len, t, s) + 1 : U32)) == True{} : Bool}, +h6: {M.TP(len, t, (M.E2(len, t, s) + 1 : U32)) == False{} : Bool}, +h7: {M.TT(len, t, (M.E2(len, t, s) + 1 : U32)) == True{} : Bool}, +h8: {M.TP(len, t, (M.E3(len, t, s) + 1 : U32)) == False{} : Bool}, +h9: {M.TT(len, t, (M.E3(len, t, s) + 1 : U32)) == True{} : Bool}, +h10: {M.TP(len, t, (M.E4(len, t, s) + 1 : U32)) == False{} : Bool}, +h11: {M.TT(len, t, (M.E4(len, t, s) + 1 : U32)) == True{} : Bool}, +h12: {M.TP(len, t, (M.E5(len, t, s) + 1 : U32)) == False{} : Bool}, +h13: {M.TT(len, t, (M.E5(len, t, s) + 1 : U32)) == True{} : Bool}, +h14: {M.TP(len, t, (M.E6(len, t, s) + 1 : U32)) == False{} : Bool},
   +hc: {V.ME(len, t, s, V.LFm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32)))) == V.K8(e0, e1, e2, e3, e4, e5, e6, e7, lf) : NF.Cut},
   +hl: {V.LPm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32))) == False{} : Bool},
-  +hne: {M.EK(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)) == True{} : Bool}, +hcr: {M.CRT(len, t, e7, lf) == True{} : Bool},
+  +hne: {M.EKQ(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)) == True{} : Bool}, +hcr: {M.CRT(len, t, e7, lf) == True{} : Bool},
   +b6: {Nat.is_lt(Q.n(e6), Q.n(len)) == True{} : Bool}, +b67: {Nat.is_le(Q.n((e6 + 1 : U32)), Q.n(e7)) == True{} : Bool}, +b7: {Nat.is_le(Q.n(e7), Q.n(len)) == True{} : Bool}) ->
   PEG(len, t, s, pos, e2, e3, lf):
   +Ev = EK.EV0(pos, (e3 - e2 - 1 : U32))
@@ -81,8 +105,7 @@ def pass_end.k(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32, +e0: U3
   Equal.trans(Bool, J.end_ok(B.Rec.field(J.pfs(body), 7n), Ev), J.end_ok(F7, Ev), True{}, pfs_end(body, Ev),
     Equal.trans(Bool, J.end_ok(F7, Ev), J.end_ok(I7, Ev), True{},
       Equal.cong(String, Bool, z => J.end_ok(z, Ev), F7, I7, info_k(len, t, d, s, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13, h14, hc, hl, hcr)),
-      Equal.trans(Bool, J.end_ok(I7, Ev), B.Info.end_ok(I7, Ev), True{}, W.end_ok_eq(I7, Ev),
-        EK.info_end(len, t, d, e6, e7, pos, (e3 - e2 - 1 : U32), hok, b6, b67, b7, hne))))
+      iend(M.NE(len, t, (e6 + 1 : U32), e7), len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13, h14, hc, hl, hne, hcr, {==}, b6, b67, b7)))
 
 # A line that passes NF.line: INFO, as J.pfs keeps it, passes the END check
 # for POS + len(REF) - 1 (REF is e2+1 .. e3-1).

@@ -26,7 +26,7 @@ import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U
 
-# INFO's END entries on bytes: when NF.endok passes on INFO's bytes (M.EK,
+# INFO's END entries on bytes: when NF.ends passes on INFO's bytes (M.EK,
 # the fast path's END test), B.Info.end_ok holds on INFO's text for POS pos
 # and a REF of rl bytes (the value POS + len(REF) - 1). The scan (M.EG) walks
 # the entries (the pieces between ';') as proof_c_pre_key.bend's nostale scan
@@ -591,7 +591,7 @@ def eloop(+k: Nat, +len: U32, +t: AT.Tree<U32>, +d: Nat, +to: U32, +pos: U32, +r
       estep(M.KEY3(len, t, j, (ke - j : U32)), U32.is_eq(ke, to), U32.is_eq(C.AT(len, t, ke), 59), q, len, t, d, to, pos, rl, j, seen, h, hto, hjt, {==}, {==}, {==}, hok,
         +jj => +sn => +a => +b => eloop(q, len, t, d, to, pos, rl, jj, sn, h, hto, a, b))
 
-# INFO (bytes e6 + 1 .. e7 - 1) passed NF.endok for POS pos and a REF of rl
+# INFO (bytes e6 + 1 .. e7 - 1) passed NF.ends for POS pos and a REF of rl
 # bytes: B.Info.end_ok holds for POS + len(REF) - 1.
 def info_end(+len: U32, +t: AT.Tree<U32>, +d: Nat, +e6: U32, +e7: U32, +pos: U32, +rl: U32, +h: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +h6: {Nat.is_lt(n(e6), n(len)) == True{} : Bool}, +h67: {Nat.is_le(n((e6 + 1 : U32)), n(e7)) == True{} : Bool}, +h7: {Nat.is_le(n(e7), n(len)) == True{} : Bool},

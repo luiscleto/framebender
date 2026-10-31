@@ -208,7 +208,7 @@ def PT(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3
   +nv = M.NUM(len, t, (e0 + 1 : U32), e1)
   {M.Nv.ok(nv) == True{} : Bool} & ({M.Nv.v(nv) == pos : U32}
   & ({M.AL(len, t, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4) == True{} : Bool}
-  & ({M.EK(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)) == True{} : Bool}
+  & ({M.EKQ(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)) == True{} : Bool}
   & {M.CRT(len, t, e7, lf) == True{} : Bool})))
 
 def PTp(+len: U32, +t: AT.Tree<U32>, p: NF.Pre) -> Type:
@@ -282,15 +282,15 @@ def iinfo(+len: U32, +t: AT.Tree<U32>, +pos: U32, +a0: U32, +a1: U32, +a2: U32, 
 
 def ial(+len: U32, +t: AT.Tree<U32>, +pos: U32, +a0: U32, +a1: U32, +a2: U32, +a3: U32, +a4: U32, +a5: U32, +a6: U32, +a7: U32, +alf: U32, +ok: Bool, +k: NF.Pre, u: isP(k),
   +h: {M.PAl(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, ok) == k : NF.Pre}) ->
-  {ok == True{} : Bool} & ({M.EK(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)) == True{} : Bool} & ({M.CRT(len, t, a7, alf) == True{} : Bool} & {P10(pos, a0, a1, a2, a3, a4, a5, a6, a7, alf) == k : NF.Pre})):
+  {ok == True{} : Bool} & ({M.EKQ(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)) == True{} : Bool} & ({M.CRT(len, t, a7, alf) == True{} : Bool} & {P10(pos, a0, a1, a2, a3, a4, a5, a6, a7, alf) == k : NF.Pre})):
   match ok:
     case True{}:
-      ({==}, iinfo(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, M.EK(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)), k, u, h))
+      ({==}, iinfo(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, M.EKQ(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)), k, u, h))
     case False{}:
-      Empty.absurd({False{} == True{} : Bool} & ({M.EK(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)) == True{} : Bool} & ({M.CRT(len, t, a7, alf) == True{} : Bool} & {P10(pos, a0, a1, a2, a3, a4, a5, a6, a7, alf) == k : NF.Pre})), psk_no(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, k, u, h))
+      Empty.absurd({False{} == True{} : Bool} & ({M.EKQ(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)) == True{} : Bool} & ({M.CRT(len, t, a7, alf) == True{} : Bool} & {P10(pos, a0, a1, a2, a3, a4, a5, a6, a7, alf) == k : NF.Pre})), psk_no(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, k, u, h))
 
 def IPOS(+len: U32, +t: AT.Tree<U32>, +a0: U32, +a1: U32, +a2: U32, +a3: U32, +a4: U32, +a5: U32, +a6: U32, +a7: U32, +alf: U32, +ok: Bool, +pos: U32, +k: NF.Pre) -> Type:
-  {ok == True{} : Bool} & ({M.AL(len, t, (a2 + 1 : U32), a3, (a3 + 1 : U32), a4) == True{} : Bool} & ({M.EK(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)) == True{} : Bool} & ({M.CRT(len, t, a7, alf) == True{} : Bool} & {P10(pos, a0, a1, a2, a3, a4, a5, a6, a7, alf) == k : NF.Pre})))
+  {ok == True{} : Bool} & ({M.AL(len, t, (a2 + 1 : U32), a3, (a3 + 1 : U32), a4) == True{} : Bool} & ({M.EKQ(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)) == True{} : Bool} & ({M.CRT(len, t, a7, alf) == True{} : Bool} & {P10(pos, a0, a1, a2, a3, a4, a5, a6, a7, alf) == k : NF.Pre})))
 
 def ipos(+len: U32, +t: AT.Tree<U32>, +a0: U32, +a1: U32, +a2: U32, +a3: U32, +a4: U32, +a5: U32, +a6: U32, +a7: U32, +alf: U32, +ok: Bool, +pos: U32, +k: NF.Pre, u: isP(k),
   +h: {M.PPos(len, t, a0, a1, a2, a3, a4, a5, a6, a7, alf, ok, pos) == k : NF.Pre}) -> IPOS(len, t, a0, a1, a2, a3, a4, a5, a6, a7, alf, ok, pos, k):
@@ -304,7 +304,7 @@ def ptp_k(+len: U32, +t: AT.Tree<U32>, +a0: U32, +a1: U32, +a2: U32, +a3: U32, +
   +hk: {P10(M.Nv.v(M.NUM(len, t, (a0 + 1 : U32), a1)), a0, a1, a2, a3, a4, a5, a6, a7, alf) == k : NF.Pre},
   hok: {M.Nv.ok(M.NUM(len, t, (a0 + 1 : U32), a1)) == True{} : Bool},
   hal: {M.AL(len, t, (a2 + 1 : U32), a3, (a3 + 1 : U32), a4) == True{} : Bool},
-  hne: {M.EK(len, t, (a6 + 1 : U32), a7, M.Nv.v(M.NUM(len, t, (a0 + 1 : U32), a1)), (a3 - a2 - 1 : U32)) == True{} : Bool},
+  hne: {M.EKQ(len, t, (a6 + 1 : U32), a7, M.Nv.v(M.NUM(len, t, (a0 + 1 : U32), a1)), (a3 - a2 - 1 : U32)) == True{} : Bool},
   hcr: {M.CRT(len, t, a7, alf) == True{} : Bool}) -> PTp(len, t, k):
   %hk : PTp(len, t, _)
   (hok, ({==}, (hal, (hne, hcr))))
@@ -313,7 +313,7 @@ def ipc_j(+len: U32, +t: AT.Tree<U32>, +a0: U32, +a1: U32, +a2: U32, +a3: U32, +
   +hk: {P10(M.Nv.v(M.NUM(len, t, (a0 + 1 : U32), a1)), a0, a1, a2, a3, a4, a5, a6, a7, alf) == k : NF.Pre},
   hok: {M.Nv.ok(M.NUM(len, t, (a0 + 1 : U32), a1)) == True{} : Bool},
   hal: {M.AL(len, t, (a2 + 1 : U32), a3, (a3 + 1 : U32), a4) == True{} : Bool},
-  hne: {M.EK(len, t, (a6 + 1 : U32), a7, M.Nv.v(M.NUM(len, t, (a0 + 1 : U32), a1)), (a3 - a2 - 1 : U32)) == True{} : Bool},
+  hne: {M.EKQ(len, t, (a6 + 1 : U32), a7, M.Nv.v(M.NUM(len, t, (a0 + 1 : U32), a1)), (a3 - a2 - 1 : U32)) == True{} : Bool},
   hcr: {M.CRT(len, t, a7, alf) == True{} : Bool}) ->
   {K8(a0, a1, a2, a3, a4, a5, a6, a7, alf) == PCut(k) : NF.Cut} & PTp(len, t, k):
   +v = M.Nv.v(M.NUM(len, t, (a0 + 1 : U32), a1))
@@ -360,7 +360,7 @@ def inv(+len: U32, +t: AT.Tree<U32>, +s: U32, +pos: U32, +e0: U32, +e1: U32, +e2
 # The facts of INV, handed to k one by one.
 def dst(+len: U32, +t: AT.Tree<U32>, +s: U32, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, -G: Type,
   r: INV(len, t, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf),
-  k: {M.TP(len, t, s) == False{} : Bool} -> {M.TT(len, t, s) == True{} : Bool} -> {M.TP(len, t, (M.E0(len, t, s) + 1 : U32)) == False{} : Bool} -> {M.TT(len, t, (M.E0(len, t, s) + 1 : U32)) == True{} : Bool} -> {M.TP(len, t, (M.E1(len, t, s) + 1 : U32)) == False{} : Bool} -> {M.TT(len, t, (M.E1(len, t, s) + 1 : U32)) == True{} : Bool} -> {M.TP(len, t, (M.E2(len, t, s) + 1 : U32)) == False{} : Bool} -> {M.TT(len, t, (M.E2(len, t, s) + 1 : U32)) == True{} : Bool} -> {M.TP(len, t, (M.E3(len, t, s) + 1 : U32)) == False{} : Bool} -> {M.TT(len, t, (M.E3(len, t, s) + 1 : U32)) == True{} : Bool} -> {M.TP(len, t, (M.E4(len, t, s) + 1 : U32)) == False{} : Bool} -> {M.TT(len, t, (M.E4(len, t, s) + 1 : U32)) == True{} : Bool} -> {M.TP(len, t, (M.E5(len, t, s) + 1 : U32)) == False{} : Bool} -> {M.TT(len, t, (M.E5(len, t, s) + 1 : U32)) == True{} : Bool} -> {M.TP(len, t, (M.E6(len, t, s) + 1 : U32)) == False{} : Bool} -> {ME(len, t, s, LFm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32)))) == K8(e0, e1, e2, e3, e4, e5, e6, e7, lf) : NF.Cut} -> {LPm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32))) == False{} : Bool} -> {M.Nv.ok(M.NUM(len, t, (e0 + 1 : U32), e1)) == True{} : Bool} -> {M.Nv.v(M.NUM(len, t, (e0 + 1 : U32), e1)) == pos : U32} -> {M.AL(len, t, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4) == True{} : Bool} -> {M.EK(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)) == True{} : Bool} -> {M.CRT(len, t, e7, lf) == True{} : Bool} -> G) -> G:
+  k: {M.TP(len, t, s) == False{} : Bool} -> {M.TT(len, t, s) == True{} : Bool} -> {M.TP(len, t, (M.E0(len, t, s) + 1 : U32)) == False{} : Bool} -> {M.TT(len, t, (M.E0(len, t, s) + 1 : U32)) == True{} : Bool} -> {M.TP(len, t, (M.E1(len, t, s) + 1 : U32)) == False{} : Bool} -> {M.TT(len, t, (M.E1(len, t, s) + 1 : U32)) == True{} : Bool} -> {M.TP(len, t, (M.E2(len, t, s) + 1 : U32)) == False{} : Bool} -> {M.TT(len, t, (M.E2(len, t, s) + 1 : U32)) == True{} : Bool} -> {M.TP(len, t, (M.E3(len, t, s) + 1 : U32)) == False{} : Bool} -> {M.TT(len, t, (M.E3(len, t, s) + 1 : U32)) == True{} : Bool} -> {M.TP(len, t, (M.E4(len, t, s) + 1 : U32)) == False{} : Bool} -> {M.TT(len, t, (M.E4(len, t, s) + 1 : U32)) == True{} : Bool} -> {M.TP(len, t, (M.E5(len, t, s) + 1 : U32)) == False{} : Bool} -> {M.TT(len, t, (M.E5(len, t, s) + 1 : U32)) == True{} : Bool} -> {M.TP(len, t, (M.E6(len, t, s) + 1 : U32)) == False{} : Bool} -> {ME(len, t, s, LFm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32)))) == K8(e0, e1, e2, e3, e4, e5, e6, e7, lf) : NF.Cut} -> {LPm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32))) == False{} : Bool} -> {M.Nv.ok(M.NUM(len, t, (e0 + 1 : U32), e1)) == True{} : Bool} -> {M.Nv.v(M.NUM(len, t, (e0 + 1 : U32), e1)) == pos : U32} -> {M.AL(len, t, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4) == True{} : Bool} -> {M.EKQ(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)) == True{} : Bool} -> {M.CRT(len, t, e7, lf) == True{} : Bool} -> G) -> G:
   match r:
     case (c, pt):
       match c:
