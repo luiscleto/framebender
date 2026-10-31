@@ -243,9 +243,10 @@ def cut_tail.k(+from: U32, r: D.Bytes & D.Bytes) -> D.Bytes & D.Bytes:
   (tmp, b) = r
   (BY.truncate(b, from), tmp)
 
+# (the new buffer is made with room for them: put_bytes never grows it)
 def cut_tail.len(+from: U32, r: D.Bytes & U32) -> D.Bytes & D.Bytes:
   (b, +len) = r
-  cut_tail.k(from, put_bytes(BY.empty(0n), b, from, (len - from : U32)))
+  cut_tail.k(from, put_bytes(BY.empty(depth(((len - from : U32) + 8 : U32))), b, from, (len - from : U32)))
 
 def cut_tail(b: D.Bytes, +from: U32) -> D.Bytes & D.Bytes:
   cut_tail.len(from, BY.len(b))
