@@ -3318,3 +3318,103 @@ def ex_split_change2() -> {L.line_change(B.Fasta.parse(">c1\nACGTACGTCACACACAGGG
 def ex_written_moves() -> {L.written(B.Fasta.parse(">c1\nACGTACGTCACACACAGGGGTTTACGTAAAAAGCTAGCTAGCTTGACCATGCAATTGCCA\n>c2\nGGGGCCCCAAAATTTTGCGCATATCGCGATATACGTCAGTCAGTCAG\n"), "c1\t12\trs1\tACA\tA\t50\tPASS\tI1=7\tGT\t1/0") == "c1\t8\trs1\tTCA\tT\t50\tPASS\tI1=7\tGT\t1/0" : String}:
   {==}
 ```
+
+## Splitter speed
+
+Branch `split-speed` (from `split` at d365d9e), brief `notes/briefs/SPLIT_SPEED.md`. Only
+`norm_split.bend` and four `proof_s_*` files changed; `split_t`'s statement and every name used
+outside the splitter are as they were. Scratch: `data/tmp/splitspeed/`.
+
+### Result
+
+`data/tmp/splitspeed/bench.sh` (`bench.out` has the raw lines): `norm -c w -m -any`, the base build
+(`fb_base`, d365d9e) and the new one (`fb_new`) interleaved, 4 rounds, under
+`flock data/tmp/bench.lock`, `nice -n 19`, `taskset -c 0-15`. The machine was shared (load 4-5,
+other agents' checks), so wall times are a little high for both; the outputs' md5 are the same
+for both builds on every file.
+
+| file | threads | base | new | peak RSS |
+|---|---|---|---|---|
+| cohort | 1 | 5.78-6.27 s | 3.94-4.11 s | 77-81 MB, both |
+| cohort | default | 2.16-2.31 s (CPU 14.8-15.4 s) | 1.33-1.69 s (CPU 8.4-9.6 s) | 343-346 MB, both |
+| joined | 1 | 4.39-5.09 s | 4.03-4.40 s | 49-64 MB, both |
+| joined | default | 1.42-1.58 s | 1.30-1.34 s | 299-302 MB, both |
+| HG002 chr22 | 1 | 0.15-0.19 s | 0.14-0.16 s | 42-49 MB |
+| HG002 chr22 | default | 0.08-0.09 s | 0.08-0.09 s | 170-174 MB |
+
+- **Cohort, one thread:** 1.5 times faster for the whole run. With about 0.5 s of the run outside
+  the splitter, the splitter itself went from about 5.5 to about 3.5 s, 1.6 times.
+- **Cohort, default threads:** 1.4 times; CPU time 1.6 times less. The main thread (the pieces it
+  redoes, "Open leads" above) still bounds the wall time.
+- **Joined** (4% multiallelic, GT only): 5-10%. **HG002 chr22:** within the noise.
+- **Memory:** unchanged.
+
+### What paid
+
+The cost model, read from the generated C: a Bend def compiles either to a `spin_N` C function
+(straight code, inlined, arguments in registers) or to a work-loop case (`WL_FID_<def>`, with a
+continuation frame for each call that is not in tail position). A def became a work-loop case
+whenever something it may call recurses other than in tail position. The `Sw` writer state and
+ranges are unboxed either way; what costs is the work loop, lists (allocation, then `term_drop`)
+and matching shared values (`span_fade`, `rfc_wrap`).
+
+1. **The writer as straight code.** `NR.room` (called by `NR.put_bytes` and before every pushed
+   byte) finds a block size with `NR.depth.go`, whose recursive call sits inside a `Bool.pick`
+   (which evaluates both branches), so it is not a tail call. That made `room`, and with it
+   `flush`, `cpr`, `ch`, `push`, `sep`, `pick`, `vals`, `gt`, `fmt.go`: everything that writes, a
+   work-loop case. The splitter now has its own `room` and `put_bytes`, NR's with the depth search
+   as a loop (`depth.go` matches a `stop` flag). Cohort, one thread: 6.6 to 5.6 s alone.
+   Proof: `proof_s_w.bend`, `room_eq` and `put_eq` (the splitter's are NR's, by induction on the
+   depth fuel), one rewrite each in `flush_put.k` and `push_put`.
+2. **A sample's values found in place.** `sample` cut each column into a list of ranges (two
+   lists: ends, then ranges), per sample per record: 11 M lists on the cohort, built, walked once
+   and freed (`term_drop` was 8% of the time). Now `copies` and `fmt.go` walk the column: each
+   step finds the next `:` (`F.find`) and writes the value before it. With (1), the whole record
+   writer (`records`, `samples`, `sample`) is straight code: 5.6 to 4.2 s.
+   Done as a step-plus-fuel loop over a state that held the FORMAT keys, it was slower than the
+   lists (7.0 against 6.1 s): the keys are shared, and a state holding them makes every step
+   bump and drop their reference counts. The keys must stay a parameter matched in place, so
+   both functions recurse on the key list and take the previous step's `find` as an argument.
+   Proof: `proof_s_fmt.bend`, `cps_t` (copies) and `fgo_t` (the values), by induction on the
+   keys, with the column's pieces from `K.SP` (`sp_first`, `ts_next`, `ts_last` of
+   `proof_s_scan`); `sample_t` keeps its statement. The list-based `copies`, `cp_t` and
+   `fmt_go_t` are gone.
+3. **No index list.** `B.Vals.idx` (the spec) chooses its list with a `Bool.pick`, which builds
+   both lists: 22 M calls, 44 M reference cells, 11 M frees. `pix` picks the 1-3 values directly
+   (A: i - 1; R and G for one copy: 0 and i; G for two copies: 0/0, 0/i, i/i). About 8% over (2)
+   with a matched list; 2-3% more with no list. Proof: `proof_s_vals.bend`, `pix_eq` (`pix` is
+   `picks` of `B.Vals.idx`, by cases).
+
+### What did not pay (measured, dropped)
+
+- Picking each value from where the previous one ended instead of from the value's start: 1%,
+  within the noise (measured before (1), when everything was a work-loop case).
+- Passing a sample's copies as a number (0 for none) instead of `Maybe` (one fewer box per
+  sample): no difference.
+- The splitter's own `fits` (B.Vals.fits of expected_count, with matches for the `Bool.pick`s):
+  no difference.
+- An output buffer sized for the line's records up front (no regrowth, 6% of the profile):
+  no difference (medians 4.18 against 4.06 s); it would also have changed `proof_s_drv`.
+- Decision 19 (split each column once per line, not once per record): with the values found in
+  place there is no per-record cut left to share; the per-record cost is the writing itself.
+  Keeping each sample's ranges for the line would add a 3,202-entry structure per line.
+
+### What is left
+
+Profile of the new build (cohort, one thread): the record writer's glue 23%, `vals` 16%, `pick`
+13%, `ch` 10%, `put_bytes` 9%, buffer regrowth 6%, freeing 6% (String work outside the
+splitter: header, INFO and FORMAT keys per line).
+
+### Checks
+
+- `data/tmp/splitspeed/ident.sh fb_new`:
+  - against the old build (`fb_m3`, `same.sh`: the files of `data/tmp/split/thr_m.sh`, 4 option
+    sets, `--threads 1` and the default; stdout, stderr and exit code): 312 of 312 identical;
+  - bcftools 1.24 (`cmp_m.sh`, `-c w -m -any`): cohort 3,341 records, 0 differing; HG002 chr22
+    50,861, 0 differing; joined 57,534, 12 differing (the same 12 symbolic SVs as before);
+  - `test/split.sh` (the fuzz, 40 seeds, both `--multi-overlaps` settings): 80 of 80 the same as
+    bcftools.
+- Proofs (`test/bcheck.sh`): `proof_s_drv.bend` (`split_t`, which imports every splitter proof)
+  checks with `--check-only` and `--verdict`; so do `proof_s_multi.bend` and `proof_s_term.bend`.
+  `proof_b_adv_split.bend`, `proof_b_mw.bend` and `proof_b_adv.bend` stop at "38 TODOs found",
+  the same as on the base tree (milestone (2)'s open holes).
