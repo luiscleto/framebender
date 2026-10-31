@@ -38,7 +38,7 @@ samtools faidx ref.fa                                    # once: indexes the ref
 | `-f FILE` | the reference genome (FASTA), indexed with `samtools faidx` |
 | `-c e` / `-c w` | on a REF that does not match the reference: stop (default) or warn and pass the record through |
 | `-w N` | how far, in bases, a record may move left (default 1000, as bcftools) |
-| `-m -any` | split records with two or more ALTs into one record per ALT, as bcftools; `--multi-overlaps .` marks the other ALTs' copies unknown |
+| `-m -any` | split records with two or more ALTs into one record per ALT, as bcftools; a line it cannot split safely is refused (it stops the run under `-c e`); memory grows with the records a line makes and with the file; `--multi-overlaps .` marks the other ALTs' copies unknown |
 | `--threads N` | how much runs in parallel (1 to 128, default 16); trades memory for speed, never changes the output |
 | `-o FILE` | write to a file; a `.vcf.gz` or `.vcf.bgz` name is compressed |
 | `-Oz`, `-Oz0`..`-Oz9`, `-Ov` | compress the output (default level 6, byte for byte as bgzip), or not |

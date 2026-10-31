@@ -102,7 +102,7 @@ numbered from 1; a record's ALT is "ALT a".
 | `whole_biallelic` | With `-m`, a record with one ALT is handled as without `-m`. |
 | `whole_malformed` | With `-m`, a MALFORMED line is handled as without `-m` (it stops the run). |
 | `biallelic_run` | On a file with no multiallelic record, `-m` changes nothing: same output, messages and exit code, apart from the recorded command line. |
-| `split_when` | With `-m`, a well-formed line with two or more ALTs is split exactly when none of these holds: a carriage return anywhere in the line other than the one just before its final LF (`BAD_CR`); two equal ALTs (`ALT_DUP`); an INFO entry with a value whose tag is undefined or has an unread Number (`UNDEFINED_TAG`); an A/R/G INFO entry without a value, or whose value is not `.` and has not the expected count (`BAD_COUNT`); in a sample, a GT allele that is not `.` or a number from 0 to n without leading zeros (`BAD_GT`), a value whose key is undefined or unread (`UNDEFINED_TAG`), an A/R/G value that is not `.` and has not the expected count for the copies its GT names (`BAD_COUNT`), or more values than keys (`BAD_COUNT`). Expected count: A, n; R, n+1; G, n+1 for one copy, (n+1)(n+2)/2 for two, either for a lone `.` GT. Otherwise the line is refused. A whole-line outcome that stops the run is reported first; otherwise the message names `BAD_CR`, if it holds, and then the first of the later reasons, reading the line left to right (ALTs, INFO, then each sample in FORMAT's order, its extra values last). |
+| `split_when` | With `-m`, a well-formed line with two or more ALTs is split exactly when none of these holds: a carriage return anywhere in the line other than the one just before its final LF (`BAD_CR`); two equal ALTs (`ALT_DUP`); an INFO entry with a value whose tag is undefined or has an unread Number (`UNDEFINED_TAG`); an A/R/G INFO entry without a value, or whose value is not `.` and has not the expected count (`BAD_COUNT`); in a sample, a GT allele that is not `.` or a number from 0 to n without leading zeros (`BAD_GT`; so is VCF 4.4's leading phase mark, `\|0\|1`, whose first allele is empty), a value whose key is undefined or unread (`UNDEFINED_TAG`), an A/R/G value that is not `.` and has not the expected count for the copies its GT names (`BAD_COUNT`), or more values than keys (`BAD_COUNT`). Expected count: A, n; R, n+1; G, (n+1)(n+2)/2 for two copies (always in INFO; in a sample, a GT naming two, or no GT value), n+1 for one, either for a lone `.` GT. Otherwise the line is refused. A whole-line outcome that stops the run is reported first; otherwise the message names `BAD_CR`, if it holds, and then the first of the later reasons, reading the line left to right (ALTs, INFO, then each sample in FORMAT's order, its extra values last). |
 | `split_alts` | One record per ALT, each with that ALT alone, in the input's ALT order. |
 | `split_site` | Each record keeps CHROM, POS, ID, REF, QUAL, FILTER and FORMAT byte for byte, and its number of columns. |
 | `split_valid` | If the line is a valid variant on its contig, so is every record; the laws of the normal form apply to each. |
@@ -116,6 +116,16 @@ numbered from 1; a record's ALT is "ALT a".
 | `split_format_shape` | Each sample has as many values as in the input. |
 | `split_format_values` | As `split_info_values`, per sample value other than GT. For G: a sample whose GT names one copy gives REF's and ALT a's values; two copies, or no GT value, the three genotype values; a lone `.` GT, whichever its count says. |
 | `split_format_kept` | Every other sample value (other than GT) is copied byte for byte. |
+
+An example of G values (`split_format_values`): REF `C`, ALTs `G,T` (n = 2), and a sample with
+`GT=1/2` and `PL=10,20,30,40,50,60`. Two copies give six values, for the genotypes 0/0, 0/1, 1/1,
+0/2, 1/2, 2/2 in that order (genotype j/k, j ≤ k, is value k(k+1)/2 + j, counting from 0).
+
+- The record for ALT 1 (`C G`) keeps 0/0, 0/1, 1/1: `PL=10,20,30`.
+- The record for ALT 2 (`C T`) keeps 0/0, 0/2, 2/2: `PL=10,40,60`, which are that record's 0/0,
+  0/1, 1/1.
+- A one-copy sample (`GT=2`, `PL=7,8,9`, one value per allele) keeps REF's and the ALT's: `7,8` for
+  ALT 1, `7,9` for ALT 2.
 
 `twice_run` holds with `-m` too: every record of a split line has one ALT and no carriage return,
 so it reads back as written, and a refused line is passed as it came and is refused again. This is
