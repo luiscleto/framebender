@@ -122,3 +122,87 @@ ENDs, `END=1,2`, `ENDX=`, `XEND=`, empty entries, `END=3=4`, lower case, CIGAR/H
   first; small machine-proof change).
 - Line split plus field split are still 2 copies of every line; fusing them would change
   `B.Line`.
+
+## fb-tasks (2026-10-31): pieces redone on the main thread
+
+Brief: `notes/briefs/SPEED_TASKS.md`. Branch `speed-tasks` from main 03c3ed4 (briefs 984688a).
+Commits: a36ff20 (false UNSORTED), be463c1 (tasks keep their notes). Files: `norm.bend` and
+`proof_e_*` only (new: `proof_e_seg_nf.bend`); no law, spec, `norm_fast.bend` or `norm_fix.bend`
+change. Scratch: `data/tmp/tasks/`.
+
+### What changed
+
+1. **False UNSORTED** (`norm.bend`: `task.retry`, `task.run1`, `task.ended`, `again.*`). A task
+   that stops as UNSORTED against its phantom (the line before the refused item is line 0) hands
+   back its piece and windows (`TAgain`) and runs once more, from the key of the refused item. The
+   key is read from the run's output buffer (the item's text starts right after the bytes written:
+   CHROM, tab, POS); the stop note only names the input POS, which is the phantom itself for
+   these lines. Any key is correct (the merge checks it against the true run); a second stop is
+   dirty. The first run is unchanged, so files that never stopped (HG002) pay nothing.
+   - Proofs: the task loop's Ended case (`proof_e_task_loop.bend`: `LAgain`, `ag_run`, `ended_go`),
+     the second run in `proof_e_task_one.bend` (`run1_ok`, `retry_ok`, `final_ok`), and `TcP`
+     carries the phantom its run started from (`TcOK`, `TResOK`, `mkTRes`; about 6 wrapper files
+     take the field). About 400 lines.
+2. **Tasks with notes** (`norm.bend`: `merge.ok` lost its "T wrote no message" test; `merge.if`
+   keeps T's messages in the merged run, renumbered by `notes_shift`). END.md's fix 3.
+   - Spec side: `SD.shiftS` writes T's messages (renumbered) after S's (`notes_app`), `segok` no
+     longer asks for none.
+   - Segment lemma: `G.M` says "not stopped" where it said "no messages" (so `mono`'s case analysis
+     stands); `lift` writes Y's messages after S's. The step lemmas still take a T state without
+     messages: a line that warns is a real step (`kd2n`, `kd0n`, `dk1n`), shown from the no-message
+     step at S's messages plus the warning, through phase B's frame lemmas (`F.fr_keyed_go`,
+     `fr_pieces`, `run_pre`) and `proof_e_seg_nf.bend` (`lift_pre`: messages T already has move
+     into X's list). `par` and `drain` recurse with that list, so their hypotheses hold for every
+     list (`DrainIHA`) and the recursion reads the lines first (`par.r`, `drain.r`: Bend's
+     decreasing-call check reads arguments left to right).
+   - Merge: `proof_e_merge_ok.bend` regenerated (generator `data/tmp/tasks/gen/gen_merge_ok.py`;
+     the names keep the old numbering, `ok5` is gone), `merge_spec`'s messages (`notes_eq`:
+     norm.bend's `notes_shift` is the spec's, and commutes with reverse), `pre_shift` in
+     `proof_e_wrap_spec.bend`. About 700 lines changed.
+
+### Pieces left to the main thread (instrumented scratch build, `data/tmp/tasks/instr.py`)
+
+| file | main | now |
+|---|---|---|
+| cohort `-m -any` | 6 (3 UNSORTED, 3 empty) | 3 (empty) |
+| joined `-m -any` | 19 (6 merge refused, 13 empty) | 13 (empty) |
+| HG002 chr22, `-c w`, reference with 2% of REFs changed | 9 (merge refused) | 0 |
+| HG002 chr22, `-c w`, fb-end's 2% bad END | 9 | 0 |
+| first 400k genome records, 2% bad END | 82 (77 merge refused) | 5 (4 empty, 1 window miss) |
+| scrambled chr22 indels | 3 (1 UNSORTED, 2 window misses) | 2 |
+
+### Timings
+
+`flock data/tmp/bench.lock nice -n 19 timeout ... taskset -c 0-15`, interleaved with main's build
+(`data/tmp/tasks/fb_main`), to /dev/null, `-c w`. The machine was busy (load 5 to 9: other agents'
+checks, never their timings), so small differences are noise.
+
+| input | main (s) | now (s) |
+|---|---|---|
+| cohort `-m -any` (8 rounds) | 1.05-1.20 | 0.90-1.06 |
+| joined `-m -any` (3) | 0.96-1.03 | 0.85-0.92 |
+| HG002 chr22, 2% REF mismatch (3) | 0.152-0.157 | 0.060-0.073 |
+| HG002 chr22, 2% bad END (3) | 4.35-4.48 | 1.10-1.19 |
+| first 400k genome records, 2% bad END (3) | 37.7-38.8 | 6.65-7.25 |
+| HG002 whole genome, 2% REF mismatch (3) | 10.5-12.7 | 2.20-2.39 |
+| HG002 whole genome (8) | 1.48-2.18 | 1.52-1.83 |
+
+The bad-END gain is more than the redo: a piece with a note was redone by Q one line at a time,
+and END lines take the String path, so the redo was the serial part. HG002 itself: no measurable
+change (same work: the tasks merged before too).
+
+### Checks
+
+- Gate through `test/bcheck.sh`: `PROOF.bend` ALL PROOFS CHECK (`--check-only` and `--verdict`),
+  `examples.bend` TODOs only, `main.bend` "rely on unsafe" as before.
+- Byte-identical to main's build (stdout, stderr, exit code): `same.sh` 128, `par.sh` 312,
+  `threads.sh` 2128, `out.sh` OK, `index.sh` ALL PASS, `split.sh` 80 as bcftools (run with private
+  output dirs: `data/tmp/tasks/suite.sh`); the probe files above at 1, 4 and 16 threads (30 runs);
+  whole genome `-c w`, 2% mismatch `-c w` and `-c e`, and `--threads 4`; the 400k bad-END file.
+
+### What did not pay / notes
+
+- The first try took the retry key from the UNSORTED note: it names the input POS (the
+  phantom's own), so it never fired. The output buffer has the moved key.
+- A fixed lower phantom (POS - D) was considered and dropped: it refuses merges when the line
+  before is within D bases, which a dense file hits; the retry costs nothing when there is no stop.
