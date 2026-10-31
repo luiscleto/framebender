@@ -256,8 +256,8 @@ def g3(+g: Bool, +len: U32, +t: AT.Tree<U32>, +d: Nat, +c: String,
       +k = K(len, t)
       +rs = BUF.LRS(len, t, C0(len, t), P1(len, t), s1)
       +hrs = BUF.last_ok(C0(len, t), P1(len, t), s1, len, t, BUF.cc_bytes(True{}, len, t, s1, T1(len, t)))
-      (rs, (True{}, (k, (C0(len, t), (P1(len, t),
-        (BUF.last_b(k, C0(len, t), P1(len, t), s1, len, t),
+      (rs, (True{}, (k, (C0(len, t), (Nat.add(P1(len, t), U32.to_nat(len)),
+        (BUF.last_b(k, C0(len, t), P1(len, t), Nat.add(P1(len, t), U32.to_nat(len)), s1, len, t),
         (BUF.andl(BUF.rs_ok2(rs), BUF.two2(rs), hrs),
         (hrs, (BUF.cc_bytes(True{}, len, t, s1, T1(len, t)), (X => first_c0(len, t, d, c, hok, hv, hk1, hE, hg, X), (hk1, pre_lf(len, t, d, c, hok, hv, hK))))))))))))
 
