@@ -28,6 +28,7 @@ import ./proof_e_wrap_base.bend as QB
 import ./proof_e_bud_defs.bend as BD
 import ./proof_e_bud_api.bend as API
 import ./proof_e_bud_step.bend as ST
+import ./proof_e_wrap_col.bend as WL
 
 # Phase E, area E2: the budget of a step with no batch (Q's own step) and of
 # the step that starts a batch.
@@ -252,7 +253,11 @@ law none_chunk:
   API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BNoneP{}}), Pr.Chunk{E.enc(c)}), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BNoneP{}}), c <> cs, False{}, Pr.More{}, O), O, N)
 
 def none_chunk(dfs,fa, T, c, cs, O, N, p, hb, hm, hr, hg, hbi, hcb, hcn):
-  ?TODO
+  +n1 = BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BNoneP{}}), c <> cs, False{}, Pr.More{}, O)
+  %Equal.sym(Norm.St & B.Defs, W.dfs_of(S.mkSt(fa, p)), (S.mkSt(fa, p), S.StP.dfs(p)), WL.dfs_eq(fa, p)) : API.KontW(dfs, fa, T, W.step.q(W.BNone{}, _, Pr.Chunk{E.enc(c)}), cs, False{}, 0n, n1, O, N)
+  %QB.quiet_mk(fa, p) : API.KontW(dfs, fa, T, W.none.len(_, BY.len(E.enc(c))), cs, False{}, 0n, n1, O, N)
+  %Equal.sym(D.Bytes & U32, BY.len(E.enc(c)), (E.enc(c), U32.from_nat(String.length(c))), len_enc(c)) : API.KontW(dfs, fa, T, W.none.len((S.mkSt(fa, p), QB.qb(p)), _), cs, False{}, 0n, n1, O, N)
+  none_chunk.if(dfs, fa, T, c, cs, O, N, p, hb, hm, hr, hg, hbi, hcb, hcn, Bool.and(QB.qb(p), U32.is_le(256, U32.from_nat(String.length(c)))), {==})
 
 
 law none_eof:
@@ -270,7 +275,12 @@ law none_eof:
   API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BNoneP{}}), Pr.Eof{}), Nil{}, True{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BNoneP{}}), Nil{}, False{}, Pr.More{}, O), O, N)
 
 def none_eof(dfs,fa, T, O, N, p, hb, hm, hr, hg, hbi):
-  ?TODO
+  %Equal.sym(Norm.St & B.Defs, W.dfs_of(S.mkSt(fa, p)), (S.mkSt(fa, p), S.StP.dfs(p)), WL.dfs_eq(fa, p)) : API.KontW(dfs, fa, T, W.step.q(W.BNone{}, _, Pr.Eof{}), Nil{}, True{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BNoneP{}}), Nil{}, False{}, Pr.More{}, O), O, N)
+  +W0 = BDs.WP(fa, Nil{}, p)
+  ST.kont_of(dfs, fa, T, W.wrap(Norm.step(S.mkSt(fa, p), Pr.Eof{}), W.BNone{}), Nil{}, True{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BNoneP{}}), Nil{}, False{}, Pr.More{}, O), Nat.add(ST.VQ(T, Nil{}, True{}, O, W0), 0n), O, N,
+    ST.wrap_none(fa, T, Nil{}, True{}, O, W0, Norm.step(S.mkSt(fa, p), Pr.Eof{}),
+      BS.fed_bud(fa, T, Nil{}, O, N, W0, Norm.feed_eof(S.mkSt(fa, p)), hb, BS.eof_fed(fa, T, O, N, p, hb, hm, hr, hg, hbi))),
+    ar_e(Nat.add(2n, Nat.add(BN.HO(T, O), W0))))
 
 
 law none_ref:
@@ -295,5 +305,10 @@ law none_ref:
   API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BNoneP{}}), Pr.Ref{M.truths(fa, rs)}), cs, ef, List.length(&2, Pr.Req, rs), BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BNoneP{}}), cs, ef, Pr.Ask{rs}, O), O, N)
 
 def none_ref(dfs,fa, T, cs, O, N, p, rs, ef, hb, hw, hr, ha, hq, hp, hmr, hg, hbi):
-  ?TODO
+  %Equal.sym(Norm.St & B.Defs, W.dfs_of(S.mkSt(fa, p)), (S.mkSt(fa, p), S.StP.dfs(p)), WL.dfs_eq(fa, p)) : API.KontW(dfs, fa, T, W.step.q(W.BNone{}, _, Pr.Ref{M.truths(fa, rs)}), cs, ef, List.length(&2, Pr.Req, rs), BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BNoneP{}}), cs, ef, Pr.Ask{rs}, O), O, N)
+  +W0 = BDs.WP(fa, cs, p)
+  ST.kont_of(dfs, fa, T, W.wrap(Norm.step(S.mkSt(fa, p), Pr.Ref{M.truths(fa, rs)}), W.BNone{}), cs, ef, List.length(&2, Pr.Req, rs), BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BNoneP{}}), cs, ef, Pr.Ask{rs}, O), Nat.add(ST.VQ(T, cs, ef, O, W0), BD.XK(cs)), O, N,
+    ST.wrap_none(fa, T, cs, ef, O, W0, Norm.step(S.mkSt(fa, p), Pr.Ref{M.truths(fa, rs)}),
+      BS.fed_bud(fa, T, cs, O, N, W0, Norm.set_win(S.mkSt(fa, p), M.truths(fa, rs)), hb, BS.ref_fed(fa, T, cs, rs, O, N, p, hb, hw, hr, ha, hq, hp, hmr, hg, hbi))),
+    ar_r(Nat.add(List.length(&2, String, cs), BN.pick(Bool.not(ef), 1n)), BN.HO(T, O), W0, List.length(&2, Pr.Req, rs), BD.XK(cs)))
 

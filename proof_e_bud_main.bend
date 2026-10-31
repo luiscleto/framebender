@@ -57,7 +57,7 @@ def chunk_x(dfs,fa, T, c, cs, O, N, x, hb, hi, hbi, hcb, hcn):
       (hmo, i5) = i4
       (hstp, i6) = i5
       (hef, hk) = i6
-      PH.col_chunk(dfs, fa, T, c, cs, O, N, p, hs, k, hb, hmo, hstp, a2, a3, a1, hk, hbi, hcb, hcn)
+      PH.col_chunk(dfs, fa, T, c, cs, O, N, p, hs, k, hb, hmo, hstp, a2, a3, a1, hk, hbi, hcb, hcn, _f0)
     case WD.WPic{+p, WD.BAskP{+ps, +e}}:
       (_e0, hi_0) = hi
       (a1, i1) = hi_0
@@ -136,7 +136,7 @@ def eof_x(dfs,fa, T, O, N, x, hb, hi, hbi):
       (hmo, i5) = i4
       (hstp, i6) = i5
       (hef, hk) = i6
-      PH.col_eof(dfs, fa, T, O, N, p, hs, k, hb, hmo, hstp, a2, a3, a1, hk, hbi)
+      PH.col_eof(dfs, fa, T, O, N, p, hs, k, hb, hmo, hstp, a2, a3, a1, hk, hbi, _f0)
     case WD.WPic{+p, WD.BAskP{+ps, +e}}:
       (_e0, hi_0) = hi
       (a1, i1) = hi_0
@@ -229,7 +229,7 @@ def bud_refW(dfs,fa, T, cs, O, N, x, rs, ef, hb, hi, hbi, htx):
       +hrs = Equal.cong(Pr.Next, List<&2, Pr.Req>, z => IV.askrs(z), Pr.Ask{rs}, Pr.Ask{PT.reqs_of(ps)}, nxe)
       %Equal.sym(List<&2, Pr.Req>, rs, PT.reqs_of(ps), hrs) :
         API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BAskP{ps, e}}), Pr.Ref{M.truths(fa, _)}), cs, ef, List.length(&2, Pr.Req, _), BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BAskP{ps, e}}), cs, ef, Pr.Ask{_}, O), O, N)
-      PH.ask_ref(dfs, fa, T, cs, O, N, p, ps, e, ef, hb, hmo, hstp, a2, a3, a1, DU.pcsok_dup(ps, cs, hps), he, hbi)
+      PH.ask_ref(dfs, fa, T, cs, O, N, p, ps, e, ef, hb, hmo, hstp, a2, a3, a1, DU.pcsok_dup(ps, cs, hps), he, hbi, _f0)
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, False{}}}:
       (_e0, hi_0) = hi
       (a1, i1) = hi_0

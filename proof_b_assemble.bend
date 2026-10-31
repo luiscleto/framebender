@@ -939,12 +939,20 @@ law machine_go:
   for so: &p: S.StP -> ({DD.start_st(dfs, Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}
     & ({DD.start_paths(Norm.start(argv)) == Some{DD.Paths{ref, vcfpath}} : Maybe<&2, DD.Paths>}
     & ({DD.more_ok(B.Fasta.parse(fasta), p) == True{} : Bool}
-    & ({S.report(B.Fasta.parse(fasta), cs, "", Nil{}, p) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), B.Fasta.parse(fasta), dfs, o, R.start_st())) : R.Report}
+    & ({S.report(B.Fasta.parse(fasta), cs, "", Nil{}, p) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), B.Fasta.parse(fasta), L.defs(String.concat(cs)), o, R.start_st())) : R.Report}
     & {S.guard("", Nil{}, p) == True{} : Bool}))))
   {MQ.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
 
 def machine_go(dfs,argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb, so):
-  ?TODO
+  (+p, s1) = so
+  (+est, s2) = s1
+  (paths, s3) = s2
+  (+hmo, s4) = s3
+  (hrep, hgd) = s4
+  +hr = Equal.trans(R.Report, S.report(B.Fasta.parse(fasta), cs, "", Nil{}, p), R.finish(L.run.go(B.Text.lines(String.concat(cs)), B.Fasta.parse(fasta), L.defs(String.concat(cs)), o, R.start_st())), L.run(fasta, vcf, o),
+    hrep, Equal.cong(String, R.Report, z => R.finish(L.run.go(B.Text.lines(z), B.Fasta.parse(fasta), L.defs(z), o, R.start_st())), String.concat(cs), vcf, h))
+  machine_go2(dfs, argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hb, est, hmo, hr, hgd,
+    API.bud_start(dfs, argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hf, h, hb, est, hmo, hr))
 
 
 # The law machine (MACHINE.bend), with every variable reusable.
@@ -964,5 +972,6 @@ law machine_h:
   {MQ.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
 
 def machine_h(dfs,argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb):
-  ?TODO
+  machine_go(dfs, argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb,
+    DRV.start_ok(dfs, B.Fasta.parse(fasta), argv, o, ref, vcfpath, cs, ha, PB.and_true_l(E.all_bytes(argv), Bool.and(E.is_bytes(fasta), Bool.and(E.all_bytes(cs), E.pieces_ok(cs))), hb)))
 

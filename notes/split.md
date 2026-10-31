@@ -218,12 +218,18 @@ and `proof_f_args.bend` resolved by hand: the `-m` parsing and `-W` side by side
 - The feeding guarantee `Fed` (`proof_e_qif_fed.bend`) says the fed state keeps the definitions
   and the record sources.
 
-**Proof status.** Everything checks except the step budget: `PROOF.bend` has 43 holes, all in
-`proof_b_budget_*`, `proof_b_bud_*`, `proof_b_assemble` (sequential) and `proof_e_bud_*` (threads).
-The threads machine's 8 holes are closed (`wrap` 4, `wrap_col` 2, `wrap_clean` 1, `mach_asm` 1).
+**Proof status.** Everything checks except the sequential step budget: `PROOF.bend` has 27 holes,
+all in `proof_b_budget_*` and `proof_b_bud_*` (fb-budget, branch `split-budget`). The threads
+machine's 8 holes are closed (`wrap` 4, `wrap_col` 2, `wrap_clean` 1, `mach_asm` 1), and so are the
+threads machine's 14 budget holes (`proof_e_bud_*`: the step's `W.dfs_of`, the batch's definitions
+`StP.dfs(p) == dfs` from `PhaseOK`, WF's widened ninth fact, `S.report` with `DEFS`, the record
+sources in `where_eq`, the edge's fuel 4096) and the sequential assembly (`proof_b_assemble`'s
+`machine_go`/`machine_h`: the report with `L.defs(concat cs)`, as `start_ok` gives it).
 The bound of decisions 29-36 is installed in `MACHINE.bend` (`splits.of`, `split_room`); the start
 lemmas (`bud_need`, `start_need`) meet it by `need <= old bound <= bound` until the budget charges
-the split records.
+the split records. These budget proofs stand on phase B's present `BN.WAS`; fb-budget's change
+(the records' lines first and `XA`, n_alts x LA for each candidate line) will have to be carried
+into `proof_e_bud_fed`, `_comb`, `_start` (and the arithmetic of `_none`, `_seq`) once it is in.
 
 Done in earlier stretches: `proof_f_out` (the `-m` parser states, the `-W` record); `wrap_mc` (the
 merge: "in the body" comes from `segok`'s first conjunct, so the state's `DEFS` is its field);
