@@ -100,9 +100,9 @@ def c.mb.if(+dfs: B.Defs, +i: Bool, +fa: List<&2, B.Contig>, +T: R.Report, +cs: 
     Norm.body.if(i, back, o, P.mkRun(rp), C.BT(len, t), at, Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, dfs, False{}}, PC.mkWin(fa, wp), fneed)):
   match i:
     case False{}:
-      BDe.c.dec(dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, fneed, hb, hw, hr, hg, hx, hbig, hbi)
+      BDe.c.dec(False{}, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, fneed, hb, hw, hr, hg, hx, hbig, hbi, {==})
     case True{}:
-      BI.c.m(dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, fneed, hb, hw, hr, hg, hx, hbig, ei, hbi, R.Opts.split(o), {==})
+      BI.c.m(False{}, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, fneed, hb, hw, hr, hg, hx, hbig, ei, hbi, R.Opts.split(o), {==}, {==})
 
 
 def c.mb.sb(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
