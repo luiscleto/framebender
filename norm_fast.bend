@@ -62,11 +62,13 @@ type B4 is Type:
 
 # Pass: the record passed every test on its own bytes; pos: its POS; e0 ..
 # e7: the ends of CHROM .. INFO (field i is from e(i-1) + 1, CHROM from s, to
-# ei - 1); lf: its LF.
+# ei - 1); lf: its LF. Skip: the record is out of scope and not malformed
+# (given a CHROM that is not empty, which norm.bend tests), the same fields.
 type Pre is Data:
   Pass{pos: U32, e0: U32, e1: U32, e2: U32, e3: U32, e4: U32, e5: U32, e6: U32, e7: U32, lf: U32}
   Slow{}
   Incomplete{}
+  Skip{pos: U32, e0: U32, e1: U32, e2: U32, e3: U32, e4: U32, e5: U32, e6: U32, e7: U32, lf: U32}
 
 type Pr is Type:
   Pr{b: D.Bytes, p: Pre}
@@ -571,10 +573,102 @@ def ek.go(n: Nat, x: Ek) -> D.Bytes & Bool:
 def endok(b: D.Bytes, +from: U32, +to: U32, +pos: U32, +rl: U32) -> D.Bytes & Bool:
   ek.go(U32.to_nat((to - from + 2 : U32)), Ek{b, from, to, pos, rl, True{}, False{}, True{}})
 
+# ---------------------------------------------------------------------------
+# Out of scope (B.Rec.out_of_scope), and not malformed (B.Rec.malformed) but
+# for CHROM: REF is one or more letters, no ALT allele (the pieces between
+# commas) is empty, and some ALT allele is not all letters
+# ---------------------------------------------------------------------------
+
+def alpha(+x: U32) -> Bool:
+  Char.is_alpha(Chr{x})
+
+def letters.go(n: Nat, r: D.Bytes & U32, +j: U32, ok: Bool) -> D.Bytes & Bool:
+  match n:
+    case 0n:
+      (b, x) = r
+      (b, ok)
+    case 1n+m:
+      (b, +x) = r
+      letters.go(m, BY.at(b, (j + 1 : U32)), (j + 1 : U32), ok && alpha(x))
+
+# Bytes from .. to-1 are all letters.
+def letters(b: D.Bytes, +from: U32, +to: U32) -> D.Bytes & Bool:
+  letters.go(U32.to_nat((to - from : U32)), BY.at(b, from), from, True{})
+
+# The ALT alleles from a on (the field ends at e): none empty so far (ok);
+# one not all letters so far (odd); another one to read.
+type Ks is Type:
+  Ks{b: D.Bytes, a: U32, e: U32, ok: Bool, odd: Bool, more: Bool}
+
+def ks.l(+c: U32, +e: U32, +a: U32, ok: Bool, odd: Bool, r: D.Bytes & Bool) -> Ks:
+  (b, lets) = r
+  +ok2 = ok && U32.is_lt(a, c)
+  Ks{b, (c + 1 : U32), e, ok2, odd || Bool.not(lets), ok2 && U32.is_lt(c, e)}
+
+def ks.c(+a: U32, +e: U32, ok: Bool, odd: Bool, r: D.Bytes & U32) -> Ks:
+  (b, +c) = r
+  ks.l(c, e, a, ok, odd, letters(b, a, c))
+
+# One ALT allele: up to the next comma, or the field's end.
+def ks.step(x: Ks) -> Ks:
+  match x:
+    case Ks{b, +a, +e, ok, odd, m}:
+      ks.c(a, e, ok, odd, F.find(b, a, e, 44))
+
+def ks.go(n: Nat, x: Ks) -> D.Bytes & Bool:
+  match n x:
+    case 0n Ks{b, a, e, ok, odd, m}:
+      (b, False{})
+    case 1n+k Ks{b, a, e, ok, odd, False{}}:
+      (b, ok && odd)
+    case 1n+k Ks{b, a, e, ok, odd, True{}}:
+      ks.go(k, ks.step(Ks{b, a, e, ok, odd, True{}}))
+
+# ALT (from .. to-1): no allele is empty, and some allele is not all letters.
+def oos(b: D.Bytes, +from: U32, +to: U32) -> D.Bytes & Bool:
+  ks.go(U32.to_nat((to - from + 2 : U32)), Ks{b, from, to, True{}, False{}, True{}})
+
+def sk.if(ok: Bool, b: D.Bytes, +p: Pre) -> Pr:
+  match ok:
+    case True{}:
+      Pr{b, p}
+    case False{}:
+      Pr{b, Slow{}}
+
+def sk.cr(+pos: U32, +c: Cut, r: D.Bytes & U32) -> Pr:
+  match c:
+    case Cut8{+e0, +e1, +e2, +e3, +e4, +e5, +e6, +e7, +lf}:
+      (b, +x) = r
+      sk.if(Bool.not(U32.is_eq(e7, lf) && U32.is_eq(x, 13)), b, Skip{pos, e0, e1, e2, e3, e4, e5, e6, e7, lf})
+    case _:
+      (b, x) = r
+      Pr{b, Slow{}}
+
+def sk.alt(+pos: U32, +c: Cut, r: D.Bytes & Bool) -> Pr:
+  (b, ok) = r
+  match ok:
+    case True{}:
+      sk.cr(pos, c, BY.at(b, (Cut.lf(c) - 1 : U32)))
+    case False{}:
+      Pr{b, Slow{}}
+
+def sk.ref.if(ok: Bool, +pos: U32, +c: Cut, +s4: U32, +e4: U32, b: D.Bytes) -> Pr:
+  match ok:
+    case True{}:
+      sk.alt(pos, c, oos(b, s4, e4))
+    case False{}:
+      Pr{b, Slow{}}
+
+def sk.ref(+pos: U32, +c: Cut, +ne: Bool, +s4: U32, +e4: U32, r: D.Bytes & Bool) -> Pr:
+  (b, lets) = r
+  sk.ref.if(ne && lets, pos, c, s4, e4, b)
+
 def pre.al.if(ok: Bool, +pos: U32, +c: Cut, b: D.Bytes) -> Pr:
   match ok c:
     case True{} Cut8{e0, e1, +e2, +e3, e4, e5, +e6, +e7, lf}:
       pre.info(pos, c, endok(b, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)))
+    case False{} Cut8{e0, e1, +e2, +e3, +e4, e5, e6, e7, lf}:
+      sk.ref(pos, c, U32.is_lt((e2 + 1 : U32), e3), (e3 + 1 : U32), e4, letters(b, (e2 + 1 : U32), e3))
     case _ _:
       Pr{b, Slow{}}
 

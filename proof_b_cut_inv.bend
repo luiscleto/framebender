@@ -35,6 +35,8 @@ def isP(p: NF.Pre) -> Type:
       Empty
     case NF.Incomplete{}:
       Empty
+    case NF.Skip{pos, e0, e1, e2, e3, e4, e5, e6, e7, lf}:
+      Empty
 
 def p_no(+p: NF.Pre, +k: NF.Pre, +h: {p == k : NF.Pre}, u: isP(k)) -> isP(p):
   %Equal.sym(NF.Pre, p, k, h) : isP(_)
@@ -217,6 +219,8 @@ def PTp(+len: U32, +t: AT.Tree<U32>, p: NF.Pre) -> Type:
       Unit
     case NF.Incomplete{}:
       Unit
+    case NF.Skip{pos, e0, e1, e2, e3, e4, e5, e6, e7, lf}:
+      Unit
 
 def PCut(p: NF.Pre) -> NF.Cut:
   match p:
@@ -226,6 +230,37 @@ def PCut(p: NF.Pre) -> NF.Cut:
       NF.Short{}
     case NF.Incomplete{}:
       NF.Short{}
+    case NF.Skip{pos, e0, e1, e2, e3, e4, e5, e6, e7, lf}:
+      NF.Short{}
+
+# The out-of-scope tests never give Pass.
+def sif_no(+pos: U32, +a0: U32, +a1: U32, +a2: U32, +a3: U32, +a4: U32, +a5: U32, +a6: U32, +a7: U32, +alf: U32, +ok: Bool, +k: NF.Pre, u: isP(k),
+  +h: {M.SIf(pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, ok) == k : NF.Pre}) -> Empty:
+  match ok:
+    case True{}:
+      p_no(NF.Skip{pos, a0, a1, a2, a3, a4, a5, a6, a7, alf}, k, h, u)
+    case False{}:
+      p_no(NF.Slow{}, k, h, u)
+
+def salt_no(+len: U32, +t: AT.Tree<U32>, +pos: U32, +a0: U32, +a1: U32, +a2: U32, +a3: U32, +a4: U32, +a5: U32, +a6: U32, +a7: U32, +alf: U32, +ok: Bool, +k: NF.Pre, u: isP(k),
+  +h: {M.SAlt(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, ok) == k : NF.Pre}) -> Empty:
+  match ok:
+    case True{}:
+      sif_no(pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, M.CRT(len, t, a7, alf), k, u, h)
+    case False{}:
+      p_no(NF.Slow{}, k, h, u)
+
+def sref_no(+len: U32, +t: AT.Tree<U32>, +pos: U32, +a0: U32, +a1: U32, +a2: U32, +a3: U32, +a4: U32, +a5: U32, +a6: U32, +a7: U32, +alf: U32, +ok: Bool, +k: NF.Pre, u: isP(k),
+  +h: {M.SRef(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, ok) == k : NF.Pre}) -> Empty:
+  match ok:
+    case True{}:
+      salt_no(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, M.OOS(len, t, (a3 + 1 : U32), a4), k, u, h)
+    case False{}:
+      p_no(NF.Slow{}, k, h, u)
+
+def psk_no(+len: U32, +t: AT.Tree<U32>, +pos: U32, +a0: U32, +a1: U32, +a2: U32, +a3: U32, +a4: U32, +a5: U32, +a6: U32, +a7: U32, +alf: U32, +k: NF.Pre, u: isP(k),
+  +h: {M.PSk(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf) == k : NF.Pre}) -> Empty:
+  sref_no(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, U32.is_lt((a2 + 1 : U32), a3) && M.LETT(len, t, (a2 + 1 : U32), a3), k, u, h)
 
 def iif(+pos: U32, +a0: U32, +a1: U32, +a2: U32, +a3: U32, +a4: U32, +a5: U32, +a6: U32, +a7: U32, +alf: U32, +ok: Bool, +k: NF.Pre, u: isP(k),
   +h: {M.PIf(pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, ok) == k : NF.Pre}) ->
@@ -252,7 +287,7 @@ def ial(+len: U32, +t: AT.Tree<U32>, +pos: U32, +a0: U32, +a1: U32, +a2: U32, +a
     case True{}:
       ({==}, iinfo(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, M.EK(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)), k, u, h))
     case False{}:
-      Empty.absurd({False{} == True{} : Bool} & ({M.EK(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)) == True{} : Bool} & ({M.CRT(len, t, a7, alf) == True{} : Bool} & {P10(pos, a0, a1, a2, a3, a4, a5, a6, a7, alf) == k : NF.Pre})), p_no(NF.Slow{}, k, h, u))
+      Empty.absurd({False{} == True{} : Bool} & ({M.EK(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)) == True{} : Bool} & ({M.CRT(len, t, a7, alf) == True{} : Bool} & {P10(pos, a0, a1, a2, a3, a4, a5, a6, a7, alf) == k : NF.Pre})), psk_no(len, t, pos, a0, a1, a2, a3, a4, a5, a6, a7, alf, k, u, h))
 
 def IPOS(+len: U32, +t: AT.Tree<U32>, +a0: U32, +a1: U32, +a2: U32, +a3: U32, +a4: U32, +a5: U32, +a6: U32, +a7: U32, +alf: U32, +ok: Bool, +pos: U32, +k: NF.Pre) -> Type:
   {ok == True{} : Bool} & ({M.AL(len, t, (a2 + 1 : U32), a3, (a3 + 1 : U32), a4) == True{} : Bool} & ({M.EK(len, t, (a6 + 1 : U32), a7, pos, (a3 - a2 - 1 : U32)) == True{} : Bool} & ({M.CRT(len, t, a7, alf) == True{} : Bool} & {P10(pos, a0, a1, a2, a3, a4, a5, a6, a7, alf) == k : NF.Pre})))

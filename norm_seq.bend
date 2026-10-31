@@ -1142,6 +1142,27 @@ def fast.run(+back: Nat, +o: B.Opts, p: NR.Run & (D.Bytes & Bool), +s: U32, +pos
   (run, q) = p
   fast.run.q(back, o, run, s, pos, lf, e0, rs, rl, q, cx, win, fneed)
 
+# An out-of-scope record (NF.Skip): in the current run, written as it came.
+# No reference is read: the verdict does not depend on it.
+def skip.hit(+o: B.Opts, p: NR.Run & Nat, +pos: U32, +s: U32, +lf: U32, b: D.Bytes, cx: Cx, win: Win) -> Adv:
+  (run, +n) = p
+  done.b(o, NR.skip_done(run, R.Opts.w(o), n, U32.to_nat(pos), b, s, (lf + 1 - s : U32)), (lf + 1 : U32), cx, win)
+
+def skip.run.if(ok: Bool, +back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +s: U32, +pos: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  match ok:
+    case True{}:
+      skip.hit(o, ticked(run), pos, s, lf, b, cx, win)
+    case False{}:
+      decoded(back, o, run, b, s, cx, win, fneed)
+
+def skip.run.q(+back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +pos: U32, +lf: U32, +e0: U32, q: D.Bytes & Bool, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  (b, ok) = q
+  skip.run.if(ok && U32.is_lt(s, e0) && U32.is_le((lf - s : U32), 268435456), back, o, run, b, s, pos, lf, cx, win, fneed)
+
+def skip.run(+back: Nat, +o: B.Opts, p: NR.Run & (D.Bytes & Bool), +s: U32, +pos: U32, +lf: U32, +e0: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  (run, q) = p
+  skip.run.q(back, o, run, s, pos, lf, e0, q, cx, win, fneed)
+
 def fast.pre(+back: Nat, +o: B.Opts, run: NR.Run, +s: U32, pr: NF.Pr, cx: Cx, win: Win, +fneed: Bool) -> Adv:
   match pr:
     case NF.Pr{b, NF.Pass{+pos, +e0, e1, +e2, +e3, e4, e5, e6, e7, +lf}}:
@@ -1150,6 +1171,8 @@ def fast.pre(+back: Nat, +o: B.Opts, run: NR.Run, +s: U32, pr: NF.Pr, cx: Cx, wi
       fix(back, o, run, b, s, cx, win, fneed)
     case NF.Pr{b, NF.Incomplete{}}:
       decoded(back, o, run, b, s, cx, win, fneed)
+    case NF.Pr{b, NF.Skip{+pos, +e0, e1, e2, e3, e4, e5, e6, e7, +lf}}:
+      skip.run(back, o, Run.same(run, b, s, e0), s, pos, lf, e0, cx, win, fneed)
 
 def split.out(o2: NS.Out, +back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
   match o2:
