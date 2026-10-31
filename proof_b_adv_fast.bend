@@ -19,6 +19,8 @@ import ./proof_b_adv_sp.bend as HX
 import ./proof_b_adv_dec.bend as DE
 import ./proof_b_adv_proj.bend as PJ
 import ./proof_b_adv_hit.bend as FH
+import ./proof_b_skip.bend as SK
+import ./proof_b_skip_hit.bend as SKH
 import ./proof_s_multi.bend as MU
 import ./proof_c_adv.bend as CF
 import ./proof_b_adv_msx.bend as MSX
@@ -686,6 +688,147 @@ def F.lt(+hold: Bool, +dfs: B.Defs, +lt: Bool, +fa: List<&2, B.Contig>, +T: R.Re
     case False{}:
       F.r0(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hx, hmv, hbig, hin, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hp, el, run_same0(rp, len, t, d, at, e0, hi, hok, PJ.lf_s0(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, CU.pass_lf(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)), el, FH.e0_le(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)), hnr)
 
+# The skip path (norm_seq.bend skip.run .. skip.hit): as the fast path's,
+# without the window.
+
+# The line's size test (skip path).
+def Sk.le(+hold: Bool, +dfs: B.Defs, +le: Bool, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+  +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: CD.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool,
+  +hb: {CD.fa_bytes(fa) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == True{} : Bool},
+  +hx: {P.RunP.x(rp) == False{} : Bool}, +hmv: {MU.MW(o, len, t, at) == True{} : Bool},
+  +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
+  +hin: {P.RunP.i(rp) == True{} : Bool},
+  +hi: {PR.RunInv(rp) == True{} : Bool},
+  +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
+  +hs: {U32.is_le(at, len) == True{} : Bool},
+  +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32,
+  +hp: SK.SKIP(len, t, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf),
+  +hse: {U32.is_lt(at, e0) == True{} : Bool},
+  +hcr: {P.RunP.c(rp) == Some{P.btext(len, t, at, (e0 - at : U32))} : Maybe<&2, String>},
+  +ele: {U32.is_le((lf - at : U32), 268435456) == le : Bool},
+  +hnr: LI.HNE(hold, len, at)) ->
+  DE.DG(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed,
+    Norm.skip.run.if(le, back, o, P.mkRun(rp), C.BT(len, t), at, pos, lf, DE.CX(hold, dfs, rest, pd, eof), CD.mkWin(fa, wp), fneed)):
+  match le:
+    case False{}:
+      DE.dec(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, fneed, hb, hw, hr, hg, hx, hbig, hnr)
+    case True{}:
+      SKH.shit(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hw, hr, hg, hi, hx, hin, hbig, hok, hs, hmv, hp, hse, hcr, ele, PR.run_tick(rp, hi), hnr)
+
+# CHROM against the run's (q).
+def Sk.q(+hold: Bool, +dfs: B.Defs, +q: Bool, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+  +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: CD.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool,
+  +hb: {CD.fa_bytes(fa) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == True{} : Bool},
+  +hx: {P.RunP.x(rp) == False{} : Bool}, +hmv: {MU.MW(o, len, t, at) == True{} : Bool},
+  +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
+  +hin: {P.RunP.i(rp) == True{} : Bool},
+  +hi: {PR.RunInv(rp) == True{} : Bool},
+  +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
+  +hs: {U32.is_le(at, len) == True{} : Bool},
+  +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32,
+  +hp: SK.SKIP(len, t, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf),
+  +hse: {U32.is_lt(at, e0) == True{} : Bool},
+  +hpk: {Bool.pick(Maybe<&2, String>, q, Some{P.btext(len, t, at, (e0 - at : U32))}, P.RunP.c(rp)) == P.RunP.c(rp) : Maybe<&2, String>},
+  +hnr: LI.HNE(hold, len, at)) ->
+  DE.DG(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed,
+    Norm.skip.run.q(back, o, P.mkRun(rp), at, pos, lf, e0, (C.BT(len, t), q), DE.CX(hold, dfs, rest, pd, eof), CD.mkWin(fa, wp), fneed)):
+  match q:
+    case False{}:
+      DE.dec(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, fneed, hb, hw, hr, hg, hx, hbig, hnr)
+    case True{}:
+      %Equal.sym(Bool, U32.is_lt(at, e0), True{}, hse) :
+        DE.DG(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, Norm.skip.run.if(Bool.and(Bool.and(True{}, _), U32.is_le((lf - at : U32), 268435456)), back, o, P.mkRun(rp), C.BT(len, t), at, pos, lf, DE.CX(hold, dfs, rest, pd, eof), CD.mkWin(fa, wp), fneed))
+      Sk.le(hold, dfs, U32.is_le((lf - at : U32), 268435456), fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hx, hmv, hbig, hin, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hp, hse,
+        Equal.sym(Maybe<&2, String>, Some{P.btext(len, t, at, (e0 - at : U32))}, P.RunP.c(rp), hpk), {==}, hnr)
+
+# CHROM not empty: Run.same compares it with the run's.
+def Sk.rs(+hold: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+  +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: CD.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool,
+  +hb: {CD.fa_bytes(fa) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == True{} : Bool},
+  +hx: {P.RunP.x(rp) == False{} : Bool}, +hmv: {MU.MW(o, len, t, at) == True{} : Bool},
+  +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
+  +hin: {P.RunP.i(rp) == True{} : Bool},
+  +hi: {PR.RunInv(rp) == True{} : Bool},
+  +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
+  +hs: {U32.is_le(at, len) == True{} : Bool},
+  +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32,
+  +hp: SK.SKIP(len, t, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf),
+  +hse: {U32.is_lt(at, e0) == True{} : Bool},
+  h: RSW(rp, len, t, at, e0),
+  +hnr: LI.HNE(hold, len, at)) ->
+  DE.DG(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed,
+    Norm.skip.run(back, o, Norm.Run.same(P.mkRun(rp), C.BT(len, t), at, e0), at, pos, lf, e0, DE.CX(hold, dfs, rest, pd, eof), CD.mkWin(fa, wp), fneed)):
+  match h:
+    case (+q, r):
+      match r:
+        case (eqs, hpk):
+          %Equal.sym(NR.Run & (D.Bytes & Bool), Norm.Run.same(P.mkRun(rp), C.BT(len, t), at, e0), (P.mkRun(rp), (C.BT(len, t), q)), eqs) :
+            DE.DG(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, Norm.skip.run(back, o, _, at, pos, lf, e0, DE.CX(hold, dfs, rest, pd, eof), CD.mkWin(fa, wp), fneed))
+          Sk.q(hold, dfs, q, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hx, hmv, hbig, hin, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hp, hse, hpk, hnr)
+
+# CHROM empty: the decoded path.
+def Sk.r0(+hold: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+  +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: CD.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool,
+  +hb: {CD.fa_bytes(fa) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == True{} : Bool},
+  +hx: {P.RunP.x(rp) == False{} : Bool}, +hmv: {MU.MW(o, len, t, at) == True{} : Bool},
+  +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
+  +hin: {P.RunP.i(rp) == True{} : Bool},
+  +hi: {PR.RunInv(rp) == True{} : Bool},
+  +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
+  +hs: {U32.is_le(at, len) == True{} : Bool},
+  +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32,
+  +hp: SK.SKIP(len, t, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf),
+  +el: {U32.is_lt(at, e0) == False{} : Bool},
+  h: R0W(rp, len, t, at, e0),
+  +hnr: LI.HNE(hold, len, at)) ->
+  DE.DG(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed,
+    Norm.skip.run(back, o, Norm.Run.same(P.mkRun(rp), C.BT(len, t), at, e0), at, pos, lf, e0, DE.CX(hold, dfs, rest, pd, eof), CD.mkWin(fa, wp), fneed)):
+  match h:
+    case (+q, eqs):
+      %Equal.sym(NR.Run & (D.Bytes & Bool), Norm.Run.same(P.mkRun(rp), C.BT(len, t), at, e0), (P.mkRun(rp), (C.BT(len, t), q)), eqs) :
+        DE.DG(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, Norm.skip.run(back, o, _, at, pos, lf, e0, DE.CX(hold, dfs, rest, pd, eof), CD.mkWin(fa, wp), fneed))
+      %Equal.sym(Bool, U32.is_lt(at, e0), False{}, el) :
+        DE.DG(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, Norm.skip.run.if(Bool.and(Bool.and(q, _), U32.is_le((lf - at : U32), 268435456)), back, o, P.mkRun(rp), C.BT(len, t), at, pos, lf, DE.CX(hold, dfs, rest, pd, eof), CD.mkWin(fa, wp), fneed))
+      %Equal.sym(Bool, Bool.and(q, False{}), False{}, and_f(q)) :
+        DE.DG(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, Norm.skip.run.if(Bool.and(_, U32.is_le((lf - at : U32), 268435456)), back, o, P.mkRun(rp), C.BT(len, t), at, pos, lf, DE.CX(hold, dfs, rest, pd, eof), CD.mkWin(fa, wp), fneed))
+      DE.dec(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, fneed, hb, hw, hr, hg, hx, hbig, hnr)
+
+def Sk.lt(+hold: Bool, +dfs: B.Defs, +lt: Bool, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+  +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: CD.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool,
+  +hb: {CD.fa_bytes(fa) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed)) == True{} : Bool},
+  +hx: {P.RunP.x(rp) == False{} : Bool}, +hmv: {MU.MW(o, len, t, at) == True{} : Bool},
+  +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
+  +hin: {P.RunP.i(rp) == True{} : Bool},
+  +hi: {PR.RunInv(rp) == True{} : Bool},
+  +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
+  +hs: {U32.is_le(at, len) == True{} : Bool},
+  +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32,
+  +hp: SK.SKIP(len, t, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf),
+  +el: {U32.is_lt(at, e0) == lt : Bool},
+  +hnr: LI.HNE(hold, len, at)) ->
+  DE.DG(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed,
+    Norm.skip.run(back, o, Norm.Run.same(P.mkRun(rp), C.BT(len, t), at, e0), at, pos, lf, e0, DE.CX(hold, dfs, rest, pd, eof), CD.mkWin(fa, wp), fneed)):
+  match lt:
+    case True{}:
+      Sk.rs(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hx, hmv, hbig, hin, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hp, el, PR.run_same(rp, len, t, d, at, e0, hi, hok, PJ.lf_s0(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, SK.skip_lf(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)), el, SKH.e0_le(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)), hnr)
+    case False{}:
+      Sk.r0(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hx, hmv, hbig, hin, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hp, el, run_same0(rp, len, t, d, at, e0, hi, hok, PJ.lf_s0(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, SK.skip_lf(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)), el, SKH.e0_le(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)), hnr)
+
 # The line's cut.
 def F.pre(+hold: Bool, +dfs: B.Defs, +pr: NF.Pre, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: CD.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool,
@@ -710,6 +853,8 @@ def F.pre(+hold: Bool, +dfs: B.Defs, +pr: NF.Pre, +fa: List<&2, B.Contig>, +T: R
       CF.fix_ok(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hx, hbig, hin, hi, hok, hs, hnr, hmv)
     case NF.Incomplete{}:
       DE.dec(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, fneed, hb, hw, hr, hg, hx, hbig, hnr)
+    case NF.Skip{+pos, +e0, +e1, +e2, +e3, +e4, +e5, +e6, +e7, +lf}:
+      Sk.lt(hold, dfs, U32.is_lt(at, e0), fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hx, hmv, hbig, hin, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ep, {==}, hnr)
 
 # adv_ok on the fast path (proof_b_adv.bend's adv.fast).
 def F.top(+hold: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
