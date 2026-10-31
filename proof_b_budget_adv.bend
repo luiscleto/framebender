@@ -16,6 +16,7 @@ import ./proof_b_budget_dec.bend as BDe
 import ./proof_b_budget_fast.bend as BFa
 import ./proof_b_budget_ms.bend as BMS
 import ./proof_b_budget_mb.bend as BM
+import ./proof_b_bud_inj.bend as BI
 import lawful-bytes@0.1.0.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
@@ -97,7 +98,11 @@ def c.mb.if(+dfs: B.Defs, +i: Bool, +fa: List<&2, B.Contig>, +T: R.Report, +cs: 
   +hbi: {BN.biS(S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed)), cs) == True{} : Bool}) ->
   BD.AdvC(fa, cs, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed),
     Norm.body.if(i, back, o, P.mkRun(rp), C.BT(len, t), at, Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, dfs, False{}}, PC.mkWin(fa, wp), fneed)):
-  ?TODO
+  match i:
+    case False{}:
+      BDe.c.dec(dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, fneed, hb, hw, hr, hg, hx, hbig, hbi)
+    case True{}:
+      BI.c.m(dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, wp, fneed, hb, hw, hr, hg, hx, hbig, ei, hbi, R.Opts.split(o), {==})
 
 
 def c.mb.sb(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
