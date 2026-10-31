@@ -259,7 +259,8 @@ refuse gives, after all of the run's messages, `error: cannot index <path>`, exi
 end-of-file block; any other end leaves no index at either name. Bend's runtime stops with
 `_exit`, so then (and on a kill) the temporary `<index>.tmp` stays, a file htslib never reads.
 A run without `-W` leaves an old index of the `-o` file as it is, but for a BGZF `-o` file it
-first prints one warning for each index htslib would read for it.
+first warns about the index htslib would read for it: only the first one htslib would find,
+and none if that is a directory or the `-o` file.
 
 All the real bugs found in this project were in the driver, and three independent reviews of it
 found them. See `NOTES.md`, "Driver review".

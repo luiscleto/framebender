@@ -162,12 +162,13 @@ region queries for the new file.
   `error: cannot write out.vcf.gz.tbi (htslib would read out.vcf.csi first)`.
 - A run without `-W` leaves an old index as it is. htslib warns about it only when it is a second
   or more older than the file, so framebender warns first: for a BGZF `-o` file, before anything
-  is read, one line for each name htslib would read as its index (`out.vcf.gz.csi`,
-  `out.vcf.csi`, `out.vcf.gz.tbi`, `out.vcf.tbi`, in that order) that exists:
+  is read. htslib tries `out.vcf.gz.csi`, `out.vcf.csi`, `out.vcf.gz.tbi` and `out.vcf.tbi`, in
+  that order, and reads the first one that exists. framebender names only that one:
   `warning: htslib would read out.vcf.csi as the index of out.vcf.gz; remove it or use -W`.
-  It touches nothing (`out.vcf.csi` may index `out.vcf`), and the run goes on as without it.
-  A directory there is not warned about (htslib cannot read it, and says so); nor is plain output
-  or stdout.
+  If it is a directory (htslib cannot read it, and says so) or the `-o` file itself (as with
+  `-o x.csi`), there is no warning. The warning touches nothing (`out.vcf.csi` may index
+  `out.vcf`), and the run goes on as without it, also if the warning cannot be written. Plain
+  output and stdout get no warning.
 
 ## Differences from bcftools norm
 
