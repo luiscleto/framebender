@@ -59,9 +59,9 @@ def X(+len: U32, +t: AT.Tree<U32>) -> List<&2, U32>:
 def L1(+len: U32, +t: AT.Tree<U32>, +s: U32, +lf: U32) -> B.Line:
   B.Text.line(P.btext(len, t, s, (lf - s : U32)))
 
-def FS8(+len: U32, +t: AT.Tree<U32>, +s: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32) -> List<&2, String>:
+def FS8(+len: U32, +t: AT.Tree<U32>, +s: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +lf: U32) -> List<&2, String>:
   [FH.FLD(len, t, n(s), n(e0)), FH.FLD(len, t, CU.nx(e0), n(e1)), FH.FLD(len, t, CU.nx(e1), n(e2)), FH.F3(len, t, e2, e3), FH.F4(len, t, e3, e4),
-    FH.FLD(len, t, CU.nx(e4), n(e5)), FH.FLD(len, t, CU.nx(e5), n(e6)), ""]
+    FH.FLD(len, t, CU.nx(e4), n(e5)), FH.FLD(len, t, CU.nx(e5), n(e6)), B.Rec.field(J.pfs(FH.BODY(len, t, s, lf)), 7n)]
 
 # s <= lf: the line's LF is at or after its start.
 def s_lf(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
@@ -79,7 +79,7 @@ def lid_pfs(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(s, len) == True{} : Bool},
   +hp: FH.PASS(len, t, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf)) ->
-  {BN.lfs(L1(len, t, s, lf)) == FS8(len, t, s, e0, e1, e2, e3, e4, e5, e6) : List<&2, String>}:
+  {BN.lfs(L1(len, t, s, lf)) == FS8(len, t, s, e0, e1, e2, e3, e4, e5, e6, lf) : List<&2, String>}:
   +Xs = X(len, t)
   +body = FH.BODY(len, t, s, lf)
   +he2 = PJ.pa_2(len, t, e2, e3, e4, CU.pass_alleles(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
@@ -91,16 +91,16 @@ def lid_pfs(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
   +f6 = FH.FLD(len, t, CU.nx(e5), n(e6))
   +g3 = FH.F3(len, t, e2, e3)
   +g4 = FH.F4(len, t, e3, e4)
-  +hpf = {%he2 : {J.pfs(body) == [f0, f1, f2, Norm.chars(D.slice(Xs, _, Nat.sub(n(e3), _))), g4, f5, f6, ""] : List<&2, String>};
-    %he3 : {J.pfs(body) == [f0, f1, f2, FH.FLD(len, t, CU.nx(e2), n(e3)), Norm.chars(D.slice(Xs, _, Nat.sub(n(e4), _))), f5, f6, ""] : List<&2, String>};
-    CU.pass_fields(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp) : {J.pfs(body) == [f0, f1, f2, g3, g4, f5, f6, ""] : List<&2, String>}}
+  +hpf = {%he2 : {J.pfs(body) == [f0, f1, f2, Norm.chars(D.slice(Xs, _, Nat.sub(n(e3), _))), g4, f5, f6, B.Rec.field(J.pfs(body), 7n)] : List<&2, String>};
+    %he3 : {J.pfs(body) == [f0, f1, f2, FH.FLD(len, t, CU.nx(e2), n(e3)), Norm.chars(D.slice(Xs, _, Nat.sub(n(e4), _))), f5, f6, B.Rec.field(J.pfs(body), 7n)] : List<&2, String>};
+    CU.pass_fields(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp) : {J.pfs(body) == [f0, f1, f2, g3, g4, f5, f6, B.Rec.field(J.pfs(body), 7n)] : List<&2, String>}}
   +A = P.btext(len, t, s, (lf - s : U32))
   +F = CU.fld(Xs, n(s), n(lf))
   +eA = FH.btext_fld(len, t, s, lf, s_lf(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
   +eb = Equal.trans(String, B.Line.body(B.Text.line(A)), B.Line.body(B.Text.line(F)), body,
     Equal.cong(String, String, z => B.Line.body(B.Text.line(z)), A, F, eA),
     Equal.cong(B.Line, String, z => B.Line.body(z), B.Text.line(F), Norm.line(F), Equal.sym(B.Line, Norm.line(F), B.Text.line(F), LSS.line_eq(F))))
-  Equal.trans(List<&2, String>, J.pfs(B.Line.body(B.Text.line(A))), J.pfs(body), [f0, f1, f2, g3, g4, f5, f6, ""],
+  Equal.trans(List<&2, String>, J.pfs(B.Line.body(B.Text.line(A))), J.pfs(body), [f0, f1, f2, g3, g4, f5, f6, B.Rec.field(J.pfs(body), 7n)],
     Equal.cong(String, List<&2, String>, z => J.pfs(z), B.Line.body(B.Text.line(A)), body, eb), hpf)
 
 def LFT0(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
@@ -117,7 +117,7 @@ def lid_chrom(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
   +hp: FH.PASS(len, t, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf)) ->
   {BN.lchrom(L1(len, t, s, lf)) == P.btext(len, t, s, (e0 - s : U32)) : String}:
   +hs0 = PJ.lf_s0(len, t, s, e0, e1, e2, e3, e4, e5, e6, e7, lf, LFT0(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
-  +L = FS8(len, t, s, e0, e1, e2, e3, e4, e5, e6)
+  +L = FS8(len, t, s, e0, e1, e2, e3, e4, e5, e6, lf)
   Equal.trans(String, BN.lchrom(L1(len, t, s, lf)), B.Rec.field(L, 0n), P.btext(len, t, s, (e0 - s : U32)),
     Equal.cong(List<&2, String>, String, z => B.Rec.field(z, 0n), BN.lfs(L1(len, t, s, lf)), L, lid_pfs(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)),
     Equal.sym(String, P.btext(len, t, s, (e0 - s : U32)), FH.FLD(len, t, n(s), n(e0)), FH.btext_fld(len, t, s, e0, hs0)))
@@ -128,7 +128,7 @@ def lid_pos(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
   +hs: {U32.is_le(s, len) == True{} : Bool},
   +hp: FH.PASS(len, t, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf)) ->
   {BN.lpos(L1(len, t, s, lf)) == n(pos) : Nat}:
-  +L = FS8(len, t, s, e0, e1, e2, e3, e4, e5, e6)
+  +L = FS8(len, t, s, e0, e1, e2, e3, e4, e5, e6, lf)
   Equal.trans(Nat, BN.lpos(L1(len, t, s, lf)), B.Rec.pos(L), n(pos),
     Equal.cong(List<&2, String>, Nat, z => B.Rec.pos(z), BN.lfs(L1(len, t, s, lf)), L, lid_pfs(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)),
     Equal.cong(Maybe<&2, Nat>, Nat, m => Maybe.default(&2, Nat, m, 0n), B.Pos.read(CU.fld(X(len, t), CU.nx(e0), n(e1))), Some{n(pos)},
@@ -154,7 +154,7 @@ def lid_ref(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
   +hs: {U32.is_le(s, len) == True{} : Bool},
   +hp: FH.PASS(len, t, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf)) ->
   {BN.lref(L1(len, t, s, lf)) == n((e3 - e2 - 1 : U32)) : Nat}:
-  +L = FS8(len, t, s, e0, e1, e2, e3, e4, e5, e6)
+  +L = FS8(len, t, s, e0, e1, e2, e3, e4, e5, e6, lf)
   +h23 = PJ.lf_23(len, t, s, e0, e1, e2, e3, e4, e5, e6, e7, lf, LFT0(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
   +h34x = PJ.lf_34(len, t, s, e0, e1, e2, e3, e4, e5, e6, e7, lf, LFT0(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
   +he2 = PJ.pa_2(len, t, e2, e3, e4, CU.pass_alleles(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
@@ -194,7 +194,7 @@ def lid_gate(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
   +hp: FH.PASS(len, t, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf),
   +hse: {U32.is_lt(s, e0) == True{} : Bool}) ->
   {BN.lgate(L1(len, t, s, lf)) == True{} : Bool}:
-  +L = FS8(len, t, s, e0, e1, e2, e3, e4, e5, e6)
+  +L = FS8(len, t, s, e0, e1, e2, e3, e4, e5, e6, lf)
   +Xs = X(len, t)
   +h23 = PJ.lf_23(len, t, s, e0, e1, e2, e3, e4, e5, e6, e7, lf, LFT0(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
   +h34x = PJ.lf_34(len, t, s, e0, e1, e2, e3, e4, e5, e6, e7, lf, LFT0(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
