@@ -111,7 +111,7 @@ def c.inj.b(+hold: Bool, +b: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.
   +hal: {Nat.is_le(U32.to_nat(at), U32.to_nat(lf)) == True{} : Bool},
   +hlt: {Nat.is_lt(U32.to_nat(lf), U32.to_nat(len)) == True{} : Bool},
   +hfl: {D.first(D.view(C.BT(len, t)), U32.to_nat(at), U32.to_nat(len), 10) == U32.to_nat(lf) : Nat},
-  q: DR.SPB(b, len, t, NS.split(C.BT(len, t), at, lf, o0, dfs), B.Rec.parts(dfs, B.Opts{st, w, True{}, o0, args}, B.Line.body(B.Text.line(P.btext(len, t, at, (lf - at : U32))))), B.Line.term(B.Text.line(P.btext(len, t, at, (lf - at : U32)))), DR.CRT(DR.TE(len, t, at, lf))),
+  q: DR.SPB(b, len, t, NS.split(C.BT(len, t), at, lf, o0, dfs), B.Rec.parts(dfs, B.Opts{st, w, True{}, o0, args}, B.Line.body(B.Text.line(P.btext(len, t, at, (lf - at : U32))))), B.Line.body(B.Text.line(P.btext(len, t, at, (lf - at : U32)))), B.Line.term(B.Text.line(P.btext(len, t, at, (lf - at : U32)))), DR.CRT(DR.TE(len, t, at, lf))),
   +hnr: LI.HNE(hold, len, at)) ->
   BD.AdvC(fa, cs, LI.PPs(hold, dfs, O1(st, w, o0, args), rp, len, t, d, at, rest, pd, eof, back, wp, None{}, fneed),
     Norm.split.out(NS.split(C.BT(len, t), at, lf, o0, dfs), back, O1(st, w, o0, args), P.mkRun(rp), at, lf, Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, dfs, hold}, PC.mkWin(fa, wp), fneed)):
@@ -149,7 +149,7 @@ def c.inj.spr(+hold: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, 
   +hal: {Nat.is_le(U32.to_nat(at), U32.to_nat(lf)) == True{} : Bool},
   +hlt: {Nat.is_lt(U32.to_nat(lf), U32.to_nat(len)) == True{} : Bool},
   +hfl: {D.first(D.view(C.BT(len, t)), U32.to_nat(at), U32.to_nat(len), 10) == U32.to_nat(lf) : Nat},
-  r: DR.SPR(len, t, NS.split(C.BT(len, t), at, lf, o0, dfs), B.Rec.parts(dfs, B.Opts{st, w, True{}, o0, args}, B.Line.body(B.Text.line(P.btext(len, t, at, (lf - at : U32))))), B.Line.term(B.Text.line(P.btext(len, t, at, (lf - at : U32)))), DR.CRT(DR.TE(len, t, at, lf))),
+  r: DR.SPR(len, t, NS.split(C.BT(len, t), at, lf, o0, dfs), B.Rec.parts(dfs, B.Opts{st, w, True{}, o0, args}, B.Line.body(B.Text.line(P.btext(len, t, at, (lf - at : U32))))), B.Line.body(B.Text.line(P.btext(len, t, at, (lf - at : U32)))), B.Line.term(B.Text.line(P.btext(len, t, at, (lf - at : U32)))), DR.CRT(DR.TE(len, t, at, lf))),
   +hnr: LI.HNE(hold, len, at)) ->
   BD.AdvC(fa, cs, LI.PPs(hold, dfs, O1(st, w, o0, args), rp, len, t, d, at, rest, pd, eof, back, wp, None{}, fneed),
     Norm.split.out(NS.split(C.BT(len, t), at, lf, o0, dfs), back, O1(st, w, o0, args), P.mkRun(rp), at, lf, Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, dfs, hold}, PC.mkWin(fa, wp), fneed)):
