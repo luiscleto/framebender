@@ -92,8 +92,9 @@ framebender reads the file in pieces and normalizes 16 at a time in parallel; th
 the parallel version, which gives byte-for-byte the output of the sequential one. The `-W` rows write a
 compressed file and its CSI index (bcftools with `--threads 16`, both on 16 CPUs; framebender's
 index is byte for byte bcftools index's of the same file, both with libdeflate). A file where
-nearly every record needs rewriting is still slower than bcftools. framebender uses more memory,
-which `--threads` trades against speed (HG002 whole genome; the output is identical at every
+nearly every record needs rewriting is still slower than bcftools, and so is `-m` on files with
+many samples and many ALTs per line, where memory also grows with the records a line makes (see
+[USAGE](docs/USAGE.md)). framebender uses more memory, which `--threads` trades against speed (HG002 whole genome; the output is identical at every
 setting):
 
 | | time | peak memory |
