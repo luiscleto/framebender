@@ -12,15 +12,15 @@ import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Phase E, area "merge": the run merge.if builds is good (merge_inv, at the
 # level of the runs' fields): T's buffers and counts with the line numbers
-# moved on, S's header, in the body, no notes, not stopped.
+# moved on, S's header, in the body, T's notes renumbered, not stopped.
 
 def inv_w(+sh: String, +ti: Bool, +th: String, +tc: Maybe<&2, String>, +tcbl: U32, +tcbt: AT.Tree<U32>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tbn: Nat, +ttl: Nat, +tobl: U32, +tobt: AT.Tree<U32>, +tow: U32, +tns: List<&2, B.Note>, +tx: Bool, +d: Nat,
   +hh: {E.is_bytes(sh) == True{} : Bool},
   +ht: {RD.inv.k(ti, th, tc, tcbl, tcbt, tf, tb, tbn, ttl, tobl, tobt, tow, tns, tx) == True{} : Bool},
-  +htx: {tx == False{} : Bool}) -> {RD.inv.k(True{}, sh, tc, tcbl, tcbt, W.cks_shift(d, tf), W.cks_shift(d, tb), tbn, ttl, tobl, tobt, tow, Nil{}, False{}) == True{} : Bool}:
+  +htx: {tx == False{} : Bool}) -> {RD.inv.k(True{}, sh, tc, tcbl, tcbt, W.cks_shift(d, tf), W.cks_shift(d, tb), tbn, ttl, tobl, tobt, tow, W.notes_shift(d, tns), False{}) == True{} : Bool}:
   match tx:
     case True{}:
-      Empty.absurd({RD.inv.k(True{}, sh, tc, tcbl, tcbt, W.cks_shift(d, tf), W.cks_shift(d, tb), tbn, ttl, tobl, tobt, tow, Nil{}, False{}) == True{} : Bool}, N.true_ne_false(htx))
+      Empty.absurd({RD.inv.k(True{}, sh, tc, tcbl, tcbt, W.cks_shift(d, tf), W.cks_shift(d, tb), tbn, ttl, tobl, tobt, tow, W.notes_shift(d, tns), False{}) == True{} : Bool}, N.true_ne_false(htx))
     case False{}:
       +x5 = PI.pr5(ti, th, tc, tcbl, tcbt, tf, tb, tbn, ttl, tobl, tobt, tow, tns, False{}, ht)
       +x6 = PI.pr6(ti, th, tc, tcbl, tcbt, tf, tb, tbn, ttl, tobl, tobt, tow, tns, False{}, ht)

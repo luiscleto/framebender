@@ -5,22 +5,23 @@ import ./norm_run.bend as NR
 import ./norm.bend as W
 import lawful-words@0.1.0.0/proof_nat.bend as N
 
-# Phase E, area "merge": norm_par.bend's merge.ok taken apart, one test at a
-# time (ok1 .. ok12, in merge.ok's order; generated).
+# Phase E, area "merge": norm.bend's merge.ok taken apart, one test at a
+# time, in merge.ok's order (generated: data/tmp/tasks/gen/gen_merge_ok.py,
+# scratch). The names keep merge.ok's first numbering: ok5 (the task wrote
+# no message) went when the merge began to keep a task's messages.
 
-def ok1(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx) == True{} : Bool}) -> {si == True{} : Bool}:
+def ok1(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx) == True{} : Bool}) -> {si == True{} : Bool}:
   +a1 = si
   +a2 = ti
   +a3 = Bool.not(sx)
   +a4 = Bool.not(tx)
-  +a5 = List.is_empty(&2, B.Note, tns)
-  +a6 = Nat.is_lt(0n, tn)
-  +a7 = Bool.not(R.has(c0, se))
-  +a8 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
-  +a9 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
-  +a10 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
-  +a11 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
-  +a12 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
+  +a5 = Nat.is_lt(0n, tn)
+  +a6 = Bool.not(R.has(c0, se))
+  +a7 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
+  +a8 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
+  +a9 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
+  +a10 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
+  +a11 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
   +p1 = a1
   +p2 = Bool.and(p1, a2)
   +p3 = Bool.and(p2, a3)
@@ -32,9 +33,7 @@ def ok1(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +p9 = Bool.and(p8, a9)
   +p10 = Bool.and(p9, a10)
   +p11 = Bool.and(p10, a11)
-  +p12 = Bool.and(p11, a12)
-  +r11 = N.and_true_l(p11, a12, hok)
-  +r10 = N.and_true_l(p10, a11, r11)
+  +r10 = N.and_true_l(p10, a11, hok)
   +r9 = N.and_true_l(p9, a10, r10)
   +r8 = N.and_true_l(p8, a9, r9)
   +r7 = N.and_true_l(p7, a8, r8)
@@ -46,19 +45,18 @@ def ok1(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +r1 = N.and_true_l(p1, a2, r2)
   r1
 
-def ok2(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx) == True{} : Bool}) -> {ti == True{} : Bool}:
+def ok2(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx) == True{} : Bool}) -> {ti == True{} : Bool}:
   +a1 = si
   +a2 = ti
   +a3 = Bool.not(sx)
   +a4 = Bool.not(tx)
-  +a5 = List.is_empty(&2, B.Note, tns)
-  +a6 = Nat.is_lt(0n, tn)
-  +a7 = Bool.not(R.has(c0, se))
-  +a8 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
-  +a9 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
-  +a10 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
-  +a11 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
-  +a12 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
+  +a5 = Nat.is_lt(0n, tn)
+  +a6 = Bool.not(R.has(c0, se))
+  +a7 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
+  +a8 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
+  +a9 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
+  +a10 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
+  +a11 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
   +p1 = a1
   +p2 = Bool.and(p1, a2)
   +p3 = Bool.and(p2, a3)
@@ -70,9 +68,7 @@ def ok2(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +p9 = Bool.and(p8, a9)
   +p10 = Bool.and(p9, a10)
   +p11 = Bool.and(p10, a11)
-  +p12 = Bool.and(p11, a12)
-  +r11 = N.and_true_l(p11, a12, hok)
-  +r10 = N.and_true_l(p10, a11, r11)
+  +r10 = N.and_true_l(p10, a11, hok)
   +r9 = N.and_true_l(p9, a10, r10)
   +r8 = N.and_true_l(p8, a9, r9)
   +r7 = N.and_true_l(p7, a8, r8)
@@ -83,19 +79,18 @@ def ok2(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +r2 = N.and_true_l(p2, a3, r3)
   N.and_true_r(p1, a2, r2)
 
-def ok3(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx) == True{} : Bool}) -> {Bool.not(sx) == True{} : Bool}:
+def ok3(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx) == True{} : Bool}) -> {Bool.not(sx) == True{} : Bool}:
   +a1 = si
   +a2 = ti
   +a3 = Bool.not(sx)
   +a4 = Bool.not(tx)
-  +a5 = List.is_empty(&2, B.Note, tns)
-  +a6 = Nat.is_lt(0n, tn)
-  +a7 = Bool.not(R.has(c0, se))
-  +a8 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
-  +a9 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
-  +a10 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
-  +a11 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
-  +a12 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
+  +a5 = Nat.is_lt(0n, tn)
+  +a6 = Bool.not(R.has(c0, se))
+  +a7 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
+  +a8 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
+  +a9 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
+  +a10 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
+  +a11 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
   +p1 = a1
   +p2 = Bool.and(p1, a2)
   +p3 = Bool.and(p2, a3)
@@ -107,9 +102,7 @@ def ok3(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +p9 = Bool.and(p8, a9)
   +p10 = Bool.and(p9, a10)
   +p11 = Bool.and(p10, a11)
-  +p12 = Bool.and(p11, a12)
-  +r11 = N.and_true_l(p11, a12, hok)
-  +r10 = N.and_true_l(p10, a11, r11)
+  +r10 = N.and_true_l(p10, a11, hok)
   +r9 = N.and_true_l(p9, a10, r10)
   +r8 = N.and_true_l(p8, a9, r9)
   +r7 = N.and_true_l(p7, a8, r8)
@@ -119,19 +112,18 @@ def ok3(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +r3 = N.and_true_l(p3, a4, r4)
   N.and_true_r(p2, a3, r3)
 
-def ok4(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx) == True{} : Bool}) -> {Bool.not(tx) == True{} : Bool}:
+def ok4(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx) == True{} : Bool}) -> {Bool.not(tx) == True{} : Bool}:
   +a1 = si
   +a2 = ti
   +a3 = Bool.not(sx)
   +a4 = Bool.not(tx)
-  +a5 = List.is_empty(&2, B.Note, tns)
-  +a6 = Nat.is_lt(0n, tn)
-  +a7 = Bool.not(R.has(c0, se))
-  +a8 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
-  +a9 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
-  +a10 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
-  +a11 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
-  +a12 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
+  +a5 = Nat.is_lt(0n, tn)
+  +a6 = Bool.not(R.has(c0, se))
+  +a7 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
+  +a8 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
+  +a9 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
+  +a10 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
+  +a11 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
   +p1 = a1
   +p2 = Bool.and(p1, a2)
   +p3 = Bool.and(p2, a3)
@@ -143,9 +135,7 @@ def ok4(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +p9 = Bool.and(p8, a9)
   +p10 = Bool.and(p9, a10)
   +p11 = Bool.and(p10, a11)
-  +p12 = Bool.and(p11, a12)
-  +r11 = N.and_true_l(p11, a12, hok)
-  +r10 = N.and_true_l(p10, a11, r11)
+  +r10 = N.and_true_l(p10, a11, hok)
   +r9 = N.and_true_l(p9, a10, r10)
   +r8 = N.and_true_l(p8, a9, r9)
   +r7 = N.and_true_l(p7, a8, r8)
@@ -154,19 +144,18 @@ def ok4(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +r4 = N.and_true_l(p4, a5, r5)
   N.and_true_r(p3, a4, r4)
 
-def ok5(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx) == True{} : Bool}) -> {List.is_empty(&2, B.Note, tns) == True{} : Bool}:
+def ok6(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx) == True{} : Bool}) -> {Nat.is_lt(0n, tn) == True{} : Bool}:
   +a1 = si
   +a2 = ti
   +a3 = Bool.not(sx)
   +a4 = Bool.not(tx)
-  +a5 = List.is_empty(&2, B.Note, tns)
-  +a6 = Nat.is_lt(0n, tn)
-  +a7 = Bool.not(R.has(c0, se))
-  +a8 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
-  +a9 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
-  +a10 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
-  +a11 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
-  +a12 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
+  +a5 = Nat.is_lt(0n, tn)
+  +a6 = Bool.not(R.has(c0, se))
+  +a7 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
+  +a8 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
+  +a9 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
+  +a10 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
+  +a11 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
   +p1 = a1
   +p2 = Bool.and(p1, a2)
   +p3 = Bool.and(p2, a3)
@@ -178,9 +167,7 @@ def ok5(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +p9 = Bool.and(p8, a9)
   +p10 = Bool.and(p9, a10)
   +p11 = Bool.and(p10, a11)
-  +p12 = Bool.and(p11, a12)
-  +r11 = N.and_true_l(p11, a12, hok)
-  +r10 = N.and_true_l(p10, a11, r11)
+  +r10 = N.and_true_l(p10, a11, hok)
   +r9 = N.and_true_l(p9, a10, r10)
   +r8 = N.and_true_l(p8, a9, r9)
   +r7 = N.and_true_l(p7, a8, r8)
@@ -188,19 +175,18 @@ def ok5(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +r5 = N.and_true_l(p5, a6, r6)
   N.and_true_r(p4, a5, r5)
 
-def ok6(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx) == True{} : Bool}) -> {Nat.is_lt(0n, tn) == True{} : Bool}:
+def ok7(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx) == True{} : Bool}) -> {Bool.not(R.has(c0, se)) == True{} : Bool}:
   +a1 = si
   +a2 = ti
   +a3 = Bool.not(sx)
   +a4 = Bool.not(tx)
-  +a5 = List.is_empty(&2, B.Note, tns)
-  +a6 = Nat.is_lt(0n, tn)
-  +a7 = Bool.not(R.has(c0, se))
-  +a8 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
-  +a9 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
-  +a10 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
-  +a11 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
-  +a12 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
+  +a5 = Nat.is_lt(0n, tn)
+  +a6 = Bool.not(R.has(c0, se))
+  +a7 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
+  +a8 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
+  +a9 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
+  +a10 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
+  +a11 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
   +p1 = a1
   +p2 = Bool.and(p1, a2)
   +p3 = Bool.and(p2, a3)
@@ -212,28 +198,25 @@ def ok6(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +p9 = Bool.and(p8, a9)
   +p10 = Bool.and(p9, a10)
   +p11 = Bool.and(p10, a11)
-  +p12 = Bool.and(p11, a12)
-  +r11 = N.and_true_l(p11, a12, hok)
-  +r10 = N.and_true_l(p10, a11, r11)
+  +r10 = N.and_true_l(p10, a11, hok)
   +r9 = N.and_true_l(p9, a10, r10)
   +r8 = N.and_true_l(p8, a9, r9)
   +r7 = N.and_true_l(p7, a8, r8)
   +r6 = N.and_true_l(p6, a7, r7)
   N.and_true_r(p5, a6, r6)
 
-def ok7(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx) == True{} : Bool}) -> {Bool.not(R.has(c0, se)) == True{} : Bool}:
+def ok8(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx) == True{} : Bool}) -> {Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0)) == True{} : Bool}:
   +a1 = si
   +a2 = ti
   +a3 = Bool.not(sx)
   +a4 = Bool.not(tx)
-  +a5 = List.is_empty(&2, B.Note, tns)
-  +a6 = Nat.is_lt(0n, tn)
-  +a7 = Bool.not(R.has(c0, se))
-  +a8 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
-  +a9 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
-  +a10 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
-  +a11 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
-  +a12 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
+  +a5 = Nat.is_lt(0n, tn)
+  +a6 = Bool.not(R.has(c0, se))
+  +a7 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
+  +a8 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
+  +a9 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
+  +a10 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
+  +a11 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
   +p1 = a1
   +p2 = Bool.and(p1, a2)
   +p3 = Bool.and(p2, a3)
@@ -245,27 +228,24 @@ def ok7(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +p9 = Bool.and(p8, a9)
   +p10 = Bool.and(p9, a10)
   +p11 = Bool.and(p10, a11)
-  +p12 = Bool.and(p11, a12)
-  +r11 = N.and_true_l(p11, a12, hok)
-  +r10 = N.and_true_l(p10, a11, r11)
+  +r10 = N.and_true_l(p10, a11, hok)
   +r9 = N.and_true_l(p9, a10, r10)
   +r8 = N.and_true_l(p8, a9, r9)
   +r7 = N.and_true_l(p7, a8, r8)
   N.and_true_r(p6, a7, r7)
 
-def ok8(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx) == True{} : Bool}) -> {Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0)) == True{} : Bool}:
+def ok9(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx) == True{} : Bool}) -> {W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc) == True{} : Bool}:
   +a1 = si
   +a2 = ti
   +a3 = Bool.not(sx)
   +a4 = Bool.not(tx)
-  +a5 = List.is_empty(&2, B.Note, tns)
-  +a6 = Nat.is_lt(0n, tn)
-  +a7 = Bool.not(R.has(c0, se))
-  +a8 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
-  +a9 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
-  +a10 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
-  +a11 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
-  +a12 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
+  +a5 = Nat.is_lt(0n, tn)
+  +a6 = Bool.not(R.has(c0, se))
+  +a7 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
+  +a8 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
+  +a9 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
+  +a10 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
+  +a11 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
   +p1 = a1
   +p2 = Bool.and(p1, a2)
   +p3 = Bool.and(p2, a3)
@@ -277,26 +257,23 @@ def ok8(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +p9 = Bool.and(p8, a9)
   +p10 = Bool.and(p9, a10)
   +p11 = Bool.and(p10, a11)
-  +p12 = Bool.and(p11, a12)
-  +r11 = N.and_true_l(p11, a12, hok)
-  +r10 = N.and_true_l(p10, a11, r11)
+  +r10 = N.and_true_l(p10, a11, hok)
   +r9 = N.and_true_l(p9, a10, r10)
   +r8 = N.and_true_l(p8, a9, r9)
   N.and_true_r(p7, a8, r8)
 
-def ok9(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx) == True{} : Bool}) -> {W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc) == True{} : Bool}:
+def ok10(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx) == True{} : Bool}) -> {W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{}))) == True{} : Bool}:
   +a1 = si
   +a2 = ti
   +a3 = Bool.not(sx)
   +a4 = Bool.not(tx)
-  +a5 = List.is_empty(&2, B.Note, tns)
-  +a6 = Nat.is_lt(0n, tn)
-  +a7 = Bool.not(R.has(c0, se))
-  +a8 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
-  +a9 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
-  +a10 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
-  +a11 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
-  +a12 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
+  +a5 = Nat.is_lt(0n, tn)
+  +a6 = Bool.not(R.has(c0, se))
+  +a7 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
+  +a8 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
+  +a9 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
+  +a10 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
+  +a11 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
   +p1 = a1
   +p2 = Bool.and(p1, a2)
   +p3 = Bool.and(p2, a3)
@@ -308,25 +285,22 @@ def ok9(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, Str
   +p9 = Bool.and(p8, a9)
   +p10 = Bool.and(p9, a10)
   +p11 = Bool.and(p10, a11)
-  +p12 = Bool.and(p11, a12)
-  +r11 = N.and_true_l(p11, a12, hok)
-  +r10 = N.and_true_l(p10, a11, r11)
+  +r10 = N.and_true_l(p10, a11, hok)
   +r9 = N.and_true_l(p9, a10, r10)
   N.and_true_r(p8, a9, r9)
 
-def ok10(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx) == True{} : Bool}) -> {W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{}))) == True{} : Bool}:
+def ok11(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx) == True{} : Bool}) -> {Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n))) == True{} : Bool}:
   +a1 = si
   +a2 = ti
   +a3 = Bool.not(sx)
   +a4 = Bool.not(tx)
-  +a5 = List.is_empty(&2, B.Note, tns)
-  +a6 = Nat.is_lt(0n, tn)
-  +a7 = Bool.not(R.has(c0, se))
-  +a8 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
-  +a9 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
-  +a10 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
-  +a11 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
-  +a12 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
+  +a5 = Nat.is_lt(0n, tn)
+  +a6 = Bool.not(R.has(c0, se))
+  +a7 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
+  +a8 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
+  +a9 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
+  +a10 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
+  +a11 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
   +p1 = a1
   +p2 = Bool.and(p1, a2)
   +p3 = Bool.and(p2, a3)
@@ -338,24 +312,21 @@ def ok10(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, St
   +p9 = Bool.and(p8, a9)
   +p10 = Bool.and(p9, a10)
   +p11 = Bool.and(p10, a11)
-  +p12 = Bool.and(p11, a12)
-  +r11 = N.and_true_l(p11, a12, hok)
-  +r10 = N.and_true_l(p10, a11, r11)
+  +r10 = N.and_true_l(p10, a11, hok)
   N.and_true_r(p9, a10, r10)
 
-def ok11(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx) == True{} : Bool}) -> {Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n))) == True{} : Bool}:
+def ok12(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx) == True{} : Bool}) -> {(Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl)))))))) == True{} : Bool}:
   +a1 = si
   +a2 = ti
   +a3 = Bool.not(sx)
   +a4 = Bool.not(tx)
-  +a5 = List.is_empty(&2, B.Note, tns)
-  +a6 = Nat.is_lt(0n, tn)
-  +a7 = Bool.not(R.has(c0, se))
-  +a8 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
-  +a9 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
-  +a10 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
-  +a11 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
-  +a12 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
+  +a5 = Nat.is_lt(0n, tn)
+  +a6 = Bool.not(R.has(c0, se))
+  +a7 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
+  +a8 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
+  +a9 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
+  +a10 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
+  +a11 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
   +p1 = a1
   +p2 = Bool.and(p1, a2)
   +p3 = Bool.and(p2, a3)
@@ -367,33 +338,4 @@ def ok11(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, St
   +p9 = Bool.and(p8, a9)
   +p10 = Bool.and(p9, a10)
   +p11 = Bool.and(p10, a11)
-  +p12 = Bool.and(p11, a12)
-  +r11 = N.and_true_l(p11, a12, hok)
-  N.and_true_r(p10, a11, r11)
-
-def ok12(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool, +hok: {W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx) == True{} : Bool}) -> {(Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl)))))))) == True{} : Bool}:
-  +a1 = si
-  +a2 = ti
-  +a3 = Bool.not(sx)
-  +a4 = Bool.not(tx)
-  +a5 = List.is_empty(&2, B.Note, tns)
-  +a6 = Nat.is_lt(0n, tn)
-  +a7 = Bool.not(R.has(c0, se))
-  +a8 = Bool.or(Bool.not(W.last_ph(tl)), R.is_cur(tc, c0))
-  +a9 = W.chroms_ok(List.append(&2, String, W.cur_list(tc), te), c0, se, sc)
-  +a10 = W.sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{})))
-  +a11 = Bool.or(Nat.is_eq(sbn, 0n), NR.last_le(sl, W.key_or(W.buf_first(sf, sb), 0n)))
-  +a12 = (Bool.not(R.is_cur(sc, c0)) || (Nat.is_le(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), l) && (Bool.not(List.is_empty(&2, String, te)) || (W.keys_ge(tf, l) && W.keys_ge(tb, l))) && (Bool.not(List.is_empty(&2, String, te)) || Nat.is_eq(sbn, 0n) || Nat.is_le(Nat.add(Nat.max(Bool.pick(Nat, Nat.is_eq(sbn, 0n), 0n, stl), W.key_or(sl, 0n)), w), W.max_inpos(tf, W.max_inpos(tb, Bool.pick(Nat, Bool.not(List.is_empty(&2, String, te)), 0n, W.real_inpos(tl))))))))
-  +p1 = a1
-  +p2 = Bool.and(p1, a2)
-  +p3 = Bool.and(p2, a3)
-  +p4 = Bool.and(p3, a4)
-  +p5 = Bool.and(p4, a5)
-  +p6 = Bool.and(p5, a6)
-  +p7 = Bool.and(p6, a7)
-  +p8 = Bool.and(p7, a8)
-  +p9 = Bool.and(p8, a9)
-  +p10 = Bool.and(p9, a10)
-  +p11 = Bool.and(p10, a11)
-  +p12 = Bool.and(p11, a12)
-  N.and_true_r(p11, a12, hok)
+  N.and_true_r(p10, a11, hok)

@@ -28,10 +28,12 @@ import lawful-halves@0.1.0.0/halves.bend as HH
 #    the task stops, UNSORTED, if it writes a smaller key; it then runs once
 #    more from the key it stopped at, which the merge checks against the
 #    true run's). It is clean when every complete line is handled on bytes,
-#    with no message, no stop and no read its windows do not answer.
+#    with no stop and no read its windows do not answer (its warnings, -c w,
+#    are kept, numbered from its first line).
 # 4. Combine, in order: the line across the boundary is handled by Q on the
 #    true state; then a clean task whose run fits the true one (merge.ok) is
-#    spliced in, the true run's output handed out in this step; any other
+#    spliced in, the true run's output and messages handed out in this step
+#    (the task's messages, renumbered, stay in the spliced run); any other
 #    piece is handled by Q itself, asking for reads as Q does. One piece per
 #    step: each P.Ask{[]} gets the next one.
 
@@ -833,6 +835,30 @@ def real_inpos(m: Maybe<&2, NR.Ck>) -> Nat:
     case Some{+c}:
       real_inpos.k(ck_phantom(c), c)
 
+def at_shift(+d: Nat, m: Maybe<&2, B.At>) -> Maybe<&2, B.At>:
+  match m:
+    case None{}:
+      None{}
+    case Some{B.At{ln, c, p}}:
+      Some{B.At{Nat.add(ln, d), c, p}}
+
+# A message with its line number moved on by d (a task's, as the true run's).
+def note_shift(+d: Nat, n: B.Note) -> B.Note:
+  match n:
+    case B.Warning{c, B.At{ln, ch, p}}:
+      B.Warning{c, B.At{Nat.add(ln, d), ch, p}}
+    case B.Stop{c, a, p}:
+      B.Stop{c, at_shift(d, a), at_shift(d, p)}
+    case B.Summary{a, b, c, e}:
+      B.Summary{a, b, c, e}
+
+def notes_shift(+d: Nat, xs: List<&2, B.Note>) -> List<&2, B.Note>:
+  match xs:
+    case Nil{}:
+      Nil{}
+    case x <> t:
+      note_shift(d, x) <> notes_shift(d, t)
+
 def cnt_add(a: R.Cnt, b: R.Cnt) -> R.Cnt:
   match a b:
     case R.Cnt{a1, a2, a3, a4} R.Cnt{b1, b2, b3, b4}:
@@ -928,7 +954,8 @@ def last_of(+tl: Maybe<&2, NR.Ck>, +same: Bool, +sl: Maybe<&2, NR.Ck>, +elast: M
 # Whether the true run S, given T's lines, does what T did from its phantom
 # state, with S's buffered items E all written first (notes/parallel.md,
 # "merge"):
-# - both in the body and not stopped; T read lines and wrote no message;
+# - both in the body and not stopped; T read lines (its messages, warnings,
+#   are the true run's, their line numbers moved on);
 # - c0 has not ended in S; T's other CHROMs neither ended in S nor are S's;
 #   T's last is the phantom only while T's CHROM is c0;
 # - E is sorted and starts no lower than S's last;
@@ -936,28 +963,29 @@ def last_of(+tl: Maybe<&2, NR.Ck>, +same: Bool, +sl: Maybe<&2, NR.Ck>, +elast: M
 #   E's keys and S's last are at most l; and unless T left c0 (which writes
 #   E), every key in T's buffer is l or above and a line of T had an input POS
 #   at least max(E) + w (so E was written).
-def merge.ok(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool) -> Bool:
+def merge.ok(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +ti: Bool, +tx: Bool) -> Bool:
   +same = R.is_cur(sc, c0)
   +eempty = Nat.is_eq(sbn, 0n)
   +maxe = Nat.max(Bool.pick(Nat, eempty, 0n, stl), key_or(sl, 0n))
   +changed = Bool.not(List.is_empty(&2, String, te))
   +mlow = max_inpos(tf, max_inpos(tb, Bool.pick(Nat, changed, 0n, real_inpos(tl))))
-  si && ti && Bool.not(sx) && Bool.not(tx) && List.is_empty(&2, B.Note, tns) && Nat.is_lt(0n, tn) && Bool.not(R.has(c0, se)) && (Bool.not(last_ph(tl)) || R.is_cur(tc, c0)) && chroms_ok(List.append(&2, String, cur_list(tc), te), c0, se, sc) && sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{}))) && (eempty || NR.last_le(sl, key_or(buf_first(sf, sb), 0n))) && (Bool.not(same) || (Nat.is_le(maxe, l) && (changed || (keys_ge(tf, l) && keys_ge(tb, l))) && (changed || eempty || Nat.is_le(Nat.add(maxe, w), mlow))))
+  si && ti && Bool.not(sx) && Bool.not(tx) && Nat.is_lt(0n, tn) && Bool.not(R.has(c0, se)) && (Bool.not(last_ph(tl)) || R.is_cur(tc, c0)) && chroms_ok(List.append(&2, String, cur_list(tc), te), c0, se, sc) && sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{}))) && (eempty || NR.last_le(sl, key_or(buf_first(sf, sb), 0n))) && (Bool.not(same) || (Nat.is_le(maxe, l) && (changed || (keys_ge(tf, l) && keys_ge(tb, l))) && (changed || eempty || Nat.is_le(Nat.add(maxe, w), mlow))))
 
-# The run after S and T: S's output (its written bytes, then E) handed out
-# now; T's state, its line numbers shifted by S's, the counts added, ended
-# T's then S's (S's current pushed when T's first line started a new run).
+# The run after S and T: S's output (its written bytes, then E) and messages
+# handed out now; T's state, its line numbers (and its messages') shifted by
+# S's, the counts added, ended T's then S's (S's current pushed when T's
+# first line started a new run).
 def merge.if(ok: Bool, s: NR.Run, t: NR.Run, +same: Bool) -> Mg:
   match ok s t:
-    case True{} NR.Run{+sn, si, +sh, +sc, scb, +se, +sl, +sf, +sb, sbn, stl, +sk, sob, sow, +sns, sx} NR.Run{+tn, ti, th, +tc, tcb, +te, +tl, +tf, +tb, +tbn, +ttl, +tk, tob, +tow, tns, tx}:
-      MOk{sob, List.reverse(&2, B.Note, sns), NR.Run{Nat.add(sn, tn), True{}, sh, tc, tcb, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, NR.push_cur(sc, se))), last_of(tl, same, sl, buf_last(sf, sb), sn), cks_shift(sn, tf), cks_shift(sn, tb), tbn, ttl, cnt_add(sk, tk), tob, tow, Nil{}, False{}}}
+    case True{} NR.Run{+sn, si, +sh, +sc, scb, +se, +sl, +sf, +sb, sbn, stl, +sk, sob, sow, +sns, sx} NR.Run{+tn, ti, th, +tc, tcb, +te, +tl, +tf, +tb, +tbn, +ttl, +tk, tob, +tow, +tns, tx}:
+      MOk{sob, List.reverse(&2, B.Note, sns), NR.Run{Nat.add(sn, tn), True{}, sh, tc, tcb, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, NR.push_cur(sc, se))), last_of(tl, same, sl, buf_last(sf, sb), sn), cks_shift(sn, tf), cks_shift(sn, tb), tbn, ttl, cnt_add(sk, tk), tob, tow, notes_shift(sn, tns), False{}}}
     case False{} r t2:
       MNo{r}
 
 def merge(s: NR.Run, t: NR.Run, +l: Nat, +w: Nat, +c0: String) -> Mg:
   match s t:
-    case NR.Run{sn, +si, sh, +sc, scb, +se, +sl, +sf, +sb, +sbn, +stl, sk, sob, sow, sns, +sx} NR.Run{+tn, +ti, th, +tc, tcb, +te, +tl, +tf, +tb, tbn, ttl, tk, tob, tow, +tns, +tx}:
-      merge.if(merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx), NR.Run{sn, si, sh, sc, scb, se, sl, sf, sb, sbn, stl, sk, sob, sow, sns, sx}, NR.Run{tn, ti, th, tc, tcb, te, tl, tf, tb, tbn, ttl, tk, tob, tow, tns, tx}, R.is_cur(sc, c0))
+    case NR.Run{sn, +si, sh, +sc, scb, +se, +sl, +sf, +sb, +sbn, +stl, sk, sob, sow, sns, +sx} NR.Run{+tn, +ti, th, +tc, tcb, +te, +tl, +tf, +tb, tbn, ttl, tk, tob, tow, tns, +tx}:
+      merge.if(merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx), NR.Run{sn, si, sh, sc, scb, se, sl, sf, sb, sbn, stl, sk, sob, sow, sns, sx}, NR.Run{tn, ti, th, tc, tcb, te, tl, tf, tb, tbn, ttl, tk, tob, tow, tns, tx}, R.is_cur(sc, c0))
 
 # ---------------------------------------------------------------------------
 # Combine, in order
