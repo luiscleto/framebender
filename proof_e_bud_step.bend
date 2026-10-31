@@ -64,7 +64,8 @@ law hop_inv:
 def hop_inv(dfs,fa, T, cs, O, N, x, nx, ef, h):
   match x:
     case WD.WPic{+p, +b}:
-      (a1, h1) = h
+      (_e0, h_0) = h
+      (a1, h1) = h_0
       (a2, h2) = h1
       (a3, h3) = h2
       BS.hop(fa, T, List.append(&2, String, WD.held(b), cs), O, N, p, a3, a2)
@@ -89,10 +90,12 @@ def nofin_ph(dfs,fa, cs, p, b, nx, ef, h):
     case WD.BNoneP{} Pr.Finish{+c}:
       Empty.absurd({is_fin(Pr.Finish{c}) == False{} : Bool}, h)
     case WD.BColP{+hs, +k} Pr.Finish{+c}:
-      (h1, h2) = h
+      (_f0, h_1) = h
+      (h1, h2) = h_1
       Empty.absurd({is_fin(Pr.Finish{c}) == False{} : Bool}, PB.true_ne_false(Equal.cong(Pr.Next, Bool, z => is_fin(z), Pr.Finish{c}, Pr.More{}, h1)))
     case WD.BAskP{+ps, +e} Pr.Finish{+c}:
-      (h1, h2) = h
+      (_f0, h_1) = h
+      (h1, h2) = h_1
       Empty.absurd({is_fin(Pr.Finish{c}) == False{} : Bool}, PB.true_ne_false(Equal.cong(Pr.Next, Bool, z => is_fin(z), Pr.Finish{c}, Pr.Ask{PT.reqs_of(ps)}, h1)))
     case WD.BCombP{+ps, +xs, +e, False{}} Pr.Finish{+c}:
       (h1, h2) = h
@@ -117,7 +120,8 @@ law inv_nofin:
 def inv_nofin(dfs,fa, T, cs, O, N, x, nx, ef, h):
   match x:
     case WD.WPic{+p, +b}:
-      (a1, h1) = h
+      (_e0, h_0) = h
+      (a1, h1) = h_0
       (a2, h2) = h1
       (a3, h3) = h2
       nofin_ph(dfs, fa, cs, p, b, nx, ef, h3)

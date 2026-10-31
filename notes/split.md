@@ -7,9 +7,12 @@ committed): the toy reference, the cases, `run.sh`, `gen_ex.py` (writes the exam
 `draft/` the science files with the proposed change applied (`draft_r1/`, `draft_r2/`: earlier
 rounds'). The draft type-checks, and its 107 examples evaluate.
 
-## Law change: the step bound with -m (option (a), draft for the reviewers)
+## Law change: the step bound with -m (option (a), accepted)
 
-**Status.** Draft. The owner's consent is being asked; the budget proofs are not changed for it yet.
+**Status.** Accepted by the owner and the three reviewers (`reviews/*-split-bound.md`, decisions
+29-36). Installed in `MACHINE.bend` as `splits.of(B.Args.parse(argv))` and `split_room`; the
+budget proofs that charge the split records are in progress. The fit below is corrected per
+decisions 29-34.
 
 **What the bound is.** Law `machine` (MACHINE.bend) says the program finishes "within bound steps
 and bound reads", where
@@ -39,26 +42,19 @@ amortised argument about the window across all the records of a line, in the byt
 modes, the fast path and the threads machine. That is a large proof with a real risk of a late
 dead end. Option (a) keeps the per-record charge simple and gives the bound room for it.
 
-**The change (only with -m).** Without `-m` the bound stays exactly as it is.
+**The change (only with -m).** Without `-m` the bound stays exactly as it is. As installed:
 
 ```
-# The command line asks to split multiallelic records (-m).
-def splits(argv: List<&2, String>) -> Bool:
-  match B.Args.parse(argv):
-    case Some{B.Cfg{B.Opts{s, w, split, over0, args}, r, v}}:
-      split
-    case None{}:
-      False{}
-
-def bound(argv: List<&2, String>, fasta: String, vcf: String, cs: List<&2, String>) -> Nat:
-  Nat.add(Nat.add(Nat.add(Nat.add(pieces_len(cs), 3n), args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n))),
-    Bool.pick(Nat, splits(argv), Nat.mul(1n+String.length(vcf), 1n+String.length(vcf)), 0n))
+def splits.of(m: Maybe<&2, B.Cfg>) -> Bool          # the parsed command line's -m
+def split_room(sp: Bool, +vcf: String) -> Nat       # (|vcf| + 1)^2 with -m, else 0
+def bound(+argv, fasta, +vcf, cs) -> Nat:
+  ... as before ... + split_room(splits.of(B.Args.parse(argv)), vcf)
 ```
 
-The comment in MACHINE.bend gains one sentence after "…up to FASTA length + 3 reads.": "With
--m, plus (VCF length + 1)^2: a line's records (at most one per ALT) may each need a line's reads."
-The plain statement of law `machine` in docs/LAWS.md does not mention the bound's formula and
-does not change.
+The comment in MACHINE.bend gains decision 35's sentence: "With -m, plus (VCF length + 1)
+squared, so that each record of a split line (one per ALT) can be charged a line's allowance."
+The plain statement of law `machine` in docs/LAWS.md does not mention the formula and does not
+change.
 
 **Why it is still only a proof bound.** It changes no output, message or exit code, and no step
 the machine takes; it only gives the proof's allowance room. It is still finite and computed from
@@ -66,21 +62,22 @@ the inputs before the run (the machine still must stop, and still cannot read wi
 machine's real use is unchanged: a split line costs its records' reads, which in practice are
 almost always served by the window the first record asked for.
 
-**The fit, with margin.** V = VCF length, F = FASTA length. Per line of length L (with its LF):
-
-- Pieces: k = number of ALTs. The line holds at least 8 fields, REF (R ≥ 1 bytes) and k ALTs with
-  k − 1 commas, so R + 2k + 13 ≤ L, and a = 1 + k ≤ (L − R − 11) / 2.
-- Charge: the line and each of its records get `LA ≤ 2(1 + R) + 2(2 + FM) = 2R + 2FM + 6`, with
-  FM (the longest contig) ≤ F: a × LA ≤ 2aR + a(2F + 6).
-  - 2aR ≤ L²/4 (2a + R ≤ L, so the product 2a·R is at most (L/2)²).
-  - a(2F + 6) ≤ (L/2)(2F + 6) = L(F + 3).
-- Summed over lines (Σ L ≤ V, Σ L² ≤ V²): at most V²/4 + V(F + 3). The existing term
-  (V + 1)(F + 3) covers V(F + 3); the new (V + 1)² covers V²/4.
-- Output: a record is at most its line's length plus 22 bytes (POS can gain digits, and a
-  padding base is added to REF and ALT). So the output grows by at most Σ a(L + 22) ≤ V²/2 + 11V
-  bytes, which is at most V²/512 + V/23 hand-out steps (each at least 256 bytes).
-- Total extra ≤ V²/4 + V²/512 + V/23 ≤ 0.26 (V + 1)². **Margin: the new term is about 3.9 times
-  what the per-record charge needs**, at every V; the rest of the bound is used as before.
+**The fit, with margin** (corrected per decisions 29-34). V = VCF length, F = FASTA length.
+- Lines are measured as the proof does: a line of text length `t` counts `n = t + 1`, so
+  `Σn ≤ V + 1` and `Σn² ≤ (V + 1)²`. A candidate line (`-m`, not MALFORMED, two or more ALTs; k
+  ALTs, REF of R bytes) has `R + 2k + 8 ≤ t` (ID, QUAL, FILTER, INFO may be empty, and the last
+  line may have no LF: `c⇥1⇥⇥A⇥C,G⇥⇥⇥` is 13 bytes), so `a = 1 + k ≤ n/2` and `2aR ≤ n²/4`.
+- Charge: every candidate line gets `1 + k` allowances, split or not (overcharging a refused or
+  passed-through line is harmless): `a × LA ≤ 2aR + a(2FM + 6)` with `FM ≤ F`. The first
+  allowance is the line's own, already in `(V + 1)(F + 3)`; the extra `k` allowances and the
+  displaced hand-outs (the existing term is spent in full: `(V + 1)(FM + 2)` for the windows and
+  `V + 1` for hand-outs) are charged to the square.
+- Output: a split record's text is no longer than its line's (a lemma to prove), and the output
+  step uses `out_len`'s constants (21 per record, output counted twice on a stop).
+- Total extra ≤ `(V + 1)²/3 + 13(V + 1)/12` when the file has a line: about **3 times margin**
+  under the square (decision 31; the draft's 3.9 was wrong). The full square is kept (36).
+- Example where the line's share of the old bound is short (32): REF of 100 `A`s, ALTs
+  `A,C,G,T,N,AA,AC,AG,AT,AN`: charge 2460 against 2363.
 
 Option (b), proving the amortised bound under the current law, stays possible later. It would not
 change the law back; the larger bound would only be looser than needed.
@@ -221,14 +218,14 @@ and `proof_f_args.bend` resolved by hand: the `-m` parsing and `-W` side by side
 - The feeding guarantee `Fed` (`proof_e_qif_fed.bend`) says the fed state keeps the definitions
   and the record sources.
 
-**Proof status.** The run laws (`twice_run` with `-m`), the CR case, the byte and String layers,
-the driver layer, the task loop, the feeding steps, the output layer (`proof_f_out`) and most of
-the threads machine check. 51 holes are left: 43 in the step budget (waiting on option (a)) and 8
-in the threads machine, all waiting on the open point below (`wrap` 4, `wrap_col` 2: `col_eof`,
-`ask_ref`; `wrap_clean` 1: the merge call in `splice_ok`; `mach_asm` 1: `machine_go`, which
-assembles them).
+**Proof status.** Everything checks except the step budget: `PROOF.bend` has 43 holes, all in
+`proof_b_budget_*`, `proof_b_bud_*`, `proof_b_assemble` (sequential) and `proof_e_bud_*` (threads).
+The threads machine's 8 holes are closed (`wrap` 4, `wrap_col` 2, `wrap_clean` 1, `mach_asm` 1).
+The bound of decisions 29-36 is installed in `MACHINE.bend` (`splits.of`, `split_room`); the start
+lemmas (`bud_need`, `start_need`) meet it by `need <= old bound <= bound` until the budget charges
+the split records.
 
-Done in this stretch: `proof_f_out` (the `-m` parser states, the `-W` record); `wrap_mc` (the
+Done in earlier stretches: `proof_f_out` (the `-m` parser states, the `-W` record); `wrap_mc` (the
 merge: "in the body" comes from `segok`'s first conjunct, so the state's `DEFS` is its field);
 `wrap_clean` (the edge's fuel is 4096 since milestone 1, so the four generated levels E3..E0
 became one lemma recursive on the fuel, `Ef`, with the level below as a hypothesis, `IHE`);
@@ -237,21 +234,27 @@ through the phase-1 chain one by one: the chain is now stated for "the line's ot
 then the lines after", `pieces_drain`, `drain_body`; the hand-off to phase 2 lifts the records
 first, `parP`).
 
-**Open: Q's definitions field and the batch's.** The threads machine runs a batch's tasks, and
-merges them, with Q's own definitions field at that step (`norm.bend`, `dfs_of`), while the
-invariant `WD.InvW` states the tasks' facts (`BatchOK`) over a fixed `dfs` that nothing ties to
-that field. Nothing is wrong in the machine: a batch starts only when Q is quiet, in the body,
-where the field is the file's header definitions. But the proof needs that fact, and today no
-layer gives it. The plan (internal definitions, no law):
-- `InvW` also says `S.DEFS(p, held ++ cs) == dfs` (Q's definitions of the whole rest are the
-  batch's). At a quiet Q this gives "field == dfs", which is what `col_eof`, `ask_ref` and the
-  merge need.
-- Keeping it across Q's steps needs each step to keep `DEFS`. `S.Moved` says so for byte mode to
-  byte mode; the String mode lemmas compute the same fact for the report but do not export it.
-  So `S.Moved` would say it in every mode, and the drive layer (the pump's invariant, `StepG2`)
-  would carry it: about 10 to 15 checked files reopened, mechanically.
-- `wstart`'s statement (my port) holds for any `dfs`, which is false: it needs
-  `dfs == L.defs(String.concat(cs))`, which `machine_go` has at hand.
+**Q's definitions field and the batch's (done).** The threads machine runs a batch's tasks, and
+merges them, with Q's own definitions field at that step (`norm.bend`, `dfs_of`); the invariant
+states the tasks' facts (`BatchOK`) over the batch's `dfs`. The proof now ties the two (internal
+definitions only, no law):
+- `WD.InvW` starts with `EofD(eof, S.DEFS(p, held ++ cs), dfs)`: until Q has the end of the
+  file, Q's definitions of the whole rest are the batch's (after it, no batch starts, so nothing
+  is claimed). Collecting and asking (`BColP`, `BAskP`) also say `S.StP.dfs(p) == dfs`: a batch
+  starts only at a quiet Q, which is in the body (`qb_defs`), so there the field is `S.DEFS`.
+- Every Q step keeps `S.DEFS`. `S.Moved` says it in every mode now (it said so only for byte mode
+  to byte mode), and `AdvG`'s Ended and Yield cases say it too; the String-mode advance lemmas had
+  the fact at hand (`defs_body`, `hdd`, `defs_keep`). Whole steps get it from a new layer,
+  `proof_e_wrap_qd.bend` (as `proof_e_wrap_qx.bend` does for the options): `st_defs` is `S.DEFS`
+  read on the machine's own state, equal to it on a picture (`mk_defs`), so the fact joins phase
+  B's step guarantee (`StepG2`) without changing it; out, finish, idle, the pump along `AdvG`,
+  feeding, answers and pieces. A step that ends the run claims nothing.
+- `OutG` (the end of a step) says the field and `S.DEFS` are kept; the edge chain `ED.Ch` says
+  `S.DEFS` is kept in every mode.
+- The merge (`merge_k`, `mok_state`) takes Q's field as it is (`dfs2`): when the merge is taken,
+  the task's run is in the body, so `dfs2` is Q's `S.DEFS`, which is the batch's.
+- `wstart` takes `dfs == L.defs(concat cs)`, from a start lemma that also gives the start state's
+  `S.DEFS` (`DST.start_ok_gd`; phase B's `start_ok` is unchanged); `machine_h` instantiates it.
 
 **Tests** (all on `fb_m3`):
 - Spec against machine (`specrun/vs_all.sh`): 150 of 150 identical (28 fuzz files and the two

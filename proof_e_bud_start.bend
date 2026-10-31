@@ -235,10 +235,12 @@ def start_need(dfs,argv, o, ref, vcfpath, fasta, vcf, cs, ha, h):
     {Nat.is_le(Nat.add(BN.needS(fa, T, DD.start_st(dfs, Norm.start.of(_)), cs, False{}, Pr.More{}, ""), X), bd) == True{} : Bool}
   %Equal.sym(Nat, Nat.add(Nat.add(c1, Nat.add(2n, Nat.add(H, Wv))), X), Nat.add(c1, Nat.add(2n, Nat.add(Nat.add(H, X), Wv))), shuffle(c1, H, Wv, X)) :
     {Nat.is_le(_, bd) == True{} : Bool}
-  BSt.fin(List.length(&2, String, cs), Nat.add(H, X), Wv, M.args_len(argv), v, String.length(fasta), BN.FM(fa),
-    ho_xk(dfs, argv, o, ref, vcfpath, fasta, vcf, cs, ha, h),
-    N.le_trans(Wv, BN.LAs(fa, ls), Nat.mul(v, BN.ZW(fa)), BSt.wa_le(fa, ls), BSt.las_cs(fa, cs, vcf, h)),
-    BSt.fa_fm(fasta))
+  N.le_trans(Nat.add(c1, Nat.add(2n, Nat.add(Nat.add(H, X), Wv))), Nat.add(Nat.add(Nat.add(M.pieces_len(cs), 3n), M.args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n))), bd,
+    BSt.fin(List.length(&2, String, cs), Nat.add(H, X), Wv, M.args_len(argv), v, String.length(fasta), BN.FM(fa),
+      ho_xk(dfs, argv, o, ref, vcfpath, fasta, vcf, cs, ha, h),
+      N.le_trans(Wv, BN.LAs(fa, ls), Nat.mul(v, BN.ZW(fa)), BSt.wa_le(fa, ls), BSt.las_cs(fa, cs, vcf, h)),
+      BSt.fa_fm(fasta)),
+    N.le_add_r(Nat.add(Nat.add(Nat.add(M.pieces_len(cs), 3n), M.args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n))), M.split_room(M.splits.of(B.Args.parse(argv)), vcf)))
 
 law start_bi:
   for +dfs: B.Defs

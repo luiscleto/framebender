@@ -43,34 +43,41 @@ law inv_more_ef:
 def inv_more_ef(dfs,fa, T, cs, O, N, x, ef, hi):
   match x:
     case WD.WPic{+p, WD.BNoneP{}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
       (h4, h5) = i3
       h5
     case WD.WPic{+p, WD.BColP{+hs, +k}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
-      (h4, j1) = i3
+      (_f0, i3_0) = i3
+      (h4, j1) = i3_0
       (h5, j2) = j1
       (h6, j3) = j2
       (h7, h8) = j3
       h7
     case WD.WPic{+p, WD.BAskP{+ps, +e}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
-      (h4, j1) = i3
+      (_f0, i3_0) = i3
+      (h4, j1) = i3_0
       Empty.absurd({ef == False{} : Bool}, more_ask(PT.reqs_of(ps), h4))
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, False{}}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
       (h4, j1) = i3
       Empty.absurd({ef == False{} : Bool}, more_ask(Nil{}, h4))
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, True{}}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
       (h4, j1) = i3
@@ -93,37 +100,44 @@ law inv_ask_reqs:
 def inv_ask_reqs(dfs,fa, T, cs, O, N, x, rs, ef, hi):
   match x:
     case WD.WPic{+p, WD.BNoneP{}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
       (h4, j1) = i3
       (h5, j2) = j1
       h5
     case WD.WPic{+p, WD.BColP{+hs, +k}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
-      (h4, j1) = i3
+      (_f0, i3_0) = i3
+      (h4, j1) = i3_0
       Empty.absurd({E.reqs_ok(rs) == True{} : Bool}, more_ask(rs, Equal.sym(Pr.Next, Pr.Ask{rs}, Pr.More{}, h4)))
     case WD.WPic{+p, WD.BAskP{+ps, +e}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
-      (h4, j1) = i3
+      (_f0, i3_0) = i3
+      (h4, j1) = i3_0
       (h5, j2) = j1
       (h6, j3) = j2
       (h7, j4) = j3
       +er = Equal.cong(Pr.Next, List<&2, Pr.Req>, z => askrs(z), Pr.Ask{rs}, Pr.Ask{PT.reqs_of(ps)}, h4)
       AB.subst(List<&2, Pr.Req>, z => {E.reqs_ok(z) == True{} : Bool}, PT.reqs_of(ps), rs, Equal.sym(List<&2, Pr.Req>, rs, PT.reqs_of(ps), er), h7)
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, False{}}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
       (h4, j1) = i3
       +er = Equal.cong(Pr.Next, List<&2, Pr.Req>, z => askrs(z), Pr.Ask{rs}, Pr.Ask{Nil{}}, h4)
       AB.subst(List<&2, Pr.Req>, z => {E.reqs_ok(z) == True{} : Bool}, Nil{}, rs, Equal.sym(List<&2, Pr.Req>, rs, Nil{}, er), {==})
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, True{}}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
       (h4, j1) = i3

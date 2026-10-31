@@ -271,25 +271,29 @@ def phase_dup(dfs,fa, cs, p, b, nx, ef, h):
     case WD.BNoneP{}:
       qnext_dup(fa, p, nx, ef, h)
     case WD.BColP{+hs, +k}:
-      (+a1, h1) = h
+      (+a0, h0) = h
+      (+a1, h1) = h0
       (+a2, h2) = h1
       (+a3, h3) = h2
       (+a4, h4) = h3
-      cons2({nx == Pr.More{} : Pr.Next}, {DR.more_ok(fa, p) == True{} : Bool} & ({S.stopped(S.StP.md(p)) == False{} : Bool} & ({ef == False{} : Bool} & {Nat.is_eq(k, List.length(&2, String, hs)) == True{} : Bool})), a1,
+      cons2({S.StP.dfs(p) == dfs : B.Defs}, {nx == Pr.More{} : Pr.Next} & ({DR.more_ok(fa, p) == True{} : Bool} & ({S.stopped(S.StP.md(p)) == False{} : Bool} & ({ef == False{} : Bool} & {Nat.is_eq(k, List.length(&2, String, hs)) == True{} : Bool}))), a0,
+  cons2({nx == Pr.More{} : Pr.Next}, {DR.more_ok(fa, p) == True{} : Bool} & ({S.stopped(S.StP.md(p)) == False{} : Bool} & ({ef == False{} : Bool} & {Nat.is_eq(k, List.length(&2, String, hs)) == True{} : Bool})), a1,
         cons2({DR.more_ok(fa, p) == True{} : Bool}, {S.stopped(S.StP.md(p)) == False{} : Bool} & ({ef == False{} : Bool} & {Nat.is_eq(k, List.length(&2, String, hs)) == True{} : Bool}), a2,
           cons2({S.stopped(S.StP.md(p)) == False{} : Bool}, {ef == False{} : Bool} & {Nat.is_eq(k, List.length(&2, String, hs)) == True{} : Bool}, a3,
-            cons2({ef == False{} : Bool}, {Nat.is_eq(k, List.length(&2, String, hs)) == True{} : Bool}, a4, eq_dup(Bool, Nat.is_eq(k, List.length(&2, String, hs)), True{}, h4)))))
+            cons2({ef == False{} : Bool}, {Nat.is_eq(k, List.length(&2, String, hs)) == True{} : Bool}, a4, eq_dup(Bool, Nat.is_eq(k, List.length(&2, String, hs)), True{}, h4))))))
     case WD.BAskP{+ps, +e}:
-      (+a1, h1) = h
+      (+a0, h0) = h
+      (+a1, h1) = h0
       (+a2, h2) = h1
       (+a3, h3) = h2
       (+a4, h4) = h3
       (h5, h6) = h4
-      cons2({nx == Pr.Ask{PT.reqs_of(ps)} : Pr.Next}, {DR.more_ok(fa, p) == True{} : Bool} & ({S.stopped(S.StP.md(p)) == False{} : Bool} & ({E.reqs_ok(PT.reqs_of(ps)) == True{} : Bool} & (PT.PcsOK(ps, cs) & WD.EofOK(e, ef, cs)))), a1,
+      cons2({S.StP.dfs(p) == dfs : B.Defs}, {nx == Pr.Ask{PT.reqs_of(ps)} : Pr.Next} & ({DR.more_ok(fa, p) == True{} : Bool} & ({S.stopped(S.StP.md(p)) == False{} : Bool} & ({E.reqs_ok(PT.reqs_of(ps)) == True{} : Bool} & (PT.PcsOK(ps, cs) & WD.EofOK(e, ef, cs))))), a0,
+  cons2({nx == Pr.Ask{PT.reqs_of(ps)} : Pr.Next}, {DR.more_ok(fa, p) == True{} : Bool} & ({S.stopped(S.StP.md(p)) == False{} : Bool} & ({E.reqs_ok(PT.reqs_of(ps)) == True{} : Bool} & (PT.PcsOK(ps, cs) & WD.EofOK(e, ef, cs)))), a1,
         cons2({DR.more_ok(fa, p) == True{} : Bool}, {S.stopped(S.StP.md(p)) == False{} : Bool} & ({E.reqs_ok(PT.reqs_of(ps)) == True{} : Bool} & (PT.PcsOK(ps, cs) & WD.EofOK(e, ef, cs))), a2,
           cons2({S.stopped(S.StP.md(p)) == False{} : Bool}, {E.reqs_ok(PT.reqs_of(ps)) == True{} : Bool} & (PT.PcsOK(ps, cs) & WD.EofOK(e, ef, cs)), a3,
             cons2({E.reqs_ok(PT.reqs_of(ps)) == True{} : Bool}, (PT.PcsOK(ps, cs) & WD.EofOK(e, ef, cs)), a4,
-              pair2(PT.PcsOK(ps, cs), WD.EofOK(e, ef, cs), pcsok_dup(ps, cs, h5), eofok_dup(e, ef, cs, h6))))))
+              pair2(PT.PcsOK(ps, cs), WD.EofOK(e, ef, cs), pcsok_dup(ps, cs, h5), eofok_dup(e, ef, cs, h6)))))))
     case WD.BCombP{+ps, +xs, +e, False{}}:
       (+a1, h1) = h
       (+a2, h2) = h1
@@ -311,6 +315,13 @@ def phase_dup(dfs,fa, cs, p, b, nx, ef, h):
           pair2(PT.PcsOK(ps, cs), (PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs), pcsok_dup(ps, cs, h4),
             pair2((PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)), WD.EofOK(e, ef, cs), batchok_dup(dfs, fa, S.StP.o(p), ps, xs, cs, h6), eofok_dup(e, ef, cs, h7)))))
 
+def eofd_dup(+e: Bool, +d: B.Defs, +dfs: B.Defs, h: WD.EofD(e, d, dfs)) -> WD.EofD(e, d, dfs) & WD.EofD(e, d, dfs):
+  match e:
+    case True{}:
+      (Unit{}, Unit{})
+    case False{}:
+      eq_dup(B.Defs, d, dfs, h)
+
 law inv_dup:
   for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
@@ -327,12 +338,15 @@ law inv_dup:
 def inv_dup(dfs,fa, T, cs, O, N, x, nx, ef, h):
   match x:
     case WD.WPic{+p, +b}:
-      (+a1, h1) = h
+      (h0, hh) = h
+      (+a1, h1) = hh
       (+a2, h2) = h1
       (+a3, h3) = h2
+      pair2(WD.EofD(S.StP.eof(p), S.DEFS(p, List.append(&2, String, WD.held(b), cs)), dfs), {E.all_bytes(WD.held(b)) && E.pieces_ok(WD.held(b)) == True{} : Bool} & ({S.guard(O, N, p) == True{} : Bool} & ({WD.wreport(fa, cs, O, N, WD.WPic{p, b}) == T : R.Report} & (WD.PhaseOK(dfs, fa, cs, p, b, nx, ef)))),
+        eofd_dup(S.StP.eof(p), S.DEFS(p, List.append(&2, String, WD.held(b), cs)), dfs, h0),
       cons2({E.all_bytes(WD.held(b)) && E.pieces_ok(WD.held(b)) == True{} : Bool}, {S.guard(O, N, p) == True{} : Bool} & ({WD.wreport(fa, cs, O, N, WD.WPic{p, b}) == T : R.Report} & (WD.PhaseOK(dfs, fa, cs, p, b, nx, ef))), a1,
         cons2({S.guard(O, N, p) == True{} : Bool}, {WD.wreport(fa, cs, O, N, WD.WPic{p, b}) == T : R.Report} & (WD.PhaseOK(dfs, fa, cs, p, b, nx, ef)), a2,
-          cons2({WD.wreport(fa, cs, O, N, WD.WPic{p, b}) == T : R.Report}, (WD.PhaseOK(dfs, fa, cs, p, b, nx, ef)), a3, phase_dup(dfs, fa, cs, p, b, nx, ef, h3))))
+          cons2({WD.wreport(fa, cs, O, N, WD.WPic{p, b}) == T : R.Report}, (WD.PhaseOK(dfs, fa, cs, p, b, nx, ef)), a3, phase_dup(dfs, fa, cs, p, b, nx, ef, h3)))))
 
 law inv_dup3.k:
   for +dfs: B.Defs

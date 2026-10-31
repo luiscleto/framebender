@@ -41,34 +41,41 @@ law chunk_x:
 def chunk_x(dfs,fa, T, c, cs, O, N, x, hb, hi, hbi, hcb, hcn):
   match x:
     case WD.WPic{+p, WD.BNoneP{}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
       (hmo, hef) = i3
       BNo.none_chunk(dfs, fa, T, c, cs, O, N, p, hb, hmo, a3, a2, hbi, hcb, hcn)
     case WD.WPic{+p, WD.BColP{+hs, +k}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
-      (nxe, i4) = i3
+      (_f0, i3_0) = i3
+      (nxe, i4) = i3_0
       (hmo, i5) = i4
       (hstp, i6) = i5
       (hef, hk) = i6
       PH.col_chunk(dfs, fa, T, c, cs, O, N, p, hs, k, hb, hmo, hstp, a2, a3, a1, hk, hbi, hcb, hcn)
     case WD.WPic{+p, WD.BAskP{+ps, +e}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
-      (nxe, i4) = i3
+      (_f0, i3_0) = i3
+      (nxe, i4) = i3_0
       Empty.absurd(API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BAskP{ps, e}}), Pr.Chunk{E.enc(c)}), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BAskP{ps, e}}), c <> cs, False{}, Pr.More{}, O), O, N), IV.more_ask(PT.reqs_of(ps), nxe))
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, False{}}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
       (nxe, i4) = i3
       Empty.absurd(API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, False{}}}), Pr.Chunk{E.enc(c)}), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, False{}}}), c <> cs, False{}, Pr.More{}, O), O, N), IV.more_ask(Nil{}, nxe))
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, True{}}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
       (qn, i4) = i3
@@ -113,34 +120,41 @@ law eof_x:
 def eof_x(dfs,fa, T, O, N, x, hb, hi, hbi):
   match x:
     case WD.WPic{+p, WD.BNoneP{}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
       (hmo, hef) = i3
       BNo.none_eof(dfs, fa, T, O, N, p, hb, hmo, a3, a2, hbi)
     case WD.WPic{+p, WD.BColP{+hs, +k}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
-      (nxe, i4) = i3
+      (_f0, i3_0) = i3
+      (nxe, i4) = i3_0
       (hmo, i5) = i4
       (hstp, i6) = i5
       (hef, hk) = i6
       PH.col_eof(dfs, fa, T, O, N, p, hs, k, hb, hmo, hstp, a2, a3, a1, hk, hbi)
     case WD.WPic{+p, WD.BAskP{+ps, +e}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
-      (nxe, i4) = i3
+      (_f0, i3_0) = i3
+      (nxe, i4) = i3_0
       Empty.absurd(API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BAskP{ps, e}}), Pr.Eof{}), Nil{}, True{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BAskP{ps, e}}), Nil{}, False{}, Pr.More{}, O), O, N), IV.more_ask(PT.reqs_of(ps), nxe))
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, False{}}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
       (nxe, i4) = i3
       Empty.absurd(API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, False{}}}), Pr.Eof{}), Nil{}, True{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, False{}}}), Nil{}, False{}, Pr.More{}, O), O, N), IV.more_ask(Nil{}, nxe))
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, True{}}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
       (qn, i4) = i3
@@ -183,7 +197,8 @@ law bud_refW:
 def bud_refW(dfs,fa, T, cs, O, N, x, rs, ef, hb, hi, hbi, htx):
   match x:
     case WD.WPic{+p, WD.BNoneP{}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
       (hw, i4) = i3
@@ -193,16 +208,20 @@ def bud_refW(dfs,fa, T, cs, O, N, x, rs, ef, hb, hi, hbi, htx):
       (hask, heof) = i7
       BNo.none_ref(dfs, fa, T, cs, O, N, p, rs, ef, hb, hw, a3, hask, hq, hrq, hmr, a2, hbi)
     case WD.WPic{+p, WD.BColP{+hs, +k}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
-      (nxe, i4) = i3
+      (_f0, i3_0) = i3
+      (nxe, i4) = i3_0
       Empty.absurd(API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), Pr.Ref{M.truths(fa, rs)}), cs, ef, List.length(&2, Pr.Req, rs), BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), cs, ef, Pr.Ask{rs}, O), O, N), IV.more_ask(rs, Equal.sym(Pr.Next, Pr.Ask{rs}, Pr.More{}, nxe)))
     case WD.WPic{+p, WD.BAskP{+ps, +e}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
-      (nxe, i4) = i3
+      (_f0, i3_0) = i3
+      (nxe, i4) = i3_0
       (hmo, i5) = i4
       (hstp, i6) = i5
       (hqo, i7) = i6
@@ -212,7 +231,8 @@ def bud_refW(dfs,fa, T, cs, O, N, x, rs, ef, hb, hi, hbi, htx):
         API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BAskP{ps, e}}), Pr.Ref{M.truths(fa, _)}), cs, ef, List.length(&2, Pr.Req, _), BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BAskP{ps, e}}), cs, ef, Pr.Ask{_}, O), O, N)
       PH.ask_ref(dfs, fa, T, cs, O, N, p, ps, e, ef, hb, hmo, hstp, a2, a3, a1, DU.pcsok_dup(ps, cs, hps), he, hbi)
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, False{}}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
       (nxe, i4) = i3
@@ -225,7 +245,8 @@ def bud_refW(dfs,fa, T, cs, O, N, x, rs, ef, hb, hi, hbi, htx):
         API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, False{}}}), Pr.Ref{M.truths(fa, _)}), cs, ef, List.length(&2, Pr.Req, _), BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, False{}}}), cs, ef, Pr.Ask{_}, O), O, N)
       PH.combf_ref(dfs, fa, T, cs, O, N, p, ps, xs, e, ef, hb, hmo, hstp, a2, a3, a1, hps, DU.batchok_dup(dfs, fa, S.StP.o(p), ps, xs, cs, hbo), he, hbi)
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, True{}}}:
-      (a1, i1) = hi
+      (_e0, hi_0) = hi
+      (a1, i1) = hi_0
       (a2, i2) = i1
       (a3, i3) = i2
       (qn, i4) = i3

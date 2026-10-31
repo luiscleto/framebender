@@ -785,10 +785,13 @@ def bud_need(dfs,argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, h, hst):
   %hst : {Nat.is_le(BN.needS(fa, T, _, cs, False{}, Pr.More{}, ""), bd) == True{} : Bool}
   %Equal.sym(Maybe<&2, B.Cfg>, B.Args.parse(argv), Some{B.Cfg{o, ref, vcfpath}}, ha) :
     {Nat.is_le(BN.needS(fa, T, DD.start_st(dfs, Norm.start.of(_)), cs, False{}, Pr.More{}, ""), bd) == True{} : Bool}
-  fin(List.length(&2, String, cs), BN.HO(T, ""), BN.WA.ls(fa, True{}, 0n, Norm.WNone{}, None{}, ls), M.args_len(argv), v, String.length(fasta), BN.FM(fa),
-    ho_le(dfs, argv, o, ref, vcfpath, fasta, vcf, ha),
-    N.le_trans(BN.WA.ls(fa, True{}, 0n, Norm.WNone{}, None{}, ls), BN.LAs(fa, ls), Nat.mul(v, BN.ZW(fa)), wa_le(fa, ls), las_cs(fa, cs, vcf, h)),
-    fa_fm(fasta))
+  +NS = BN.needS(fa, T, DD.start_st(dfs, Norm.start.of(Some{B.Cfg{o, ref, vcfpath}})), cs, False{}, Pr.More{}, "")
+  N.le_trans(NS, Nat.add(Nat.add(Nat.add(M.pieces_len(cs), 3n), M.args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n))), bd,
+    fin(List.length(&2, String, cs), BN.HO(T, ""), BN.WA.ls(fa, True{}, 0n, Norm.WNone{}, None{}, ls), M.args_len(argv), v, String.length(fasta), BN.FM(fa),
+      ho_le(dfs, argv, o, ref, vcfpath, fasta, vcf, ha),
+      N.le_trans(BN.WA.ls(fa, True{}, 0n, Norm.WNone{}, None{}, ls), BN.LAs(fa, ls), Nat.mul(v, BN.ZW(fa)), wa_le(fa, ls), las_cs(fa, cs, vcf, h)),
+      fa_fm(fasta)),
+    N.le_add_r(Nat.add(Nat.add(Nat.add(M.pieces_len(cs), 3n), M.args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n))), M.split_room(M.splits.of(B.Args.parse(argv)), vcf)))
 
 # bud_start (proof_b_budget_api.bend).
 law bud_start_h:
