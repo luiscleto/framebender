@@ -1151,12 +1151,49 @@ def fast.pre(+back: Nat, +o: B.Opts, run: NR.Run, +s: U32, pr: NF.Pr, cx: Cx, wi
     case NF.Pr{b, NF.Incomplete{}}:
       decoded(back, o, run, b, s, cx, win, fneed)
 
-def split.out(o2: NS.Out, +back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+# A line the byte splitter refuses (code c) under -c w, its CHROM the
+# window's contig (so in the reference: not UNKNOWN_CHROM, and not MALFORMED
+# either): passed through as it came, with the warning c (LAWS.bend's
+# unsplit_in, as the String path's vd.unsplit gives it).
+def ref.pos(+o: B.Opts, p: NR.Run & Nat, +c: B.Code, +ch: String, r: D.Bytes & String, +s: U32, +lf: U32, cx: Cx, win: Win) -> Adv:
+  (run, +n) = p
+  (b, +pos) = r
+  done.b(o, NR.problem_line(False{}, run, R.Opts.w(o), c, B.At{n, ch, pos}, Maybe.default(&2, Nat, B.Pos.read(pos), 0n), b, s, (lf + 1 - s : U32)), (lf + 1 : U32), cx, win)
+
+def ref.same(same: Bool, +back: Nat, +o: B.Opts, run: NR.Run, +c: B.Code, +f1: NS.Rg, +ch: String, b: D.Bytes, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  match same:
+    case True{}:
+      ref.pos(o, ticked(run), c, ch, NS.txt(b, f1), s, lf, cx, win)
+    case False{}:
+      decoded(back, o, run, b, s, cx, win, fneed)
+
+def ref.chrom(+back: Nat, +o: B.Opts, run: NR.Run, +c: B.Code, +f1: NS.Rg, +c0: String, r: D.Bytes & String, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  (b, +ch) = r
+  ref.same(String.eq(ch, c0), back, o, run, c, f1, ch, b, s, lf, cx, win, fneed)
+
+def ref.win(win: Win, +back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +c: B.Code, +f0: NS.Rg, +f1: NS.Rg, +s: U32, +lf: U32, cx: Cx, +fneed: Bool) -> Adv:
+  match win:
+    case WKnown{+c0, cb, +a0, +b0, +clen, +off, raw, +offu, +rlen, +clenu}:
+      ref.chrom(back, o, run, c, f1, c0, NS.txt(b, f0), s, lf, cx, WKnown{c0, cb, a0, b0, clen, off, raw, offu, rlen, clenu}, fneed)
+    case w:
+      decoded(back, o, run, b, s, cx, w, fneed)
+
+# Under -c e the run stops at the line: the String path says how.
+def ref.b(strict: Bool, +back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +c: B.Code, +f0: NS.Rg, +f1: NS.Rg, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  match strict:
+    case True{}:
+      decoded(back, o, run, b, s, cx, win, fneed)
+    case False{}:
+      ref.win(win, back, o, run, b, c, f0, f1, s, lf, cx, fneed)
+
+def split.out(o2: NS.Ans, +back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
   match o2:
     case NS.Out{b, Some{recs}}:
       inject(o, run, b, lf, recs, cx, win)
     case NS.Out{b, None{}}:
       decoded(back, o, run, b, s, cx, win, fneed)
+    case NS.Ref{b, +c, +f0, +f1}:
+      ref.b(R.Opts.strict(o), back, o, run, b, c, f0, f1, s, lf, cx, win, fneed)
 
 def split.b(+back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
   match cx:
