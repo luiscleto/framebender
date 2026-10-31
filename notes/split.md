@@ -197,7 +197,8 @@ memory everywhere, at the cost of more first lines on the main thread; it is unt
 
 **State.** main (47e2aa5, phase J: `-W`) is merged into the working tree (file-wise; `types.bend`
 and `proof_f_args.bend` resolved by hand: the `-m` parsing and `-W` side by side). Build
-`data/tmp/split/fb_m3`.
+`data/tmp/split/fb_m3`. Later merged: split-speed (ff067f4), split-budget (d933949),
+stale-index and main (9621667); build `data/tmp/split/fb_m5`, tested and timed below.
 
 **Machine changes in this milestone** (no approved law changed beyond the CR change):
 - The pump has two fuels (`norm_seq.bend`: `pump`, `pump.r`, `pump.fill`): the input's, and
@@ -312,6 +313,35 @@ definitions only, no law):
 
 Milestone 1's build took 1.77-1.84 s and 488-491 MB on the cohort; the reserve change brings
 the memory to 349 MB at the same speed.
+
+**Re-run on the merged build** (`fb_m5`, 9621667: split, split-speed, split-budget, stale-index
+and main; logs `data/tmp/split/suites5/`, timings `bench/m5.out`, `bench/m5h.out`).
+Tests, all passing:
+- Spec against machine: 150 of 150 identical. bcftools 1.24 `-c w -m -any`: cohort 3,341
+  records, 0 differing; HG002 chr22 50,861, 0; HG002 whole genome 4,096,123, 0; scrambled set
+  20,739, 0; joined 57,534, 12 differing (the symbolic SVs, 6 `<DEL>` and 4 `<DUP>` lines in the
+  diff, as before).
+- `test/split.sh` 200 of 200 the same as bcftools; `thr_m.sh` 1,092 identical; `test/same.sh`
+  128; `test/par.sh` 312 against main's build; `test/threads.sh` 2,128; `test/out.sh` OK and
+  `test/index.sh` ALL PASS (with the old-index warning cases), both in fresh directories.
+
+Timings (`bench/m5.sh`, same setup; the machine ran slower today: main's build on HG002 whole
+genome without `-m` took 2.03-2.12 s, against 1.74-1.79 s before):
+
+| run | framebender | bcftools |
+|---|---|---|
+| cohort, `-m -any` | 1.24-1.28 s, 340-343 MB (`fb_m3`, before split-speed: 1.73-1.86 s) | 1.34-1.37 s |
+| joined `sub.vcf`, `-m -any` | 1.13-1.19 s | 3.53-3.69 s |
+| HG002 chr22, `-m -any` | 0.08-0.09 s | 0.12 s |
+| HG002 whole genome, `-m -any` | 2.76-2.80 s, 386 MB | 8.90-9.07 s |
+| HG002 whole genome, no `-m` (main: 2.03-2.12 s) | 2.06-2.14 s | |
+| joined, no `-m` (main: 0.28-0.31 s) | 0.32-0.34 s | |
+
+With split-speed in, `-m` is faster than bcftools on every file here, the cohort included.
+On HG002 whole genome with `-m`, `fb_m5` against `fb_m3` interleaved (`bench/m5h.sh`): 2.74-2.77
+s against 2.63-2.71 s, identical output. That file has few multiallelic lines (47,781 records
+split), so the faster splitter does not show there; the 2-4% gap is within the spread of the
+runs (`fb_m4`, the build before stale-index, took 2.69-2.89 s in the same rounds).
 
 ## Stage 2, milestone (1): the byte splitter and its proof
 
