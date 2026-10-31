@@ -394,6 +394,97 @@ for um in 022 077; do
 done
 $N norm -f $FAA -o o.vcf.gz in.vcf 2> /dev/null
 [ -e o.vcf.gz.csi ] || f3 "a run without -W removed the old index (it must leave it)"
+# Old indexes without -W: one warning per index name htslib would read for
+# the BGZF -o file (o.vcf.gz.csi, o.vcf.csi, o.vcf.gz.tbi, o.vcf.tbi, in
+# that order) where stat finds something not a directory, before anything
+# is read; the names left as they were, the output, the exit code and the
+# other messages those of a run with no index beside it. A real CSI and TBI
+# (of an older output) at each name.
+rm -rf o.* ix; mkdir ix
+$N norm -f $FAA -o ix/r.vcf.gz in.vcf > ix/r.out 2> ix/r.err; echo $? > ix/r.code
+cp ix/r.vcf.gz ix/c.vcf.gz; bcftools index ix/c.vcf.gz; tabix -p vcf ix/c.vcf.gz
+wn() { printf 'warning: htslib would read %s as the index of %s; remove it or use -W\n' "$1" "${2:-o.vcf.gz}"; }
+# lbl, then the warned names in order: the run's report must be those
+# warnings, then the run with no index's own; output and code its own too.
+ok3() {
+  local lbl=$1; shift
+  { for x in "$@"; do wn $x; done; cat ix/r.err; } > ix/want
+  [ "$e" = "$(cat ix/r.code)" ] && cmp -s err ix/want && [ ! -s out ] && cmp -s o.vcf.gz ix/r.vcf.gz || f3 "old index, $lbl: exit $e, $(cat err)"
+}
+NAMES=(o.vcf.gz.csi o.vcf.csi o.vcf.gz.tbi o.vcf.tbi)
+for x in ${NAMES[@]}; do
+  for f in csi tbi; do
+    rm -f o.*; cp ix/c.vcf.gz.$f $x; touch -d '2000-01-01' $x; m=$(md5sum < $x)
+    $N norm -f $FAA -o o.vcf.gz in.vcf > out 2> err; e=$?
+    ok3 "a $f at $x" $x
+    [ "$(md5sum < $x)" = "$m" ] && [ "$(stat -c %Y $x)" = "$(date -d 2000-01-01 +%s)" ] || f3 "old index, a $f at $x: changed"
+  done
+done
+rm -f o.*; for x in ${NAMES[@]}; do printf 'old\n' > $x; done
+$N norm -f $FAA -o o.vcf.gz in.vcf > out 2> err; e=$?
+ok3 "all four" ${NAMES[@]}
+for x in ${NAMES[@]}; do same $x old || f3 "old index, all four: $x changed"; done
+# A directory (itself, or through a symlink) is not warned about (htslib
+# finds it, but reading it fails: no stale answer); a symlink to a file is,
+# and stays; a dangling symlink is not (stat does not find it).
+for x in ${NAMES[@]}; do
+  rm -rf o.* dd; mkdir dd; mkdir $x
+  $N norm -f $FAA -o o.vcf.gz in.vcf > out 2> err; e=$?
+  ok3 "a directory at $x"; [ -d $x ] || f3 "old index, a directory at $x: gone"
+  rmdir $x; ln -s dd $x
+  $N norm -f $FAA -o o.vcf.gz in.vcf > out 2> err; e=$?
+  ok3 "a symlink to a directory at $x"
+  rm $x; ln -s ix/c.vcf.gz.csi $x
+  $N norm -f $FAA -o o.vcf.gz in.vcf > out 2> err; e=$?
+  ok3 "a symlink to a CSI at $x" $x; [ -L $x ] && cmp -s $x ix/c.vcf.gz.csi || f3 "old index, a symlink at $x: changed"
+  rm $x; ln -s nowhere $x
+  $N norm -f $FAA -o o.vcf.gz in.vcf > out 2> err; e=$?
+  ok3 "a dangling symlink at $x"
+done
+rm -rf o.* dd
+# A run that stops: the warnings come first (before anything is read), then
+# its own error and exit code, the -o file as it was. A usage error: none.
+printf 'old output\n' > o.vcf.gz; cp ix/c.vcf.gz.csi o.vcf.gz.csi; cp ix/c.vcf.gz.tbi o.vcf.csi
+$N norm -f /nonexistent.fa -o o.vcf.gz in.vcf > out 2> err; e=$?
+{ wn o.vcf.gz.csi; wn o.vcf.csi; echo "error: cannot read /nonexistent.fa.fai"; } | cmp -s - err && [ $e = 2 ] && same o.vcf.gz 'old output' && [ ! -s out ] || f3 "old index, a run that stops: exit $e, $(cat err)"
+{ grep '^#' in.vcf; grep -v '^#' in.vcf | head -1 | awk -F'\t' -v OFS='\t' '{ $5 = $5 "," $5; print }'; } > dup.vcf
+$N norm -f $FAA -o o.vcf.gz dup.vcf > out 2> err; e=$?
+$N norm -f $FAA -o ix/u.vcf.gz dup.vcf > /dev/null 2> ix/u.err; eu=$?
+{ wn o.vcf.gz.csi; wn o.vcf.csi; cat ix/u.err; } | cmp -s - err && [ $e = $eu ] && [ $e != 0 ] && cmp -s o.vcf.gz ix/u.vcf.gz || f3 "old index, a run the machine stops: exit $e (without an index $eu), $(cat err)"
+$N norm -f $FAA -o o.vcf.gz in.vcf -c x > out 2> err; e=$?
+[ $e = 2 ] && grep -q '^usage: framebender norm' err && ! grep -q warning err || f3 "old index, a usage error: exit $e"
+rm -f dup.vcf
+# Plain output, stdout and -W: no warning.
+rm -f o.*; for x in o.vcf.csi o.vcf.tbi o.csi o.tbi o.vcf.gz.csi o.vcf.gz.tbi; do printf 'old\n' > $x; done
+$N norm -f $FAA -o o.vcf in.vcf > out 2> err; e=$?
+[ $e = 0 ] && cmp -s err ix/r.err || f3 "old index, plain -o o.vcf: exit $e, $(cat err)"
+$N norm -Oz -f $FAA in.vcf > o.vcf.gz 2> err; e=$?
+[ $e = 0 ] && cmp -s err ix/r.err && cmp -s o.vcf.gz ix/r.vcf.gz || f3 "old index, BGZF to stdout: exit $e, $(cat err)"
+$N norm -f $FAA in.vcf > out 2> err; e=$?
+[ $e = 0 ] && cmp -s err ix/r.err || f3 "old index, plain stdout: exit $e, $(cat err)"
+for w in -W -Wtbi; do
+  rm -f o.*; oldf; [ $w = -W ] && printf 'old\n' > o.vcf.csi; printf 'old\n' > o.vcf.tbi
+  $N norm $w -f $FAA -o o.vcf.gz in.vcf > out 2> err; e=$?
+  [ $e = 0 ] && cmp -s err ix/r.err && cmp -s o.vcf.gz ix/r.vcf.gz || f3 "old index, $w: exit $e, $(cat err)"
+done
+# A BGZF file by -Oz under a name with no VCF extension (o.out: o.out.csi,
+# o.csi, ...); a
+# stem cut in a directory name (d.x/out: d.csi); -o x.csi, whose <stem>.csi
+# is the -o file itself (not warned about); a name with a LF (escaped).
+rm -f o.*; for x in o.out.csi o.csi o.out.tbi o.tbi; do printf 'old\n' > $x; done
+$N norm -Oz -f $FAA -o o.out in.vcf > out 2> err; e=$?
+{ for x in o.out.csi o.csi o.out.tbi o.tbi; do wn $x o.out; done; cat ix/r.err; } | cmp -s - err && [ $e = 0 ] && cmp -s o.out ix/r.vcf.gz || f3 "old index, -Oz -o o.out: exit $e, $(cat err)"
+rm -rf o.* d.x d.csi; mkdir d.x; printf 'old\n' > d.csi
+$N norm -Oz -f $FAA -o d.x/out in.vcf > out 2> err; e=$?
+{ wn d.csi d.x/out; cat ix/r.err; } | cmp -s - err && [ $e = 0 ] || f3 "old index, d.csi for d.x/out: exit $e, $(cat err)"
+rm -rf d.x d.csi x.csi x.csi.* x.tbi; printf 'old output\n' > x.csi; printf 'old\n' > x.tbi
+$N norm -Oz -f $FAA -o x.csi in.vcf > out 2> err; e=$?
+{ wn x.tbi x.csi; cat ix/r.err; } | cmp -s - err && [ $e = 0 ] && cmp -s x.csi ix/r.vcf.gz || f3 "old index, -o x.csi: exit $e, $(cat err)"
+rm -f x.csi x.tbi
+lf=$'l\nf.vcf.gz'; rm -f "$lf" "$lf".*; printf 'old\n' > "$lf.csi"
+$N norm -f $FAA -o "$lf" in.vcf > out 2> err; e=$?
+{ wn 'l\nf.vcf.gz.csi' 'l\nf.vcf.gz'; cat ix/r.err; } | cmp -s - err && [ $e = 0 ] || f3 "old index, a name with a LF: exit $e, $(cat err)"
+rm -f "$lf" "$lf".*; rm -rf ix
 rm -f o.* in.vcf err out
 popd > /dev/null
 [ $b3 = 0 ] && echo "FILES OK"

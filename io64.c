@@ -9,6 +9,8 @@
 // its letters, on a helper thread (a batch's reads at once).
 // Io.out_set, Io.out_write, Io.out_close: the output (stdout or the -o file,
 // plain or BGZF), as B.Args.output says.
+// Io.ix_found: whether htslib would read a name as an index (stat), for the
+// warning about old indexes beside a BGZF -o file written without -W.
 //
 // A packed block is an Array<U32> of 2^d words, byte i in byte i & 3 of word
 // i >> 2 (little-endian). The blocks these effects make are exactly
@@ -173,6 +175,26 @@ Term io_threads_run(Env e, Term* f, IoWork* w) {
 }
 static void __attribute__((constructor)) io_threads_use(void) {
   io_eff(CID(Io.threads), io_threads_run);
+}
+#endif
+
+#ifdef CID(Io.ix_found)
+// Io.ix_found(path): 1 when stat finds something at path that is not a
+// directory, else 0 (also for a path with a NUL byte). htslib 1.24 reads the
+// first index name stat finds (hts_idx_check_local); a directory it finds
+// too, but reading it fails ("could not load index"), so it never answers a
+// query. Only stat: nothing is opened or changed. Used, without -W, to warn
+// about old indexes beside a BGZF -o file (main.bend's stale).
+Term io_ix_found_run(Env e, Term* f, IoWork* w) {
+  uint64_t len;
+  char* p = io_cbuf(e, f[0], &len, CID(Con));
+  struct stat st;
+  u32 r = p != NULL && memchr(p, 0, len) == NULL && stat(p, &st) == 0 && !S_ISDIR(st.st_mode);
+  free(p);
+  return (Term)r;
+}
+static void __attribute__((constructor)) io_ix_found_use(void) {
+  io_eff(CID(Io.ix_found), io_ix_found_run);
 }
 #endif
 
