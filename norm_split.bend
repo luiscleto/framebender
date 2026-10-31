@@ -10,10 +10,12 @@ import lawful-fields@0.1.0.0/fields.bend as FC
 # With -m, a body line whose ALT field has a comma is split here without
 # decoding it: one record per ALT, as types.bend's B.Rec.parts writes them,
 # each followed by the line's terminator, in a buffer of their own. The
-# machine reads that buffer as lines (norm_seq.bend). Any doubt (a line
-# B.Rec.parts would refuse or leave Whole, a size past the buffers' bounds)
-# gives None, and the line takes the String path, which calls B.Rec.parts
-# itself. notes/split.md has the design and the refinement argument.
+# machine reads that buffer as lines (norm_seq.bend). A line B.Rec.parts
+# refuses comes back with the code (Ref, from refuse, below), when the writer
+# got as far as its INFO and samples. Any other doubt (a line B.Rec.parts
+# would leave Whole, a size past the buffers' bounds, BAD_CR, ALT_DUP) gives
+# None, and the line takes the String path, which calls B.Rec.parts itself.
+# notes/split.md has the design and the refinement argument.
 #
 # One pass over the line cuts its fields and reads what does not depend on
 # the ALT: the ALTs, each INFO entry's and each FORMAT key's Number

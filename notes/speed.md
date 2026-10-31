@@ -122,3 +122,64 @@ ENDs, `END=1,2`, `ENDX=`, `XEND=`, empty entries, `END=3=4`, lower case, CIGAR/H
   first; small machine-proof change).
 - Line split plus field split are still 2 copies of every line; fusing them would change
   `B.Line`.
+
+# fb-refuse: refused lines under -m on bytes (speed phase, 2026-10-31)
+
+Brief: `notes/briefs/SPEED_REFUSE.md` (driver review 10, decision 13). With `-m -any`, a line the
+byte splitter could not split came back as `None`, and the machine sent it to the String path
+(`slow.parts`, which runs `B.Rec.parts` on decoded text): about 0.14 s per 146 KB cohort line.
+
+## What it does now
+
+- `norm_split.bend`: when the writer gives up on a line (one already found not MALFORMED, with
+  two or more ALTs, none equal up to case, and no CR), `refuse` reads the line again for
+  `split_problem`'s INFO and sample problems, in order. INFO is decoded (it is short) and judged
+  by copies of LAWS.bend's problem functions (`first`, `count_problem`, `info_problem`,
+  `gt_problem`, `format_problem`, `sample_problems`). Each sample is first given to the writer
+  alone, in the record for ALT 1 (`sprob`): when the writer writes it, it has no problem
+  (`sample_t`: the writer writes only what `B.Fmt.split` gives; `proof_s_when.bend`'s `col_gc`:
+  `B.Fmt.split` refuses a sample exactly with its first problem). Only a sample the writer gives
+  up on is decoded and judged on its text. A problem: the answer is `Ref{b, c, chrom, pos}`; none
+  (the writer gave up for a size): `Out{b, None}` as before.
+- `norm_seq.bend`: `split.out` on `Ref`. Under `-c e` the String path (the run stops there).
+  Under `-c w`, when the window is the line's contig (`Win.on`: a `WKnown` window, its name equal
+  to CHROM) and the line has at most 2^28 bytes, the line is written as it came with the warning c
+  (`ref.pos`, `NR.problem_line`); else the String path.
+- Proofs: `proof_s_ref.bend` (refuse is `PROBF`, the first problem after the ALTs);
+  `proof_s_drv.bend` (the splitter's answer `SPR` gains the refusal case, with
+  `B.Rec.parts == Unsplit{c}` from `ws.p`, and CHROM and POS as the line's fields);
+  `proof_b_adv_ref.bend` (the branch gives what the spec gives: the pass-through is
+  `body_done` of the problem c, which the String path's `SL.body` already covers, given that
+  judge's outcome does not stop the run under `-c w`: not MALFORMED, and the window says the
+  contig is in the reference); `proof_b_bud_ref.bend` (the budget, with `K.body`); and their
+  wiring in `proof_b_adv_split.bend` and `proof_b_bud_inj.bend` (a record buffer never gives a
+  refusal: a record has one ALT). No law or spec definition changed.
+
+## What paid, what did not
+
+- The cost was `B.Rec.parts` on Strings: a build that skipped it (wrongly, as an experiment)
+  took u100 from 14.0 s to 0.76 s; the rest was decoding the line and the String verdict.
+- `split_problem` on Strings, tried before `B.Rec.parts` (correct, by law `split_when`), saved
+  little: 12.4 s. The spec's problem functions on text cost about as much as the split.
+- A first prototype found every problem on bytes exactly (counts, genotypes, kinds); it ran as
+  fast as the version kept, but would have needed new exact (both-way) byte lemmas for
+  genotypes and counts. Checking each sample with the writer instead reuses its proofs, and costs
+  the same: the writer's per-sample check is a fresh small buffer per sample.
+- Passing the line through on bytes (rather than the String path with the code already known)
+  paid too: the decoded path's line decode and verdict alone cost about 5.7 ms per cohort line.
+
+## Still slow (documented in USAGE)
+
+- A line refused for `BAD_CR` or `ALT_DUP` (the splitter gives up before the writer runs).
+- A refused line met before the window is on its contig: in a file where every line is refused,
+  the first line of each contig takes the String path once (its verdict asks for the window).
+- Under `-c e`, the refused line the run stops at.
+
+## Proof-writing notes (Bend 2.0.39)
+
+- The checker overflowed its stack while printing an error whose context held a `+` hypothesis
+  of a `Type`-valued type (`hk1: RK(...)` with `RK -> Type`): the error itself was "must be
+  Data". Such hypotheses must be linear.
+- `match` must come before any `+x = ...` or `%` step in a body, and a computed value cannot be
+  destructured in place (give it its own def); defs must come before their uses, constructors
+  too.
