@@ -129,7 +129,41 @@ law al_done:
   {Nat.is_le(cfg_al(B.Args.done(st)), A.kl(st)) == True{} : Bool}
 
 def al_done(st):
-  ?TODO
+  match st:
+    case B.ArgSt{pe, sc, w, t, r, v, ok, k}:
+      match pe:
+        case B.PNone{}:
+          match sc:
+            case B.Sci{c, m, z}:
+              match r:
+                case None{}:
+                  N.le_zero_l(M.args_len(k))
+                case Some{r1}:
+                  match v:
+                    case None{}:
+                      N.le_zero_l(M.args_len(k))
+                    case Some{v1}:
+                      match ok:
+                        case True{}:
+                          N.le_refl(M.args_len(k))
+                        case False{}:
+                          N.le_zero_l(M.args_len(k))
+        case B.PRef{}:
+          N.le_zero_l(M.args_len(k))
+        case B.PCheck{}:
+          N.le_zero_l(M.args_len(k))
+        case B.PWin{}:
+          N.le_zero_l(M.args_len(k))
+        case B.PThr{}:
+          N.le_zero_l(M.args_len(k))
+        case B.POut{}:
+          N.le_zero_l(M.args_len(k))
+        case B.PType{}:
+          N.le_zero_l(M.args_len(k))
+        case B.PMulti{}:
+          N.le_zero_l(M.args_len(k))
+        case B.POver{}:
+          N.le_zero_l(M.args_len(k))
 
 
 law al_if:
@@ -777,21 +811,7 @@ law bud_need:
   {Nat.is_le(BN.need(B.Fasta.parse(fasta), L.run(fasta, vcf, o), p, cs, False{}, Pr.More{}, ""), M.bound(argv, fasta, vcf, cs)) == True{} : Bool}
 
 def bud_need(dfs,argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, h, hst):
-  +fa = B.Fasta.parse(fasta)
-  +T = L.run(fasta, vcf, o)
-  +bd = M.bound(argv, fasta, vcf, cs)
-  +ls = BN.lines(Nil{}, Norm.PB{BY.empty(0n)}, False{}, cs)
-  +v = Nat.add(1n, String.length(vcf))
-  %hst : {Nat.is_le(BN.needS(fa, T, _, cs, False{}, Pr.More{}, ""), bd) == True{} : Bool}
-  %Equal.sym(Maybe<&2, B.Cfg>, B.Args.parse(argv), Some{B.Cfg{o, ref, vcfpath}}, ha) :
-    {Nat.is_le(BN.needS(fa, T, DD.start_st(dfs, Norm.start.of(_)), cs, False{}, Pr.More{}, ""), bd) == True{} : Bool}
-  +NS = BN.needS(fa, T, DD.start_st(dfs, Norm.start.of(Some{B.Cfg{o, ref, vcfpath}})), cs, False{}, Pr.More{}, "")
-  N.le_trans(NS, Nat.add(Nat.add(Nat.add(M.pieces_len(cs), 3n), M.args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n))), bd,
-    fin(List.length(&2, String, cs), BN.HO(T, ""), BN.WA.ls(fa, True{}, 0n, Norm.WNone{}, None{}, ls), M.args_len(argv), v, String.length(fasta), BN.FM(fa),
-      ho_le(dfs, argv, o, ref, vcfpath, fasta, vcf, ha),
-      N.le_trans(BN.WA.ls(fa, True{}, 0n, Norm.WNone{}, None{}, ls), BN.LAs(fa, ls), Nat.mul(v, BN.ZW(fa)), wa_le(fa, ls), las_cs(fa, cs, vcf, h)),
-      fa_fm(fasta)),
-    N.le_add_r(Nat.add(Nat.add(Nat.add(M.pieces_len(cs), 3n), M.args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n))), M.split_room(M.splits.of(B.Args.parse(argv)), vcf)))
+  ?TODO
 
 # bud_start (proof_b_budget_api.bend).
 law bud_start_h:
