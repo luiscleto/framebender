@@ -155,6 +155,28 @@ byte splitter could not split came back as `None`, and the machine sent it to th
   wiring in `proof_b_adv_split.bend` and `proof_b_bud_inj.bend` (a record buffer never gives a
   refusal: a record has one ALT). No law or spec definition changed.
 
+## Timings
+
+`-c w -m -any`, default threads, wall seconds, three rounds interleaved with main's build
+(984688a = 03c3ed4 plus the briefs), each run under `data/tmp/bench.lock` on CPUs 0-15, 21:22 to
+21:29. The machine was not idle: load average 3.4 to 4.3 from other work. Output identical
+(md5) in every pair.
+
+| input | main | this branch | bcftools |
+|---|---|---|---|
+| u100: c100 without `##FORMAT=<ID=GQ`, every line refused | 15.12 14.64 15.81 | 0.33 0.32 0.32 | 0.09 0.10 0.11 |
+| u300: c300 the same | 45.38 51.76 53.51 | 0.73 0.74 0.73 | 0.27 0.26 0.28 |
+| p100: c100 with one PL value too many in each line's last sample | 18.10 19.48 17.85 | 0.44 0.46 0.44 | |
+| c100 (nothing refused) | 0.18 0.17 0.18 | 0.17 0.20 0.17 | |
+| c300 | 0.30 0.33 0.32 | 0.32 0.30 0.27 | |
+| cohort.vcf (218 MB) | 1.34 1.24 1.19 | 1.24 1.51 1.14 | |
+| HG002 chr22 | 0.07 0.08 0.07 | 0.07 0.08 0.08 | |
+| HG002 whole genome | 2.66 2.77 2.57 | 2.98 2.71 2.48 | |
+
+Refused lines: 45x to 70x faster, now 2.7x to 3.5x bcftools (bcftools drops the undefined tag and
+splits; framebender passes the line through with UNDEFINED_TAG). Lines that split, the cohort
+and HG002: within the noise (the only change on their path is one match on the writer's answer).
+
 ## What paid, what did not
 
 - The cost was `B.Rec.parts` on Strings: a build that skipped it (wrongly, as an experiment)
