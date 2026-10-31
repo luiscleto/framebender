@@ -66,3 +66,30 @@ approve.
 | 26 | The "why" in the differences table says too much | Claude | **Fix:** "a CR inside a line is not valid VCF; cutting a value at a CR can leave a record ending in CR, which a second run reads as a CRLF ending." |
 | 27 | The comment on `Rec.parts` names BAD_CR after ALT_DUP | Claude | **Fix:** BAD_CR first; re-wrap. |
 | 28 | Test the whole body (`B.Text.has_cr(body)`), not its fields | Claude | **Fix:** it matches the plain statement and the machine's byte test, and saves a lemma. |
+
+## The step bound with -m (2026-10-31)
+
+While proving law `machine` under `-m`, the author found that the proof's per-line read allowance
+does not cover a split line's records: each record may ask for its own reads, and charging each a
+full line's allowance grows with the square of the line, which `bound` does not. Proving the real
+(shared-window) cost instead is a large proof with a risk of a dead end. The owner consented to
+enlarging the bound with `-m` only, by (VCF length + 1)^2. Prompt: `SPLIT_BOUND_PROMPT.md`.
+Claude (`claude-split-bound.md`), GPT (`gpt-split-bound.md`), Grok (`grok-split-bound.md`):
+ACCEPT, with the argument in `notes/split.md` corrected. All three: the square covers the charge
+for every input; `splits(argv)` agrees with the parser for every accepted spelling of `-m`,
+repetitions and usage errors; keep the condition, so runs without `-m` keep exactly the approved
+bound; output, messages and exit codes are untouched; `docs/LAWS.md` does not give the formula
+and need not change.
+
+| # | finding | by | decision |
+|---|---|---|---|
+| 29 | "R + 2k + 13 ≤ L" is false: ID, QUAL, FILTER and INFO may be empty, and the last line may have no LF (`c⇥1⇥⇥A⇥C,G⇥⇥⇥` is 13 bytes) | Claude, GPT, Grok | **Fix:** measure lines as the proof does (n = text + 1, Σn ≤ V+1, Σn² ≤ (V+1)²) with R + 2k + 8 ≤ text; 2aR ≤ n²/4 and a ≤ n/2 still hold. |
+| 30 | The existing term (V+1)(F+3) is already spent in full (wants (V+1)(FM+2), hand-outs V+1); the draft spends it again | Claude, Grok, GPT | **Fix:** charge the displaced hand-outs to the square too. |
+| 31 | The output step uses "a record is at most its line + 22 bytes", which no proof has; `out_len` allows 21(n) per record and counts output twice on a stop | Claude | **Fix:** redo the step with the proof's constants and add the lemma that a split record's text is no longer than its line's. Total extra ≤ (V+1)²/3 + 13(V+1)/12 when the file has a line: about 3× margin, not 3.9×. |
+| 32 | The example cannot split: 100 one-base ALTs repeat (ALT_DUP) | GPT | **Fix:** use GPT's (REF of 100 A's, ALTs `A,C,G,T,N,AA,AC,AG,AT,AN`: 2460 against 2363). |
+| 33 | `splits` as drafted does not compile (Bend cannot match on a call) | GPT | **Fix:** `splits.of(B.Args.parse(argv))`. |
+| 34 | Which lines' records to charge | Claude, Grok | **Proof plan:** charge 1 + k allowances for every candidate line (`-m`, not malformed, 2+ ALTs), split or not; overcharging a refused or passed-through line is harmless. |
+| 35 | The comment's sentence: "a line's reads" names the FASTA-sized allowance, which the square does not pay | Grok, Claude | **Fix:** "With -m, plus (VCF length + 1) squared, so that each record of a split line (one per ALT) can be charged a line's allowance." |
+| 36 | A smaller term (half the square) also fits | Grok | **Keep the full square:** Claude's corrected total is a third of it, so half would leave a thin margin, for no gain in a proof-only bound. |
+
+The arithmetic is checked by the kernel when the budget proofs close; no second round.
