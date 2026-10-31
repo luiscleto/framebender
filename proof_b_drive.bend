@@ -71,12 +71,12 @@ def step_ref(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: S
 
 # The program starts in a state waiting for input that stands for the
 # spec's whole run (with nothing collected yet).
-def start_ok(+fa: List<&2, B.Contig>, +argv: List<&2, String>, +o: B.Opts, +ref: String, +vcfpath: String, +cs: List<&2, String>,
+def start_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +argv: List<&2, String>, +o: B.Opts, +ref: String, +vcfpath: String, +cs: List<&2, String>,
   ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>},
   hab: {E.all_bytes(argv) == True{} : Bool}) ->
-  &p: S.StP -> ({DD.start_st(Norm.start(argv)) == S.mkSt(fa, p) : Norm.St}
+  &p: S.StP -> ({DD.start_st(dfs, Norm.start(argv)) == S.mkSt(fa, p) : Norm.St}
   & ({DD.start_paths(Norm.start(argv)) == Some{DD.Paths{ref, vcfpath}} : Maybe<&2, DD.Paths>}
   & ({DD.more_ok(fa, p) == True{} : Bool}
-  & ({S.report(fa, cs, "", Nil{}, p) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), fa, o, R.start_st())) : R.Report}
+  & ({S.report(fa, cs, "", Nil{}, p) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), fa, L.defs(String.concat(cs)), o, R.start_st())) : R.Report}
   & {S.guard("", Nil{}, p) == True{} : Bool})))):
-  DST.start_ok_g(fa, argv, o, ref, vcfpath, cs, ha, hab)
+  DST.start_ok_g(dfs, fa, argv, o, ref, vcfpath, cs, ha, hab)

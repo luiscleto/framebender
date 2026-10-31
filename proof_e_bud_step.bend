@@ -49,6 +49,7 @@ def BudW(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +ef: Bool
 # ---------------------------------------------------------------------------
 
 law hop_inv:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -57,10 +58,10 @@ law hop_inv:
   for +x: WD.WPic
   for +nx: Pr.Next
   for +ef: Bool
-  for h: WD.InvW(fa, T, cs, O, N, x, nx, ef)
+  for h: WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef)
   {Nat.is_le(String.length(O), String.length(R.Report.out(T))) == True{} : Bool}
 
-def hop_inv(fa, T, cs, O, N, x, nx, ef, h):
+def hop_inv(dfs,fa, T, cs, O, N, x, nx, ef, h):
   match x:
     case WD.WPic{+p, +b}:
       (a1, h1) = h
@@ -69,16 +70,17 @@ def hop_inv(fa, T, cs, O, N, x, nx, ef, h):
       BS.hop(fa, T, List.append(&2, String, WD.held(b), cs), O, N, p, a3, a2)
 
 law nofin_ph:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +cs: List<&2, String>
   for +p: S.StP
   for +b: WD.BatP
   for +nx: Pr.Next
   for +ef: Bool
-  for h: WD.PhaseOK(fa, cs, p, b, nx, ef)
+  for h: WD.PhaseOK(dfs, fa, cs, p, b, nx, ef)
   {is_fin(nx) == False{} : Bool}
 
-def nofin_ph(fa, cs, p, b, nx, ef, h):
+def nofin_ph(dfs,fa, cs, p, b, nx, ef, h):
   match b nx:
     case _ Pr.More{}:
       {==}
@@ -100,6 +102,7 @@ def nofin_ph(fa, cs, p, b, nx, ef, h):
       Empty.absurd({is_fin(Pr.Finish{c}) == False{} : Bool}, h1)
 
 law inv_nofin:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -108,22 +111,23 @@ law inv_nofin:
   for +x: WD.WPic
   for +nx: Pr.Next
   for +ef: Bool
-  for h: WD.InvW(fa, T, cs, O, N, x, nx, ef)
+  for h: WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef)
   {is_fin(nx) == False{} : Bool}
 
-def inv_nofin(fa, T, cs, O, N, x, nx, ef, h):
+def inv_nofin(dfs,fa, T, cs, O, N, x, nx, ef, h):
   match x:
     case WD.WPic{+p, +b}:
       (a1, h1) = h
       (a2, h2) = h1
       (a3, h3) = h2
-      nofin_ph(fa, cs, p, b, nx, ef, h3)
+      nofin_ph(dfs, fa, cs, p, b, nx, ef, h3)
 
 def need_of(+fa: List<&2, B.Contig>, +T: R.Report, p: W.St & Pr.Next, +cs: List<&2, String>, +ef: Bool, +O: String) -> Nat:
   (st, +nx) = p
   BD.needW(fa, T, st, cs, ef, nx, O)
 
 law kont_k2:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for -s: W.Step
@@ -142,14 +146,14 @@ law kont_k2:
   for +hnx: {BD.snxW(s) == nx2 : Pr.Next}
   for +hout: {BD.soutW(s) == Some{t} : Maybe<&2, String>}
   for bw: {BD.biW(BD.sstW(s), cs2) == True{} : Bool} & (@t: String -> {BD.soutW(s) == Some{t} : Maybe<&2, String>} -> {Nat.is_le(String.length(String.append(O, t)), String.length(R.Report.out(T))) == True{} : Bool} -> @n: Nat -> {BD.needW(fa, T, BD.sstW(s), cs2, de2, BD.snxW(s), String.append(O, t)) == n : Nat} -> {Nat.is_le(n, V) == True{} : Bool})
-  for i1: WD.InvW(fa, T, cs2, String.append(O, t), N2, x2, nx2, de2)
-  for i2: WD.InvW(fa, T, cs2, String.append(O, t), N2, x2, nx2, de2)
-  WD.InvW(fa, T, cs2, String.append(O, t), N2, x2, nx2, de2) & ({BD.biW(WD.mkWSt(fa, x2), cs2) == True{} : Bool}
+  for i1: WD.InvW(dfs, fa, T, cs2, String.append(O, t), N2, x2, nx2, de2)
+  for i2: WD.InvW(dfs, fa, T, cs2, String.append(O, t), N2, x2, nx2, de2)
+  WD.InvW(dfs, fa, T, cs2, String.append(O, t), N2, x2, nx2, de2) & ({BD.biW(WD.mkWSt(fa, x2), cs2) == True{} : Bool}
     & {Nat.is_le(Nat.add(BD.needW(fa, T, WD.mkWSt(fa, x2), cs2, de2, nx2, String.append(O, t)), Nat.add(R, 1n)), n1) == True{} : Bool})
 
-def kont_k2(fa, T, s, cs2, de2, R, n1, V, O, N2, x2, nx2, t, hv, est, hnx, hout, bw, i1, i2):
+def kont_k2(dfs,fa, T, s, cs2, de2, R, n1, V, O, N2, x2, nx2, t, hv, est, hnx, hout, bw, i1, i2):
   (hbi, k) = bw
-  +hp = hop_inv(fa, T, cs2, String.append(O, t), N2, x2, nx2, de2, i2)
+  +hp = hop_inv(dfs, fa, T, cs2, String.append(O, t), N2, x2, nx2, de2, i2)
   +nw = BD.needW(fa, T, WD.mkWSt(fa, x2), cs2, de2, nx2, String.append(O, t))
   +enw = Equal.trans(W.St & Pr.Next, (BD.sstW(s), BD.snxW(s)), (WD.mkWSt(fa, x2), BD.snxW(s)), (WD.mkWSt(fa, x2), nx2),
     Equal.cong(W.St, W.St & Pr.Next, z => (z, BD.snxW(s)), BD.sstW(s), WD.mkWSt(fa, x2), est),
@@ -159,6 +163,7 @@ def kont_k2(fa, T, s, cs2, de2, R, n1, V, O, N2, x2, nx2, t, hv, est, hnx, hout,
     N.le_trans(Nat.add(nw, Nat.add(R, 1n)), Nat.add(V, Nat.add(R, 1n)), n1, N.le_add_mono_r(Nat.add(R, 1n), nw, V, le2), hv)))
 
 law kont_k:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for -s: W.Step
@@ -177,18 +182,19 @@ law kont_k:
   for +hnx: {BD.snxW(s) == nx2 : Pr.Next}
   for +hout: {BD.soutW(s) == Some{t} : Maybe<&2, String>}
   for bw: BudW(fa, T, cs2, de2, O, V, s)
-  for d: WD.InvW(fa, T, cs2, String.append(O, t), N2, x2, nx2, de2) & (WD.InvW(fa, T, cs2, String.append(O, t), N2, x2, nx2, de2) & WD.InvW(fa, T, cs2, String.append(O, t), N2, x2, nx2, de2))
-  WD.InvW(fa, T, cs2, String.append(O, t), N2, x2, nx2, de2) & ({BD.biW(WD.mkWSt(fa, x2), cs2) == True{} : Bool}
+  for d: WD.InvW(dfs, fa, T, cs2, String.append(O, t), N2, x2, nx2, de2) & (WD.InvW(dfs, fa, T, cs2, String.append(O, t), N2, x2, nx2, de2) & WD.InvW(dfs, fa, T, cs2, String.append(O, t), N2, x2, nx2, de2))
+  WD.InvW(dfs, fa, T, cs2, String.append(O, t), N2, x2, nx2, de2) & ({BD.biW(WD.mkWSt(fa, x2), cs2) == True{} : Bool}
     & {Nat.is_le(Nat.add(BD.needW(fa, T, WD.mkWSt(fa, x2), cs2, de2, nx2, String.append(O, t)), Nat.add(R, 1n)), n1) == True{} : Bool})
 
-def kont_k(fa, T, s, cs2, de2, R, n1, V, O, N2, x2, nx2, t, hv, est, hnx, hout, bw, d):
+def kont_k(dfs,fa, T, s, cs2, de2, R, n1, V, O, N2, x2, nx2, t, hv, est, hnx, hout, bw, d):
   (i1, d2) = d
   (i2, i3) = d2
-  kont_k2(fa, T, s, cs2, de2, R, n1, V, O, N2, x2, nx2, t, hv, est, hnx, hout,
-    bw(AB.subst(Pr.Next, z => {is_fin(z) == False{} : Bool}, nx2, BD.snxW(s), Equal.sym(Pr.Next, BD.snxW(s), nx2, hnx), inv_nofin(fa, T, cs2, String.append(O, t), N2, x2, nx2, de2, i3))),
+  kont_k2(dfs, fa, T, s, cs2, de2, R, n1, V, O, N2, x2, nx2, t, hv, est, hnx, hout,
+    bw(AB.subst(Pr.Next, z => {is_fin(z) == False{} : Bool}, nx2, BD.snxW(s), Equal.sym(Pr.Next, BD.snxW(s), nx2, hnx), inv_nofin(dfs, fa, T, cs2, String.append(O, t), N2, x2, nx2, de2, i3))),
     i1, i2)
 
 law kont_of:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for -s: W.Step
@@ -201,12 +207,12 @@ law kont_of:
   for +N: List<&2, B.Note>
   for bw: BudW(fa, T, cs2, de2, O, V, s)
   for +hv: {Nat.is_le(Nat.add(V, Nat.add(R, 1n)), n1) == True{} : Bool}
-  API.KontW(fa, T, s, cs2, de2, R, n1, O, N)
+  API.KontW(dfs, fa, T, s, cs2, de2, R, n1, O, N)
 
-def kont_of(fa, T, s, cs2, de2, R, n1, V, O, N, bw, hv):
+def kont_of(dfs,fa, T, s, cs2, de2, R, n1, V, O, N, bw, hv):
   +x2 => +nx2 => +t => +N2 => hn2 => +est => +hnx => +hout => inv =>
-    kont_k(fa, T, s, cs2, de2, R, n1, V, O, N2, x2, nx2, t, hv, est, hnx, hout, bw,
-      DU.inv_dup3(fa, T, cs2, String.append(O, t), N2, x2, nx2, de2, inv))
+    kont_k(dfs, fa, T, s, cs2, de2, R, n1, V, O, N2, x2, nx2, t, hv, est, hnx, hout, bw,
+      DU.inv_dup3(dfs, fa, T, cs2, String.append(O, t), N2, x2, nx2, de2, inv))
 
 # ---------------------------------------------------------------------------
 # A step of Q, as the wrapper hands it out

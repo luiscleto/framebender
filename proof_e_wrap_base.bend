@@ -24,47 +24,6 @@ import ./proof_e_wrap_defs.bend as WD
 # ==================
 
 # A step of Q that keeps phase B's guarantee is a wrapper step with no batch.
-law g2_none:
-  for +fa: List<&2, B.Contig>
-  for +T: R.Report
-  for +cs: List<&2, String>
-  for +O: String
-  for +N: List<&2, B.Note>
-  for +ef: Bool
-  for s: Norm.Step
-  for h: DO.StepG2(fa, T, cs, O, N, ef, s)
-  WD.StepGW(fa, T, cs, O, N, ef, W.wrap(s, W.BNone{}))
-
-def g2_none(fa, T, cs, O, N, ef, s, h):
-  match s:
-    case Norm.Step{st, b, ns, Pr.More{}}:
-      (+t, h1) = h
-      (+p2, h2) = h1
-      (eout, h3) = h2
-      (est, h4) = h3
-      (wf, h5) = h4
-      (rep, h6) = h5
-      (gd, h7) = h6
-      (hmo, hef) = h7
-      (t, (WD.WPic{p2, WD.BNoneP{}}, (eout, (Equal.cong(Norm.St, W.St, z => W.St{z, W.BNone{}}, st, S.mkSt(fa, p2), est),
-        ({==}, (gd, (rep, (hmo, hef))))))))
-    case Norm.Step{st, b, ns, Pr.Ask{+rs}}:
-      (+t, h1) = h
-      (+p2, h2) = h1
-      (eout, h3) = h2
-      (est, h4) = h3
-      (wf, h5) = h4
-      (rep, h6) = h5
-      (hq, h7) = h6
-      (hrq, h8) = h7
-      (hmr, h9) = h8
-      (hask, h10) = h9
-      (gd, heof) = h10
-      (t, (WD.WPic{p2, WD.BNoneP{}}, (eout, (Equal.cong(Norm.St, W.St, z => W.St{z, W.BNone{}}, st, S.mkSt(fa, p2), est),
-        ({==}, (gd, (rep, (wf, (hq, (hrq, (hmr, (hask, heof))))))))))))
-    case Norm.Step{st, b, ns, Pr.Finish{+c}}:
-      h
-
 # Q's state, looked at
 # ====================
 
@@ -92,7 +51,7 @@ def pdb(+pd: P.PdP) -> Bool:
 # W.quiet's test on a picture.
 def qb(+p: S.StP) -> Bool:
   match p:
-    case S.StP{o, +md, +src, +pd, +eof, back, wp, +asked, +fneed}:
+    case S.StP{o, +md, +src, +pd, +eof, back, wp, +asked, +fneed, +dfs}:
       mdb(md) && srcb(src) && pdb(pd) && Bool.not(eof) && Bool.not(fneed) && W.is_none(asked)
 
 law md_ok_mk:
@@ -135,10 +94,10 @@ law quiet_mk:
 
 def quiet_mk(fa, p):
   match p:
-    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
-      %md_ok_mk(md) : {(S.mkSt(fa, S.StP{o, md, src, pd, eof, back, wp, asked, fneed}), qb(S.StP{o, md, src, pd, eof, back, wp, asked, fneed})) == W.quiet.k(o, _, W.is_nil.src(P.mkSrcs(src)), W.is_pb(P.mkPd(pd)), eof, back, PC.mkWin(fa, wp), asked, fneed) : Norm.St & Bool}
-      %src_nil_mk(src) : {(S.mkSt(fa, S.StP{o, md, src, pd, eof, back, wp, asked, fneed}), qb(S.StP{o, md, src, pd, eof, back, wp, asked, fneed})) == W.quiet.k(o, (S.mkMd(md), mdb(md)), _, W.is_pb(P.mkPd(pd)), eof, back, PC.mkWin(fa, wp), asked, fneed) : Norm.St & Bool}
-      %pb_mk(pd) : {(S.mkSt(fa, S.StP{o, md, src, pd, eof, back, wp, asked, fneed}), qb(S.StP{o, md, src, pd, eof, back, wp, asked, fneed})) == W.quiet.k(o, (S.mkMd(md), mdb(md)), (P.mkSrcs(src), srcb(src)), _, eof, back, PC.mkWin(fa, wp), asked, fneed) : Norm.St & Bool}
+    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      %md_ok_mk(md) : {(S.mkSt(fa, S.StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs}), qb(S.StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs})) == W.quiet.k(o, _, W.is_nil.src(P.mkSrcs(src)), W.is_pb(P.mkPd(pd)), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs) : Norm.St & Bool}
+      %src_nil_mk(src) : {(S.mkSt(fa, S.StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs}), qb(S.StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs})) == W.quiet.k(o, (S.mkMd(md), mdb(md)), _, W.is_pb(P.mkPd(pd)), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs) : Norm.St & Bool}
+      %pb_mk(pd) : {(S.mkSt(fa, S.StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs}), qb(S.StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs})) == W.quiet.k(o, (S.mkMd(md), mdb(md)), (P.mkSrcs(src), srcb(src)), _, eof, back, PC.mkWin(fa, wp), asked, fneed, dfs) : Norm.St & Bool}
       {==}
 
 law qb_stop:
@@ -148,14 +107,14 @@ law qb_stop:
 
 def qb_stop(p, h):
   match p:
-    case S.StP{+o, S.MBP{+rp}, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+    case S.StP{+o, S.MBP{+rp}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
       +h5 = PB.and_true_l(mdb(S.MBP{rp}) && srcb(src) && pdb(pd) && Bool.not(eof) && Bool.not(fneed), W.is_none(asked), h)
       +h4 = PB.and_true_l(mdb(S.MBP{rp}) && srcb(src) && pdb(pd) && Bool.not(eof), Bool.not(fneed), h5)
       +h3 = PB.and_true_l(mdb(S.MBP{rp}) && srcb(src) && pdb(pd), Bool.not(eof), h4)
       +h2 = PB.and_true_l(mdb(S.MBP{rp}) && srcb(src), pdb(pd), h3)
       +h1 = PB.and_true_l(mdb(S.MBP{rp}), srcb(src), h2)
       DO.not_true(P.RunP.x(rp), PB.and_true_r(P.RunP.i(rp), Bool.not(P.RunP.x(rp)), h1))
-    case S.StP{+o, S.MSP{+s, +qs, +ql, +code}, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+    case S.StP{+o, S.MSP{+s, +qs, +ql, +code}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
       Empty.absurd({S.stopped(S.MSP{s, qs, ql, code}) == False{} : Bool}, PB.false_ne_true(h))
 
 law opts_mk:
@@ -165,7 +124,7 @@ law opts_mk:
 
 def opts_mk(fa, p):
   match p:
-    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
       {==}
 
 # more_ok's four tests (as proof_b_drive_step.bend's, which imports the pump).
@@ -270,12 +229,12 @@ def md_stop(md: Norm.Md) -> Bool:
 
 def st_stop(st: Norm.St) -> Bool:
   match st:
-    case Norm.St{o, md, src, pend, eof, back, win, asked, fneed}:
+    case Norm.St{o, md, src, pend, eof, back, win, asked, fneed, +dfs}:
       md_stop(md)
 
 def st_o(st: Norm.St) -> B.Opts:
   match st:
-    case Norm.St{o, md, src, pend, eof, back, win, asked, fneed}:
+    case Norm.St{o, md, src, pend, eof, back, win, asked, fneed, +dfs}:
       o
 
 def step_st(s: Norm.Step) -> Norm.St:
@@ -295,9 +254,9 @@ law stop_mk:
 
 def stop_mk(fa, p):
   match p:
-    case S.StP{+o, S.MBP{P.RunP{+n, +i, +h, +c, +cbl, +cbt, +e, +l, +f, +b, +bn, +tl, +k, +obl, +obt, +ow, +ns, +x}}, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+    case S.StP{+o, S.MBP{P.RunP{+n, +i, +h, +c, +cbl, +cbt, +e, +l, +f, +b, +bn, +tl, +k, +obl, +obt, +ow, +ns, +x}}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
       {==}
-    case S.StP{+o, S.MSP{+s, +qs, +ql, +code}, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+    case S.StP{+o, S.MSP{+s, +qs, +ql, +code}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
       {==}
 
 law o_mk:
@@ -307,10 +266,11 @@ law o_mk:
 
 def o_mk(fa, p):
   match p:
-    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
       {==}
 
 law outk_mb:
+  for +dfs: B.Defs
   for p: D.Bytes & D.Bytes
   for r: NR.Run
   for +o: B.Opts
@@ -322,14 +282,15 @@ law outk_mb:
   for asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
   for nx: Pr.Next
-  {(st_stop(step_st(Norm.out.k(Norm.md.take.k(NR.take.fin(p, r)), o, src, pend, eof, back, win, asked, fneed, nx))), (st_o(step_st(Norm.out.k(Norm.md.take.k(NR.take.fin(p, r)), o, src, pend, eof, back, win, asked, fneed, nx))), step_nx(Norm.out.k(Norm.md.take.k(NR.take.fin(p, r)), o, src, pend, eof, back, win, asked, fneed, nx)))) == (run_x(r), (o, nx)) : Bool & (B.Opts & Pr.Next)}
+  {(st_stop(step_st(Norm.out.k(Norm.md.take.k(NR.take.fin(p, r)), o, src, pend, eof, back, win, asked, fneed, dfs, nx))), (st_o(step_st(Norm.out.k(Norm.md.take.k(NR.take.fin(p, r)), o, src, pend, eof, back, win, asked, fneed, dfs, nx))), step_nx(Norm.out.k(Norm.md.take.k(NR.take.fin(p, r)), o, src, pend, eof, back, win, asked, fneed, dfs, nx)))) == (run_x(r), (o, nx)) : Bool & (B.Opts & Pr.Next)}
 
-def outk_mb(p, r, o, src, pend, eof, back, win, asked, fneed, nx):
+def outk_mb(dfs,p, r, o, src, pend, eof, back, win, asked, fneed, nx):
   match p r:
     case (out, ob) NR.Run{n, i, h, c, cb, e, l, f, b, bn, tl, k, o0, ow, ns, x}:
       {==}
 
 law outk_ms:
+  for +dfs: B.Defs
   for c: Norm.Cut2
   for +s: R.RunSt
   for +ns: List<&2, B.Note>
@@ -343,14 +304,15 @@ law outk_ms:
   for asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
   for nx: Pr.Next
-  {(st_stop(step_st(Norm.out.k(Norm.ms.take.c(c, s, ns, code), o, src, pend, eof, back, win, asked, fneed, nx))), (st_o(step_st(Norm.out.k(Norm.ms.take.c(c, s, ns, code), o, src, pend, eof, back, win, asked, fneed, nx))), step_nx(Norm.out.k(Norm.ms.take.c(c, s, ns, code), o, src, pend, eof, back, win, asked, fneed, nx)))) == (R.RunSt.halt(s) || Maybe.is_some(&2, Nat, code), (o, nx)) : Bool & (B.Opts & Pr.Next)}
+  {(st_stop(step_st(Norm.out.k(Norm.ms.take.c(c, s, ns, code), o, src, pend, eof, back, win, asked, fneed, dfs, nx))), (st_o(step_st(Norm.out.k(Norm.ms.take.c(c, s, ns, code), o, src, pend, eof, back, win, asked, fneed, dfs, nx))), step_nx(Norm.out.k(Norm.ms.take.c(c, s, ns, code), o, src, pend, eof, back, win, asked, fneed, dfs, nx)))) == (R.RunSt.halt(s) || Maybe.is_some(&2, Nat, code), (o, nx)) : Bool & (B.Opts & Pr.Next)}
 
-def outk_ms(c, s, ns, code, o, src, pend, eof, back, win, asked, fneed, nx):
+def outk_ms(dfs,c, s, ns, code, o, src, pend, eof, back, win, asked, fneed, nx):
   match c:
     case Norm.Cut2{now, later}:
       {==}
 
 law ol_x:
+  for +dfs: B.Defs
   for +o: B.Opts
   for md: Norm.Md
   for p: List<&1, Norm.Src> & U32
@@ -361,18 +323,18 @@ law ol_x:
   for asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
   for nx: Pr.Next
-  {(st_stop(step_st(Norm.out.left(o, md, p, pend, eof, back, win, asked, fneed, nx))), (st_o(step_st(Norm.out.left(o, md, p, pend, eof, back, win, asked, fneed, nx))), step_nx(Norm.out.left(o, md, p, pend, eof, back, win, asked, fneed, nx)))) == (md_stop(md), (o, nx)) : Bool & (B.Opts & Pr.Next)}
+  {(st_stop(step_st(Norm.out.left(o, md, p, pend, eof, back, win, asked, fneed, dfs, nx))), (st_o(step_st(Norm.out.left(o, md, p, pend, eof, back, win, asked, fneed, dfs, nx))), step_nx(Norm.out.left(o, md, p, pend, eof, back, win, asked, fneed, dfs, nx)))) == (md_stop(md), (o, nx)) : Bool & (B.Opts & Pr.Next)}
 
-def ol_x(o, md, p, pend, eof, back, win, asked, fneed, nx):
+def ol_x(dfs,o, md, p, pend, eof, back, win, asked, fneed, nx):
   match md:
     case Norm.MB{NR.Run{nn, i, h, c, cb, e, l, f, b, bn, tl, k, ob, +ow, ns, +x}}:
       match p:
         case (src, +n):
-          outk_mb(NR.take.if(U32.is_zero(ow), ow, n, ob), NR.Run{nn, i, h, c, cb, e, l, f, b, bn, tl, k, BY.empty(0n), ow, ns, x}, o, src, pend, eof, back, win, asked, fneed, nx)
+          outk_mb(dfs, NR.take.if(U32.is_zero(ow), ow, n, ob), NR.Run{nn, i, h, c, cb, e, l, f, b, bn, tl, k, BY.empty(0n), ow, ns, x}, o, src, pend, eof, back, win, asked, fneed, nx)
     case Norm.MS{R.RunSt{rn, ri, rh, rc, re, rl, rb, rk, ro, +rns, +rx}, qs, ql, +code}:
       match p:
         case (src, +n):
-          outk_ms(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824), R.RunSt{rn, ri, rh, rc, re, rl, rb, rk, ro, Nil{}, rx}, rns, code, o, src, pend, eof, back, win, asked, fneed, nx)
+          outk_ms(dfs, Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824), R.RunSt{rn, ri, rh, rc, re, rl, rb, rk, ro, Nil{}, rx}, rns, code, o, src, pend, eof, back, win, asked, fneed, nx)
 
 law out_x:
   for st: Norm.St
@@ -381,8 +343,8 @@ law out_x:
 
 def out_x(st, nx):
   match st:
-    case Norm.St{+o, md, src, pend, eof, +back, win, asked, +fneed}:
-      ol_x(o, md, Norm.left(src), pend, eof, back, win, asked, fneed, nx)
+    case Norm.St{+o, md, src, pend, eof, +back, win, asked, +fneed, +dfs}:
+      ol_x(dfs, o, md, Norm.left(src), pend, eof, back, win, asked, fneed, nx)
 
 def fst_b(q: Bool & (B.Opts & Pr.Next)) -> Bool:
   (a, b) = q
@@ -490,9 +452,9 @@ law qn_mk:
 
 def qn_mk(fa, p):
   match p:
-    case S.StP{+o, S.MBP{P.RunP{+n, +i, +h, +c, +cbl, +cbt, +e, +l, +f, +b, +bn, +tl, +k, +obl, +obt, +ow, +ns, +x}}, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+    case S.StP{+o, S.MBP{P.RunP{+n, +i, +h, +c, +cbl, +cbt, +e, +l, +f, +b, +bn, +tl, +k, +obl, +obt, +ow, +ns, +x}}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
       {==}
-    case S.StP{+o, S.MSP{+s, +qs, +ql, +code}, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+    case S.StP{+o, S.MSP{+s, +qs, +ql, +code}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
       {==}
 
 law and2:
@@ -506,3 +468,54 @@ def and2(a, b, ha, hb):
   %Equal.sym(Bool, a, True{}, ha) : {_ && b == True{} : Bool}
   %Equal.sym(Bool, b, True{}, hb) : {True{} && _ == True{} : Bool}
   {==}
+
+# A step of Q with no batch (its state's definitions given).
+law g2_none:
+  for +dfs: B.Defs
+  for +fa: List<&2, B.Contig>
+  for +T: R.Report
+  for +cs: List<&2, String>
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +ef: Bool
+  for s: Norm.Step
+  for h: DO.StepG2(fa, T, cs, O, N, ef, s)
+  for hd: @p2: S.StP -> {step_st(s) == S.mkSt(fa, p2) : Norm.St} -> {ef == False{} : Bool} -> {WD.dsel(step_nx(s), S.DEFS(p2, cs), dfs) == dfs : B.Defs}
+  WD.StepGW(dfs, fa, T, cs, O, N, ef, W.wrap(s, W.BNone{}))
+
+def g2_none(dfs,fa, T, cs, O, N, ef, s, h, hd):
+  match s:
+    case Norm.Step{st, b, ns, Pr.More{}}:
+      (+t, h1) = h
+      (+p2, h2) = h1
+      (eout, h3) = h2
+      (+est, h4) = h3
+      (wf, h5) = h4
+      (rep, h6) = h5
+      (gd, h7) = h6
+      (hmo, hef0) = h7
+      +hef = {hef0 : {ef == False{} : Bool}}
+      (t, (WD.WPic{p2, WD.BNoneP{}}, (eout, (Equal.cong(Norm.St, W.St, z => W.St{z, W.BNone{}}, st, S.mkSt(fa, p2), est),
+        (WD.eofd_any(S.StP.eof(p2), S.DEFS(p2, cs), dfs, hd(p2, est, hef)), ({==}, (gd, (rep, (hmo, hef)))))))))
+    case Norm.Step{st, b, ns, Pr.Ask{+rs}}:
+      (+t, h1) = h
+      (+p2, h2) = h1
+      (eout, h3) = h2
+      (+est, h4) = h3
+      (wf, h5) = h4
+      (rep, h6) = h5
+      (hq, h7) = h6
+      (hrq, h8) = h7
+      (hmr, h9) = h8
+      (hask, h10) = h9
+      (gd, heof0) = h10
+      +heof = {heof0 : {S.StP.eof(p2) == ef : Bool}}
+      (t, (WD.WPic{p2, WD.BNoneP{}}, (eout, (Equal.cong(Norm.St, W.St, z => W.St{z, W.BNone{}}, st, S.mkSt(fa, p2), est),
+        (WD.eofd_ef(S.StP.eof(p2), ef, S.DEFS(p2, cs), dfs, heof, hx => hd(p2, est, hx)), ({==}, (gd, (rep, (wf, (hq, (hrq, (hmr, (hask, heof)))))))))))))
+    case Norm.Step{st, b, ns, Pr.Finish{+c}}:
+      h
+
+# The end of the file: no definitions are needed after it.
+def hd_eof(+dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>, -s: Norm.Step) ->
+  @p2: S.StP -> {step_st(s) == S.mkSt(fa, p2) : Norm.St} -> {True{} == False{} : Bool} -> {WD.dsel(step_nx(s), S.DEFS(p2, cs), dfs) == dfs : B.Defs}:
+  +p2 => e => hf => Empty.absurd({WD.dsel(step_nx(s), S.DEFS(p2, cs), dfs) == dfs : B.Defs}, PB.true_ne_false(hf))

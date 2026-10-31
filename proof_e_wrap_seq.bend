@@ -18,6 +18,7 @@ import ./proof_e_qif.bend as QI
 import ./proof_e_wrap_defs.bend as WD
 import ./proof_e_wrap_base.bend as WB
 import ./proof_e_wrap_qx.bend as QX
+import ./proof_e_wrap_qd.bend as QD
 import lawful-bytes@0.1.0.0/defs.bend as D
 import lawful-bytes@0.1.0.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
@@ -30,6 +31,7 @@ import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 # ========================
 
 law bok_o:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o1: B.Opts
   for +o2: B.Opts
@@ -37,11 +39,11 @@ law bok_o:
   for +xs: List<&2, PT.TOutP>
   for +cs: List<&2, String>
   for +he: {o1 == o2 : B.Opts}
-  for h: PT.BatchOK(fa, o1, ps, xs, cs)
-  PT.BatchOK(fa, o2, ps, xs, cs)
+  for h: PT.BatchOK(dfs, fa, o1, ps, xs, cs)
+  PT.BatchOK(dfs, fa, o2, ps, xs, cs)
 
-def bok_o(fa, o1, o2, ps, xs, cs, he, h):
-  %he : PT.BatchOK(fa, _, ps, xs, cs)
+def bok_o(dfs,fa, o1, o2, ps, xs, cs, he, h):
+  %he : PT.BatchOK(dfs, fa, _, ps, xs, cs)
   h
 
 law none_of:
@@ -58,6 +60,7 @@ def none_of(m, h):
 
 # The More case of a Q step, when the batch has pieces left or the file ended.
 law seq_more_k:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -82,15 +85,17 @@ law seq_more_k:
   for +eo: {S.StP.o(p2) == o : B.Opts}
   for +hby: {E.all_bytes(PT.texts(ps)) && E.pieces_ok(PT.texts(ps)) == True{} : Bool}
   for hps: PT.PcsOK(ps, cs)
-  for hbo: PT.BatchOK(fa, o, ps, xs, cs)
+  for hbo: PT.BatchOK(dfs, fa, o, ps, xs, cs)
   for he: WD.EofOK(e, ef, cs)
-  WD.StepGW(fa, T, cs, O, N, ef, W.Step{W.St{st, W.BComb{PT.mkTOuts(fa, ps, xs), e, False{}}}, b, ns, Pr.Ask{Nil{}}})
+  for +hdd: {S.DEFS(p2, List.append(&2, String, PT.texts(ps), cs)) == dfs : B.Defs}
+  WD.StepGW(dfs, fa, T, cs, O, N, ef, W.Step{W.St{st, W.BComb{PT.mkTOuts(fa, ps, xs), e, False{}}}, b, ns, Pr.Ask{Nil{}}})
 
-def seq_more_k(fa, T, cs, O, N, ef, o, ps, xs, e, st, b, ns, t, p2, eout, est, rep, gd, hmo, hst, eo, hby, hps, hbo, he):
+def seq_more_k(dfs,fa, T, cs, O, N, ef, o, ps, xs, e, st, b, ns, t, p2, eout, est, rep, gd, hmo, hst, eo, hby, hps, hbo, he, hdd):
   (t, (WD.WPic{p2, WD.BCombP{ps, xs, e, False{}}}, (eout, (Equal.cong(Norm.St, W.St, z => W.St{z, W.BComb{PT.mkTOuts(fa, ps, xs), e, False{}}}, st, S.mkSt(fa, p2), est),
-    (hby, (gd, (rep, ({==}, (hmo, (hst, (hps, (bok_o(fa, o, S.StP.o(p2), ps, xs, cs, Equal.sym(B.Opts, S.StP.o(p2), o, eo), hbo), he))))))))))))
+    (WD.eofd_any(S.StP.eof(p2), S.DEFS(p2, List.append(&2, String, PT.texts(ps), cs)), dfs, hdd), (hby, (gd, (rep, ({==}, (hmo, (hst, (hps, (bok_o(dfs, fa, o, S.StP.o(p2), ps, xs, cs, Equal.sym(B.Opts, S.StP.o(p2), o, eo), hbo), he)))))))))))))
 
 law seq_more:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -115,27 +120,29 @@ law seq_more:
   for +eo: {S.StP.o(p2) == o : B.Opts}
   for +hby: {E.all_bytes(PT.texts(ps)) && E.pieces_ok(PT.texts(ps)) == True{} : Bool}
   for hps: PT.PcsOK(ps, cs)
-  for hbo: PT.BatchOK(fa, o, ps, xs, cs)
+  for hbo: PT.BatchOK(dfs, fa, o, ps, xs, cs)
   for he: WD.EofOK(e, ef, cs)
-  WD.StepGW(fa, T, cs, O, N, ef, W.seq.more(W.list_nil(PT.mkTOuts(fa, ps, xs)), e, st, b, ns))
+  for +hdd: {S.DEFS(p2, List.append(&2, String, PT.texts(ps), cs)) == dfs : B.Defs}
+  WD.StepGW(dfs, fa, T, cs, O, N, ef, W.seq.more(W.list_nil(PT.mkTOuts(fa, ps, xs)), e, st, b, ns))
 
-def seq_more(fa, T, cs, O, N, ef, o, ps, xs, e, st, b, ns, t, p2, eout, est, rep, gd, hmo, hst, eo, hby, hps, hbo, he):
+def seq_more(dfs,fa, T, cs, O, N, ef, o, ps, xs, e, st, b, ns, t, p2, eout, est, rep, gd, hmo, hst, eo, hby, hps, hbo, he, hdd):
   match ps xs e:
     case Nil{} Nil{} False{}:
       (t, (WD.WPic{p2, WD.BNoneP{}}, (eout, (Equal.cong(Norm.St, W.St, z => W.St{z, W.BNone{}}, st, S.mkSt(fa, p2), est),
-        ({==}, (gd, (rep, (hmo, he))))))))
+        (WD.eofd_any(S.StP.eof(p2), S.DEFS(p2, cs), dfs, hdd), ({==}, (gd, (rep, (hmo, he)))))))))
     case Nil{} Nil{} True{}:
-      seq_more_k(fa, T, cs, O, N, ef, o, Nil{}, Nil{}, True{}, st, b, ns, t, p2, eout, est, rep, gd, hmo, hst, eo, hby, hps, hbo, he)
+      seq_more_k(dfs, fa, T, cs, O, N, ef, o, Nil{}, Nil{}, True{}, st, b, ns, t, p2, eout, est, rep, gd, hmo, hst, eo, hby, hps, hbo, he, hdd)
     case Con{+x, +pt} Con{+y, +xt} +e:
-      seq_more_k(fa, T, cs, O, N, ef, o, x <> pt, y <> xt, e, st, b, ns, t, p2, eout, est, rep, gd, hmo, hst, eo, hby, hps, hbo, he)
+      seq_more_k(dfs, fa, T, cs, O, N, ef, o, x <> pt, y <> xt, e, st, b, ns, t, p2, eout, est, rep, gd, hmo, hst, eo, hby, hps, hbo, he, hdd)
     case Nil{} Con{+y, +xt} +e:
-      Empty.absurd(WD.StepGW(fa, T, cs, O, N, ef, W.seq.more(W.list_nil(PT.mkTOuts(fa, Nil{}, y <> xt)), e, st, b, ns)), hbo)
+      Empty.absurd(WD.StepGW(dfs, fa, T, cs, O, N, ef, W.seq.more(W.list_nil(PT.mkTOuts(fa, Nil{}, y <> xt)), e, st, b, ns)), hbo)
     case Con{+x, +pt} Nil{} +e:
-      Empty.absurd(WD.StepGW(fa, T, cs, O, N, ef, W.seq.more(W.list_nil(PT.mkTOuts(fa, x <> pt, Nil{})), e, st, b, ns)), hbo)
+      Empty.absurd(WD.StepGW(dfs, fa, T, cs, O, N, ef, W.seq.more(W.list_nil(PT.mkTOuts(fa, x <> pt, Nil{})), e, st, b, ns)), hbo)
 
 # A step of Q while combining (Q given the batch's next piece, the answers to
 # its reads, or nothing), then the batch goes on.
 law seq_ok:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -151,11 +158,12 @@ law seq_ok:
   for hx: {WB.st_o(WB.step_st(s)) == o : B.Opts} & {WB.live_k(WB.step_nx(s), WB.st_stop(WB.step_st(s))) == True{} : Bool}
   for +hby: {E.all_bytes(PT.texts(ps)) && E.pieces_ok(PT.texts(ps)) == True{} : Bool}
   for hps: PT.PcsOK(ps, cs)
-  for hbo: PT.BatchOK(fa, o, ps, xs, cs)
+  for hbo: PT.BatchOK(dfs, fa, o, ps, xs, cs)
   for he: WD.EofOK(e, ef, cs)
-  WD.StepGW(fa, T, cs, O, N, ef, W.seq_out(s, PT.mkTOuts(fa, ps, xs), e))
+  for hd: QD.PD(s, List.append(&2, String, PT.texts(ps), cs), dfs)
+  WD.StepGW(dfs, fa, T, cs, O, N, ef, W.seq_out(s, PT.mkTOuts(fa, ps, xs), e))
 
-def seq_ok(fa, T, cs, O, N, ef, o, ps, xs, e, s, h2, hx, hby, hps, hbo, he):
+def seq_ok(dfs,fa, T, cs, O, N, ef, o, ps, xs, e, s, h2, hx, hby, hps, hbo, he, hd):
   match s:
     case Norm.Step{st, b, ns, Pr.More{}}:
       (+t, g1) = h2
@@ -169,7 +177,8 @@ def seq_ok(fa, T, cs, O, N, ef, o, ps, xs, e, s, h2, hx, hby, hps, hbo, he):
       (+ho, hlv) = hx
       +hst = WB.stop_pic(fa, p2, st, est, DO.not_true(WB.st_stop(st), hlv))
       +eo = WB.o_pic(fa, p2, st, est, o, ho)
-      seq_more(fa, T, cs, O, N, ef, o, ps, xs, e, st, b, ns, t, p2, eout, est, rep, gd, hmo, hst, eo, hby, hps, hbo, he)
+      seq_more(dfs, fa, T, cs, O, N, ef, o, ps, xs, e, st, b, ns, t, p2, eout, est, rep, gd, hmo, hst, eo, hby, hps, hbo, he,
+        QD.pd_pic(fa, p2, st, est, List.append(&2, String, PT.texts(ps), cs), dfs, hd))
     case Norm.Step{st, b, ns, Pr.Ask{+r}}:
       (+t, g1) = h2
       (+p2, g2) = g1
@@ -184,13 +193,15 @@ def seq_ok(fa, T, cs, O, N, ef, o, ps, xs, e, s, h2, hx, hby, hps, hbo, he):
       (+gd, heof) = g10
       (+ho, hlv) = hx
       +eo = WB.o_pic(fa, p2, st, est, o, ho)
+      +CSX = List.append(&2, String, PT.texts(ps), cs)
       (t, (WD.WPic{p2, WD.BCombP{ps, xs, e, True{}}}, (eout, (Equal.cong(Norm.St, W.St, z => W.St{z, W.BComb{PT.mkTOuts(fa, ps, xs), e, True{}}}, st, S.mkSt(fa, p2), est),
-        (hby, (gd, (rep, ((wf, (hq, (hrq, (hmr, (hask, heof))))), ({==}, (hps, (bok_o(fa, o, S.StP.o(p2), ps, xs, cs, Equal.sym(B.Opts, S.StP.o(p2), o, eo), hbo), he)))))))))))
+        (WD.eofd_any(S.StP.eof(p2), S.DEFS(p2, CSX), dfs, QD.pd_pic(fa, p2, st, est, CSX, dfs, hd)),
+        (hby, (gd, (rep, ((wf, (hq, (hrq, (hmr, (hask, heof))))), ({==}, (hps, (bok_o(dfs, fa, o, S.StP.o(p2), ps, xs, cs, Equal.sym(B.Opts, S.StP.o(p2), o, eo), hbo), he))))))))))))
     case Norm.Step{st, b, ns, Pr.Finish{+c}}:
       h2
 
 # Q in the middle of a piece, given the answers to what it asked.
-def seq_ref(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +ef: Bool, +p: S.StP, +ps: List<&2, PT.Pc>, +xs: List<&2, PT.TOutP>, +e: Bool, +rs: List<&2, Pr.Req>,
+def seq_ref(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +ef: Bool, +p: S.StP, +ps: List<&2, PT.Pc>, +xs: List<&2, PT.TOutP>, +e: Bool, +rs: List<&2, Pr.Req>,
   +hb: {PC.fa_bytes(fa) == True{} : Bool},
   +hw: {S.WF(fa, p) == True{} : Bool},
   +hr: {S.report(fa, List.append(&2, String, PT.texts(ps), cs), O, N, p) == T : R.Report},
@@ -202,18 +213,26 @@ def seq_ref(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: St
   +hg: {S.guard(O, N, p) == True{} : Bool},
   +hby: {E.all_bytes(PT.texts(ps)) && E.pieces_ok(PT.texts(ps)) == True{} : Bool},
   hps: PT.PcsOK(ps, cs),
-  hbo: PT.BatchOK(fa, S.StP.o(p), ps, xs, cs),
-  he: WD.EofOK(e, ef, cs)) ->
-  WD.StepGW(fa, T, cs, O, N, ef, W.step(W.St{S.mkSt(fa, p), W.BComb{PT.mkTOuts(fa, ps, xs), e, True{}}}, Pr.Ref{M.truths(fa, rs)})):
-  +CS = List.append(&2, String, PT.texts(ps), cs)
-  seq_ok(fa, T, cs, O, N, ef, S.StP.o(p), ps, xs, e, Norm.step(S.mkSt(fa, p), Pr.Ref{M.truths(fa, rs)}),
-    WB.g2_ef(fa, T, CS, O, N, S.StP.eof(p), False{}, Norm.step(S.mkSt(fa, p), Pr.Ref{M.truths(fa, rs)}), hef,
-      DS.step_ref_h2(fa, T, CS, O, N, p, rs, hb, hw, hr, ha, hq, hp, hmr, hg)),
-    QX.ref_x(fa, O, N, p, rs, hb, hw, ha, hq, hp, hmr, hg),
-    hby, hps, hbo, he)
+  hbo: PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs),
+  he: WD.EofOK(e, ef, cs),
+  +hdd0: {S.DEFS(p, List.append(&2, String, PT.texts(ps), cs)) == dfs : B.Defs}) ->
+  WD.StepGW(dfs, fa, T, cs, O, N, ef, W.step(W.St{S.mkSt(fa, p), W.BComb{PT.mkTOuts(fa, ps, xs), e, True{}}}, Pr.Ref{M.truths(fa, rs)})):
+  match p:
+    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs2}:
+      +pp = {S.StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs2} : S.StP}
+      +CS = List.append(&2, String, PT.texts(ps), cs)
+      seq_ok(dfs, fa, T, cs, O, N, ef, S.StP.o(pp), ps, xs, e, Norm.step(S.mkSt(fa, pp), Pr.Ref{M.truths(fa, rs)}),
+        WB.g2_ef(fa, T, CS, O, N, S.StP.eof(pp), False{}, Norm.step(S.mkSt(fa, pp), Pr.Ref{M.truths(fa, rs)}), hef,
+          DS.step_ref_h2(fa, T, CS, O, N, pp, rs, hb, hw, hr, ha, hq, hp, hmr, hg)),
+        QX.ref_x(fa, O, N, pp, rs, hb, hw, ha, hq, hp, hmr, hg),
+        hby, hps, hbo, he,
+        QD.pd_rw(Norm.step(S.mkSt(fa, pp), Pr.Ref{M.truths(fa, rs)}), CS, S.DEFS(pp, CS), dfs, hdd0, QD.ref_d(fa, O, N, pp, rs, hb, hw, ha, hq, hp, hmr, hg, CS)))
+
+
 
 # The end of the file closed the batch: Q gets it.
 law comb_eof:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -227,17 +246,19 @@ law comb_eof:
   for +hr: {S.report(fa, cs, O, N, p) == T : R.Report}
   for +hef: {ef == True{} : Bool}
   for +hcs: {cs == Nil{} : List<&2, String>}
-  WD.StepGW(fa, T, cs, O, N, ef, W.comb.end(True{}, S.mkSt(fa, p)))
+  WD.StepGW(dfs, fa, T, cs, O, N, ef, W.comb.end(True{}, S.mkSt(fa, p)))
 
-def comb_eof(fa, T, cs, O, N, ef, p, hb, hm, hg, hr, hef, hcs):
-  %Equal.sym(List<&2, String>, cs, Nil{}, hcs) : WD.StepGW(fa, T, _, O, N, ef, W.comb.end(True{}, S.mkSt(fa, p)))
-  %Equal.sym(Bool, ef, True{}, hef) : WD.StepGW(fa, T, Nil{}, O, N, _, W.comb.end(True{}, S.mkSt(fa, p)))
-  WB.g2_none(fa, T, Nil{}, O, N, True{}, Norm.step(S.mkSt(fa, p), Pr.Eof{}), DS.step_eof_h2(fa, T, O, N, p, hb, hm,
+def comb_eof(dfs,fa, T, cs, O, N, ef, p, hb, hm, hg, hr, hef, hcs):
+  %Equal.sym(List<&2, String>, cs, Nil{}, hcs) : WD.StepGW(dfs, fa, T, _, O, N, ef, W.comb.end(True{}, S.mkSt(fa, p)))
+  %Equal.sym(Bool, ef, True{}, hef) : WD.StepGW(dfs, fa, T, Nil{}, O, N, _, W.comb.end(True{}, S.mkSt(fa, p)))
+  WB.g2_none(dfs, fa, T, Nil{}, O, N, True{}, Norm.step(S.mkSt(fa, p), Pr.Eof{}), DS.step_eof_h2(fa, T, O, N, p, hb, hm,
     Equal.trans(R.Report, S.report(fa, Nil{}, O, N, p), S.report(fa, cs, O, N, p), T,
-      Equal.cong(List<&2, String>, R.Report, z => S.report(fa, z, O, N, p), Nil{}, cs, Equal.sym(List<&2, String>, cs, Nil{}, hcs)), hr), hg))
+      Equal.cong(List<&2, String>, R.Report, z => S.report(fa, z, O, N, p), Nil{}, cs, Equal.sym(List<&2, String>, cs, Nil{}, hcs)), hr), hg),
+    WB.hd_eof(dfs, fa, Nil{}, Norm.step(S.mkSt(fa, p), Pr.Eof{})))
 
 # The batch's last piece is done: the end of the file, or wait for more.
 law comb_end:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -252,26 +273,29 @@ law comb_end:
   for +hg: {S.guard(O, N, p) == True{} : Bool}
   for +hr: {S.report(fa, cs, O, N, p) == T : R.Report}
   for he: WD.EofOK(e, ef, cs)
-  WD.StepGW(fa, T, cs, O, N, ef, W.comb.end(e, S.mkSt(fa, p)))
+  for +hdd0: {S.DEFS(p, cs) == dfs : B.Defs}
+  WD.StepGW(dfs, fa, T, cs, O, N, ef, W.comb.end(e, S.mkSt(fa, p)))
 
-def comb_end(fa, T, cs, O, N, ef, p, e, hb, hm, hl, hg, hr, he):
+def comb_end(dfs,fa, T, cs, O, N, ef, p, e, hb, hm, hl, hg, hr, he, hdd0):
   match e:
     case True{}:
       (hef, hcs) = he
-      comb_eof(fa, T, cs, O, N, ef, p, hb, hm, hg, hr, hef, hcs)
+      comb_eof(dfs, fa, T, cs, O, N, ef, p, hb, hm, hg, hr, hef, hcs)
     case False{}:
       +w = S.WF(fa, p)
       +se = S.src_empty(S.StP.src(p))
       +ne = Bool.not(S.StP.eof(p))
       +no = Maybe.is_none(&2, List<&2, Pr.Req>, S.StP.asked(p))
       +heof = DO.not_true(S.StP.eof(p), WB.mo_ne(w, se, ne, no, hm))
-      WB.g2_none(fa, T, cs, O, N, ef, Norm.out(S.mkSt(fa, p), Pr.More{}),
+      WB.g2_none(dfs, fa, T, cs, O, N, ef, Norm.out(S.mkSt(fa, p), Pr.More{}),
         DO.out_more(fa, T, cs, O, N, p, Norm.out(S.mkSt(fa, p), Pr.More{}), DO.out_ok(fa, cs, O, N, p, Pr.More{}, WB.mo_w(w, se, ne, no, hm), hg, DO.live_of(S.StP.md(p), hl)),
           hr, WB.mo_se(w, se, ne, no, hm), heof, none_of(S.StP.asked(p), WB.mo_no(w, se, ne, no, hm)),
-          ef, Equal.trans(Bool, S.StP.eof(p), False{}, ef, heof, Equal.sym(Bool, ef, False{}, he))))
+          ef, Equal.trans(Bool, S.StP.eof(p), False{}, ef, heof, Equal.sym(Bool, ef, False{}, he))),
+        QD.pd_hd(fa, Norm.out(S.mkSt(fa, p), Pr.More{}), cs, dfs, QD.dk_out(fa, p, Pr.More{}, cs, dfs, hdd0), ef))
 
 # A dirty piece: Q handles it.
 law comb_dirty:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -296,12 +320,15 @@ law comb_dirty:
   for +hok: {D.ok(C.BT(len, t), d) == True{} : Bool}
   for +hv: {D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>}
   for hps: PT.PcsOK(pt, cs)
-  for hbo: PT.BatchOK(fa, S.StP.o(p), pt, xt, cs)
+  for hbo: PT.BatchOK(dfs, fa, S.StP.o(p), pt, xt, cs)
   for he: WD.EofOK(e, ef, cs)
-  WD.StepGW(fa, T, cs, O, N, ef, W.comb.piece(W.TDirty{}, S.mkSt(fa, p), C.BT(len, t), PT.mkTOuts(fa, pt, xt), e))
+  for +hdd0: {S.DEFS(p, c <> List.append(&2, String, PT.texts(pt), cs)) == dfs : B.Defs}
+  WD.StepGW(dfs, fa, T, cs, O, N, ef, W.comb.piece(W.TDirty{}, S.mkSt(fa, p), C.BT(len, t), PT.mkTOuts(fa, pt, xt), e))
 
-def comb_dirty(fa, T, cs, O, N, ef, p, c, pt, xt, e, len, t, d, hb, hm, hg, hr, hcb, hcn, hby, hok, hv, hps, hbo, he):
-  seq_ok(fa, T, cs, O, N, ef, S.StP.o(p), pt, xt, e, Norm.step(S.mkSt(fa, p), Pr.Chunk{C.BT(len, t)}),
+def comb_dirty(dfs,fa, T, cs, O, N, ef, p, c, pt, xt, e, len, t, d, hb, hm, hg, hr, hcb, hcn, hby, hok, hv, hps, hbo, he, hdd0):
+  seq_ok(dfs, fa, T, cs, O, N, ef, S.StP.o(p), pt, xt, e, Norm.step(S.mkSt(fa, p), Pr.Chunk{C.BT(len, t)}),
     QI.step_chunk_pic(fa, T, c, List.append(&2, String, PT.texts(pt), cs), O, N, p, len, t, d, hb, hm, hr, hcb, hcn, hg, hok, hv),
     QX.chunk_x(fa, O, N, c, p, len, t, d, hb, hm, hg, hok, hv),
-    hby, hps, hbo, he)
+    hby, hps, hbo, he,
+    QD.pd_rw(Norm.step(S.mkSt(fa, p), Pr.Chunk{C.BT(len, t)}), List.append(&2, String, PT.texts(pt), cs), S.DEFS(p, c <> List.append(&2, String, PT.texts(pt), cs)), dfs, hdd0,
+      QD.chunk_d(fa, O, N, c, p, len, t, d, hb, hm, hg, hok, hv, List.append(&2, String, PT.texts(pt), cs))))

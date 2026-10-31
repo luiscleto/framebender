@@ -867,6 +867,7 @@ def drive_ok(f, fa, T, lim, hbfa, d, gd):
 # ---------------------------------------------------------------------------
 
 law machine_go3:
+  for +dfs: B.Defs
   for +argv: List<&2, String>
   for +o: B.Opts
   for +ref: String
@@ -877,7 +878,7 @@ law machine_go3:
   for +p: S.StP
   for +ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>}
   for +hb: {E.texts_ok(argv, fasta, cs) == True{} : Bool}
-  for +est: {DD.start_st(Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}
+  for +est: {DD.start_st(dfs, Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}
   for +hmo: {DD.more_ok(B.Fasta.parse(fasta), p) == True{} : Bool}
   for +hr: {S.report(B.Fasta.parse(fasta), cs, "", Nil{}, p) == L.run(fasta, vcf, o) : R.Report}
   for +hgd: {S.guard("", Nil{}, p) == True{} : Bool}
@@ -885,20 +886,21 @@ law machine_go3:
   for +hn: {Nat.is_le(API.need(B.Fasta.parse(fasta), L.run(fasta, vcf, o), p, cs, False{}, Pr.More{}, ""), M.bound(argv, fasta, vcf, cs)) == True{} : Bool}
   {MQ.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
 
-def machine_go3(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hb, est, hmo, hr, hgd, hbi, hn):
+def machine_go3(dfs,argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hb, est, hmo, hr, hgd, hbi, hn):
   +hfb = PB.and_true_r(E.all_bytes(argv), Bool.and(E.is_bytes(fasta), Bool.and(E.all_bytes(cs), E.pieces_ok(cs))), hb)
   +htx = PB.and_true_r(E.is_bytes(fasta), Bool.and(E.all_bytes(cs), E.pieces_ok(cs)), hfb)
   +hbfa = fa_bytes_parse(fasta, PB.and_true_l(E.is_bytes(fasta), Bool.and(E.all_bytes(cs), E.pieces_ok(cs)), hfb))
-  +est0 = AB.subst(Maybe<&2, B.Cfg>, x => {DD.start_st(Norm.start.of(x)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}, B.Args.parse(argv), Some{B.Cfg{o, ref, vcfpath}}, ha, est)
+  +est0 = AB.subst(Maybe<&2, B.Cfg>, x => {DD.start_st(dfs, Norm.start.of(x)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}, B.Args.parse(argv), Some{B.Cfg{o, ref, vcfpath}}, ha, est)
   %Equal.sym(Maybe<&2, B.Cfg>, B.Args.parse(argv), Some{B.Cfg{o, ref, vcfpath}}, ha) :
     {MQ.launch(Norm.start.of(_), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
-  %Equal.sym(Maybe<&2, R.Report>, MQ.result(MQ.drive(M.bound(argv, fasta, vcf, cs), B.Fasta.parse(fasta), MQ.DSt{DD.start_st(Norm.start.of(Some{B.Cfg{o, ref, vcfpath}})), Pr.More{}, cs, False{}, 0n, True{}, "", Nil{}, None{}}), M.bound(argv, fasta, vcf, cs)), Some{L.run(fasta, vcf, o)},
-    drive_ok(M.bound(argv, fasta, vcf, cs), B.Fasta.parse(fasta), L.run(fasta, vcf, o), M.bound(argv, fasta, vcf, cs), hbfa, MQ.DSt{DD.start_st(Norm.start.of(Some{B.Cfg{o, ref, vcfpath}})), Pr.More{}, cs, False{}, 0n, True{}, "", Nil{}, None{}},
+  %Equal.sym(Maybe<&2, R.Report>, MQ.result(MQ.drive(M.bound(argv, fasta, vcf, cs), B.Fasta.parse(fasta), MQ.DSt{DD.start_st(dfs, Norm.start.of(Some{B.Cfg{o, ref, vcfpath}})), Pr.More{}, cs, False{}, 0n, True{}, "", Nil{}, None{}}), M.bound(argv, fasta, vcf, cs)), Some{L.run(fasta, vcf, o)},
+    drive_ok(M.bound(argv, fasta, vcf, cs), B.Fasta.parse(fasta), L.run(fasta, vcf, o), M.bound(argv, fasta, vcf, cs), hbfa, MQ.DSt{DD.start_st(dfs, Norm.start.of(Some{B.Cfg{o, ref, vcfpath}})), Pr.More{}, cs, False{}, 0n, True{}, "", Nil{}, None{}},
       (p, (est0, (hmo, (hr, (hgd, ({==}, ({==}, (htx, (hbi, (hn, hn)))))))))))) :
     {MQ.launch.of(_, ref, vcfpath) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
   {==}
 
 law machine_go2:
+  for +dfs: B.Defs
   for +argv: List<&2, String>
   for +o: B.Opts
   for +ref: String
@@ -909,7 +911,7 @@ law machine_go2:
   for +p: S.StP
   for +ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>}
   for +hb: {E.texts_ok(argv, fasta, cs) == True{} : Bool}
-  for +est: {DD.start_st(Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}
+  for +est: {DD.start_st(dfs, Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}
   for +hmo: {DD.more_ok(B.Fasta.parse(fasta), p) == True{} : Bool}
   for +hr: {S.report(B.Fasta.parse(fasta), cs, "", Nil{}, p) == L.run(fasta, vcf, o) : R.Report}
   for +hgd: {S.guard("", Nil{}, p) == True{} : Bool}
@@ -917,11 +919,12 @@ law machine_go2:
     & {Nat.is_le(API.need(B.Fasta.parse(fasta), L.run(fasta, vcf, o), p, cs, False{}, Pr.More{}, ""), M.bound(argv, fasta, vcf, cs)) == True{} : Bool}
   {MQ.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
 
-def machine_go2(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hb, est, hmo, hr, hgd, bud):
+def machine_go2(dfs,argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hb, est, hmo, hr, hgd, bud):
   (hbi, hn) = bud
-  machine_go3(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hb, est, hmo, hr, hgd, hbi, hn)
+  machine_go3(dfs, argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hb, est, hmo, hr, hgd, hbi, hn)
 
 law machine_go:
+  for +dfs: B.Defs
   for +argv: List<&2, String>
   for +o: B.Opts
   for +ref: String
@@ -933,26 +936,20 @@ law machine_go:
   for +hf: {Pr.Fasta.plain(fasta) == True{} : Bool}
   for +h: {String.concat(cs) == vcf : String}
   for +hb: {E.texts_ok(argv, fasta, cs) == True{} : Bool}
-  for so: &p: S.StP -> ({DD.start_st(Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}
+  for so: &p: S.StP -> ({DD.start_st(dfs, Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}
     & ({DD.start_paths(Norm.start(argv)) == Some{DD.Paths{ref, vcfpath}} : Maybe<&2, DD.Paths>}
     & ({DD.more_ok(B.Fasta.parse(fasta), p) == True{} : Bool}
-    & ({S.report(B.Fasta.parse(fasta), cs, "", Nil{}, p) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), B.Fasta.parse(fasta), o, R.start_st())) : R.Report}
+    & ({S.report(B.Fasta.parse(fasta), cs, "", Nil{}, p) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), B.Fasta.parse(fasta), dfs, o, R.start_st())) : R.Report}
     & {S.guard("", Nil{}, p) == True{} : Bool}))))
   {MQ.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
 
-def machine_go(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb, so):
-  (+p, s1) = so
-  (+est, s2) = s1
-  (paths, s3) = s2
-  (+hmo, s4) = s3
-  (hrep, hgd) = s4
-  +hr = Equal.trans(R.Report, S.report(B.Fasta.parse(fasta), cs, "", Nil{}, p), R.finish(L.run.go(B.Text.lines(String.concat(cs)), B.Fasta.parse(fasta), o, R.start_st())), L.run(fasta, vcf, o),
-    hrep, Equal.cong(String, R.Report, z => R.finish(L.run.go(B.Text.lines(z), B.Fasta.parse(fasta), o, R.start_st())), String.concat(cs), vcf, h))
-  machine_go2(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hb, est, hmo, hr, hgd,
-    API.bud_start(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hf, h, hb, est, hmo, hr))
+def machine_go(dfs,argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb, so):
+  ?TODO
+
 
 # The law machine (MACHINE.bend), with every variable reusable.
 law machine_h:
+  for +dfs: B.Defs
   for +argv: List<&2, String>
   for +o: B.Opts
   for +ref: String
@@ -966,6 +963,6 @@ law machine_h:
   for +hb: {E.texts_ok(argv, fasta, cs) == True{} : Bool}
   {MQ.launch(Norm.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
 
-def machine_h(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb):
-  machine_go(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb,
-    DRV.start_ok(B.Fasta.parse(fasta), argv, o, ref, vcfpath, cs, ha, PB.and_true_l(E.all_bytes(argv), Bool.and(E.is_bytes(fasta), Bool.and(E.all_bytes(cs), E.pieces_ok(cs))), hb)))
+def machine_h(dfs,argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb):
+  ?TODO
+

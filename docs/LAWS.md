@@ -65,6 +65,8 @@ law same_change:
    - BAD_POS: POS 0;
    - ALT_DUP: a duplicate ALT;
    - REF_MISMATCH: REF does not match the reference.
+   With `-m`, a line that cannot be split is refused here too (BAD_CR, ALT_DUP, UNDEFINED_TAG,
+   BAD_COUNT, BAD_GT; see below).
 5. Normalized: the record is rewritten as `Tan.normal` says.
 
 `normalized_valid`: a record that gets the outcome "normalized" really is a valid variant, so the
@@ -86,6 +88,42 @@ lines) and then the records through a sorting buffer.
 | `grouped_in` | A successful run had each chromosome's records together in the input. |
 | `no_unsorted` | Sorted input, where no record moves left by `-w` bases or more, never stops with UNSORTED. |
 | `twice_run` | Running the tool on its own output succeeds and gives the same records. |
+
+## Splitting multiallelic records (`-m`)
+
+With `-m -any` (or `-both`, `-`), a body line with two or more ALTs is cut into one record per
+ALT (`B.Rec.parts`), and each record then goes through `judge` as a line of its own. ALTs are
+numbered from 1; a record's ALT is "ALT a".
+
+| law | in plain terms |
+|---|---|
+| `whole_without_m` | Without `-m`, every line is handled as one record, as before `-m` existed. |
+| `items_without_m` | Without `-m`, the records written are the body lines, exactly as before (so `sorted`, `grouped_in` and `no_unsorted` say, without `-m`, what they said before). |
+| `whole_biallelic` | With `-m`, a record with one ALT is handled as without `-m`. |
+| `whole_malformed` | With `-m`, a MALFORMED line is handled as without `-m` (it stops the run). |
+| `biallelic_run` | On a file with no multiallelic record, `-m` changes nothing: same output, messages and exit code, apart from the recorded command line. |
+| `split_when` | With `-m`, a well-formed line with two or more ALTs is split exactly when none of these holds: a carriage return anywhere in the line other than the one just before its final LF (`BAD_CR`); two equal ALTs (`ALT_DUP`); an INFO entry with a value whose tag is undefined or has an unread Number (`UNDEFINED_TAG`); an A/R/G INFO entry without a value, or whose value is not `.` and has not the expected count (`BAD_COUNT`); in a sample, a GT allele that is not `.` or a number from 0 to n without leading zeros (`BAD_GT`), a value whose key is undefined or unread (`UNDEFINED_TAG`), an A/R/G value that is not `.` and has not the expected count for the copies its GT names (`BAD_COUNT`), or more values than keys (`BAD_COUNT`). Expected count: A, n; R, n+1; G, n+1 for one copy, (n+1)(n+2)/2 for two, either for a lone `.` GT. Otherwise the line is refused. A whole-line outcome that stops the run is reported first; otherwise the message names `BAD_CR`, if it holds, and then the first of the later reasons, reading the line left to right (ALTs, INFO, then each sample in FORMAT's order, its extra values last). |
+| `split_alts` | One record per ALT, each with that ALT alone, in the input's ALT order. |
+| `split_site` | Each record keeps CHROM, POS, ID, REF, QUAL, FILTER and FORMAT byte for byte, and its number of columns. |
+| `split_valid` | If the line is a valid variant on its contig, so is every record; the laws of the normal form apply to each. |
+| `split_normalized` | If the whole line would be normalized (no problem), every record is normalized. |
+| `split_change` | The record for ALT a, as written (normalized, or passed as it came: any outcome that does not stop the run), read back from its text as a variant on the reference, makes exactly ALT a's change. |
+| `split_gt` | In the record for ALT a, every genotype names, copy by copy: REF where the input named REF; the record's ALT (1) where the input named ALT a; REF (`--multi-overlaps 0`) or unknown (`.`) where the input named another ALT; unknown where the input's was unknown. |
+| `split_phase` | The genotypes keep the input's separators, so its phasing and ploidy. |
+| `split_info_keys` | Each record has the input's INFO keys, in order. |
+| `split_info_values` | Every INFO entry with Number A, R or G and a value other than `.` gives, in the record for ALT a, exactly the values of that record's alleles: A, ALT a's; R, REF's and ALT a's; G, those of the genotypes REF/REF, REF/ALT a, ALT a/ALT a. |
+| `split_info_kept` | Every other INFO entry (a flag, an empty entry, a value `.`, a tag with a count, `.` or `P`) is copied byte for byte; `judge` then rewrites END for a record normalization moves, as without `-m`. |
+| `split_format_shape` | Each sample has as many values as in the input. |
+| `split_format_values` | As `split_info_values`, per sample value other than GT. For G: a sample whose GT names one copy gives REF's and ALT a's values; two copies, or no GT value, the three genotype values; a lone `.` GT, whichever its count says. |
+| `split_format_kept` | Every other sample value (other than GT) is copied byte for byte. |
+
+`twice_run` holds with `-m` too: every record of a split line has one ALT and no carriage return,
+so it reads back as written, and a refused line is passed as it came and is refused again. This is
+why `BAD_CR` exists: a value cut at a carriage return could leave a record ending in one, which a
+second run would read as a CR LF ending, and so judge differently.
+
+What splitting loses (which ALTs one sample carries together, the values for the other ALTs) is
+listed in [`USAGE.md`](USAGE.md).
 
 ## The program
 
@@ -123,6 +161,27 @@ given (a later `-Oz` or `-Ov` keeps it, as in bcftools), otherwise 6. BCF (`-O b
 (`--output`, `--output-type`), no glued `-oFILE`, no level on `-Ov` or alone (`-O5`), and every `-o`
 and `-O` given must be valid, not only the last. The lemma `output_ok` (`proof_f_out.bend`) proves
 that `B.Args.output` answers for exactly the command lines `Args.parse` accepts.
+
+`index` (in `MACHINE.bend`): `-W` asks for the output's index and changes nothing in the
+machine's report. Wherever the parser expects an option, adding one index option (`-W`, `-Wcsi`,
+`-Wtbi`, `-W=csi`, `-W=tbi`, `--write-index`, `--write-index=csi` or `--write-index=tbi`, the
+eight forms bcftools 1.24 documents) gives the same paths and the same report (output bytes,
+messages, exit code) as the same command line without it. It follows from `machine`, as `threads`
+and `output` do; the header does not record `-W`. The law speaks of the machine's report, not of
+the process: with an index error of the driver (below), the process exits 2 where the machine's
+code is 0.
+
+`index_sink` (in `MACHINE.bend`): `-W` changes neither where and how the output is written nor
+the thread count. Wherever the parser expects an option, adding one index option gives the same
+`B.Args.output` and the same `B.Args.threads`. Where the index goes is `B.Args.index`, built on
+`B.Args.output`'s `Sink` (`B.Args.idx.mk`), so it is by definition the index of the file the
+driver writes: `<-o path>.csi` (or `.tbi` for the TBI forms; the last `-W` counts) for BGZF
+output to a file, and a refusal (`error: -W needs a BGZF -o file`, exit 2, before any input is
+opened) for stdout or plain output. A format in the next word is not read (`-W tbi` makes `tbi`
+the VCF path, as in bcftools). The lemma `index_ok` (`proof_f_index.bend`) proves that
+`B.Args.index` answers for exactly the command lines `Args.parse` accepts. With `threads` and
+`output`, removing every `--threads`, `-o`, `-O` and `-W` from an accepted command line gives the
+same text, messages and exit code.
 
 The program works on bytes, while the science layer reads text. `bytes_enc.bend` connects them:
 each character is one byte, and the law assumes every character the driver passes is below 256,
@@ -169,6 +228,27 @@ through a duplicate of the file's descriptor kept from its open, unless that tak
 itself, when the file may keep it; a pipe cannot take it back). A file size limit makes the write fail (`SIGXFSZ` is ignored). A run that stops (a `-c e` stop, a driver error, a failed write) leaves the blocks
 written so far, without it; after a failed write nothing more is written (`error: cannot write
 <path>`, exit 2). Compressed output can make a run run out of memory where the plain one does not.
+
+Writing the index (`-W`) is trusted too, and tested instead of proven (`test/index.sh`): the
+index must be what `bcftools index` (CSI, `min_shift` 14) or `tabix -p vcf` (TBI) writes for the
+same file under a `.vcf.gz` name (byte for byte when their htslib compresses with libdeflate, as
+the linked one does), and `error: cannot index <path>` must come exactly when that tool refuses
+the file (for CSI also a file not beginning with `##fileformat=VCF`). Each compressor thread parses its block's lines with htslib 1.24's own parser
+(`tbx_parse1`, linked statically; a line holding `END=` under a lock), and the writer thread
+pushes them in order at the virtual offsets a reader would see. At the open of the `-o` file the
+driver, before it changes anything, checks the file is regular (a FIFO with no reader is refused,
+not waited on), that neither index name is a directory (itself or through a symlink), the `-o`
+file or an input, and, for TBI, that no `<stem>.csi` (`out.vcf.csi` for `out.vcf.gz`), which
+htslib reads before `<path>.tbi`, exists; it creates
+a temporary file and renames both old indexes aside (never replacing a file), then empties the
+`-o` file and removes them (htslib reads `.csi` before `.tbi`, so a stale one would hide the new
+one). A failure up to the emptying leaves the old file and indexes as they were, except an index
+whose move back fails, which stays as `<name>.old`. Only for exit code 0, after the end-of-file
+block, is the index saved to the temporary file and renamed into place; a line the tool would
+refuse gives, after all of the run's messages, `error: cannot index <path>`, exit 2, and no
+end-of-file block; any other end leaves no index at either name. Bend's runtime stops with
+`_exit`, so then (and on a kill) the temporary `<index>.tmp` stays, a file htslib never reads.
+A run without `-W` leaves an old index of the `-o` file as it is.
 
 All the real bugs found in this project were in the driver, and three independent reviews of it
 found them. See `NOTES.md`, "Driver review".

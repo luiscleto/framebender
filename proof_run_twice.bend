@@ -13,137 +13,15 @@ import ./proof_run_gsort.bend as G
 import ./proof_run_head.bend as H
 import ./proof_run_sorted.bend as PS
 import ./proof_run_grouped.bend as PG
+import ./proof_run_tail.bend as U
+import ./proof_run_qm.bend as QM
 
 # twice_run: run 1's body lines are its items' texts; run 2 reads them back
 # as lines whose items have the same key, CHROM and text, grouped and sorted,
 # so run 2 succeeds and writes the same body.
 
-# The lines run 1 writes for its items.
-def lns(ys: List<&2, R.Item>) -> List<&2, B.Line>:
-  match ys:
-    case Nil{}:
-      Nil{}
-    case y <> t:
-      N.ln(R.Item.text(y)) <> lns(t)
-
-def q4(+fa: List<&2, B.Contig>, +o: B.Opts, +y: R.Item) -> Bool:
-  +l2 = N.ln(R.Item.text(y))
-  Bool.and(Bool.and(X.goodb(l2), String.eq(B.Line.text(l2), R.Item.text(y))), N.go_on(o, L.judge(fa, B.Line.body(l2))))
-
-law qi_q4:
-  for +fa: List<&2, B.Contig>
-  for +o: B.Opts
-  for +y: R.Item
-  for +h: {N.qi(fa, o, y) == True{} : Bool}
-  {q4(fa, o, y) == True{} : Bool}
-
-def qi_q4(fa, o, y, h):
-  P.and_true_l(q4(fa, o, y), N.simb(L.item(fa, N.ln(R.Item.text(y)), 0n), y), h)
-
-law qi_sim:
-  for +fa: List<&2, B.Contig>
-  for +o: B.Opts
-  for +y: R.Item
-  for +h: {N.qi(fa, o, y) == True{} : Bool}
-  {N.simb(L.item(fa, N.ln(R.Item.text(y)), 0n), y) == True{} : Bool}
-
-def qi_sim(fa, o, y, h):
-  P.and_true_r(q4(fa, o, y), N.simb(L.item(fa, N.ln(R.Item.text(y)), 0n), y), h)
-
-law qi_good:
-  for +fa: List<&2, B.Contig>
-  for +o: B.Opts
-  for +y: R.Item
-  for +h: {N.qi(fa, o, y) == True{} : Bool}
-  {X.goodb(N.ln(R.Item.text(y))) == True{} : Bool}
-
-def qi_good(fa, o, y, h):
-  +l2 = N.ln(R.Item.text(y))
-  P.and_true_l(X.goodb(l2), String.eq(B.Line.text(l2), R.Item.text(y)),
-    P.and_true_l(Bool.and(X.goodb(l2), String.eq(B.Line.text(l2), R.Item.text(y))), N.go_on(o, L.judge(fa, B.Line.body(l2))), qi_q4(fa, o, y, h)))
-
-law qi_text:
-  for +fa: List<&2, B.Contig>
-  for +o: B.Opts
-  for +y: R.Item
-  for +h: {N.qi(fa, o, y) == True{} : Bool}
-  {B.Line.text(N.ln(R.Item.text(y))) == R.Item.text(y) : String}
-
-def qi_text(fa, o, y, h):
-  +l2 = N.ln(R.Item.text(y))
-  Q.str_eq_sound(B.Line.text(l2), R.Item.text(y), P.and_true_r(X.goodb(l2), String.eq(B.Line.text(l2), R.Item.text(y)),
-    P.and_true_l(Bool.and(X.goodb(l2), String.eq(B.Line.text(l2), R.Item.text(y))), N.go_on(o, L.judge(fa, B.Line.body(l2))), qi_q4(fa, o, y, h))))
-
-law qi_go:
-  for +fa: List<&2, B.Contig>
-  for +o: B.Opts
-  for +y: R.Item
-  for +h: {N.qi(fa, o, y) == True{} : Bool}
-  {N.go_on(o, L.judge(fa, B.Line.body(N.ln(R.Item.text(y))))) == True{} : Bool}
-
-def qi_go(fa, o, y, h):
-  +l2 = N.ln(R.Item.text(y))
-  P.and_true_r(Bool.and(X.goodb(l2), String.eq(B.Line.text(l2), R.Item.text(y))), N.go_on(o, L.judge(fa, B.Line.body(l2))), qi_q4(fa, o, y, h))
-
-law lns_good:
-  for +fa: List<&2, B.Contig>
-  for +o: B.Opts
-  for +ys: List<&2, R.Item>
-  for +h: {G.allq(fa, o, ys) == True{} : Bool}
-  {X.all_good(lns(ys)) == True{} : Bool}
-
-def lns_good(fa, o, ys, h):
-  match ys:
-    case Nil{}:
-      {==}
-    case +y <> +t:
-      S.and_intro(X.goodb(N.ln(R.Item.text(y))), X.all_good(lns(t)), qi_good(fa, o, y, P.and_true_l(N.qi(fa, o, y), G.allq(fa, o, t), h)),
-        lns_good(fa, o, t, P.and_true_r(N.qi(fa, o, y), G.allq(fa, o, t), h)))
-
-law lns_go:
-  for +fa: List<&2, B.Contig>
-  for +o: B.Opts
-  for +ys: List<&2, R.Item>
-  for +h: {G.allq(fa, o, ys) == True{} : Bool}
-  {W.all_go(fa, o, lns(ys)) == True{} : Bool}
-
-def lns_go(fa, o, ys, h):
-  match ys:
-    case Nil{}:
-      {==}
-    case +y <> +t:
-      S.and_intro(N.go_on(o, L.judge(fa, B.Line.body(N.ln(R.Item.text(y))))), W.all_go(fa, o, lns(t)), qi_go(fa, o, y, P.and_true_l(N.qi(fa, o, y), G.allq(fa, o, t), h)),
-        lns_go(fa, o, t, P.and_true_r(N.qi(fa, o, y), G.allq(fa, o, t), h)))
-
-law lns_text:
-  for +fa: List<&2, B.Contig>
-  for +o: B.Opts
-  for +ys: List<&2, R.Item>
-  for +h: {G.allq(fa, o, ys) == True{} : Bool}
-  {B.Lines.text(lns(ys)) == L.texts(ys) : String}
-
-def lns_text(fa, o, ys, h):
-  match ys:
-    case Nil{}:
-      {==}
-    case +y <> +t:
-      %Equal.sym(String, B.Line.text(N.ln(R.Item.text(y))), R.Item.text(y), qi_text(fa, o, y, P.and_true_l(N.qi(fa, o, y), G.allq(fa, o, t), h))) :
-        {_ ++ B.Lines.text(lns(t)) == R.Item.text(y) ++ L.texts(t) : String}
-      %Equal.sym(String, B.Lines.text(lns(t)), L.texts(t), lns_text(fa, o, t, P.and_true_r(N.qi(fa, o, y), G.allq(fa, o, t), h))) :
-        {R.Item.text(y) ++ _ == R.Item.text(y) ++ L.texts(t) : String}
-      {==}
-
 # Same key, CHROM and text, item by item
 # ======================================
-
-def allsim(xs: List<&2, R.Item>, ys: List<&2, R.Item>) -> Bool:
-  match xs ys:
-    case Nil{} Nil{}:
-      True{}
-    case x <> t y <> u:
-      N.simb(x, y) && allsim(t, u)
-    case _ _:
-      False{}
 
 law simb_key:
   for +a: R.Item
@@ -178,48 +56,10 @@ def simb_text(a, b, h):
     case R.Item{+k1, p1, B.At{n1, +c1, q1}, +t1} R.Item{+k2, p2, B.At{n2, +c2, q2}, +t2}:
       Q.str_eq_sound(t1, t2, P.and_true_r(Bool.and(Nat.is_eq(k1, k2), String.eq(c1, c2)), String.eq(t1, t2), h))
 
-def sn.go(r: B.Res, l2: B.Line, +f0: String, +f1: String, +p: Nat, +n: Nat, y: R.Item,
-  h: {N.simb(L.item_of(r, l2, B.At{0n, f0, f1}, p), y) == True{} : Bool}) ->
-  {N.simb(L.item_of(r, l2, B.At{n, f0, f1}, p), y) == True{} : Bool}:
-  match r l2 y:
-    case B.Res{B.Normalized{}, k, t, st} B.Line{b, tm} R.Item{ky, py, B.At{ny, cy, qy}, ty}:
-      h
-    case B.Res{B.Broken{}, k, t, st} B.Line{b, tm} R.Item{ky, py, B.At{ny, cy, qy}, ty}:
-      h
-    case B.Res{B.Skipped{}, k, t, st} B.Line{b, tm} R.Item{ky, py, B.At{ny, cy, qy}, ty}:
-      h
-    case B.Res{B.NoContig{}, k, t, st} B.Line{b, tm} R.Item{ky, py, B.At{ny, cy, qy}, ty}:
-      h
-    case B.Res{B.Problem{c}, k, t, st} B.Line{b, tm} R.Item{ky, py, B.At{ny, cy, qy}, ty}:
-      h
-
-law nitems_sim:
-  for +fa: List<&2, B.Contig>
-  for +o: B.Opts
-  for +ys: List<&2, R.Item>
-  for +n: Nat
-  for +h: {G.allq(fa, o, ys) == True{} : Bool}
-  {allsim(T.nitems(lns(ys), fa, n), ys) == True{} : Bool}
-
-def nitems_sim(fa, o, ys, n, h):
-  match ys:
-    case Nil{}:
-      {==}
-    case +y <> +t:
-      +l2 = N.ln(R.Item.text(y))
-      +hy = P.and_true_l(N.qi(fa, o, y), G.allq(fa, o, t), h)
-      +ht = P.and_true_r(N.qi(fa, o, y), G.allq(fa, o, t), h)
-      +fs = B.Rec.fields(B.Line.body(l2))
-      %Equal.sym(List<&2, R.Item>, T.nitems(l2 <> lns(t), fa, n), L.item(fa, l2, 1n+n) <> T.nitems(lns(t), fa, 1n+n), T.nitems_cons(l2, lns(t), fa, n)) :
-        {allsim(_, y <> t) == True{} : Bool}
-      S.and_intro(N.simb(L.item(fa, l2, 1n+n), y), allsim(T.nitems(lns(t), fa, 1n+n), t),
-        sn.go(L.judge(fa, B.Line.body(l2)), l2, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n), B.Rec.pos(fs), 1n+n, y, qi_sim(fa, o, y, hy)),
-        nitems_sim(fa, o, t, 1n+n, ht))
-
 law texts_sim:
   for +xs: List<&2, R.Item>
   for +ys: List<&2, R.Item>
-  for +h: {allsim(xs, ys) == True{} : Bool}
+  for +h: {QM.allsim(xs, ys) == True{} : Bool}
   {L.texts(xs) == L.texts(ys) : String}
 
 def texts_sim(xs, ys, h):
@@ -227,8 +67,8 @@ def texts_sim(xs, ys, h):
     case Nil{} Nil{}:
       {==}
     case +x <> +t +y <> +u:
-      +h1 = P.and_true_l(N.simb(x, y), allsim(t, u), h)
-      +h2 = P.and_true_r(N.simb(x, y), allsim(t, u), h)
+      +h1 = P.and_true_l(N.simb(x, y), QM.allsim(t, u), h)
+      +h2 = P.and_true_r(N.simb(x, y), QM.allsim(t, u), h)
       %simb_text(x, y, h1) : {R.Item.text(x) ++ L.texts(t) == _ ++ L.texts(u) : String}
       %texts_sim(t, u, h2) : {R.Item.text(x) ++ L.texts(t) == R.Item.text(x) ++ _ : String}
       {==}
@@ -240,7 +80,7 @@ def texts_sim(xs, ys, h):
 law mc_sim:
   for +xs: List<&2, R.Item>
   for +ys: List<&2, R.Item>
-  for +h: {allsim(xs, ys) == True{} : Bool}
+  for +h: {QM.allsim(xs, ys) == True{} : Bool}
   {G.mc(xs) == G.mc(ys) : List<&2, String>}
 
 def mc_sim(xs, ys, h):
@@ -248,8 +88,8 @@ def mc_sim(xs, ys, h):
     case Nil{} Nil{}:
       {==}
     case +x <> +t +y <> +u:
-      +h1 = P.and_true_l(N.simb(x, y), allsim(t, u), h)
-      +h2 = P.and_true_r(N.simb(x, y), allsim(t, u), h)
+      +h1 = P.and_true_l(N.simb(x, y), QM.allsim(t, u), h)
+      +h2 = P.and_true_r(N.simb(x, y), QM.allsim(t, u), h)
       %simb_chrom(x, y, h1) : {R.Item.chrom(x) <> G.mc(t) == _ <> G.mc(u) : List<&2, String>}
       %mc_sim(t, u, h2) : {R.Item.chrom(x) <> G.mc(t) == R.Item.chrom(x) <> _ : List<&2, String>}
       {==}
@@ -261,7 +101,7 @@ def mc_sim(xs, ys, h):
 law grouped_sim:
   for +xs: List<&2, R.Item>
   for +ys: List<&2, R.Item>
-  for +h: {allsim(xs, ys) == True{} : Bool}
+  for +h: {QM.allsim(xs, ys) == True{} : Bool}
   for +hg: {L.grouped(ys) == True{} : Bool}
   {L.grouped(xs) == True{} : Bool}
 
@@ -298,7 +138,7 @@ law am_sim:
   for +ys: List<&2, R.Item>
   for +mp: Maybe<&2, R.Item>
   for +mq: Maybe<&2, R.Item>
-  for +h: {allsim(xs, ys) == True{} : Bool}
+  for +h: {QM.allsim(xs, ys) == True{} : Bool}
   for +hm: {simm(mp, mq) == True{} : Bool}
   {G.asck_m(xs, mp) == G.asck_m(ys, mq) : Bool}
 
@@ -307,12 +147,12 @@ def am_sim(xs, ys, mp, mq, h, hm):
     case Nil{} Nil{} _ _:
       {==}
     case +x <> +t +y <> +u None{} None{}:
-      am_sim(t, u, Some{x}, Some{y}, P.and_true_r(N.simb(x, y), allsim(t, u), h), P.and_true_l(N.simb(x, y), allsim(t, u), h))
+      am_sim(t, u, Some{x}, Some{y}, P.and_true_r(N.simb(x, y), QM.allsim(t, u), h), P.and_true_l(N.simb(x, y), QM.allsim(t, u), h))
     case +x <> +t +y <> +u Some{+a} Some{+b}:
-      +hx = P.and_true_l(N.simb(x, y), allsim(t, u), h)
+      +hx = P.and_true_l(N.simb(x, y), QM.allsim(t, u), h)
       %am_sim.cond(a, b, x, y, hm, hx) : {Bool.and(Bool.or(Bool.not(String.eq(R.Item.chrom(a), R.Item.chrom(x))), Nat.is_le(R.Item.key(a), R.Item.key(x))), G.asck_m(t, Some{x})) ==
         Bool.and(_, G.asck_m(u, Some{y})) : Bool}
-      %am_sim(t, u, Some{x}, Some{y}, P.and_true_r(N.simb(x, y), allsim(t, u), h), hx) :
+      %am_sim(t, u, Some{x}, Some{y}, P.and_true_r(N.simb(x, y), QM.allsim(t, u), h), hx) :
         {Bool.and(Bool.or(Bool.not(String.eq(R.Item.chrom(a), R.Item.chrom(x))), Nat.is_le(R.Item.key(a), R.Item.key(x))), G.asck_m(t, Some{x})) ==
           Bool.and(Bool.or(Bool.not(String.eq(R.Item.chrom(a), R.Item.chrom(x))), Nat.is_le(R.Item.key(a), R.Item.key(x))), _) : Bool}
       {==}
@@ -328,7 +168,7 @@ def am_sim(xs, ys, mp, mq, h, hm):
 law asck_sim:
   for +xs: List<&2, R.Item>
   for +ys: List<&2, R.Item>
-  for +h: {allsim(xs, ys) == True{} : Bool}
+  for +h: {QM.allsim(xs, ys) == True{} : Bool}
   for +hk: {W.asck(ys) == True{} : Bool}
   {W.asck(xs) == True{} : Bool}
 
@@ -337,26 +177,6 @@ def asck_sim(xs, ys, h, hk):
   %Equal.sym(Bool, G.asck_m(xs, None{}), G.asck_m(ys, None{}), am_sim(xs, ys, None{}, None{}, h, {==})) : {_ == True{} : Bool}
   %G.asck_eq(ys) : {_ == True{} : Bool}
   hk
-
-law allq_lines:
-  for +ls: List<&2, B.Line>
-  for +fa: List<&2, B.Contig>
-  for +o: B.Opts
-  for +n: Nat
-  for +hg: {X.all_good(ls) == True{} : Bool}
-  for +hgo: {W.all_go(fa, o, ls) == True{} : Bool}
-  {G.allq(fa, o, T.nitems(ls, fa, n)) == True{} : Bool}
-
-def allq_lines(ls, fa, o, n, hg, hgo):
-  match ls:
-    case Nil{}:
-      {==}
-    case +l <> +t:
-      %Equal.sym(List<&2, R.Item>, T.nitems(l <> t, fa, n), L.item(fa, l, 1n+n) <> T.nitems(t, fa, 1n+n), T.nitems_cons(l, t, fa, n)) :
-        {G.allq(fa, o, _) == True{} : Bool}
-      S.and_intro(N.qi(fa, o, L.item(fa, l, 1n+n)), G.allq(fa, o, T.nitems(t, fa, 1n+n)),
-        N.line_qi(fa, o, l, 1n+n, P.and_true_l(X.goodb(l), X.all_good(t), hg), P.and_true_l(N.go_on(o, L.judge(fa, B.Line.body(l))), W.all_go(fa, o, t), hgo)),
-        allq_lines(t, fa, o, 1n+n, P.and_true_r(X.goodb(l), X.all_good(t), hg), P.and_true_r(N.go_on(o, L.judge(fa, B.Line.body(l))), W.all_go(fa, o, t), hgo)))
 
 law all_nc_app:
   for +xs: List<&2, B.Line>
@@ -432,17 +252,14 @@ def LS1(+vcf: String) -> List<&2, B.Line>:
 def K0() -> R.Cnt:
   R.Cnt{0n, 0n, 0n, 0n}
 
-def YS(+fasta: String, +vcf: String) -> List<&2, R.Item>:
-  L.gsort(L.items(fasta, vcf))
+def YS(+fasta: String, +vcf: String, +o: B.Opts) -> List<&2, R.Item>:
+  L.gsort(L.out_items(fasta, vcf, o))
 
-def TL(+fasta: String, +vcf: String) -> List<&2, B.Line>:
-  lns(YS(fasta, vcf))
+def TL(+fasta: String, +vcf: String, +o: B.Opts) -> List<&2, B.Line>:
+  QM.lns(YS(fasta, vcf, o))
 
 def O1(+fasta: String, +vcf: String, +o: B.Opts) -> String:
   R.Report.out(L.run(fasta, vcf, o))
-
-def HC(+fasta: String, +vcf: String, +o: B.Opts) -> Type:
-  {R.Report.code(L.run(fasta, vcf, o)) == 0n : Nat}
 
 law r1_has:
   for +fasta: String
@@ -452,22 +269,23 @@ law r1_has:
   {H.has_c(LS1(vcf)) == True{} : Bool}
 
 def r1_has(fasta, vcf, o, h):
-  H.hdr_has(LS1(vcf), FA(fasta), o, 0n, "", K0(), "", Nil{}, h)
+  H.hdr_has(LS1(vcf), FA(fasta), L.defs(vcf), o, 0n, "", K0(), "", Nil{}, h)
 
 law r1_go:
   for +fasta: String
   for +vcf: String
   for +o: B.Opts
   for +h: {R.Report.code(L.run(fasta, vcf, o)) == 0n : Nat}
-  {W.all_go(FA(fasta), o, H.post_c(LS1(vcf))) == True{} : Bool}
+  {H.all_lgo(H.post_c(LS1(vcf)), FA(fasta), L.defs(vcf), o) == True{} : Bool}
 
 def r1_go(fasta, vcf, o, h):
   +ls = LS1(vcf)
   +fa = FA(fasta)
-  +er = H.hdr_run(ls, fa, o, 0n, "", K0(), "", Nil{}, r1_has(fasta, vcf, o, h))
+  +defs = L.defs(vcf)
+  +er = H.hdr_run(ls, fa, defs, o, 0n, "", K0(), "", Nil{}, r1_has(fasta, vcf, o, h))
   +h2 = {(%er : {R.Report.code(R.finish(_)) == 0n : Nat}; h) :
-    {R.Report.code(R.finish(L.run.go(H.post_c(ls), fa, o, H.bst(H.idx_c(ls, 0n), K0(), L.head.go(ls, o, False{}, ""), Nil{})))) == 0n : Nat}}
-  H.body_go(H.post_c(ls), fa, o, H.idx_c(ls, 0n), "", None{}, Nil{}, None{}, Nil{}, K0(), L.head.go(ls, o, False{}, ""), Nil{}, h2)
+    {R.Report.code(R.finish(L.run.go(H.post_c(ls), fa, defs, o, H.bst(H.idx_c(ls, 0n), K0(), L.head.go(ls, o, False{}, ""), Nil{})))) == 0n : Nat}}
+  H.body_go(H.post_c(ls), fa, defs, o, H.idx_c(ls, 0n), "", None{}, Nil{}, None{}, Nil{}, K0(), L.head.go(ls, o, False{}, ""), Nil{}, h2)
 
 law post_good:
   for +ls: List<&2, B.Line>
@@ -482,62 +300,65 @@ def post_good(ls, hg, hc):
   P.and_true_r(X.goodb(cl), X.all_good(rs),
     H.all_good_r(ps, cl <> rs, (%H.hs_split(ls, hc) : {X.all_good(_) == True{} : Bool}; hg)))
 
-law r1_allq:
+law r1_allqm:
   for +fasta: String
   for +vcf: String
   for +o: B.Opts
   for +h: {R.Report.code(L.run(fasta, vcf, o)) == 0n : Nat}
-  {G.allq(FA(fasta), o, L.items(fasta, vcf)) == True{} : Bool}
+  {QM.allqm(FA(fasta), L.defs(vcf), o, L.out_items(fasta, vcf, o)) == True{} : Bool}
 
-def r1_allq(fasta, vcf, o, h):
+def r1_allqm(fasta, vcf, o, h):
   +ls = LS1(vcf)
   +fa = FA(fasta)
+  +defs = L.defs(vcf)
   +hc = r1_has(fasta, vcf, o, h)
-  %Equal.sym(List<&2, R.Item>, L.ItSt.acc(L.items.go(ls, fa, L.ItSt{False{}, 0n, Nil{}})), T.nitems(H.post_c(ls), fa, H.idx_c(ls, 0n)), H.hdr_items(ls, fa, 0n, hc)) :
-    {G.allq(fa, o, _) == True{} : Bool}
-  allq_lines(H.post_c(ls), fa, o, H.idx_c(ls, 0n), post_good(ls, X.lines_good(vcf), hc), r1_go(fasta, vcf, o, h))
+  %Equal.sym(List<&2, R.Item>, L.ItSt.acc(L.out_items.go(ls, fa, defs, o, L.ItSt{False{}, 0n, Nil{}})), U.mitems(H.post_c(ls), fa, defs, o, H.idx_c(ls, 0n)),
+    H.hdr_mitems(ls, fa, defs, o, 0n, hc)) : {QM.allqm(fa, defs, o, _) == True{} : Bool}
+  QM.allqm_lines(H.post_c(ls), fa, defs, o, H.idx_c(ls, 0n), post_good(ls, X.lines_good(vcf), hc), r1_go(fasta, vcf, o, h))
 
-law ys_allq:
+law ys_allqm:
   for +fasta: String
   for +vcf: String
   for +o: B.Opts
   for +h: {R.Report.code(L.run(fasta, vcf, o)) == 0n : Nat}
-  {G.allq(FA(fasta), o, YS(fasta, vcf)) == True{} : Bool}
+  {QM.allqm(FA(fasta), L.defs(vcf), o, YS(fasta, vcf, o)) == True{} : Bool}
 
-def ys_allq(fasta, vcf, o, h):
-  G.allq_gs(FA(fasta), o, L.items(fasta, vcf), Nil{}, Nil{}, r1_allq(fasta, vcf, o, h), {==}, {==})
+def ys_allqm(fasta, vcf, o, h):
+  QM.allqm_gs(FA(fasta), L.defs(vcf), o, L.out_items(fasta, vcf, o), Nil{}, Nil{}, r1_allqm(fasta, vcf, o, h), {==}, {==})
 
 law r1_out:
   for +fasta: String
   for +vcf: String
   for +o: B.Opts
   for +h: {R.Report.code(L.run(fasta, vcf, o)) == 0n : Nat}
-  {O1(fasta, vcf, o) == B.Lines.text(H.Hl(LS1(vcf), o)) ++ B.Lines.text(TL(fasta, vcf)) : String}
+  {O1(fasta, vcf, o) == B.Lines.text(H.Hl(LS1(vcf), o)) ++ B.Lines.text(TL(fasta, vcf, o)) : String}
 
 def r1_out(fasta, vcf, o, h):
   +ls = LS1(vcf)
   +fa = FA(fasta)
+  +defs = L.defs(vcf)
   +hc = r1_has(fasta, vcf, o, h)
-  +ys = YS(fasta, vcf)
-  %Equal.sym(String, B.Lines.text(lns(ys)), L.texts(ys), lns_text(fa, o, ys, ys_allq(fasta, vcf, o, h))) :
+  +ys = YS(fasta, vcf, o)
+  %Equal.sym(String, B.Lines.text(QM.lns(ys)), L.texts(ys), QM.lnsm_text(fa, defs, o, ys, ys_allqm(fasta, vcf, o, h))) :
     {O1(fasta, vcf, o) == B.Lines.text(H.Hl(ls, o)) ++ _ : String}
   %H.hdr_head(ls, o, "", hc) : {O1(fasta, vcf, o) == _ ++ L.texts(ys) : String}
-  PS.sorted_head(ls, fa, o, 0n, "", K0(), "", Nil{}, h)
+  PS.sorted_head(ls, fa, defs, o, 0n, "", K0(), "", Nil{}, h)
 
 law r1_body:
   for +fasta: String
   for +vcf: String
   for +o: B.Opts
   for +h: {R.Report.code(L.run(fasta, vcf, o)) == 0n : Nat}
-  {L.body(O1(fasta, vcf, o)) == B.Lines.text(TL(fasta, vcf)) : String}
+  {L.body(O1(fasta, vcf, o)) == B.Lines.text(TL(fasta, vcf, o)) : String}
 
 def r1_body(fasta, vcf, o, h):
-  %Equal.sym(String, O1(fasta, vcf, o), B.Lines.text(H.Hl(LS1(vcf), o)) ++ B.Lines.text(TL(fasta, vcf)), r1_out(fasta, vcf, o, h)) :
-    {L.body(_) == B.Lines.text(TL(fasta, vcf)) : String}
-  body_hd(LS1(vcf), o, TL(fasta, vcf), X.lines_good(vcf), r1_has(fasta, vcf, o, h), lns_good(FA(fasta), o, YS(fasta, vcf), ys_allq(fasta, vcf, o, h)))
+  %Equal.sym(String, O1(fasta, vcf, o), B.Lines.text(H.Hl(LS1(vcf), o)) ++ B.Lines.text(TL(fasta, vcf, o)), r1_out(fasta, vcf, o, h)) :
+    {L.body(_) == B.Lines.text(TL(fasta, vcf, o)) : String}
+  body_hd(LS1(vcf), o, TL(fasta, vcf, o), X.lines_good(vcf), r1_has(fasta, vcf, o, h),
+    QM.lnsm_good(FA(fasta), L.defs(vcf), o, YS(fasta, vcf, o), ys_allqm(fasta, vcf, o, h)))
 
 def LS2(+fasta: String, +vcf: String, +o: B.Opts) -> List<&2, B.Line>:
-  X.lapp(P2(LS1(vcf), o), H.cl_c(LS1(vcf)) <> TL(fasta, vcf))
+  X.lapp(P2(LS1(vcf), o), H.cl_c(LS1(vcf)) <> TL(fasta, vcf, o))
 
 law r2_lines:
   for +fasta: String
@@ -549,12 +370,13 @@ law r2_lines:
 def r2_lines(fasta, vcf, o, h):
   +ls = LS1(vcf)
   +hl = H.Hl(ls, o)
-  +tl = TL(fasta, vcf)
+  +tl = TL(fasta, vcf, o)
   +hc = r1_has(fasta, vcf, o, h)
   %Equal.sym(String, O1(fasta, vcf, o), B.Lines.text(hl) ++ B.Lines.text(tl), r1_out(fasta, vcf, o, h)) : {B.Text.lines(_) == LS2(fasta, vcf, o) : List<&2, B.Line>}
   %Equal.sym(List<&2, B.Line>, B.Text.lines(B.Lines.text(hl) ++ B.Lines.text(tl)), X.lapp(hl, B.Text.lines(B.Lines.text(tl))),
     X.lines_text_app(hl, B.Lines.text(tl), H.hl_good(ls, o, X.lines_good(vcf), hc))) : {_ == LS2(fasta, vcf, o) : List<&2, B.Line>}
-  %Equal.sym(List<&2, B.Line>, B.Text.lines(B.Lines.text(tl)), tl, X.lines_text(tl, lns_good(FA(fasta), o, YS(fasta, vcf), ys_allq(fasta, vcf, o, h)))) :
+  %Equal.sym(List<&2, B.Line>, B.Text.lines(B.Lines.text(tl)), tl,
+    X.lines_text(tl, QM.lnsm_good(FA(fasta), L.defs(vcf), o, YS(fasta, vcf, o), ys_allqm(fasta, vcf, o, h)))) :
     {X.lapp(hl, _) == LS2(fasta, vcf, o) : List<&2, B.Line>}
   hl_split(ls, o, tl)
 
@@ -566,7 +388,88 @@ law r2_has:
   {H.has_c(LS2(fasta, vcf, o)) == True{} : Bool}
 
 def r2_has(fasta, vcf, o, h):
-  H.dec_has(P2(LS1(vcf), o), H.cl_c(LS1(vcf)), TL(fasta, vcf), p2_nc(LS1(vcf), o), H.cl_isc(LS1(vcf), r1_has(fasta, vcf, o, h)))
+  H.dec_has(P2(LS1(vcf), o), H.cl_c(LS1(vcf)), TL(fasta, vcf, o), p2_nc(LS1(vcf), o), H.cl_isc(LS1(vcf), r1_has(fasta, vcf, o, h)))
+
+# The header's definitions
+# ========================
+
+law dg_done:
+  for +ts: List<&2, B.Line>
+  for +d: B.Defs
+  {L.defs.go(ts, True{}, d) == d : B.Defs}
+
+def dg_done(ts, d):
+  match ts:
+    case Nil{}:
+      {==}
+    case +l <> +t:
+      dg_done(t, d)
+
+law dg_app:
+  for +xs: List<&2, B.Line>
+  for +ys: List<&2, B.Line>
+  for +d: B.Defs
+  for +h: {H.all_nc(xs) == True{} : Bool}
+  {L.defs.go(X.lapp(xs, ys), False{}, d) == L.defs.go(ys, False{}, L.defs.go(xs, False{}, d)) : B.Defs}
+
+def dg_app(xs, ys, d, h):
+  match xs:
+    case Nil{}:
+      {==}
+    case +x <> +t:
+      +ex = Equal.sym(Bool, H.isc(x), False{}, H.nc_head(x, t, h))
+      %ex : {L.defs.go(X.lapp(t, ys), _, B.Defs.line(d, B.Line.body(x))) == L.defs.go(ys, False{}, L.defs.go(t, _, B.Defs.line(d, B.Line.body(x)))) : B.Defs}
+      dg_app(t, ys, B.Defs.line(d, B.Line.body(x)), H.nc_tail(x, t, h))
+
+# The definitions read from lines up to and including the #CHROM line cl.
+law dg_cl:
+  for +ps: List<&2, B.Line>
+  for +cl: B.Line
+  for +ts: List<&2, B.Line>
+  for +d: B.Defs
+  for +hp: {H.all_nc(ps) == True{} : Bool}
+  for +hc: {H.isc(cl) == True{} : Bool}
+  {L.defs.go(X.lapp(ps, cl <> ts), False{}, d) == B.Defs.line(L.defs.go(ps, False{}, d), B.Line.body(cl)) : B.Defs}
+
+def dg_cl(ps, cl, ts, d, hp, hc):
+  +d1 = L.defs.go(ps, False{}, d)
+  %Equal.sym(B.Defs, L.defs.go(X.lapp(ps, cl <> ts), False{}, d), L.defs.go(cl <> ts, False{}, d1), dg_app(ps, cl <> ts, d, hp)) : {_ == B.Defs.line(d1, B.Line.body(cl)) : B.Defs}
+  %Equal.sym(Bool, H.isc(cl), True{}, hc) : {L.defs.go(ts, _, B.Defs.line(d1, B.Line.body(cl))) == B.Defs.line(d1, B.Line.body(cl)) : B.Defs}
+  dg_done(ts, B.Defs.line(d1, B.Line.body(cl)))
+
+def dg_added(o: B.Opts, +tm: String, +d: B.Defs) -> {L.defs.go([H.al1(tm), H.al2(o, tm)], False{}, d) == d : B.Defs}:
+  match o:
+    case B.Opts{+s, +w, +om_m, +om_z, +args}:
+      {==}
+
+# Run 1's output has the input's header definitions: the added lines define
+# nothing.
+law defs_out:
+  for +fasta: String
+  for +vcf: String
+  for +o: B.Opts
+  for +h: {R.Report.code(L.run(fasta, vcf, o)) == 0n : Nat}
+  {L.defs(O1(fasta, vcf, o)) == L.defs(vcf) : B.Defs}
+
+def defs_out(fasta, vcf, o, h):
+  +ls = LS1(vcf)
+  +pre = H.pre_c(ls)
+  +cl = H.cl_c(ls)
+  +tm = B.Line.term(cl)
+  +d0 = {B.Defs{Nil{}, Nil{}} : B.Defs}
+  +hc = r1_has(fasta, vcf, o, h)
+  +hic = H.cl_isc(ls, hc)
+  %Equal.sym(List<&2, B.Line>, B.Text.lines(O1(fasta, vcf, o)), LS2(fasta, vcf, o), r2_lines(fasta, vcf, o, h)) :
+    {L.defs.go(_, False{}, d0) == L.defs(vcf) : B.Defs}
+  %Equal.sym(B.Defs, L.defs.go(LS2(fasta, vcf, o), False{}, d0), B.Defs.line(L.defs.go(P2(ls, o), False{}, d0), B.Line.body(cl)), dg_cl(P2(ls, o), cl, TL(fasta, vcf, o), d0, p2_nc(ls, o), hic)) : {_ == L.defs(vcf) : B.Defs}
+  %Equal.sym(B.Defs, L.defs.go(P2(ls, o), False{}, d0), L.defs.go([H.al1(tm), H.al2(o, tm)], False{}, L.defs.go(pre, False{}, d0)), dg_app(pre, [H.al1(tm), H.al2(o, tm)], d0, H.pre_nc(ls))) : {B.Defs.line(_, B.Line.body(cl)) == L.defs(vcf) : B.Defs}
+  %Equal.sym(B.Defs, L.defs.go([H.al1(tm), H.al2(o, tm)], False{}, L.defs.go(pre, False{}, d0)), L.defs.go(pre, False{}, d0), dg_added(o, tm, L.defs.go(pre, False{}, d0))) : {B.Defs.line(_, B.Line.body(cl)) == L.defs(vcf) : B.Defs}
+  %Equal.sym(List<&2, B.Line>, ls, X.lapp(pre, cl <> H.post_c(ls)), H.hs_split(ls, hc)) : {B.Defs.line(L.defs.go(pre, False{}, d0), B.Line.body(cl)) == L.defs.go(_, False{}, d0) : B.Defs}
+  Equal.sym(B.Defs, L.defs.go(X.lapp(pre, cl <> H.post_c(ls)), False{}, d0), B.Defs.line(L.defs.go(pre, False{}, d0), B.Line.body(cl)),
+    dg_cl(pre, cl, H.post_c(ls), d0, H.pre_nc(ls), hic))
+
+# Run 2
+# =====
 
 def BS2(+fasta: String, +vcf: String, +o: B.Opts) -> R.RunSt:
   +ls2 = LS2(fasta, vcf, o)
@@ -577,69 +480,82 @@ law r2_run:
   for +vcf: String
   for +o: B.Opts
   for +h: {R.Report.code(L.run(fasta, vcf, o)) == 0n : Nat}
-  {L.run(fasta, O1(fasta, vcf, o), o) == R.finish(L.run.go(TL(fasta, vcf), FA(fasta), o, BS2(fasta, vcf, o))) : R.Report}
+  {L.run(fasta, O1(fasta, vcf, o), o) == R.finish(L.run.go(TL(fasta, vcf, o), FA(fasta), L.defs(vcf), o, BS2(fasta, vcf, o))) : R.Report}
 
 def r2_run(fasta, vcf, o, h):
   +ls2 = LS2(fasta, vcf, o)
   +fa = FA(fasta)
+  +d2 = L.defs(O1(fasta, vcf, o))
   +h2 = r2_has(fasta, vcf, o, h)
+  +rhs = R.finish(L.run.go(TL(fasta, vcf, o), fa, L.defs(vcf), o, BS2(fasta, vcf, o)))
   %Equal.sym(List<&2, B.Line>, B.Text.lines(O1(fasta, vcf, o)), ls2, r2_lines(fasta, vcf, o, h)) :
-    {R.finish(L.run.go(_, fa, o, R.start_st())) == R.finish(L.run.go(TL(fasta, vcf), fa, o, BS2(fasta, vcf, o))) : R.Report}
-  %Equal.sym(R.RunSt, L.run.go(ls2, fa, o, H.hst(0n, "", K0(), "", Nil{})), L.run.go(H.post_c(ls2), fa, o, BS2(fasta, vcf, o)),
-    H.hdr_run(ls2, fa, o, 0n, "", K0(), "", Nil{}, h2)) :
-    {R.finish(_) == R.finish(L.run.go(TL(fasta, vcf), fa, o, BS2(fasta, vcf, o))) : R.Report}
-  %Equal.sym(List<&2, B.Line>, H.post_c(ls2), TL(fasta, vcf),
-    H.dec_post(P2(LS1(vcf), o), H.cl_c(LS1(vcf)), TL(fasta, vcf), p2_nc(LS1(vcf), o), H.cl_isc(LS1(vcf), r1_has(fasta, vcf, o, h)))) :
-    {R.finish(L.run.go(_, fa, o, BS2(fasta, vcf, o))) == R.finish(L.run.go(TL(fasta, vcf), fa, o, BS2(fasta, vcf, o))) : R.Report}
+    {R.finish(L.run.go(_, fa, d2, o, R.start_st())) == rhs : R.Report}
+  %Equal.sym(R.RunSt, L.run.go(ls2, fa, d2, o, H.hst(0n, "", K0(), "", Nil{})), L.run.go(H.post_c(ls2), fa, d2, o, BS2(fasta, vcf, o)),
+    H.hdr_run(ls2, fa, d2, o, 0n, "", K0(), "", Nil{}, h2)) :
+    {R.finish(_) == rhs : R.Report}
+  %Equal.sym(List<&2, B.Line>, H.post_c(ls2), TL(fasta, vcf, o),
+    H.dec_post(P2(LS1(vcf), o), H.cl_c(LS1(vcf)), TL(fasta, vcf, o), p2_nc(LS1(vcf), o), H.cl_isc(LS1(vcf), r1_has(fasta, vcf, o, h)))) :
+    {R.finish(L.run.go(_, fa, d2, o, BS2(fasta, vcf, o))) == rhs : R.Report}
+  %Equal.sym(B.Defs, d2, L.defs(vcf), defs_out(fasta, vcf, o, h)) :
+    {R.finish(L.run.go(TL(fasta, vcf, o), fa, _, o, BS2(fasta, vcf, o))) == rhs : R.Report}
   {==}
+
+def N2(+fasta: String, +vcf: String, +o: B.Opts) -> Nat:
+  H.idx_c(LS2(fasta, vcf, o), 0n)
+
+def ZS(+fasta: String, +vcf: String, +o: B.Opts) -> List<&2, R.Item>:
+  U.mitems(TL(fasta, vcf, o), FA(fasta), L.defs(vcf), o, N2(fasta, vcf, o))
 
 law r2_cm:
   for +fasta: String
   for +vcf: String
   for +o: B.Opts
   for +h: {R.Report.code(L.run(fasta, vcf, o)) == 0n : Nat}
-  W.CM(FA(fasta), o, TL(fasta, vcf), L.head.go(LS2(fasta, vcf, o), o, False{}, "") ++ L.texts(T.nitems(TL(fasta, vcf), FA(fasta), H.idx_c(LS2(fasta, vcf, o), 0n))), BS2(fasta, vcf, o))
+  W.CM(FA(fasta), L.defs(vcf), o, TL(fasta, vcf, o), L.head.go(LS2(fasta, vcf, o), o, False{}, "") ++ L.texts(ZS(fasta, vcf, o)), BS2(fasta, vcf, o))
 
 def r2_cm(fasta, vcf, o, h):
   +fa = FA(fasta)
-  +ys = YS(fasta, vcf)
-  +tl = TL(fasta, vcf)
-  +ls2 = LS2(fasta, vcf, o)
-  +n2 = H.idx_c(ls2, 0n)
-  +hq = ys_allq(fasta, vcf, o, h)
-  +sim = nitems_sim(fa, o, ys, n2, hq)
-  +hgr = G.grouped_gs(L.items(fasta, vcf), PG.grouped_head(LS1(vcf), fa, o, 0n, "", K0(), "", Nil{}, h))
-  W.two_first(tl, fa, o, n2, "", K0(), L.head.go(ls2, o, False{}, ""), Nil{},
-    grouped_sim(T.nitems(tl, fa, n2), ys, sim, hgr), asck_sim(T.nitems(tl, fa, n2), ys, sim, G.asck_gs(L.items(fasta, vcf))), lns_go(fa, o, ys, hq))
+  +defs = L.defs(vcf)
+  +ys = YS(fasta, vcf, o)
+  +tl = TL(fasta, vcf, o)
+  +n2 = N2(fasta, vcf, o)
+  +zs = ZS(fasta, vcf, o)
+  +hq = ys_allqm(fasta, vcf, o, h)
+  +sim = QM.mitems_sim(fa, defs, o, ys, n2, hq)
+  +hgr = G.grouped_gs(L.out_items(fasta, vcf, o), PG.grouped_head(LS1(vcf), fa, defs, o, 0n, "", K0(), "", Nil{}, h))
+  W.two_first(tl, fa, defs, o, n2, "", K0(), L.head.go(LS2(fasta, vcf, o), o, False{}, ""), Nil{},
+    grouped_sim(zs, ys, sim, hgr), asck_sim(zs, ys, sim, G.asck_gs(L.out_items(fasta, vcf, o))), QM.lnsm_m1(fa, defs, o, ys, hq))
 
 def twice.fin(+fasta: String, +vcf: String, +o: B.Opts, +h: {R.Report.code(L.run(fasta, vcf, o)) == 0n : Nat},
-  cm: W.CM(FA(fasta), o, TL(fasta, vcf), L.head.go(LS2(fasta, vcf, o), o, False{}, "") ++ L.texts(T.nitems(TL(fasta, vcf), FA(fasta), H.idx_c(LS2(fasta, vcf, o), 0n))), BS2(fasta, vcf, o))) ->
+  cm: W.CM(FA(fasta), L.defs(vcf), o, TL(fasta, vcf, o), L.head.go(LS2(fasta, vcf, o), o, False{}, "") ++ L.texts(ZS(fasta, vcf, o)), BS2(fasta, vcf, o))) ->
   {(Nat.is_eq(R.Report.code(L.run(fasta, O1(fasta, vcf, o), o)), 0n)
     && String.eq(L.body(R.Report.out(L.run(fasta, O1(fasta, vcf, o), o))), L.body(O1(fasta, vcf, o)))) == True{} : Bool}:
   match cm:
     case (+c2, +e2):
       +fa = FA(fasta)
-      +ys = YS(fasta, vcf)
-      +tl = TL(fasta, vcf)
+      +defs = L.defs(vcf)
+      +ys = YS(fasta, vcf, o)
+      +tl = TL(fasta, vcf, o)
       +ls2 = LS2(fasta, vcf, o)
-      +n2 = H.idx_c(ls2, 0n)
+      +n2 = N2(fasta, vcf, o)
+      +zs = ZS(fasta, vcf, o)
       +hd2 = L.head.go(ls2, o, False{}, "")
       +run2 = L.run(fasta, O1(fasta, vcf, o), o)
-      +fin2 = R.finish(L.run.go(tl, fa, o, BS2(fasta, vcf, o)))
+      +fin2 = R.finish(L.run.go(tl, fa, defs, o, BS2(fasta, vcf, o)))
       +er = r2_run(fasta, vcf, o, h)
-      +hq = ys_allq(fasta, vcf, o, h)
+      +hq = ys_allqm(fasta, vcf, o, h)
       +h2 = r2_has(fasta, vcf, o, h)
       +ec = Equal.trans(Nat, R.Report.code(run2), R.Report.code(fin2), 0n, Equal.cong(R.Report, Nat, z => R.Report.code(z), run2, fin2, er), c2)
-      +eo = {Equal.trans(String, R.Report.out(run2), R.Report.out(fin2), hd2 ++ L.texts(T.nitems(tl, fa, n2)),
+      +eo = {Equal.trans(String, R.Report.out(run2), R.Report.out(fin2), hd2 ++ L.texts(zs),
           Equal.cong(R.Report, String, z => R.Report.out(z), run2, fin2, er), e2) :
-        {R.Report.out(run2) == hd2 ++ L.texts(T.nitems(tl, fa, n2)) : String}}
+        {R.Report.out(run2) == hd2 ++ L.texts(zs) : String}}
       +eo2 = {(%H.hdr_head(ls2, o, "", h2) : {R.Report.out(run2) == _ ++ B.Lines.text(tl) : String};
-          %Equal.sym(String, B.Lines.text(lns(ys)), L.texts(ys), lns_text(fa, o, ys, hq)) : {R.Report.out(run2) == hd2 ++ _ : String};
-          %texts_sim(T.nitems(tl, fa, n2), ys, nitems_sim(fa, o, ys, n2, hq)) : {R.Report.out(run2) == hd2 ++ _ : String};
+          %Equal.sym(String, B.Lines.text(QM.lns(ys)), L.texts(ys), QM.lnsm_text(fa, defs, o, ys, hq)) : {R.Report.out(run2) == hd2 ++ _ : String};
+          %texts_sim(zs, ys, QM.mitems_sim(fa, defs, o, ys, n2, hq)) : {R.Report.out(run2) == hd2 ++ _ : String};
           eo) : {R.Report.out(run2) == B.Lines.text(H.Hl(ls2, o)) ++ B.Lines.text(tl) : String}}
       +hg2 = {(%r2_lines(fasta, vcf, o, h) : {X.all_good(_) == True{} : Bool}; X.lines_good(O1(fasta, vcf, o))) : {X.all_good(ls2) == True{} : Bool}}
       +eb2 = {(%Equal.sym(String, R.Report.out(run2), B.Lines.text(H.Hl(ls2, o)) ++ B.Lines.text(tl), eo2) : {L.body(_) == B.Lines.text(tl) : String};
-          body_hd(ls2, o, tl, hg2, h2, lns_good(fa, o, ys, hq))) : {L.body(R.Report.out(run2)) == B.Lines.text(tl) : String}}
+          body_hd(ls2, o, tl, hg2, h2, QM.lnsm_good(fa, defs, o, ys, hq))) : {L.body(R.Report.out(run2)) == B.Lines.text(tl) : String}}
       +eb1 = r1_body(fasta, vcf, o, h)
       %Equal.sym(Nat, R.Report.code(run2), 0n, ec) :
         {Bool.and(Nat.is_eq(_, 0n), String.eq(L.body(R.Report.out(run2)), L.body(O1(fasta, vcf, o)))) == True{} : Bool}

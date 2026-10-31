@@ -55,9 +55,9 @@ def AdvBi(+cs: List<&2, String>, a: Norm.Adv) -> Type:
 # The yield's test (norm.bend's mb.rs, ms.full).
 def yc(p: S.StP) -> Bool:
   match p:
-    case S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}:
+    case S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, +dfs}:
       U32.is_le(1073741824, P.RunP.ow(rp))
-    case S.StP{o, S.MSP{s, qs, +ql, c}, src, pd, eof, back, wp, asked, fneed}:
+    case S.StP{o, S.MSP{s, qs, +ql, c}, src, pd, eof, back, wp, asked, fneed, +dfs}:
       Nat.is_le(Norm.lim(), ql)
 
 # ---------------------------------------------------------------------------
@@ -103,8 +103,8 @@ def AdvC(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +p: S.StP, a: Norm.Adv)
       {st == S.mkSt(fa, p) : Norm.St} & ({yc(p) == True{} : Bool} & {BN.biS(st, cs) == True{} : Bool})
 
 # A picture by its fields.
-def StM(+o: B.Opts, +md: S.MdP, +src: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool) -> S.StP:
-  S.StP{o, md, src, pd, eof, back, wp, asked, fneed}
+def StM(+dfs: B.Defs, +o: B.Opts, +md: S.MdP, +src: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool) -> S.StP:
+  S.StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs}
 
 # What a verdict's Want does to the line's share (both modes): its step and
 # reads are paid by rem without the fast path's term, and bi holds after it.

@@ -12,46 +12,40 @@ implementation can then be rewritten freely: a change that breaks a law fails th
 ## Install
 
 You need [Bend 2](https://bend-lang.com) (2.0.39), clang,
-[libdeflate](https://github.com/ebiggers/libdeflate) (to read `.vcf.gz`), and
-[samtools](https://www.htslib.org/) to index the reference.
-
-framebender builds on five proven utility packages, which Bend fetches from
-[BendHub](https://hub.bend-lang.com) on the first build:
+[libdeflate](https://github.com/ebiggers/libdeflate) and [samtools](https://www.htslib.org/).
+Writing an index (`-W`) also needs [htslib](https://www.htslib.org/) 1.24, which
+`tools/build_htslib.sh` builds for you. Details are in
+[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
 
 ```
 git clone https://github.com/luiscleto/framebender
 cd framebender
+tools/build_htslib.sh      # once: htslib 1.24, for -W
 ./build.sh
 ```
 
 ## Run
 
 ```
-samtools faidx ref.fa                                # once: writes ref.fa.fai
-./framebender norm -f ref.fa -o out.vcf.gz in.vcf.gz  # or a plain in.vcf
-./framebender norm -f ref.fa in.vcf > out.vcf         # plain VCF to stdout
+samtools faidx ref.fa                                    # once: indexes the reference
+./framebender norm -f ref.fa in.vcf > out.vcf            # plain VCF to stdout
+./framebender norm -f ref.fa -o out.vcf.gz in.vcf.gz     # compressed in and out
+./framebender norm -f ref.fa -o out.vcf.gz -W in.vcf     # and an index, out.vcf.gz.csi
 ```
 
-- `-c w`: pass records whose REF does not match the reference through with a warning
-  (default `-c e`: stop at the first one).
-- `-w N`: how far (in bases) a record may move left; default 1000, the same window as
-  `bcftools norm --site-win`. A record that moves further stops the run with UNSORTED, naming
-  both lines; re-run with a larger `-w`. (bcftools writes such a record out of order and exits
-  successfully.) Larger windows hold more records in memory, which slows down files with many
-  samples per line.
-- `--threads N` (1 to 128): how much work runs at once, to fit the machine: N pieces of the VCF
-  normalized in parallel by at most N of Bend's worker threads, N pieces read ahead, N reference
-  reads in flight. It changes only speed and memory, never the output (law `threads`; the header
-  does not record it). Without it: 16 pieces, one worker per CPU. A larger N needs more memory.
-- `-o FILE`: write to FILE instead of stdout. A name ending in `.vcf.gz` gets bgzip-compressed
-  VCF (BGZF, ready for `tabix`), as in bcftools.
-- `-O z` (or `-Oz`, `-Oz0` to `-Oz9`): compress, also on stdout; default level 6, as bcftools and
-  bgzip; `-Oz1` is faster for a larger file. The file is byte for byte what `bgzip` makes of the
-  plain output, at every `--threads` (law `output`: these options never change the text).
-- A `.vcf.gz` ends with BGZF's end-of-file block only when the run succeeded, so a run that stops
-  never leaves a file that looks complete. `-o` refuses to overwrite an input, and a run that
-  cannot read its inputs leaves an existing file as it was.
-- Input is plain VCF or bgzip-compressed `.vcf.gz` (a file that is cut short is refused).
+| option | what it does |
+|---|---|
+| `-f FILE` | the reference genome (FASTA), indexed with `samtools faidx` |
+| `-c e` / `-c w` | on a REF that does not match the reference: stop (default) or warn and pass the record through |
+| `-w N` | how far, in bases, a record may move left (default 1000, as bcftools) |
+| `-m -any` | split records with two or more ALTs into one record per ALT, as bcftools; `--multi-overlaps .` marks the other ALTs' copies unknown |
+| `--threads N` | how much runs in parallel (1 to 128, default 16); trades memory for speed, never changes the output |
+| `-o FILE` | write to a file; a `.vcf.gz` or `.vcf.bgz` name is compressed |
+| `-Oz`, `-Oz0`..`-Oz9`, `-Ov` | compress the output (default level 6, byte for byte as bgzip), or not |
+| `-W`, `-W=tbi` | also write the output's index (`.csi`, or `.tbi`), as `bcftools index` / `tabix` |
+
+The full reference, with every option's details and the differences from bcftools, is in
+[`docs/USAGE.md`](docs/USAGE.md).
 
 ## What is guaranteed
 
@@ -75,18 +69,9 @@ plain terms and says what they do not cover.
 
 Same records on GIAB HG002 v4.2.1 (hg38): chr22 (50,284 records), the whole genome (4,048,342
 records), 20,739 indels moved to random equivalent positions, and the edge cases in `test/edge`.
-The intentional differences:
-
-- Symbolic alleles such as `<DEL>` are passed through; bcftools realigns them.
-- Unsorted input, duplicate ALTs, inconsistent INFO/END and empty alleles stop the run; bcftools
-  warns or carries on. A record framebender does not normalize passes through even on an unknown
-  chromosome, where bcftools stops.
-- Normalized records are written canonically: alleles in upper case, POS without leading zeros.
-  Everything else on a line is kept byte for byte, including sample columns that bcftools pads
-  (`1/0:1,1` for `GT:AD:PS` stays as is).
-- The header gets two added lines with no date, so the output is reproducible. Its command line
-  leaves out `--threads`, `-o` and `-O`, which do not change the records.
-- No BCF output, and no long forms of `-o`/`-O` (details in `docs/LAWS.md`).
+The main intentional differences: symbolic alleles such as `<DEL>` are passed through
+(bcftools realigns them), and some problems that bcftools warns about stop the run. The full list
+is in [`docs/USAGE.md`](docs/USAGE.md#differences-from-bcftools-norm).
 
 Speed, on one sample (GIAB HG002) and on a cohort of 3,202 (the 1000 Genomes high-coverage
 panel, chr22: 1,066,557 records of about 14 KB each, 14.8 GB uncompressed):
@@ -99,9 +84,14 @@ panel, chr22: 1,066,557 records of about 14 KB each, 14.8 GB uncompressed):
 | HG002, 20,739 indels moved to random positions | 0.07–0.08 s | 0.12–0.13 s |
 | 1000 Genomes chr22, first 800 MB | 3.5–3.7 s | 0.29–0.30 s |
 | 1000 Genomes chr22, `.vcf.gz` (425 MiB) | 69.8 s | 6.9 s |
+| HG002 chr22, `-Oz -W` (with its index) | 0.13–0.14 s | 0.09–0.10 s |
+| HG002 whole genome, `-Oz -W` (with its index) | 6.5–6.6 s | 3.4–3.6 s |
+| HG002 whole genome, `-m -any` (47,781 records split) | 8.1–8.2 s | 2.4–2.5 s |
 
 framebender reads the file in pieces and normalizes 16 at a time in parallel; the proof covers
-the parallel version, which gives byte-for-byte the output of the sequential one. A file where
+the parallel version, which gives byte-for-byte the output of the sequential one. The `-W` rows write a
+compressed file and its CSI index (bcftools with `--threads 16`, both on 16 CPUs; framebender's
+index is byte for byte bcftools index's of the same file, both with libdeflate). A file where
 nearly every record needs rewriting is still slower than bcftools. framebender uses more memory,
 which `--threads` trades against speed (HG002 whole genome; the output is identical at every
 setting):
@@ -138,19 +128,7 @@ bcftools once on the 1000 Genomes file). Times are wall clock, memory is peak re
 framebender's output was the same in every run.
 `test/bench.sh ref.fa in.vcf` repeats the comparison on any file.
 
-The first proven version stored text as linked lists of characters, as Bend 2's `String` does,
-and took 590 s on the whole genome. The current one works on bytes packed four to a word, using
-five packages written for it, each with its own proven laws (`lawful-words`, `lawful-arrays`,
-`lawful-bytes`, `lawful-fields`, and `lawful-halves` for the parallel map). The laws did not
-change through any of the rewrites; only the proofs were redone.
-
-## How it was made
-
-An AI agent drafted the laws. Three reviewers from different model families (Claude, GPT and
-Gemini, with Grok standing in once) reviewed them independently until all three agreed. Agents then
-wrote the code and the proofs. Nobody with a bioinformatics background has reviewed the laws yet:
-if you have one, the science files (`LAWS.bend`, `types.bend`, `run.bend`, `tan.bend`) are the
-place to start, and issues are welcome.
+## What the proofs and reviews caught
 
 Every real bug in framebender was found by the reviewers in the small trusted layer that reads
 files, never inside the laws. The proofs found two that tests missed: the word-at-a-time byte
@@ -161,6 +139,7 @@ and the measurements.
 
 ## Documentation
 
+- [`docs/USAGE.md`](docs/USAGE.md): every option in detail, and the differences from bcftools.
 - [`docs/LAWS.md`](docs/LAWS.md): the laws in plain terms, and the trust boundary.
 - [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md): building, checking the proofs, comparing with
   bcftools, and the file layout.

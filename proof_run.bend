@@ -17,33 +17,33 @@ law sorted:
   for +vcf: String
   for +o: B.Opts
   for +h: {R.Report.code(L.run(fasta, vcf, o)) == 0n : Nat}
-  {R.Report.out(L.run(fasta, vcf, o)) == L.head(vcf, o) ++ L.texts(L.gsort(L.items(fasta, vcf))) : String}
+  {R.Report.out(L.run(fasta, vcf, o)) == L.head(vcf, o) ++ L.texts(L.gsort(L.out_items(fasta, vcf, o))) : String}
 
 def sorted(fasta, vcf, o, h):
-  PS.sorted_head(B.Text.lines(vcf), B.Fasta.parse(fasta), o, 0n, "", R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, h)
+  PS.sorted_head(B.Text.lines(vcf), B.Fasta.parse(fasta), L.defs(vcf), o, 0n, "", R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, h)
 
 law grouped_in:
   for +fasta: String
   for +vcf: String
   for +o: B.Opts
   for +h: {R.Report.code(L.run(fasta, vcf, o)) == 0n : Nat}
-  {L.grouped(L.items(fasta, vcf)) == True{} : Bool}
+  {L.grouped(L.out_items(fasta, vcf, o)) == True{} : Bool}
 
 def grouped_in(fasta, vcf, o, h):
-  PG.grouped_head(B.Text.lines(vcf), B.Fasta.parse(fasta), o, 0n, "", R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, h)
+  PG.grouped_head(B.Text.lines(vcf), B.Fasta.parse(fasta), L.defs(vcf), o, 0n, "", R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, h)
 
 law no_unsorted:
   for +fasta: String
   for +vcf: String
   for +o: B.Opts
   for +hw: {Nat.is_le(1n, R.Opts.w(o)) == True{} : Bool}
-  for +hg: {L.grouped(L.items(fasta, vcf)) == True{} : Bool}
-  for +ha: {L.ascending(L.items(fasta, vcf)) == True{} : Bool}
-  for +hm: {L.small_moves(R.Opts.w(o), L.items(fasta, vcf)) == True{} : Bool}
+  for +hg: {L.grouped(L.out_items(fasta, vcf, o)) == True{} : Bool}
+  for +ha: {L.ascending(L.out_items(fasta, vcf, o)) == True{} : Bool}
+  for +hm: {L.small_moves(R.Opts.w(o), L.out_items(fasta, vcf, o)) == True{} : Bool}
   {L.any_unsorted(R.Report.notes(L.run(fasta, vcf, o))) == False{} : Bool}
 
 def no_unsorted(fasta, vcf, o, hw, hg, ha, hm):
-  PN.nu_head(B.Text.lines(vcf), B.Fasta.parse(fasta), o, 0n, "", R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, {==}, hg, ha, hm)
+  PN.nu_head(B.Text.lines(vcf), B.Fasta.parse(fasta), L.defs(vcf), o, 0n, "", R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, {==}, hg, ha, hm)
 
 law twice_run:
   for +fasta: String

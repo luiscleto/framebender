@@ -12,6 +12,9 @@ import ./proof_e_seg_lem.bend as EL
 import ./proof_e_seg_lem2.bend as E2
 import ./proof_e_seg_mono.bend as EM
 import ./proof_e_seg_par.bend as EP
+import ./proof_b_adv_msx.bend as MSX
+import ./proof_s_site.bend as SITE
+import ./proof_s_one.bend as OI
 
 # Phase E, area "seg": the facts the assembly needs (a run in the body stays
 # in it, the keys of S's buffer, its order) and the last item at the end.
@@ -69,53 +72,42 @@ def kd_ib.go(+g: Bool, +n: Nat, +h: String, +c: Maybe<&2, String>, +e: List<&2, 
       nr_ib(n, h, c, e, l, b, k, o, ns, x, w, chrom, it)
 
 law ib_step:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +li: B.Line
   for +st: R.RunSt
   for +h: {R.RunSt.inbody(st) == True{} : Bool}
-  {R.RunSt.inbody(L.line_step(fa, o, st, li)) == True{} : Bool}
+  {R.RunSt.inbody(L.line_step(fa, dfs, o, st, li)) == True{} : Bool}
 
-def ib_step.go(+fa: List<&2, B.Contig>, +o: B.Opts, +li: B.Line, +n: Nat, +i: Bool, +hh: String, +c: Maybe<&2, String>, +e: List<&2, String>,
+def ib_step.go(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +li: B.Line, +n: Nat, +i: Bool, +hh: String, +c: Maybe<&2, String>, +e: List<&2, String>,
   +l: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +out: String, +ns: List<&2, B.Note>, +x: Bool,
   +h: {i == True{} : Bool}) ->
-  {R.RunSt.inbody(L.line_step(fa, o, R.RunSt{n, i, hh, c, e, l, b, k, out, ns, x}, li)) == True{} : Bool}:
-  match i x:
-    case _ True{}:
-      h
-    case False{} False{}:
-      Empty.absurd({R.RunSt.inbody(L.line_step(fa, o, R.RunSt{n, False{}, hh, c, e, l, b, k, out, ns, False{}}, li)) == True{} : Bool}, P.false_ne_true(h))
-    case True{} False{}:
-      +fs = B.Rec.fields(B.Line.body(li))
-      +at = {B.At{1n+n, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
-      +st = {R.RunSt{1n+n, True{}, hh, c, e, l, b, k, out, ns, False{}} : R.RunSt}
-      ST.BL(s => {R.RunSt.inbody(s) == True{} : Bool}, L.judge(fa, B.Line.body(li)), st, o, li, at, B.Rec.pos(fs),
-        ST.judge_ok(fa, B.Line.body(li)),
-        cd => eu => {==},
-        nts => k2 => eu => kd_ib.go(R.is_cur(c, R.Item.chrom(L.item_of(L.judge(fa, B.Line.body(li)), li, at, B.Rec.pos(fs)))), 1n+n, hh, c, e, l, b, k2, out,
-          List.append(&2, B.Note, ns, nts), False{}, R.Opts.w(o), R.Item.chrom(L.item_of(L.judge(fa, B.Line.body(li)), li, at, B.Rec.pos(fs))),
-          L.item_of(L.judge(fa, B.Line.body(li)), li, at, B.Rec.pos(fs))))
+  {R.RunSt.inbody(L.line_step(fa, dfs, o, R.RunSt{n, i, hh, c, e, l, b, k, out, ns, x}, li)) == True{} : Bool}:
+  MSX.ib_step.k(dfs, x, i, fa, o, n, hh, c, e, l, b, k, out, ns, li, h)
 
-def ib_step(fa, o, li, st, h):
+
+def ib_step(dfs,fa, o, li, st, h):
   match st:
     case R.RunSt{+n, +i, +hh, +c, +e, +l, +b, +k, +out, +ns, +x}:
-      ib_step.go(fa, o, li, n, i, hh, c, e, l, b, k, out, ns, x, h)
+      ib_step.go(dfs, fa, o, li, n, i, hh, c, e, l, b, k, out, ns, x, h)
 
 # A run in the body stays in the body.
 law ib_go:
+  for +dfs: B.Defs
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +st: R.RunSt
   for +h: {R.RunSt.inbody(st) == True{} : Bool}
-  {R.RunSt.inbody(L.run.go(ls, fa, o, st)) == True{} : Bool}
+  {R.RunSt.inbody(L.run.go(ls, fa, dfs, o, st)) == True{} : Bool}
 
-def ib_go(ls, fa, o, st, h):
+def ib_go(dfs,ls, fa, o, st, h):
   match ls:
     case Nil{}:
       h
     case +li <> +t:
-      ib_go(t, fa, o, L.line_step(fa, o, st, li), ib_step(fa, o, li, st, h))
+      ib_go(dfs, t, fa, o, L.line_step(fa, dfs, o, st, li), ib_step(dfs, fa, o, li, st, h))
 
 # S's buffer: its keys, its order
 # ===============================
@@ -329,12 +321,12 @@ def bl0.r(+fa: List<&2, B.Contig>, +c0: String, +l: Nat, +sn: Nat, +sh: String, 
       Empty.absurd({R.body_line(B.Res{B.NoContig{}, k1, t, s}, R.RunSt{1n+sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, o, li, B.At{1n+sn, f0, f1}, pos) == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, R.body_line(B.Res{B.NoContig{}, k1, t, s}, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, o, li, B.At{1n, f0, f1}, pos)) : R.RunSt} & {G.inv2(None{}, R.body_line(B.Res{B.NoContig{}, k1, t, s}, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, o, li, B.At{1n, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(hg))
     case B.Res{B.Problem{+cd}, k1, t, s}:
       match o:
-        case B.Opts{+st, +w, +a}:
+        case B.Opts{+st, +w, +om_m, +om_z, +a}:
           match st:
             case True{}:
-              Empty.absurd({R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, B.Opts{True{}, w, a}, li, B.At{1n+sn, f0, f1}, pos) == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, B.Opts{True{}, w, a}, li, B.At{1n, f0, f1}, pos)) : R.RunSt} & {G.inv2(None{}, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, B.Opts{True{}, w, a}, li, B.At{1n, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(hg))
+              Empty.absurd({R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, B.Opts{True{}, w, om_m, om_z, a}, li, B.At{1n+sn, f0, f1}, pos) == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, B.Opts{True{}, w, om_m, om_z, a}, li, B.At{1n, f0, f1}, pos)) : R.RunSt} & {G.inv2(None{}, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, B.Opts{True{}, w, om_m, om_z, a}, li, B.At{1n, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(hg))
             case False{}:
-              Empty.absurd({R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, B.Opts{False{}, w, a}, li, B.At{1n+sn, f0, f1}, pos) == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, B.Opts{False{}, w, a}, li, B.At{1n, f0, f1}, pos)) : R.RunSt} & {G.inv2(None{}, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, B.Opts{False{}, w, a}, li, B.At{1n, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(EM.keyed_m(c0, se, sc, 1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}, w, R.Item{pos, pos, B.At{1n, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{1n, f0, f1}}], R.bump(R.Cnt{0n, 0n, 0n, 0n}, False{}, False{}, True{}), P.and_true_r(Bool.not(G.halt(R.keyed(R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, w, R.Item{pos, pos, B.At{1n, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{1n, f0, f1}}], R.bump(R.Cnt{0n, 0n, 0n, 0n}, False{}, False{}, True{})))), G.M(c0, se, sc, R.keyed(R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, w, R.Item{pos, pos, B.At{1n, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{1n, f0, f1}}], R.bump(R.Cnt{0n, 0n, 0n, 0n}, False{}, False{}, True{}))), hg))))
+              Empty.absurd({R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, B.Opts{False{}, w, om_m, om_z, a}, li, B.At{1n+sn, f0, f1}, pos) == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, B.Opts{False{}, w, om_m, om_z, a}, li, B.At{1n, f0, f1}, pos)) : R.RunSt} & {G.inv2(None{}, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, B.Opts{False{}, w, om_m, om_z, a}, li, B.At{1n, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(EM.keyed_m(c0, se, sc, 1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}, w, R.Item{pos, pos, B.At{1n, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{1n, f0, f1}}], R.bump(R.Cnt{0n, 0n, 0n, 0n}, False{}, False{}, True{}), P.and_true_r(Bool.not(G.halt(R.keyed(R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, w, R.Item{pos, pos, B.At{1n, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{1n, f0, f1}}], R.bump(R.Cnt{0n, 0n, 0n, 0n}, False{}, False{}, True{})))), G.M(c0, se, sc, R.keyed(R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, w, R.Item{pos, pos, B.At{1n, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{1n, f0, f1}}], R.bump(R.Cnt{0n, 0n, 0n, 0n}, False{}, False{}, True{}))), hg))))
     case B.Res{B.Skipped{}, k1, t, s}:
       %bump0(sk, False{}, True{}, False{}) : {R.keyed(R.RunSt{1n+sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, R.Opts.w(o), R.Item{pos, pos, B.At{1n+sn, f0, f1}, B.Line.text(li)}, Nil{}, _) == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, R.keyed(R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, R.Opts.w(o), R.Item{pos, pos, B.At{1n, f0, f1}, B.Line.text(li)}, Nil{}, R.bump(R.Cnt{0n, 0n, 0n, 0n}, False{}, True{}, False{}))) : R.RunSt} & {G.inv2(None{}, R.keyed(R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, R.Opts.w(o), R.Item{pos, pos, B.At{1n, f0, f1}, B.Line.text(li)}, Nil{}, R.bump(R.Cnt{0n, 0n, 0n, 0n}, False{}, True{}, False{}))) == True{} : Bool}
       kd0(fa, c0, l, sn, sh, sc, se, sl, sb, sk, so, sns, h1, h2, hs, R.Opts.w(o), pos, pos, f0, f1, B.Line.text(li), R.bump(R.Cnt{0n, 0n, 0n, 0n}, False{}, True{}, False{}), ef0, hg)
@@ -348,7 +340,71 @@ def bl0.r(+fa: List<&2, B.Contig>, +c0: String, +l: Nat, +sn: Nat, +sh: String, 
 
 # The first line when S's CHROM is not c0: X writes S's buffer and starts
 # c0; from there X is lift of T (no phantom image: q = None).
+# With -m: a split line has a record.
+def pieces_ne(+dfs: B.Defs, +o: B.Opts, +body: String, +hp: {B.Rec.parts(dfs, o, body) == B.Pieces{Nil{}} : B.Parts}) -> Empty:
+  +ea = SITE.split_alts(dfs, o, body, Nil{}, hp)
+  OI.one_not_pieces(dfs, o, body, Nil{},
+    {%ea : {Nat.is_lt(List.length(&2, String, _), 2n) == True{} : Bool}; {==} : {Nat.is_lt(L.n_alts(body), 2n) == True{} : Bool}}, hp)
+
+# The first line of a segment by what -m does with it: its first record as
+# bl0.r says, the others as EP.pieces_lift.
+def first_ps(+fa: List<&2, B.Contig>, +c0: String, +l: Nat, +sn: Nat, +sh: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, R.Item>, +sb: List<&2, R.Item>, +sk: R.Cnt, +so: String, +sns: List<&2, B.Note>, +h1: {R.has(c0, se) == False{} : Bool}, +h2: {R.is_cur(sc, c0) == False{} : Bool}, +hs: {S.sorted_from(sb, S.lkey(sl)) == True{} : Bool}, +o: B.Opts, +ps: List<&2, String>, +term: String, +f0: String, +f1: String, +pos: Nat, +ef0: {f0 == c0 : String},
+  +hne: {List.is_empty(&2, String, ps) == False{} : Bool},
+  +hg: {G.Good(c0, se, sc, L.pieces_in(ps, fa, o, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, term, B.At{1n, f0, f1}, pos)) == True{} : Bool}) ->
+  {L.pieces_in(ps, fa, o, R.RunSt{1n+sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, term, B.At{1n+sn, f0, f1}, pos) == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, L.pieces_in(ps, fa, o, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, term, B.At{1n, f0, f1}, pos)) : R.RunSt}
+    & {G.inv2(None{}, L.pieces_in(ps, fa, o, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, term, B.At{1n, f0, f1}, pos)) == True{} : Bool}:
+  match ps:
+    case Nil{}:
+      Empty.absurd({L.pieces_in(Nil{}, fa, o, R.RunSt{1n+sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, term, B.At{1n+sn, f0, f1}, pos) == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, L.pieces_in(Nil{}, fa, o, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, term, B.At{1n, f0, f1}, pos)) : R.RunSt}
+        & {G.inv2(None{}, L.pieces_in(Nil{}, fa, o, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, term, B.At{1n, f0, f1}, pos)) == True{} : Bool}, P.true_ne_false(hne))
+    case Con{+p1, +rest}:
+      +s1 = R.body_line(L.judge(fa, p1), R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, o, B.Line{p1, term}, B.At{1n, f0, f1}, pos)
+      +s1l = R.body_line(L.judge(fa, p1), R.RunSt{1n+sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, o, B.Line{p1, term}, B.At{1n+sn, f0, f1}, pos)
+      +g1 = EP.good_pin(rest, fa, o, s1, term, B.At{1n, f0, f1}, pos, c0, se, sc, hg)
+      +eq1 = Pair.fst({s1l == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, s1) : R.RunSt}, {G.inv2(None{}, s1) == True{} : Bool}, bl0.r(fa, c0, l, sn, sh, sc, se, sl, sb, sk, so, sns, h1, h2, hs, L.judge(fa, p1), o, B.Line{p1, term}, f0, f1, pos, ef0, g1))
+      +iv1 = Pair.snd({s1l == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, s1) : R.RunSt}, {G.inv2(None{}, s1) == True{} : Bool}, bl0.r(fa, c0, l, sn, sh, sc, se, sl, sb, sk, so, sns, h1, h2, hs, L.judge(fa, p1), o, B.Line{p1, term}, f0, f1, pos, ef0, g1))
+      (Equal.trans(R.RunSt, L.pieces_in(rest, fa, o, s1l, term, B.At{1n+sn, f0, f1}, pos), L.pieces_in(rest, fa, o, G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, s1), term, B.At{1n+sn, f0, f1}, pos), G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, L.pieces_in(rest, fa, o, s1, term, B.At{1n, f0, f1}, pos)),
+        Equal.cong(R.RunSt, R.RunSt, zz => L.pieces_in(rest, fa, o, zz, term, B.At{1n+sn, f0, f1}, pos), s1l, G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, s1), eq1),
+        Pair.fst({L.pieces_in(rest, fa, o, G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, s1), term, B.At{Nat.add(1n, sn), f0, f1}, pos) == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, L.pieces_in(rest, fa, o, s1, term, B.At{1n, f0, f1}, pos)) : R.RunSt},
+          {G.inv2(None{}, L.pieces_in(rest, fa, o, s1, term, B.At{1n, f0, f1}, pos)) == True{} : Bool},
+          EP.pieces_lift(rest, sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, c0, se, sc, s1, fa, o, term, 1n, {==}, f0, f1, pos, False{}, {==}, h1, h2, iv1, hg))),
+       Pair.snd({L.pieces_in(rest, fa, o, G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, s1), term, B.At{Nat.add(1n, sn), f0, f1}, pos) == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, L.pieces_in(rest, fa, o, s1, term, B.At{1n, f0, f1}, pos)) : R.RunSt},
+          {G.inv2(None{}, L.pieces_in(rest, fa, o, s1, term, B.At{1n, f0, f1}, pos)) == True{} : Bool},
+          EP.pieces_lift(rest, sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, c0, se, sc, s1, fa, o, term, 1n, {==}, f0, f1, pos, False{}, {==}, h1, h2, iv1, hg)))
+
+def ne_of(+ps: List<&2, String>, +dfs: B.Defs, +o: B.Opts, +body: String, +hp: {B.Rec.parts(dfs, o, body) == B.Pieces{ps} : B.Parts}) -> {List.is_empty(&2, String, ps) == False{} : Bool}:
+  match ps:
+    case Nil{}:
+      Empty.absurd({List.is_empty(&2, String, Nil{}) == False{} : Bool}, pieces_ne(dfs, o, body, hp))
+    case Con{+x, +t}:
+      {==}
+
+def first_un(+fa: List<&2, B.Contig>, +c0: String, +l: Nat, +sn: Nat, +sh: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, R.Item>, +sb: List<&2, R.Item>, +sk: R.Cnt, +so: String, +sns: List<&2, B.Note>, +h1: {R.has(c0, se) == False{} : Bool}, +h2: {R.is_cur(sc, c0) == False{} : Bool}, +hs: {S.sorted_from(sb, S.lkey(sl)) == True{} : Bool}, +o: B.Opts, +bb: Bool, +cd: B.Code, +li: B.Line, +f0: String, +f1: String, +pos: Nat, +ef0: {f0 == c0 : String},
+  +hg: {G.Good(c0, se, sc, Bool.pick(R.RunSt, bb, R.body_line(L.judge(fa, B.Line.body(li)), R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, o, li, B.At{1n, f0, f1}, pos), R.problem_line(R.Opts.strict(o), R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, R.Opts.w(o), cd, li, B.At{1n, f0, f1}, pos))) == True{} : Bool}) ->
+  {Bool.pick(R.RunSt, bb, R.body_line(L.judge(fa, B.Line.body(li)), R.RunSt{1n+sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, o, li, B.At{1n+sn, f0, f1}, pos), R.problem_line(R.Opts.strict(o), R.RunSt{1n+sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, R.Opts.w(o), cd, li, B.At{1n+sn, f0, f1}, pos))
+     == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, Bool.pick(R.RunSt, bb, R.body_line(L.judge(fa, B.Line.body(li)), R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, o, li, B.At{1n, f0, f1}, pos), R.problem_line(R.Opts.strict(o), R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, R.Opts.w(o), cd, li, B.At{1n, f0, f1}, pos))) : R.RunSt}
+    & {G.inv2(None{}, Bool.pick(R.RunSt, bb, R.body_line(L.judge(fa, B.Line.body(li)), R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, o, li, B.At{1n, f0, f1}, pos), R.problem_line(R.Opts.strict(o), R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, R.Opts.w(o), cd, li, B.At{1n, f0, f1}, pos))) == True{} : Bool}:
+  match bb:
+    case True{}:
+      bl0.r(fa, c0, l, sn, sh, sc, se, sl, sb, sk, so, sns, h1, h2, hs, L.judge(fa, B.Line.body(li)), o, li, f0, f1, pos, ef0, hg)
+    case False{}:
+      bl0.r(fa, c0, l, sn, sh, sc, se, sl, sb, sk, so, sns, h1, h2, hs, B.Res{B.Problem{cd}, 0n, "", False{}}, o, li, f0, f1, pos, ef0, hg)
+
+def first_pt(+dfs: B.Defs, +fa: List<&2, B.Contig>, +c0: String, +l: Nat, +sn: Nat, +sh: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, R.Item>, +sb: List<&2, R.Item>, +sk: R.Cnt, +so: String, +sns: List<&2, B.Note>, +h1: {R.has(c0, se) == False{} : Bool}, +h2: {R.is_cur(sc, c0) == False{} : Bool}, +hs: {S.sorted_from(sb, S.lkey(sl)) == True{} : Bool}, +o: B.Opts, +pt: B.Parts, +li: B.Line, +f0: String, +f1: String, +pos: Nat, +ef0: {f0 == c0 : String},
+  +hpt: {B.Rec.parts(dfs, o, B.Line.body(li)) == pt : B.Parts},
+  +hg: {G.Good(c0, se, sc, L.body_in(pt, fa, o, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, li, B.At{1n, f0, f1}, pos)) == True{} : Bool}) ->
+  {L.body_in(pt, fa, o, R.RunSt{1n+sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, li, B.At{1n+sn, f0, f1}, pos) == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, L.body_in(pt, fa, o, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, li, B.At{1n, f0, f1}, pos)) : R.RunSt}
+    & {G.inv2(None{}, L.body_in(pt, fa, o, R.RunSt{1n, True{}, "", Some{c0}, Nil{}, Some{R.Item{l, l, B.At{0n, c0, Nat.show(l)}, ""}}, Nil{}, R.Cnt{0n, 0n, 0n, 0n}, "", Nil{}, False{}}, li, B.At{1n, f0, f1}, pos)) == True{} : Bool}:
+  match pt:
+    case B.Whole{}:
+      bl0.r(fa, c0, l, sn, sh, sc, se, sl, sb, sk, so, sns, h1, h2, hs, L.judge(fa, B.Line.body(li)), o, li, f0, f1, pos, ef0, hg)
+    case B.Pieces{+ps}:
+      first_ps(fa, c0, l, sn, sh, sc, se, sl, sb, sk, so, sns, h1, h2, hs, o, ps, B.Line.term(li), f0, f1, pos, ef0, ne_of(ps, dfs, o, B.Line.body(li), hpt), hg)
+    case B.Unsplit{+cd}:
+      first_un(fa, c0, l, sn, sh, sc, se, sl, sb, sk, so, sns, h1, h2, hs, o, L.stops(L.judge(fa, B.Line.body(li)), R.Opts.strict(o)), cd, li, f0, f1, pos, ef0, hg)
+
 law first:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +c0: String
@@ -367,9 +423,10 @@ law first:
   for +h1: {R.has(c0, se) == False{} : Bool}
   for +h2: {R.is_cur(sc, c0) == False{} : Bool}
   for +hs: {S.sorted_from(sb, S.lkey(sl)) == True{} : Bool}
-  for hg: {G.Good(c0, se, sc, L.line_step(fa, o, SD.rs0(c0, l), li)) == True{} : Bool}
-  {L.line_step(fa, o, R.RunSt{sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, li) == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, L.line_step(fa, o, SD.rs0(c0, l), li)) : R.RunSt} & {G.inv2(None{}, L.line_step(fa, o, SD.rs0(c0, l), li)) == True{} : Bool}
+  for hg: {G.Good(c0, se, sc, L.line_step(fa, dfs, o, SD.rs0(c0, l), li)) == True{} : Bool}
+  {L.line_step(fa, dfs, o, R.RunSt{sn, True{}, sh, sc, se, sl, sb, sk, so, sns, False{}}, li) == G.lift(sn, sh, R.push_cur(sc, se), String.append(so, L.texts(sb)), sk, sns, None{}, L.line_step(fa, dfs, o, SD.rs0(c0, l), li)) : R.RunSt} & {G.inv2(None{}, L.line_step(fa, dfs, o, SD.rs0(c0, l), li)) == True{} : Bool}
 
-def first(fa, o, c0, l, sn, sh, sc, se, sl, sb, sk, so, sns, li, ef0, h1, h2, hs, hg):
+def first(dfs,fa, o, c0, l, sn, sh, sc, se, sl, sb, sk, so, sns, li, ef0, h1, h2, hs, hg):
   +fs = B.Rec.fields(B.Line.body(li))
-  bl0.r(fa, c0, l, sn, sh, sc, se, sl, sb, sk, so, sns, h1, h2, hs, L.judge(fa, B.Line.body(li)), o, li, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n), B.Rec.pos(fs), ef0, hg)
+  first_pt(dfs, fa, c0, l, sn, sh, sc, se, sl, sb, sk, so, sns, h1, h2, hs, o, B.Rec.parts(dfs, o, B.Line.body(li)), li, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n), B.Rec.pos(fs), ef0, {==}, hg)
+

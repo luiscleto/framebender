@@ -435,6 +435,8 @@ def src_b(src: List<&1, Q.Src>) -> D.Bytes:
       BY.empty(0n)
     case Q.SP{r, at} <> t:
       src_b(t)
+    case Q.SR{l} <> t:
+      src_b(t)
 
 def st_b(st: Q.St) -> D.Bytes:
   match st:
@@ -495,6 +497,8 @@ def swap.src(src: List<&1, Q.Src>, +el: U32, +len: U32, +o: B.Opts, md: Q.Md, pe
       (Q.St{o, md, Q.SL{p} <> t, pend, eof, back, win, asked, fneed, dfs}, PIn{})
     case Q.SP{r, at} <> t:
       (Q.St{o, md, Q.SP{r, at} <> t, pend, eof, back, win, asked, fneed, dfs}, PIn{})
+    case Q.SR{l} <> t:
+      (Q.St{o, md, Q.SR{l} <> t, pend, eof, back, win, asked, fneed, dfs}, PIn{})
 
 # Before Q reaches the piece's last partial line (no LF from at), where it
 # would drop its input, its input becomes a copy of that line and the task
@@ -572,13 +576,19 @@ def task.wins(ws: List<&1, Q.Win>) -> Q.Win & List<&1, Q.Win>:
       (w, t)
 
 # The task's run: in the body, the current CHROM c0, the phantom as the last
-# item written (key and input POS l, line 0, length 0), room for the piece.
+# item written (key and input POS l, line 0, length 0), room for len bytes of
+# output (task.res).
 def task.run0(+c0: String, +l: Nat, +len: U32) -> NR.Run:
   NR.reserve(NR.Run{0n, True{}, "", Some{c0}, NR.of_str(c0), Nil{}, Some{NR.Ck{l, l, 0n, None{}, 0}}, Nil{}, Nil{}, 0n, 0n, R.Cnt{0n, 0n, 0n, 0n}, BY.empty(0n), 0, Nil{}, False{}}, len)
 
+# Room for a task's output: its piece's length, twice that with -m (a split
+# line's records hold more bytes than the line; notes/split.md, memory).
+def task.res(+o: B.Opts, +len: U32) -> U32:
+  Bool.pick(U32, R.Opts.split(o), (len + len : U32), len)
+
 def task.start(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, p: Q.Win & List<&1, Q.Win>, +el: U32, +c0: String, +l: Nat, +dfs: B.Defs) -> TOut:
   (w, spare) = p
-  task.loop(Nat.add(U32.to_nat(len), 8n), task.next(Q.St{o, Q.MB{task.run0(c0, l, len)}, [Q.SB{b, (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, w, None{}, False{}, dfs}, PIn{}, spare, el, len), el, len, k, c0, l)
+  task.loop(Nat.add(U32.to_nat(len), 8n), task.next(Q.St{o, Q.MB{task.run0(c0, l, task.res(o, len))}, [Q.SB{b, (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, w, None{}, False{}, dfs}, PIn{}, spare, el, len), el, len, k, c0, l)
 
 def task.last.k(+o: B.Opts, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat, b: D.Bytes, q: U32 & Bool, +dfs: B.Defs) -> TOut:
   (+el, fl) = q
@@ -924,6 +934,8 @@ def one_src(src: List<&1, Q.Src>) -> List<&1, Q.Src> & (U32 & Bool):
       (Q.SL{p} <> t, (0, False{}))
     case Q.SP{r, at} <> t:
       (Q.SP{r, at} <> t, (0, False{}))
+    case Q.SR{l} <> t:
+      (Q.SR{l} <> t, (0, False{}))
 
 def tc.k(c: Tc) -> Tc & U32:
   match c:

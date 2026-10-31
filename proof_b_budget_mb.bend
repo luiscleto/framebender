@@ -69,15 +69,15 @@ def TP(+p: S.StP, +cs: List<&2, String>) -> String:
 
 # A byte-mode line handled (the source moves past its LF): WA drops, whatever
 # the state after it.
-def went_done(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +md: S.MdP, +md2: S.MdP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +j: U32,
+def went_done(+dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +md: S.MdP, +md2: S.MdP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +j: U32,
   +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +back2: Nat, +wp: PC.WP, +wp2: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +asked2: Maybe<&2, List<&2, Pr.Req>>,
   +fneed: Bool, +fneed2: Bool,
   +hs: LI.SPLIT(len, t, d, at, j),
   +hn: {P.nolf(P.btext(len, t, at, (j - at : U32))) == True{} : Bool}) ->
-  {Nat.is_le(BN.WAS(fa, S.mkSt(fa, BD.StM(o, md2, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back2, wp2, asked2, fneed2)), cs),
-    BN.WAS(fa, S.mkSt(fa, BD.StM(o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed)), cs)) == True{} : Bool}:
-  +pre = BD.StM(o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed)
-  +post = BD.StM(o, md2, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back2, wp2, asked2, fneed2)
+  {Nat.is_le(BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, md2, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back2, wp2, asked2, fneed2)), cs),
+    BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed)), cs)) == True{} : Bool}:
+  +pre = BD.StM(dfs, o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed)
+  +post = BD.StM(dfs, o, md2, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back2, wp2, asked2, fneed2)
   +A = P.btext(len, t, at, (j - at : U32))
   +fl = BN.fast_left(S.mkMd(md), fneed)
   +fl2 = BN.fast_left(S.mkMd(md2), fneed2)
@@ -86,7 +86,7 @@ def went_done(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +md: S
     Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), TP(pre, cs), S.intext(pre, cs), BL.text_pic(pre, cs)),
     Equal.trans(List<&2, B.Line>, B.Text.lines(S.intext(pre, cs)), B.Text.lines(String.append(A, String.append("\n", S.intext(post, cs)))), B.Text.line(A) <> LP,
       Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), S.intext(pre, cs), String.append(A, String.append("\n", S.intext(post, cs))),
-        Equal.sym(String, String.append(A, String.append("\n", S.intext(post, cs))), S.intext(pre, cs), LI.itx(o, md, md2, rest, pd, eof, back, back2, wp, asked, asked2, fneed, fneed2, cs, len, t, d, at, j, hs))),
+        Equal.sym(String, String.append(A, String.append("\n", S.intext(post, cs))), S.intext(pre, cs), LI.itx(dfs, o, md, md2, rest, pd, eof, back, back2, wp, asked, asked2, fneed, fneed2, cs, len, t, d, at, j, hs))),
       Equal.trans(List<&2, B.Line>, B.Text.lines(String.append(A, String.append("\n", S.intext(post, cs)))), B.Text.line(A) <> B.Text.lines(S.intext(post, cs)), B.Text.line(A) <> LP,
         LSS.lines_cons(A, S.intext(post, cs), hn),
         Equal.cong(String, List<&2, B.Line>, z => B.Text.line(A) <> B.Text.lines(z), S.intext(post, cs), TP(post, cs), Equal.sym(String, TP(post, cs), S.intext(post, cs), BL.text_pic(post, cs))))))
@@ -105,40 +105,40 @@ def bi0(+fa: List<&2, B.Contig>, +wp: PC.WP, +m: Maybe<&2, List<&2, Pr.Req>>, +l
 
 # The text still to come starts with the line (its LF at j), then the rest
 # (the source from j + 1).
-def lines_head(+cs: List<&2, String>, +o: B.Opts, +md: S.MdP, +md2: S.MdP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +j: U32,
+def lines_head(+dfs: B.Defs, +cs: List<&2, String>, +o: B.Opts, +md: S.MdP, +md2: S.MdP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +j: U32,
   +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +back2: Nat, +wp: PC.WP, +wp2: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +asked2: Maybe<&2, List<&2, Pr.Req>>,
   +fneed: Bool, +fneed2: Bool,
   +hs: LI.SPLIT(len, t, d, at, j),
   +hn: {P.nolf(P.btext(len, t, at, (j - at : U32))) == True{} : Bool}) ->
-  {B.Text.lines(TP(BD.StM(o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed), cs))
-    == B.Text.line(P.btext(len, t, at, (j - at : U32))) <> B.Text.lines(TP(BD.StM(o, md2, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back2, wp2, asked2, fneed2), cs)) : List<&2, B.Line>}:
-  +pre = BD.StM(o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed)
-  +post = BD.StM(o, md2, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back2, wp2, asked2, fneed2)
+  {B.Text.lines(TP(BD.StM(dfs, o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed), cs))
+    == B.Text.line(P.btext(len, t, at, (j - at : U32))) <> B.Text.lines(TP(BD.StM(dfs, o, md2, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back2, wp2, asked2, fneed2), cs)) : List<&2, B.Line>}:
+  +pre = BD.StM(dfs, o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed)
+  +post = BD.StM(dfs, o, md2, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back2, wp2, asked2, fneed2)
   +A = P.btext(len, t, at, (j - at : U32))
   +LP = B.Text.lines(TP(post, cs))
   Equal.trans(List<&2, B.Line>, B.Text.lines(TP(pre, cs)), B.Text.lines(S.intext(pre, cs)), B.Text.line(A) <> LP,
     Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), TP(pre, cs), S.intext(pre, cs), BL.text_pic(pre, cs)),
     Equal.trans(List<&2, B.Line>, B.Text.lines(S.intext(pre, cs)), B.Text.lines(String.append(A, String.append("\n", S.intext(post, cs)))), B.Text.line(A) <> LP,
       Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), S.intext(pre, cs), String.append(A, String.append("\n", S.intext(post, cs))),
-        Equal.sym(String, String.append(A, String.append("\n", S.intext(post, cs))), S.intext(pre, cs), LI.itx(o, md, md2, rest, pd, eof, back, back2, wp, asked, asked2, fneed, fneed2, cs, len, t, d, at, j, hs))),
+        Equal.sym(String, String.append(A, String.append("\n", S.intext(post, cs))), S.intext(pre, cs), LI.itx(dfs, o, md, md2, rest, pd, eof, back, back2, wp, asked, asked2, fneed, fneed2, cs, len, t, d, at, j, hs))),
       Equal.trans(List<&2, B.Line>, B.Text.lines(String.append(A, String.append("\n", S.intext(post, cs)))), B.Text.line(A) <> B.Text.lines(S.intext(post, cs)), B.Text.line(A) <> LP,
         LSS.lines_cons(A, S.intext(post, cs), hn),
         Equal.cong(String, List<&2, B.Line>, z => B.Text.line(A) <> B.Text.lines(z), S.intext(post, cs), TP(post, cs), Equal.sym(String, TP(post, cs), S.intext(post, cs), BL.text_pic(post, cs))))))
 
 # WA of a state whose source starts with the line: the line's rem, then the
 # rest's allowances.
-def wa_split(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +md: S.MdP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +j: U32,
+def wa_split(+dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +md: S.MdP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +j: U32,
   +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool,
   +hs: LI.SPLIT(len, t, d, at, j),
   +hn: {P.nolf(P.btext(len, t, at, (j - at : U32))) == True{} : Bool}) ->
-  {BN.WAS(fa, S.mkSt(fa, BD.StM(o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed)), cs)
+  {BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed)), cs)
     == Nat.add(BN.rem(fa, BN.fast_left(S.mkMd(md), fneed), back, PC.mkWin(fa, wp), asked, B.Text.line(P.btext(len, t, at, (j - at : U32)))),
-      BN.LAs(fa, B.Text.lines(TP(BD.StM(o, md, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back, wp, asked, fneed), cs)))) : Nat}:
+      BN.LAs(fa, B.Text.lines(TP(BD.StM(dfs, o, md, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back, wp, asked, fneed), cs)))) : Nat}:
   +fl = BN.fast_left(S.mkMd(md), fneed)
   Equal.cong(List<&2, B.Line>, Nat, z => BN.WA.ls(fa, fl, back, PC.mkWin(fa, wp), asked, z),
-    B.Text.lines(TP(BD.StM(o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed), cs)),
-    B.Text.line(P.btext(len, t, at, (j - at : U32))) <> B.Text.lines(TP(BD.StM(o, md, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back, wp, asked, fneed), cs)),
-    lines_head(cs, o, md, md, len, t, d, at, j, rest, pd, eof, back, back, wp, wp, asked, asked, fneed, fneed, hs, hn))
+    B.Text.lines(TP(BD.StM(dfs, o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed), cs)),
+    B.Text.line(P.btext(len, t, at, (j - at : U32))) <> B.Text.lines(TP(BD.StM(dfs, o, md, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back, wp, asked, fneed), cs)),
+    lines_head(dfs, cs, o, md, md, len, t, d, at, j, rest, pd, eof, back, back, wp, wp, asked, asked, fneed, fneed, hs, hn))
 
 # bi with back = 0.
 def bi_b0(+fa: List<&2, B.Contig>, +back: Nat, +wp: PC.WP, +m: Maybe<&2, List<&2, Pr.Req>>, +ls: List<&2, B.Line>, +h: {Nat.is_eq(back, 0n) == True{} : Bool}) ->

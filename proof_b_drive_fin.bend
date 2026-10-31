@@ -14,6 +14,7 @@ import ./proof_b_enc.bend as ENC
 import ./proof_b_frame.bend as FM
 import ./proof_b_drivedefs.bend as DR
 import ./proof_b_drive_out.bend as DO
+import ./proof_b_rg.bend as RGH
 import ./proof_base.bend as PB
 import lawful-bytes@0.1.0.0/defs.bend as D
 import lawful-bytes@0.1.0.0/proof_core.bend as C
@@ -53,6 +54,7 @@ def rep_fin(O, N, st, a, b, c, hg, rf):
 # =============
 
 law fin_mb.k2:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -71,9 +73,9 @@ law fin_mb.k2:
   for +hT: {R.Report{String.append(O, P.RunSt.out(P.specRun(rp2))), List.append(&2, B.Note, N, P.RunSt.notes(P.specRun(rp2))), code} == T : R.Report}
   for tk: DO.TakeR(rp2, DO.lsum(src))
   for +ef: Bool
-  DO.StepG2(fa, T, cs, O, N, ef, Norm.out(S.mkSt(fa, S.StP{o, S.MBP{rp2}, src, pd, eof, back, wp, asked, fneed}), Pr.Finish{code}))
+  DO.StepG2(fa, T, cs, O, N, ef, Norm.out(S.mkSt(fa, S.StP{o, S.MBP{rp2}, src, pd, eof, back, wp, asked, fneed, dfs}), Pr.Finish{code}))
 
-def fin_mb.k2(fa, T, cs, O, N, o, rp2, code, src, pd, eof, back, wp, asked, fneed, hT, tk, ef):
+def fin_mb.k2(dfs,fa, T, cs, O, N, o, rp2, code, src, pd, eof, back, wp, asked, fneed, hT, tk, ef):
   (+ol, tk1) = tk
   (+ot, tk2) = tk1
   (+d, tk3) = tk2
@@ -86,9 +88,9 @@ def fin_mb.k2(fa, T, cs, O, N, o, rp2, code, src, pd, eof, back, wp, asked, fnee
   +t = P.RunSt.out(P.specRun(rp2))
   +ns = P.RunSt.notes(P.specRun(rp2))
   %Equal.sym(List<&1, Norm.Src> & U32, Norm.left(P.mkSrcs(src)), (P.mkSrcs(src), DO.lsum(src)), DO.left_eq(src)) :
-    DO.StepG2(fa, T, cs, O, N, ef, Norm.out.left(o, Norm.MB{P.mkRun(rp2)}, _, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, Pr.Finish{code}))
+    DO.StepG2(fa, T, cs, O, N, ef, Norm.out.left(o, Norm.MB{P.mkRun(rp2)}, _, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs, Pr.Finish{code}))
   %Equal.sym((D.Bytes & List<&2, B.Note>) & NR.Run, NR.take(P.mkRun(rp2), DO.lsum(src)), ((C.BT(ol, ot), ns), P.mkRun(rp3)), e1) :
-    DO.StepG2(fa, T, cs, O, N, ef, Norm.out.k(Norm.md.take.k(_), o, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, Pr.Finish{code}))
+    DO.StepG2(fa, T, cs, O, N, ef, Norm.out.k(Norm.md.take.k(_), o, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs, Pr.Finish{code}))
   +eout = Equal.trans(Maybe<&2, String>, E.out(C.BT(ol, ot)), Some{E.chars(D.view(C.BT(ol, ot)))}, Some{t},
     ENC.out_ok(ol, ot, d, eok, C.ok_d(ol, ot, d, eok)),
     Equal.cong(String, Maybe<&2, String>, z => Some{z}, E.chars(D.view(C.BT(ol, ot))), t,
@@ -96,6 +98,7 @@ def fin_mb.k2(fa, T, cs, O, N, o, rp2, code, src, pd, eof, back, wp, asked, fnee
   (t, (eout, hT))
 
 law fin_mb.k1:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -116,16 +119,16 @@ law fin_mb.k1:
     & ({PR.RunInv(rp2) == True{} : Bool}
     & {R.Report{P.RunSt.out(P.specRun(rp2)), P.RunSt.notes(P.specRun(rp2)), code} == R.finish(P.specRun(rp)) : R.Report}))
   for +ef: Bool
-  DO.StepG2(fa, T, cs, O, N, ef, Norm.finish(S.mkSt(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed})))
+  DO.StepG2(fa, T, cs, O, N, ef, Norm.finish(S.mkSt(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs})))
 
-def fin_mb.k1(fa, T, cs, O, N, o, rp, src, pd, eof, back, wp, asked, fneed, hg, hT, rf, ef):
+def fin_mb.k1(dfs,fa, T, cs, O, N, o, rp, src, pd, eof, back, wp, asked, fneed, hg, hT, rf, ef):
   (+rp2, rf1) = rf
   (+code, rf2) = rf1
   (+efin, rf3) = rf2
   (+hi2, erep) = rf3
   %Equal.sym(NR.Run & Nat, NR.finish(P.mkRun(rp), R.Opts.w(o)), (P.mkRun(rp2), code), efin) :
-    DO.StepG2(fa, T, cs, O, N, ef, Norm.fin.mb(o, _, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed))
-  fin_mb.k2(fa, T, cs, O, N, o, rp2, code, src, pd, eof, back, wp, asked, fneed,
+    DO.StepG2(fa, T, cs, O, N, ef, Norm.fin.mb(o, _, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs))
+  fin_mb.k2(dfs, fa, T, cs, O, N, o, rp2, code, src, pd, eof, back, wp, asked, fneed,
     Equal.trans(R.Report, R.Report{String.append(O, P.RunSt.out(P.specRun(rp2))), List.append(&2, B.Note, N, P.RunSt.notes(P.specRun(rp2))), code},
       R.finish(S.pre(O, N, P.specRun(rp))), T,
       rep_fin(O, N, P.specRun(rp), P.RunSt.out(P.specRun(rp2)), P.RunSt.notes(P.specRun(rp2)), code, hg, erep), hT),
@@ -133,6 +136,7 @@ def fin_mb.k1(fa, T, cs, O, N, o, rp, src, pd, eof, back, wp, asked, fneed, hg, 
 
 # The end of the run in the byte mode, from a good state with no lines left.
 law fin_mb:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -147,16 +151,16 @@ law fin_mb:
   for +wp: PC.WP
   for +asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  for +hw: {S.WF(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}) == True{} : Bool}
-  for +hg: {S.guard(O, N, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}) == True{} : Bool}
-  for +hr: {S.report(fa, cs, O, N, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}) == T : R.Report}
-  for +hnl: NoLines(fa, cs, O, N, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed})
+  for +hw: {S.WF(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}) == True{} : Bool}
+  for +hg: {S.guard(O, N, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}) == True{} : Bool}
+  for +hr: {S.report(fa, cs, O, N, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}) == T : R.Report}
+  for +hnl: NoLines(fa, cs, O, N, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs})
   for +ef: Bool
-  DO.StepG2(fa, T, cs, O, N, ef, Norm.finish(S.mkSt(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed})))
+  DO.StepG2(fa, T, cs, O, N, ef, Norm.finish(S.mkSt(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs})))
 
-def fin_mb(fa, T, cs, O, N, o, rp, src, pd, eof, back, wp, asked, fneed, hw, hg, hr, hnl, ef):
-  +p = {S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed} : S.StP}
-  fin_mb.k1(fa, T, cs, O, N, o, rp, src, pd, eof, back, wp, asked, fneed, hg,
+def fin_mb(dfs,fa, T, cs, O, N, o, rp, src, pd, eof, back, wp, asked, fneed, hw, hg, hr, hnl, ef):
+  +p = {S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs} : S.StP}
+  fin_mb.k1(dfs, fa, T, cs, O, N, o, rp, src, pd, eof, back, wp, asked, fneed, hg,
     Equal.trans(R.Report, R.finish(S.pre(O, N, P.specRun(rp))), S.report(fa, cs, O, N, p), T,
       Equal.sym(R.Report, S.report(fa, cs, O, N, p), R.finish(S.pre(O, N, P.specRun(rp))), hnl), hr),
     PR.run_finish(rp, o, DO.wf_md(fa, p, hw)), ef)
@@ -186,6 +190,7 @@ def halt_spec(rp):
 
 # A stopped byte run: the spec's run over what is left changes nothing.
 law nl_halt:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +cs: List<&2, String>
   for +O: String
@@ -200,14 +205,18 @@ law nl_halt:
   for +asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
   for +hx: {P.RunP.x(rp) == True{} : Bool}
-  NoLines(fa, cs, O, N, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed})
+  NoLines(fa, cs, O, N, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs})
 
-def nl_halt(fa, cs, O, N, o, rp, src, pd, eof, back, wp, asked, fneed, hx):
+def nl_halt(dfs,fa, cs, O, N, o, rp, src, pd, eof, back, wp, asked, fneed, hx):
   +st = S.pre(O, N, P.specRun(rp))
   +hh = Equal.trans(Bool, R.RunSt.halt(st), R.RunSt.halt(P.specRun(rp)), True{}, halt_pre(O, N, P.specRun(rp)),
     Equal.trans(Bool, R.RunSt.halt(P.specRun(rp)), P.RunP.x(rp), True{}, halt_spec(rp), hx))
-  +ls = B.Text.lines(S.intext(S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}, cs))
-  Equal.cong(R.RunSt, R.Report, z => R.finish(z), L.run.go(ls, fa, o, st), st, FM.run_halted(ls, fa, o, st, hh))
+  +ls = B.Text.lines(S.intext(S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}, cs))
+  +DF = L.defs.go(ls, R.RunSt.inbody(P.specRun(rp)), dfs)
+  %Equal.sym(R.RunSt, S.RG(S.recs(src), fa, DF, o, st), st, RGH.rg_halted(S.recs(src), fa, DF, o, st, hh)) :
+    {R.finish(L.run.go(ls, fa, DF, o, _)) == R.finish(st) : R.Report}
+  Equal.cong(R.RunSt, R.Report, z => R.finish(z), L.run.go(ls, fa, DF, o, st), st, FM.run_halted(DF, ls, fa, o, st, hh))
+
 
 law str_empty:
   for +s: String
@@ -223,6 +232,7 @@ def str_empty(s, h):
 
 # At the end of the file with no source, a good state's line end is empty.
 law pd_eof:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +md: S.MdP
@@ -231,16 +241,18 @@ law pd_eof:
   for +wp: PC.WP
   for +asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  for +hw: {S.WF(fa, S.StP{o, md, Nil{}, pd, True{}, back, wp, asked, fneed}) == True{} : Bool}
+  for +hw: {S.WF(fa, S.StP{o, md, Nil{}, pd, True{}, back, wp, asked, fneed, dfs}) == True{} : Bool}
   {P.pdtext(pd) == "" : String}
 
-def pd_eof(fa, o, md, pd, back, wp, asked, fneed, hw):
+def pd_eof(dfs,fa, o, md, pd, back, wp, asked, fneed, hw):
   +hb5 = DO.x9_5(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))),
-    Bool.or(Bool.not(True{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o)), hw)
+    Bool.or(Bool.not(True{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw)
   str_empty(P.pdtext(pd), PB.and_true_l(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})), hb5))
+
 
 # Idle at the end of the file (byte mode): no line is left.
 law nl_eof_mb:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +cs: List<&2, String>
   for +O: String
@@ -252,10 +264,11 @@ law nl_eof_mb:
   for +wp: PC.WP
   for +asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  for +hw: {S.WF(fa, S.StP{o, S.MBP{rp}, Nil{}, pd, True{}, back, wp, asked, fneed}) == True{} : Bool}
-  NoLines(fa, cs, O, N, S.StP{o, S.MBP{rp}, Nil{}, pd, True{}, back, wp, asked, fneed})
+  for +hw: {S.WF(fa, S.StP{o, S.MBP{rp}, Nil{}, pd, True{}, back, wp, asked, fneed, dfs}) == True{} : Bool}
+  NoLines(fa, cs, O, N, S.StP{o, S.MBP{rp}, Nil{}, pd, True{}, back, wp, asked, fneed, dfs})
 
-def nl_eof_mb(fa, cs, O, N, o, rp, pd, back, wp, asked, fneed, hw):
-  %Equal.sym(String, P.pdtext(pd), "", pd_eof(fa, o, S.MBP{rp}, pd, back, wp, asked, fneed, hw)) :
-    {R.finish(L.run.go(B.Text.lines(String.append("", String.append(_, ""))), fa, o, S.pre(O, N, P.specRun(rp)))) == R.finish(S.pre(O, N, P.specRun(rp))) : R.Report}
+def nl_eof_mb(dfs,fa, cs, O, N, o, rp, pd, back, wp, asked, fneed, hw):
+  %Equal.sym(String, P.pdtext(pd), "", pd_eof(dfs, fa, o, S.MBP{rp}, pd, back, wp, asked, fneed, hw)) :
+    {R.finish(L.run.go(B.Text.lines(String.append("", String.append(_, ""))), fa, L.defs.go(B.Text.lines(String.append("", String.append(_, ""))), R.RunSt.inbody(P.specRun(rp)), dfs), o, S.pre(O, N, P.specRun(rp)))) == R.finish(S.pre(O, N, P.specRun(rp))) : R.Report}
   {==}
+

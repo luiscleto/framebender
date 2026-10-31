@@ -29,11 +29,11 @@ def txt(+cs: List<&2, String>) -> Bool:
 
 # For every picture x2 of the step's next state (More or Ask): its InvW given
 # back, biW there and the drop of need.
-def KontW(+fa: List<&2, B.Contig>, +T: R.Report, s: W.Step, +cs2: List<&2, String>, +de2: Bool, +R: Nat, +n1: Nat, +O: String, +N: List<&2, B.Note>) -> Type:
+def KontW(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, s: W.Step, +cs2: List<&2, String>, +de2: Bool, +R: Nat, +n1: Nat, +O: String, +N: List<&2, B.Note>) -> Type:
   @x2: WD.WPic -> @nx2: Pr.Next -> @t: String -> @N2: List<&2, B.Note> -> {List.append(&2, B.Note, N, BD.snsW(s)) == N2 : List<&2, B.Note>}
     -> {BD.sstW(s) == WD.mkWSt(fa, x2) : W.St} -> {BD.snxW(s) == nx2 : Pr.Next}
-    -> {BD.soutW(s) == Some{t} : Maybe<&2, String>} -> WD.InvW(fa, T, cs2, String.append(O, t), N2, x2, nx2, de2)
-    -> (WD.InvW(fa, T, cs2, String.append(O, t), N2, x2, nx2, de2) & ({BD.biW(WD.mkWSt(fa, x2), cs2) == True{} : Bool}
+    -> {BD.soutW(s) == Some{t} : Maybe<&2, String>} -> WD.InvW(dfs, fa, T, cs2, String.append(O, t), N2, x2, nx2, de2)
+    -> (WD.InvW(dfs, fa, T, cs2, String.append(O, t), N2, x2, nx2, de2) & ({BD.biW(WD.mkWSt(fa, x2), cs2) == True{} : Bool}
       & {Nat.is_le(Nat.add(BD.needW(fa, T, WD.mkWSt(fa, x2), cs2, de2, nx2, String.append(O, t)), Nat.add(R, 1n)), n1) == True{} : Bool}))
 
 # When the step ends the run.
@@ -46,10 +46,10 @@ def need_ge(+fa: List<&2, B.Contig>, +T: R.Report, +x: WD.WPic, +cs: List<&2, St
   LM.need_ge(fa, T, x, cs, ef, nx, O)
 
 # The start: the program's first state, nothing given yet.
-def bud_startW(+argv: List<&2, String>, +o: B.Opts, +ref: String, +vcfpath: String, +fasta: String, +vcf: String, +cs: List<&2, String>,
+def bud_startW(+dfs: B.Defs, +argv: List<&2, String>, +o: B.Opts, +ref: String, +vcfpath: String, +fasta: String, +vcf: String, +cs: List<&2, String>,
   +ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>},
   +h: {String.concat(cs) == vcf : String},
   +hb: {E.texts_ok(argv, fasta, cs) == True{} : Bool}) ->
-  {BD.biW(W.St{DD.start_st(Norm.start(argv)), W.BNone{}}, cs) == True{} : Bool}
-  & {Nat.is_le(BD.needW(B.Fasta.parse(fasta), L.run(fasta, vcf, o), W.St{DD.start_st(Norm.start(argv)), W.BNone{}}, cs, False{}, Pr.More{}, ""), M.bound(argv, fasta, vcf, cs)) == True{} : Bool}:
-  (BS0.start_bi(argv, o, ref, vcfpath, cs, ha), BS0.start_need(argv, o, ref, vcfpath, fasta, vcf, cs, ha, h))
+  {BD.biW(W.St{DD.start_st(dfs, Norm.start(argv)), W.BNone{}}, cs) == True{} : Bool}
+  & {Nat.is_le(BD.needW(B.Fasta.parse(fasta), L.run(fasta, vcf, o), W.St{DD.start_st(dfs, Norm.start(argv)), W.BNone{}}, cs, False{}, Pr.More{}, ""), M.bound(argv, fasta, vcf, cs)) == True{} : Bool}:
+  (BS0.start_bi(dfs, argv, o, ref, vcfpath, cs, ha), BS0.start_need(dfs, argv, o, ref, vcfpath, fasta, vcf, cs, ha, h))

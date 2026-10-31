@@ -179,6 +179,7 @@ def Lb2(+hs: List<&2, String>, +c: String, +cs: List<&2, String>) -> List<&2, St
 
 # The piece taken: one more held.
 law col_more:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +c: String
@@ -193,9 +194,9 @@ law col_more:
   for +hcb: {E.is_bytes(c) == True{} : Bool}
   for +hcn: {P.le31(String.length(c)) == True{} : Bool}
   for +hbig: {BD.big(c) == True{} : Bool}
-  API.KontW(fa, T, W.wrap(Norm.out(S.mkSt(fa, p), Pr.More{}), W.BCol{E.enc(c) <> PT.encs(hs), 1n+k}), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O), O, N)
+  API.KontW(dfs, fa, T, W.wrap(Norm.out(S.mkSt(fa, p), Pr.More{}), W.BCol{E.enc(c) <> PT.encs(hs), 1n+k}), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O), O, N)
 
-def col_more(fa, T, c, cs, O, N, p, hs, k, hbts, hbi, hcb, hcn, hbig):
+def col_more(dfs,fa, T, c, cs, O, N, p, hs, k, hbts, hbi, hcb, hcn, hbig):
   +La = List.append(&2, String, List.reverse(&2, String, BD.bts(PT.encs(c <> hs))), cs)
   +L2 = Lb2(hs, c, cs)
   +ecs = Equal.trans(List<&2, String>, NR.chars(D.view(E.enc(c))) <> BD.bts(PT.encs(hs)), c <> BD.bts(PT.encs(hs)), c <> hs,
@@ -218,7 +219,7 @@ def col_more(fa, T, c, cs, O, N, p, hs, k, hbts, hbi, hcb, hcn, hbig):
     L2, Lb(hs, c, cs), Equal.sym(List<&2, String>, Lb(hs, c, cs), L2, eqB), h1)
   +hv = AB.subst(Bool, z => {Nat.is_le(Nat.add(V, Nat.add(0n, 1n)), Nat.add(Nat.add(ST.VQ(T, Lb(hs, c, cs), False{}, O, BDs.WP(fa, Lb(hs, c, cs), p)), A), Nat.add(BN.pick(z, 12n), X))) == True{} : Bool},
     True{}, BD.big(c), Equal.sym(Bool, BD.big(c), True{}, hbig), h2)
-  ST.kont_of(fa, T, W.wrap(Norm.out(S.mkSt(fa, p), Pr.More{}), W.BCol{PT.encs(c <> hs), 1n+k}), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O), V, O, N,
+  ST.kont_of(dfs, fa, T, W.wrap(Norm.out(S.mkSt(fa, p), Pr.More{}), W.BCol{PT.encs(c <> hs), 1n+k}), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O), V, O, N,
     wrap_colk(fa, T, cs, O, W0, c <> hs, 1n+k, Norm.out(S.mkSt(fa, p), Pr.More{}), BS.out_bud(fa, T, La, O, p, Pr.More{}, W0, hbiA, N.le_refl(W0))),
     hv)
 
@@ -250,6 +251,7 @@ def plan_n1(fa, T, cs, O, p, Hs, L1, B0, P0, eqL, h):
 
 # The batch closed by a piece (the kmax()-th, or a short one).
 law col_close:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +c: String
@@ -270,9 +272,9 @@ law col_close:
   for +hbi: {BN.biS(S.mkSt(fa, p), Lb(hs, c, cs)) == True{} : Bool}
   for +hcb: {E.is_bytes(c) == True{} : Bool}
   for +hcn: {P.le31(String.length(c)) == True{} : Bool}
-  API.KontW(fa, T, W.plan(S.mkSt(fa, p), PT.encs(List.reverse.go(&2, String, c <> hs, Nil{})), False{}), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O), O, N)
+  API.KontW(dfs, fa, T, W.plan(S.mkSt(fa, p), PT.encs(List.reverse.go(&2, String, c <> hs, Nil{})), False{}, dfs), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O), O, N)
 
-def col_close(fa, T, c, cs, O, N, p, hs, k, hb, hm, hst, hg, hr, hby, hk, hbts, hbi, hcb, hcn):
+def col_close(dfs,fa, T, c, cs, O, N, p, hs, k, hb, hm, hst, hg, hr, hby, hk, hbts, hbi, hcb, hcn):
   +Hs = List.reverse.go(&2, String, c <> hs, Nil{})
   +rh = List.reverse(&2, String, hs)
   +L2 = Lb2(hs, c, cs)
@@ -291,11 +293,12 @@ def col_close(fa, T, c, cs, O, N, p, hs, k, hb, hm, hst, hg, hr, hby, hk, hbts, 
     Equal.cong(Nat, Nat, z => Nat.add(z, 1n), List.length(&2, String, hs), k, Equal.sym(Nat, k, List.length(&2, String, hs), hk)))
   +ha = AB.subst(Nat, z => {Nat.is_le(Nat.add(1n+Nat.add(z, z), 1n), Nat.add(BD.kx(k), 4n)) == True{} : Bool}, Nat.add(k, 1n), List.length(&2, String, Hs),
     Equal.sym(Nat, List.length(&2, String, Hs), Nat.add(k, 1n), hm1), ar_k1(k))
-  PL.plan_bud(fa, T, cs, O, N, False{}, p, Hs, False{}, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O),
+  PL.plan_bud(dfs, fa, T, cs, O, N, False{}, p, Hs, False{}, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O),
     hb, hm, hst, hg, hrP, hbyP, {==}, hbiP,
     plan_n1(fa, T, cs, O, p, Hs, Lb(hs, c, cs), Nat.add(BD.kx(k), 4n), BN.pick(BD.big(c), 12n), eqL, ha))
 
 law col_if:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +c: String
@@ -318,20 +321,21 @@ law col_if:
   for +hcn: {P.le31(String.length(c)) == True{} : Bool}
   for +b: Bool
   for +hq: {Bool.or(Nat.is_le(W.kmax(), 1n+k), U32.is_lt(U32.from_nat(String.length(c)), W.minp())) == b : Bool}
-  API.KontW(fa, T, W.col.add(b, S.mkSt(fa, p), E.enc(c) <> PT.encs(hs), 1n+k), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O), O, N)
+  API.KontW(dfs, fa, T, W.col.add(b, S.mkSt(fa, p), E.enc(c) <> PT.encs(hs), 1n+k, dfs), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O), O, N)
 
-def col_if(fa, T, c, cs, O, N, p, hs, k, hb, hm, hst, hg, hr, hby, hk, hbts, hbi, hcb, hcn, b, hq):
+def col_if(dfs,fa, T, c, cs, O, N, p, hs, k, hb, hm, hst, hg, hr, hby, hk, hbts, hbi, hcb, hcn, b, hq):
   match b:
     case False{}:
-      col_more(fa, T, c, cs, O, N, p, hs, k, hbts, hbi, hcb, hcn,
+      col_more(dfs, fa, T, c, cs, O, N, p, hs, k, hbts, hbi, hcb, hcn,
         big_not_lt(c, hcb, hcn, or_false_r2(Nat.is_le(W.kmax(), 1n+k), U32.is_lt(U32.from_nat(String.length(c)), W.minp()), hq)))
     case True{}:
       %Equal.sym(List<&1, D.Bytes>, W.rev_b(PT.encs(c <> hs), PT.encs(Nil{})), PT.encs(List.reverse.go(&2, String, c <> hs, Nil{})), QB.rev_encs(c <> hs, Nil{})) :
-        API.KontW(fa, T, W.plan(S.mkSt(fa, p), _, False{}), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O), O, N)
-      col_close(fa, T, c, cs, O, N, p, hs, k, hb, hm, hst, hg, hr, hby, hk, hbts, hbi, hcb, hcn)
+        API.KontW(dfs, fa, T, W.plan(S.mkSt(fa, p), _, False{}, dfs), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O), O, N)
+      col_close(dfs, fa, T, c, cs, O, N, p, hs, k, hb, hm, hst, hg, hr, hby, hk, hbts, hbi, hcb, hcn)
 
 # A piece while collecting.
 law col_chunk:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +c: String
@@ -351,17 +355,15 @@ law col_chunk:
   for +hbi: {BN.biS(S.mkSt(fa, p), Lb(hs, c, cs)) == True{} : Bool}
   for +hcb: {E.is_bytes(c) == True{} : Bool}
   for +hcn: {P.le31(String.length(c)) == True{} : Bool}
-  API.KontW(fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), Pr.Chunk{E.enc(c)}), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O), O, N)
+  API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), Pr.Chunk{E.enc(c)}), cs, False{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O), O, N)
 
-def col_chunk(fa, T, c, cs, O, N, p, hs, k, hb, hm, hst, hg, hr, hby, hk, hbi, hcb, hcn):
-  +n1 = BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), c <> cs, False{}, Pr.More{}, O)
-  %Equal.sym(D.Bytes & U32, BY.len(E.enc(c)), (E.enc(c), U32.from_nat(String.length(c))), BNo.len_enc(c)) :
-    API.KontW(fa, T, W.col.len(_, S.mkSt(fa, p), PT.encs(hs), k), cs, False{}, 0n, n1, O, N)
-  col_if(fa, T, c, cs, O, N, p, hs, k, hb, hm, hst, hg, hr, hby, PB.eq_sound(k, List.length(&2, String, hs), hk), LI.bts_rev(hs, hby), hbi, hcb, hcn,
-    Bool.or(Nat.is_le(W.kmax(), 1n+k), U32.is_lt(U32.from_nat(String.length(c)), W.minp())), {==})
+def col_chunk(dfs,fa, T, c, cs, O, N, p, hs, k, hb, hm, hst, hg, hr, hby, hk, hbi, hcb, hcn):
+  ?TODO
+
 
 # The end of the file while collecting: the batch closes.
 law col_eof:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +O: String
@@ -377,23 +379,11 @@ law col_eof:
   for +hby: {E.all_bytes(List.reverse(&2, String, hs)) && E.pieces_ok(List.reverse(&2, String, hs)) == True{} : Bool}
   for +hk: {Nat.is_eq(k, List.length(&2, String, hs)) == True{} : Bool}
   for +hbi: {BN.biS(S.mkSt(fa, p), List.append(&2, String, List.reverse(&2, String, BD.bts(PT.encs(hs))), Nil{})) == True{} : Bool}
-  API.KontW(fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), Pr.Eof{}), Nil{}, True{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), Nil{}, False{}, Pr.More{}, O), O, N)
+  API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), Pr.Eof{}), Nil{}, True{}, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), Nil{}, False{}, Pr.More{}, O), O, N)
 
-def col_eof(fa, T, O, N, p, hs, k, hb, hm, hst, hg, hr, hby, hk, hbi):
-  +Hs = List.reverse.go(&2, String, hs, Nil{})
-  +n1 = BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BColP{hs, k}}), Nil{}, False{}, Pr.More{}, O)
-  +hbts = LI.bts_rev(hs, hby)
-  +eqB = Equal.cong(List<&2, String>, List<&2, String>, z => List.append(&2, String, List.reverse(&2, String, z), Nil{}), BD.bts(PT.encs(hs)), hs, hbts)
-  +hbiP = AB.subst(List<&2, String>, z => {BN.biS(S.mkSt(fa, p), z) == True{} : Bool}, List.append(&2, String, List.reverse(&2, String, BD.bts(PT.encs(hs))), Nil{}), List.append(&2, String, Hs, Nil{}), eqB, hbi)
-  +kk = PB.eq_sound(k, List.length(&2, String, hs), hk)
-  +hm1 = Equal.trans(Nat, List.length(&2, String, Hs), Nat.add(List.length(&2, String, hs), 0n), k, H1.len_rg(hs, Nil{}),
-    Equal.trans(Nat, Nat.add(List.length(&2, String, hs), 0n), List.length(&2, String, hs), k, N.add_zero(List.length(&2, String, hs)), Equal.sym(Nat, k, List.length(&2, String, hs), kk)))
-  +ha = AB.subst(Nat, z => {Nat.is_le(Nat.add(1n+Nat.add(z, z), 1n), Nat.add(BD.kx(k), 4n)) == True{} : Bool}, k, List.length(&2, String, Hs), Equal.sym(Nat, List.length(&2, String, Hs), k, hm1), ar_k0(k))
-  %Equal.sym(List<&1, D.Bytes>, W.rev_b(PT.encs(hs), PT.encs(Nil{})), PT.encs(Hs), QB.rev_encs(hs, Nil{})) :
-    API.KontW(fa, T, W.plan(S.mkSt(fa, p), _, True{}), Nil{}, True{}, 0n, n1, O, N)
-  PL.plan_bud(fa, T, Nil{}, O, N, True{}, p, Hs, True{}, n1, hb, hm, hst, hg, hr, hby, ({==}, {==}), hbiP,
-    plan_n1(fa, T, Nil{}, O, p, Hs, List.append(&2, String, List.reverse(&2, String, BD.bts(PT.encs(hs))), Nil{}), Nat.add(BD.kx(k), 4n), 0n,
-      Equal.sym(List<&2, String>, List.append(&2, String, List.reverse(&2, String, BD.bts(PT.encs(hs))), Nil{}), List.append(&2, String, Hs, Nil{}), eqB), ha))
+def col_eof(dfs,fa, T, O, N, p, hs, k, hb, hm, hst, hg, hr, hby, hk, hbi):
+  ?TODO
+
 
 # The answers
 # ===========
@@ -422,6 +412,7 @@ def ar_t(V0, X, R):
 
 # The plan's Ask answered: the tasks run, the combine starts.
 law ask_ref:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -440,25 +431,15 @@ law ask_ref:
   for d: PT.PcsOK(ps, cs) & PT.PcsOK(ps, cs)
   for he: WD.EofOK(e, ef, cs)
   for +hbi: {BN.biS(S.mkSt(fa, p), List.append(&2, String, BD.plts(PT.mkPls(ps)), cs)) == True{} : Bool}
-  API.KontW(fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BAskP{ps, e}}), Pr.Ref{M.truths(fa, PT.reqs_of(ps))}), cs, ef, List.length(&2, Pr.Req, PT.reqs_of(ps)), BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BAskP{ps, e}}), cs, ef, Pr.Ask{PT.reqs_of(ps)}, O), O, N)
+  API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BAskP{ps, e}}), Pr.Ref{M.truths(fa, PT.reqs_of(ps))}), cs, ef, List.length(&2, Pr.Req, PT.reqs_of(ps)), BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BAskP{ps, e}}), cs, ef, Pr.Ask{PT.reqs_of(ps)}, O), O, N)
 
-def ask_ref(fa, T, cs, O, N, p, ps, e, ef, hb, hm, hst, hg, hr, hby, d, he, hbi):
-  +R = List.length(&2, Pr.Req, PT.reqs_of(ps))
-  +L = List.append(&2, String, PT.texts(ps), cs)
-  +Lp = List.append(&2, String, BD.plts(PT.mkPls(ps)), cs)
-  +n1 = BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BAskP{ps, e}}), cs, ef, Pr.Ask{PT.reqs_of(ps)}, O)
-  +hpl = LI.plts_mk(ps, PB.and_true_l(E.all_bytes(PT.texts(ps)), E.pieces_ok(PT.texts(ps)), hby), PB.and_true_r(E.all_bytes(PT.texts(ps)), E.pieces_ok(PT.texts(ps)), hby))
-  +eL = Equal.cong(List<&2, String>, List<&2, String>, z => List.append(&2, String, z, cs), BD.plts(PT.mkPls(ps)), PT.texts(ps), hpl)
-  +hbi2 = AB.subst(List<&2, String>, z => {BN.biS(S.mkSt(fa, p), z) == True{} : Bool}, Lp, L, eL, hbi)
-  +A = Nat.add(List.length(&2, String, L), 1n)
-  +h0 = BNo.ar_r(A, BN.HO(T, O), BDs.WP(fa, L, p), R, BD.XK(cs))
-  +hv = AB.subst(List<&2, String>, z => {Nat.is_le(Nat.add(PL.VC(fa, T, cs, O, p, ps), Nat.add(R, 1n)), Nat.add(ST.VQ(T, z, False{}, O, Nat.add(1n+R, BDs.WP(fa, z, p))), BD.XK(cs))) == True{} : Bool},
-    L, Lp, Equal.sym(List<&2, String>, Lp, L, eL), h0)
-  %QB.opts_mk(fa, p) : API.KontW(fa, T, W.ask.run(_, PT.mkPls(ps), M.truths(fa, PT.reqs_of(ps)), e), cs, ef, R, n1, O, N)
-  PL.run_tasks(fa, T, cs, O, N, ef, p, ps, e, R, n1, hb, hm, hst, hg, hr, hby, d, he, hbi2, hv)
+def ask_ref(dfs,fa, T, cs, O, N, p, ps, e, ef, hb, hm, hst, hg, hr, hby, d, he, hbi):
+  ?TODO
+
 
 # The combine's Ask{[]} answered: the next piece.
 law combf_ref:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -476,29 +457,18 @@ law combf_ref:
   for +hr: {S.report(fa, List.append(&2, String, PT.texts(ps), cs), O, N, p) == T : R.Report}
   for +hby: {E.all_bytes(PT.texts(ps)) && E.pieces_ok(PT.texts(ps)) == True{} : Bool}
   for hps: PT.PcsOK(ps, cs)
-  for d: PT.BatchOK(fa, S.StP.o(p), ps, xs, cs) & PT.BatchOK(fa, S.StP.o(p), ps, xs, cs)
+  for d: PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs) & PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)
   for he: WD.EofOK(e, ef, cs)
   for +hbi: {BN.biS(S.mkSt(fa, p), List.append(&2, String, BD.tots(PT.mkTOuts(fa, ps, xs)), cs)) == True{} : Bool}
-  API.KontW(fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, False{}}}), Pr.Ref{M.truths(fa, Nil{})}), cs, ef, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, False{}}}), cs, ef, Pr.Ask{Nil{}}, O), O, N)
+  API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, False{}}}), Pr.Ref{M.truths(fa, Nil{})}), cs, ef, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, False{}}}), cs, ef, Pr.Ask{Nil{}}, O), O, N)
 
-def combf_ref(fa, T, cs, O, N, p, ps, xs, e, ef, hb, hm, hst, hg, hr, hby, hps, d, he, hbi):
-  (h1, h2) = d
-  +hts = LI.tots_mk(fa, S.StP.o(p), ps, xs, cs, h1)
-  +L = List.append(&2, String, PT.texts(ps), cs)
-  +Lt = List.append(&2, String, BD.tots(PT.mkTOuts(fa, ps, xs)), cs)
-  +eL = Equal.cong(List<&2, String>, List<&2, String>, z => List.append(&2, String, z, cs), BD.tots(PT.mkTOuts(fa, ps, xs)), PT.texts(ps), hts)
-  +hbi2 = AB.subst(List<&2, String>, z => {BN.biS(S.mkSt(fa, p), z) == True{} : Bool}, Lt, L, eL, hbi)
-  +A = Nat.add(List.length(&2, String, L), 1n)
-  +Q2 = Nat.add(A, Nat.add(2n, Nat.add(BN.HO(T, O), Nat.add(1n, BDs.WP(fa, L, p)))))
-  +h0 = BNo.ar_r(A, BN.HO(T, O), BDs.WP(fa, L, p), 0n, BD.XK(cs))
-  +h1b = AB.subst(Nat, z => {Nat.is_le(Nat.add(PL.VC(fa, T, cs, O, p, ps), Nat.add(0n, 1n)), Nat.add(z, BD.XK(cs))) == True{} : Bool}, Q2, Nat.add(Q2, 0n), Equal.sym(Nat, Nat.add(Q2, 0n), Q2, N.add_zero(Q2)), h0)
-  +hv = AB.subst(List<&2, String>, z => {Nat.is_le(Nat.add(PL.VC(fa, T, cs, O, p, ps), Nat.add(0n, 1n)), Nat.add(Nat.add(ST.VQ(T, z, False{}, O, Nat.add(1n, BDs.WP(fa, z, p))), 0n), BD.XK(cs))) == True{} : Bool},
-    L, Lt, Equal.sym(List<&2, String>, Lt, L, eL), h1b)
-  ST.kont_of(fa, T, W.comb.next(PT.mkTOuts(fa, ps, xs), S.mkSt(fa, p), e), cs, ef, 0n, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, False{}}}), cs, ef, Pr.Ask{Nil{}}, O), PL.VC(fa, T, cs, O, p, ps), O, N,
-    CB.comb_bud(fa, T, cs, O, N, ef, p, ps, xs, e, hb, hm, hst, hg, hr, hby, hps, h2, he, hbi2), hv)
+def combf_ref(dfs,fa, T, cs, O, N, p, ps, xs, e, ef, hb, hm, hst, hg, hr, hby, hps, d, he, hbi):
+  ?TODO
+
 
 # Q's own Ask in the middle of a piece answered.
 law combt_ref:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -518,28 +488,11 @@ law combt_ref:
   for +hmr: {S.mb_reqs(S.StP.md(p), rs) == True{} : Bool}
   for +hg: {S.guard(O, N, p) == True{} : Bool}
   for +hr: {S.report(fa, List.append(&2, String, PT.texts(ps), cs), O, N, p) == T : R.Report}
-  for hbo: PT.BatchOK(fa, S.StP.o(p), ps, xs, cs)
+  for hbo: PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)
   for he: WD.EofOK(e, ef, cs)
   for +hbi: {BN.biS(S.mkSt(fa, p), List.append(&2, String, BD.tots(PT.mkTOuts(fa, ps, xs)), cs)) == True{} : Bool}
-  API.KontW(fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, True{}}}), Pr.Ref{M.truths(fa, rs)}), cs, ef, List.length(&2, Pr.Req, rs), BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, True{}}}), cs, ef, Pr.Ask{rs}, O), O, N)
+  API.KontW(dfs, fa, T, W.step(WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, True{}}}), Pr.Ref{M.truths(fa, rs)}), cs, ef, List.length(&2, Pr.Req, rs), BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, True{}}}), cs, ef, Pr.Ask{rs}, O), O, N)
 
-def combt_ref(fa, T, cs, O, N, p, ps, xs, e, rs, ef, hb, hw, hask, hq, hrq, hmr, hg, hr, hbo, he, hbi):
-  +hts = LI.tots_mk(fa, S.StP.o(p), ps, xs, cs, hbo)
-  +L = List.append(&2, String, PT.texts(ps), cs)
-  +Lt = List.append(&2, String, BD.tots(PT.mkTOuts(fa, ps, xs)), cs)
-  +R = List.length(&2, Pr.Req, rs)
-  +W0 = BDs.WP(fa, L, p)
-  +X = BD.XK(cs)
-  +V0 = ST.VQ(T, L, False{}, O, W0)
-  +V = Nat.add(Nat.add(V0, 1n), X)
-  +eL = Equal.cong(List<&2, String>, List<&2, String>, z => List.append(&2, String, z, cs), BD.tots(PT.mkTOuts(fa, ps, xs)), PT.texts(ps), hts)
-  +hbi2 = AB.subst(List<&2, String>, z => {BN.biS(S.mkSt(fa, p), z) == True{} : Bool}, Lt, L, eL, hbi)
-  +h0 = AB.subst(Nat, z => {Nat.is_le(Nat.add(V, Nat.add(R, 1n)), Nat.add(Nat.add(z, 1n), X)) == True{} : Bool}, Nat.add(V0, 1n+R), ST.VQ(T, L, False{}, O, Nat.add(1n+R, W0)),
-    Equal.sym(Nat, ST.VQ(T, L, False{}, O, Nat.add(1n+R, W0)), Nat.add(V0, 1n+R), H1.vq_shift(T, L, False{}, O, 1n+R, W0)),
-    %ar_t(V0, X, R) : {Nat.is_le(Nat.add(V, Nat.add(R, 1n)), _) == True{} : Bool}; N.le_refl(Nat.add(V, Nat.add(R, 1n))))
-  +hv = AB.subst(List<&2, String>, z => {Nat.is_le(Nat.add(V, Nat.add(R, 1n)), Nat.add(Nat.add(ST.VQ(T, z, False{}, O, Nat.add(1n+R, BDs.WP(fa, z, p))), 1n), X)) == True{} : Bool},
-    L, Lt, Equal.sym(List<&2, String>, Lt, L, eL), h0)
-  ST.kont_of(fa, T, W.seq_out(Norm.step(S.mkSt(fa, p), Pr.Ref{M.truths(fa, rs)}), PT.mkTOuts(fa, ps, xs), e), cs, ef, R, BD.needW(fa, T, WD.mkWSt(fa, WD.WPic{p, WD.BCombP{ps, xs, e, True{}}}), cs, ef, Pr.Ask{rs}, O), V, O, N,
-    SQ.seq_bud(fa, T, cs, ef, O, W0, Norm.step(S.mkSt(fa, p), Pr.Ref{M.truths(fa, rs)}), ps, xs, e, hts, he,
-      BS.fed_bud(fa, T, L, O, N, W0, Norm.set_win(S.mkSt(fa, p), M.truths(fa, rs)), hb, BS.ref_fed(fa, T, L, rs, O, N, p, hb, hw, hr, hask, hq, hrq, hmr, hg, hbi2))),
-    hv)
+def combt_ref(dfs,fa, T, cs, O, N, p, ps, xs, e, rs, ef, hb, hw, hask, hq, hrq, hmr, hg, hr, hbo, he, hbi):
+  ?TODO
+

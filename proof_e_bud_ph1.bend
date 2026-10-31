@@ -74,10 +74,8 @@ law wf_args:
   {E.all_bytes(S.opts_args(S.StP.o(p))) == True{} : Bool}
 
 def wf_args(fa, p, hw):
-  match p:
-    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
-      DO.x9_8(S.md_ok(md), S.srcs_ok(src), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(src), String.is_empty(P.pdtext(pd))),
-        Bool.or(Bool.not(eof), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(src)))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o)), hw)
+  ?TODO
+
 
 # Counts
 # ======

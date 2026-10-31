@@ -484,8 +484,8 @@ def defs(vcf: String) -> B.Defs:
 #     record per ALT (B.Rec.parts, reading the header's definitions); each
 #     record then goes through the rest of this rule in ALT order, as a line of
 #     its own with the line's number and input POS. A line that cannot be
-#     split (ALT_DUP, UNDEFINED_TAG, BAD_COUNT, BAD_GT) is a problem, after
-#     any outcome of the whole line that stops the run (unsplit_in).
+#     split (BAD_CR, ALT_DUP, UNDEFINED_TAG, BAD_COUNT, BAD_GT) is a problem,
+#     after any outcome of the whole line that stops the run (unsplit_in).
 #   - Each body line is judged (judge). If its outcome stops the run, the run
 #     stops without writing anything more. Else, if its CHROM differs from the
 #     current CHROM run, the whole buffer is written, and the run stops with
@@ -1102,8 +1102,9 @@ def samples_problems(cols: List<&2, String>, +ks: List<&2, String>, +fmt: List<&
       +vs = String.split(c, ':')
       List.append(&2, Maybe<&2, B.Code>, sample_problems(ks, vs, fmt, n, B.Gt.copies(B.Fmt.gt(ks, vs))), samples_problems(t, ks, fmt, n))
 
-# Why a line cannot be split, the first reason reading it left to right; None
-# when it can be:
+# Why a line cannot be split; None when it can be:
+#   BAD_CR: the line holds a carriage return (the CR of a CR LF terminator
+#   aside), first; then the first reason reading it left to right:
 #   ALT_DUP: two of its ALTs are equal (ignoring case);
 #   then its INFO entries, in order (info_problem);
 #   then its samples, in order, each value in FORMAT's order (sample_problems,
@@ -1111,7 +1112,8 @@ def samples_problems(cols: List<&2, String>, +ks: List<&2, String>, +fmt: List<&
 def split_problem(+defs: B.Defs, +body: String) -> Maybe<&2, B.Code>:
   +fs = B.Rec.fields(body)
   +n = n_alts(body)
-  first_code(Bool.pick(Maybe<&2, B.Code>, B.Alts.distinct(B.Rec.alts(fs)), None{}, Some{B.DupAlts{}})
+  first_code(Bool.pick(Maybe<&2, B.Code>, B.Text.has_cr(body), Some{B.BadCr{}}, None{})
+    <> Bool.pick(Maybe<&2, B.Code>, B.Alts.distinct(B.Rec.alts(fs)), None{}, Some{B.DupAlts{}})
     <> List.append(&2, Maybe<&2, B.Code>, info_problems(info_entries(body), B.Defs.info(defs), n),
          samples_problems(List.drop(&2, String, fs, 9n), format_keys(body), B.Defs.fmt(defs), n)))
 

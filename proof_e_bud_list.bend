@@ -130,15 +130,16 @@ def plts_mk(ps, ha, hp):
 
 # A batch's results: their buffers read back (TOutOK's view).
 law tots_mk:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +ps: List<&2, PT.Pc>
   for +xs: List<&2, PT.TOutP>
   for +dcs: List<&2, String>
-  for h: PT.BatchOK(fa, o, ps, xs, dcs)
+  for h: PT.BatchOK(dfs, fa, o, ps, xs, dcs)
   {BD.tots(PT.mkTOuts(fa, ps, xs)) == PT.texts(ps) : List<&2, String>}
 
-def tots_mk(fa, o, ps, xs, dcs, h):
+def tots_mk(dfs,fa, o, ps, xs, dcs, h):
   match ps xs:
     case Nil{} Nil{}:
       {==}
@@ -148,7 +149,7 @@ def tots_mk(fa, o, ps, xs, dcs, h):
       (a2, h4) = h3
       %Equal.sym(List<&2, U32>, D.view(C.BT(len, t)), E.codes(c), a2) : {NR.chars(_) <> BD.tots(PT.mkTOuts(fa, pt, xt)) == c <> PT.texts(pt) : List<&2, String>}
       %Equal.sym(String, NR.chars(E.codes(c)), c, LS.chars_codes(c)) : {_ <> BD.tots(PT.mkTOuts(fa, pt, xt)) == c <> PT.texts(pt) : List<&2, String>}
-      Equal.cong(List<&2, String>, List<&2, String>, z => c <> z, BD.tots(PT.mkTOuts(fa, pt, xt)), PT.texts(pt), tots_mk(fa, o, pt, xt, dcs, h2))
+      Equal.cong(List<&2, String>, List<&2, String>, z => c <> z, BD.tots(PT.mkTOuts(fa, pt, xt)), PT.texts(pt), tots_mk(dfs, fa, o, pt, xt, dcs, h2))
     case Nil{} Con{+x, +xt}:
       Empty.absurd({BD.tots(PT.mkTOuts(fa, Nil{}, x <> xt)) == PT.texts(Nil{}) : List<&2, String>}, h)
     case Con{+p, +pt} Nil{}:

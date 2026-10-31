@@ -880,8 +880,53 @@ def out.of(w: Sw) -> Out:
     case Sw{b, o, p, False{}}:
       Out{b, None{}}
 
+# The records' buffer is read back as lines (norm_seq.bend, B.Text.lines), so
+# it must hold exactly n LFs, one ending each record (none inside one), and,
+# when the terminator is LF alone, no CR (a record ending in CR would be read
+# with a CR LF terminator). Otherwise None: the String path splits the line.
+def out.if(ok: Bool, b: D.Bytes, o: D.Bytes) -> Out:
+  match ok:
+    case True{}:
+      Out{b, Some{o}}
+    case False{}:
+      Out{b, None{}}
+
+def out.cr(b: D.Bytes, r: D.Bytes & Nat) -> Out:
+  (o, +k) = r
+  out.if(Nat.is_eq(k, 0n), b, o)
+
+def out.lf.if(ok: Bool, crlf: Bool, b: D.Bytes, o: D.Bytes, +len: U32) -> Out:
+  match ok crlf:
+    case False{} _:
+      Out{b, None{}}
+    case True{} True{}:
+      Out{b, Some{o}}
+    case True{} False{}:
+      out.cr(b, count(o, Rg{0, len}, 13))
+
+def out.lf(+n: Nat, +crlf: Bool, b: D.Bytes, r: D.Bytes & Nat, +len: U32) -> Out:
+  (o, +k) = r
+  out.lf.if(Nat.is_eq(k, n), crlf, b, o, len)
+
+def out.len(+n: Nat, +crlf: Bool, b: D.Bytes, r: D.Bytes & U32) -> Out:
+  (o, +len) = r
+  out.lf(n, crlf, b, count(o, Rg{0, len}, 10), len)
+
+def out.ck(w: Sw, +n: Nat, +crlf: Bool) -> Out:
+  match w:
+    case Sw{b, o, p, True{}}:
+      out.len(n, crlf, b, BY.len(o))
+    case Sw{b, o, p, False{}}:
+      Out{b, None{}}
+
+# The terminator is CR LF (two bytes).
+def is_crlf(+l: Ln) -> Bool:
+  match l:
+    case Ln{fs, iks, fks, Rg{+a, +z}}:
+      U32.is_eq((z - a : U32), 2)
+
 def go.write(+s: U32, +l: Ln, b: D.Bytes, +alts: List<&2, Rg>, +over0: Bool) -> Out:
-  out.of(flush(records(alts, Sw{b, BY.empty(0n), Rg{s, s}, True{}}, l, over0, List.length(&2, Rg, alts), 1n)))
+  out.ck(flush(records(alts, Sw{b, BY.empty(0n), Rg{s, s}, True{}}, l, over0, List.length(&2, Rg, alts), 1n)), List.length(&2, Rg, alts), is_crlf(l))
 
 def go.ln(+s: U32, +fs: List<&2, Rg>, +alts: List<&2, Rg>, +over0: Bool, r: D.Bytes & List<&2, Ik>, +fks: List<&2, Fk>, +term: Rg) -> Out:
   (b, +iks) = r
@@ -987,9 +1032,22 @@ def go.fields(r: D.Bytes & List<&2, Rg>, +s: U32, +over0: Bool, +term: Rg, +defs
   (b, +fs) = r
   go.fields.l(fs, b, s, over0, term, defs)
 
+# A line with a CR byte in its body (s .. be-1) is not split here (BAD_CR,
+# B.Rec.parts.cr): the String path refuses it.
+def go.nocr.if(ok: Bool, b: D.Bytes, +s: U32, +be: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Out:
+  match ok:
+    case True{}:
+      go.fields(cut(b, Rg{s, be}, 9), s, over0, Rg{be, (lf + 1 : U32)}, defs)
+    case False{}:
+      Out{b, None{}}
+
+def go.nocr(r: D.Bytes & Nat, +s: U32, +be: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Out:
+  (b, +k) = r
+  go.nocr.if(Nat.is_eq(k, 0n), b, s, be, lf, over0, defs)
+
 def go.body(cr: Bool, b: D.Bytes, +s: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Out:
   +be = Bool.pick(U32, cr, (lf - 1 : U32), lf)
-  go.fields(cut(b, Rg{s, be}, 9), s, over0, Rg{be, (lf + 1 : U32)}, defs)
+  go.nocr(count(b, Rg{s, be}, 13), s, be, lf, over0, defs)
 
 def go.cr(r: D.Bytes & U32, +s: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Out:
   (b, +x) = r
@@ -1014,42 +1072,36 @@ def split(b: D.Bytes, +s: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Out:
 # Which lines to split
 # ---------------------------------------------------------------------------
 
-# Looking for the LF and the comma test: the line's first tabs, at most 5.
-type Ml is Type:
-  Ml{b: D.Bytes, j: U32, lf: U32, tabs: Nat, ok: Bool}
+# A comma in the ALT field (its 4th and 5th ends: bytes e3+1 .. e4-1): Some{lf}.
+def multi.comma(r: D.Bytes & Nat, +lf: U32) -> D.Bytes & Maybe<&2, U32>:
+  (b, +k) = r
+  (b, Bool.pick(Maybe<&2, U32>, Nat.is_eq(k, 0n), None{}, Some{lf}))
 
-def multi.tab(r: D.Bytes & U32, +lf: U32, +k: Nat) -> Ml:
-  (b, +t) = r
-  Ml{b, (t + 1 : U32), lf, 1n+k, U32.is_lt(t, lf)}
-
-def multi.loop(n: Nat, x: Ml) -> Ml:
-  match n x:
-    case 0n x:
-      x
-    case 1n+m Ml{b, j, lf, tabs, False{}}:
-      Ml{b, j, lf, tabs, False{}}
-    case 1n+m Ml{b, +j, +lf, +tabs, True{}}:
-      multi.loop(m, multi.tab(F.find(b, j, lf, 9), lf, tabs))
-
-def multi.comma(r: D.Bytes & U32, +e: U32, +lf: U32) -> D.Bytes & Maybe<&2, U32>:
-  (b, +c) = r
-  (b, Bool.pick(Maybe<&2, U32>, U32.is_lt(c, e), Some{lf}, None{}))
-
-def multi.alt(r: D.Bytes & U32, +a: U32, +lf: U32) -> D.Bytes & Maybe<&2, U32>:
-  (b, +e) = r
-  multi.comma(F.find(b, a, e, 44), e, lf)
-
-def multi.fin(x: Ml) -> D.Bytes & Maybe<&2, U32>:
-  match x:
-    case Ml{b, +j, +lf, tabs, True{}}:
-      multi.alt(F.find(b, j, lf, 9), j, lf)
-    case Ml{b, j, lf, tabs, False{}}:
+def multi.es(es: List<&2, U32>, b: D.Bytes, +lf: U32) -> D.Bytes & Maybe<&2, U32>:
+  match es:
+    case e0 <> e1 <> e2 <> +e3 <> +e4 <> r:
+      multi.comma(count(b, Rg{(e3 + 1 : U32), e4}, 44), lf)
+    case _:
       (b, None{})
+
+def multi.cut(r: D.Bytes & List<&2, U32>, +lf: U32) -> D.Bytes & Maybe<&2, U32>:
+  (b, es) = r
+  multi.es(es, b, lf)
+
+# The body's first five fields (cut at tabs, as split cuts it: the body ends
+# before a CR before the LF, as in go.cr).
+def multi.body(cr: Bool, b: D.Bytes, +s: U32, +lf: U32) -> D.Bytes & Maybe<&2, U32>:
+  +be = Bool.pick(U32, cr, (lf - 1 : U32), lf)
+  multi.cut(cut.ends(b, s, be, 9, 5n), lf)
+
+def multi.cr(r: D.Bytes & U32, +s: U32, +lf: U32) -> D.Bytes & Maybe<&2, U32>:
+  (b, +x) = r
+  multi.body(U32.is_lt(s, lf) && U32.is_eq(x, 13), b, s, lf)
 
 def multi.lf.if(ok: Bool, b: D.Bytes, +s: U32, +lf: U32) -> D.Bytes & Maybe<&2, U32>:
   match ok:
     case True{}:
-      multi.fin(multi.loop(4n, Ml{b, s, lf, 0n, True{}}))
+      multi.cr(BY.at(b, Bool.pick(U32, U32.is_lt(s, lf), (lf - 1 : U32), lf)), s, lf)
     case False{}:
       (b, None{})
 
@@ -1057,8 +1109,9 @@ def multi.lf(+s: U32, r: D.Bytes & U32, +len: U32) -> D.Bytes & Maybe<&2, U32>:
   (b, +lf) = r
   multi.lf.if(U32.is_lt(lf, len), b, s, lf)
 
-# The line at s is complete and its ALT field (after its 4th tab) has a
-# comma: Some{its LF}. A cheap test before the fast path.
+# The line at s is complete (its LF at lf) and its ALT field has a comma:
+# Some{lf}. A cheap test before the fast path; None means the line has one
+# ALT (or fewer than five fields), so B.Rec.parts leaves it whole.
 def multi(b: D.Bytes, +s: U32) -> D.Bytes & Maybe<&2, U32>:
   D.Bytes{+len, buf} = b
   multi.lf(s, F.find(D.Bytes{len, buf}, s, len, 10), len)

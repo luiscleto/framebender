@@ -162,37 +162,37 @@ def mkTOuts(+fa: List<&2, B.Contig>, +ps: List<&2, Pc>, +xs: List<&2, TOutP>) ->
 # in the body and line end, a truthful window, and the lines ls it handled
 # (the piece's after k, up to the line end) moved into a run that stands for
 # the spec's run of ls from the phantom state.
-def TcOK(+fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +k: U32, +c0: String, +l: Nat, +cs: List<&2, String>, +x: TcP) -> Type:
+def TcOK(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +k: U32, +c0: String, +l: Nat, +cs: List<&2, String>, +x: TcP) -> Type:
   match x:
     case TcP{+rp, +pd, +wp}:
       {PR.RunInv(rp) && P.RunP.i(rp) && Bool.not(P.RunP.x(rp)) && P.pd_ok(pd) && P.nolf(P.pdtext(pd)) && PC.wp_ok(fa, wp) && S.mb_win(S.MBP{rp}, wp) == True{} : Bool}
         & (&ls: List<&2, B.Line> -> ({B.Text.lines(String.append(after(c, k), String.concat(cs))) == List.append(&2, B.Line, ls, B.Text.lines(String.append(P.pdtext(pd), String.concat(cs)))) : List<&2, B.Line>}
-          & {P.settle(P.specRun(rp)) == P.settle(L.run.go(ls, fa, o, SD.rs0(c0, l))) : R.RunSt}))
+          & {P.settle(P.specRun(rp)) == P.settle(L.run.go(ls, fa, dfs, o, SD.rs0(c0, l))) : R.RunSt}))
 
 # (Only a piece with reads, ok, can have a clean result.)
-def TResOK(+fa: List<&2, B.Contig>, +o: B.Opts, +c: String, ok: Bool, +k: U32, +c0: String, +l: Nat, +cs: List<&2, String>, +r: TResP) -> Type:
+def TResOK(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, ok: Bool, +k: U32, +c0: String, +l: Nat, +cs: List<&2, String>, +r: TResP) -> Type:
   match ok r:
     case _ TDirtyP{}:
       Unit
     case True{} TCleanP{+x}:
-      TcOK(fa, o, c, k, c0, l, cs, x)
+      TcOK(dfs, fa, o, c, k, c0, l, cs, x)
     case False{} TCleanP{x}:
       Empty
 
 # A task's result for piece p, followed by the text cs: the buffer holds the
 # piece's bytes; the result is as above.
-def TOutOK(+fa: List<&2, B.Contig>, +o: B.Opts, +p: Pc, +cs: List<&2, String>, +x: TOutP) -> Type:
+def TOutOK(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +p: Pc, +cs: List<&2, String>, +x: TOutP) -> Type:
   match p x:
     case Pc{+c, rs, +ok, +k, +c0, +l} TOutP{+len, +t, +d, +r}:
-      {D.ok(C.BT(len, t), d) == True{} : Bool} & ({D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>} & TResOK(fa, o, c, ok, k, c0, l, cs, r))
+      {D.ok(C.BT(len, t), d) == True{} : Bool} & ({D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>} & TResOK(dfs, fa, o, c, ok, k, c0, l, cs, r))
 
 # Every piece's result, each followed by the later pieces' texts and dcs.
-def BatchOK(+fa: List<&2, B.Contig>, +o: B.Opts, +ps: List<&2, Pc>, +xs: List<&2, TOutP>, +dcs: List<&2, String>) -> Type:
+def BatchOK(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +ps: List<&2, Pc>, +xs: List<&2, TOutP>, +dcs: List<&2, String>) -> Type:
   match ps xs:
     case Nil{} Nil{}:
       Unit
     case +p <> pt +x <> xt:
-      TOutOK(fa, o, p, List.append(&2, String, texts(pt), dcs), x) & BatchOK(fa, o, pt, xt, dcs)
+      TOutOK(dfs, fa, o, p, List.append(&2, String, texts(pt), dcs), x) & BatchOK(dfs, fa, o, pt, xt, dcs)
     case _ _:
       Empty
 
@@ -317,8 +317,8 @@ def mk_conv(+fa: List<&2, B.Contig>, +k: U32, +c0: String, +l: Nat, +r: LPP.LR) 
     case LPP.LClean{+rp, +pd, +wp}:
       {==}
 
-def tres_ok(+fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +ok: Bool, +k: U32, +c0: String, +l: Nat, +cs: List<&2, String>, +r: LPP.LR,
-  h: ON.ROK(fa, o, cs, c0, l, ON.LA(c, k, cs), r, ok)) -> TResOK(fa, o, c, ok, k, c0, l, cs, conv(r)):
+def tres_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +ok: Bool, +k: U32, +c0: String, +l: Nat, +cs: List<&2, String>, +r: LPP.LR,
+  h: ON.ROK(dfs, fa, o, cs, c0, l, ON.LA(c, k, cs), r, ok)) -> TResOK(dfs, fa, o, c, ok, k, c0, l, cs, conv(r)):
   match ok:
     case True{}:
       match r:
@@ -337,15 +337,15 @@ def and_in(+a: Bool, +b: Bool, +ha: {a == True{} : Bool}, +hb: {b == True{} : Bo
   %Equal.sym(Bool, a, True{}, ha) : {Bool.and(_, b) == True{} : Bool}
   hb
 
-def BG(+fa: List<&2, B.Contig>, +o: B.Opts, +ps: List<&2, Pc>, +dcs: List<&2, String>, -ts: List<&1, W.TOut>) -> Type:
-  &xs: List<&2, TOutP> -> ({ts == mkTOuts(fa, ps, xs) : List<&1, W.TOut>} & BatchOK(fa, o, ps, xs, dcs))
+def BG(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +ps: List<&2, Pc>, +dcs: List<&2, String>, -ts: List<&1, W.TOut>) -> Type:
+  &xs: List<&2, TOutP> -> ({ts == mkTOuts(fa, ps, xs) : List<&1, W.TOut>} & BatchOK(dfs, fa, o, ps, xs, dcs))
 
 # A piece's task in front of the later pieces' tasks.
-def fcons.k(+fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +rs: List<&2, Pr.Req>, +ok: Bool, +k: U32, +c0: String, +l: Nat,
+def fcons.k(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +rs: List<&2, Pr.Req>, +ok: Bool, +k: U32, +c0: String, +l: Nat,
   +pt: List<&2, Pc>, +dcs: List<&2, String>, -tsk: W.TOut, -rest: List<&1, W.TOut>,
-  g: ON.OneG(fa, o, List.append(&2, String, texts(pt), dcs), c, ok, k, c0, l, tsk),
-  ih: BG(fa, o, pt, dcs, rest)) ->
-  BG(fa, o, Pc{c, rs, ok, k, c0, l} <> pt, dcs, tsk <> rest):
+  g: ON.OneG(dfs, fa, o, List.append(&2, String, texts(pt), dcs), c, ok, k, c0, l, tsk),
+  ih: BG(dfs, fa, o, pt, dcs, rest)) ->
+  BG(dfs, fa, o, Pc{c, rs, ok, k, c0, l} <> pt, dcs, tsk <> rest):
   (+len, g1) = g
   (+t, g2) = g1
   (+d, g3) = g2
@@ -363,31 +363,31 @@ def fcons.k(+fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +rs: List<&2, Pr.Re
     %mk_conv(fa, k, c0, l, r) :
       {W.TOut{C.BT(len, t), _} <> mkTOuts(fa, pt, xt) == mkTOut(fa, Pc{c, rs, ok, k, c0, l}, TOutP{len, t, d, conv(r)}) <> mkTOuts(fa, pt, xt) : List<&1, W.TOut>}
     {==} : {tsk <> rest == mkTOuts(fa, Pc{c, rs, ok, k, c0, l} <> pt, TOutP{len, t, d, conv(r)} <> xt) : List<&1, W.TOut>}}
-  (TOutP{len, t, d, conv(r)} <> xt, (e, ((hok, (hv, tres_ok(fa, o, c, ok, k, c0, l, List.append(&2, String, texts(pt), dcs), r, hr))), hbt)))
+  (TOutP{len, t, d, conv(r)} <> xt, (e, ((hok, (hv, tres_ok(dfs, fa, o, c, ok, k, c0, l, List.append(&2, String, texts(pt), dcs), r, hr))), hbt)))
 
-def TS(+o: B.Opts, +fa: List<&2, B.Contig>, +ps: List<&2, Pc>) -> List<&1, HD.Task<&1, W.TOut>>:
-  W.tasks(o, mkPls(ps), W.pairs(M.truths(fa, reqs_of(ps))))
+def TS(+dfs: B.Defs, +o: B.Opts, +fa: List<&2, B.Contig>, +ps: List<&2, Pc>) -> List<&1, HD.Task<&1, W.TOut>>:
+  W.tasks(o, mkPls(ps), W.pairs(M.truths(fa, reqs_of(ps))), dfs)
 
 # A piece with reads: exactly two (PcOK), run with their truthful answers.
-def force_true(+fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +rs: List<&2, Pr.Req>, +k: U32, +c0: String, +l: Nat, +pt: List<&2, Pc>, +dcs: List<&2, String>,
+def force_true(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +rs: List<&2, Pr.Req>, +k: U32, +c0: String, +l: Nat, +pt: List<&2, Pc>, +dcs: List<&2, String>,
   +hb: {PC.fa_bytes(fa) == True{} : Bool},
   +hab: {E.all_bytes(S.opts_args(o)) == True{} : Bool},
   +hcb: {E.is_bytes(c) == True{} : Bool},
   +hcn: {E.le31(String.length(c)) == True{} : Bool},
   hpc: PcOK(Pc{c, rs, True{}, k, c0, l}, String.concat(List.append(&2, String, texts(pt), dcs))),
-  ih: BG(fa, o, pt, dcs, HD.force(&1, W.TOut, TS(o, fa, pt)))) ->
-  BG(fa, o, Pc{c, rs, True{}, k, c0, l} <> pt, dcs, HD.force(&1, W.TOut, TS(o, fa, Pc{c, rs, True{}, k, c0, l} <> pt))):
+  ih: BG(dfs, fa, o, pt, dcs, HD.force(&1, W.TOut, TS(dfs, o, fa, pt)))) ->
+  BG(dfs, fa, o, Pc{c, rs, True{}, k, c0, l} <> pt, dcs, HD.force(&1, W.TOut, TS(dfs, o, fa, Pc{c, rs, True{}, k, c0, l} <> pt))):
   match rs:
     case Nil{}:
       (h1, q1) = hpc
-      Empty.absurd(BG(fa, o, Pc{c, Nil{}, True{}, k, c0, l} <> pt, dcs, HD.force(&1, W.TOut, TS(o, fa, Pc{c, Nil{}, True{}, k, c0, l} <> pt))), N.false_ne_true(h1))
+      Empty.absurd(BG(dfs, fa, o, Pc{c, Nil{}, True{}, k, c0, l} <> pt, dcs, HD.force(&1, W.TOut, TS(dfs, o, fa, Pc{c, Nil{}, True{}, k, c0, l} <> pt))), N.false_ne_true(h1))
     case +a <> Nil{}:
       (h1, q1) = hpc
-      Empty.absurd(BG(fa, o, Pc{c, [a], True{}, k, c0, l} <> pt, dcs, HD.force(&1, W.TOut, TS(o, fa, Pc{c, [a], True{}, k, c0, l} <> pt))),
+      Empty.absurd(BG(dfs, fa, o, Pc{c, [a], True{}, k, c0, l} <> pt, dcs, HD.force(&1, W.TOut, TS(dfs, o, fa, Pc{c, [a], True{}, k, c0, l} <> pt))),
         N.false_ne_true(BUF.andr(rs_ok([a]), two([a]), h1)))
     case +a <> +b <> +cc <> +t:
       (h1, q1) = hpc
-      Empty.absurd(BG(fa, o, Pc{c, a <> b <> cc <> t, True{}, k, c0, l} <> pt, dcs, HD.force(&1, W.TOut, TS(o, fa, Pc{c, a <> b <> cc <> t, True{}, k, c0, l} <> pt))),
+      Empty.absurd(BG(dfs, fa, o, Pc{c, a <> b <> cc <> t, True{}, k, c0, l} <> pt, dcs, HD.force(&1, W.TOut, TS(dfs, o, fa, Pc{c, a <> b <> cc <> t, True{}, k, c0, l} <> pt))),
         N.false_ne_true(BUF.andr(rs_ok(a <> b <> cc <> t), two(a <> b <> cc <> t), h1)))
     case Pr.Req{+c1, +x1, +y1} <> Pr.Req{+c2, +x2, +y2} <> Nil{}:
       (h1, q1) = hpc
@@ -396,34 +396,34 @@ def force_true(+fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +rs: List<&2, Pr
       (+hk1, hdec) = q3
       +RS = {[Pr.Req{c1, x1, y1}, Pr.Req{c2, x2, y2}] : List<&2, Pr.Req>}
       +hrs2 = Equal.trans(Bool, BUF.rs_ok2(RS), rs_ok(RS), True{}, Equal.sym(Bool, rs_ok(RS), BUF.rs_ok2(RS), rs_ok_eq(RS)), BUF.andl(rs_ok(RS), two(RS), h1))
-      fcons.k(fa, o, c, RS, True{}, k, c0, l, pt, dcs,
-        W.task(o, E.enc(c), True{}, RS, M.truths.one(fa, Pr.Req{c1, x1, y1}), M.truths.one(fa, Pr.Req{c2, x2, y2}), k, c0, l), HD.force(&1, W.TOut, TS(o, fa, pt)),
-        ON.one_ok(fa, o, List.append(&2, String, texts(pt), dcs), c, k, c0, l, c1, x1, y1, c2, x2, y2, hb, hab, hcb, hcn, hrs2, hb0, hk1),
+      fcons.k(dfs, fa, o, c, RS, True{}, k, c0, l, pt, dcs,
+        W.task(o, E.enc(c), True{}, RS, M.truths.one(fa, Pr.Req{c1, x1, y1}), M.truths.one(fa, Pr.Req{c2, x2, y2}), k, c0, l, dfs), HD.force(&1, W.TOut, TS(dfs, o, fa, pt)),
+        ON.one_ok(dfs, fa, o, List.append(&2, String, texts(pt), dcs), c, k, c0, l, c1, x1, y1, c2, x2, y2, hb, hab, hcb, hcn, hrs2, hb0, hk1),
         ih)
 
 # A piece without reads.
-def force_false(+fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +rs: List<&2, Pr.Req>, +k: U32, +c0: String, +l: Nat, +pt: List<&2, Pc>, +dcs: List<&2, String>,
+def force_false(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +rs: List<&2, Pr.Req>, +k: U32, +c0: String, +l: Nat, +pt: List<&2, Pc>, +dcs: List<&2, String>,
   +hcb: {E.is_bytes(c) == True{} : Bool},
   +hcn: {E.le31(String.length(c)) == True{} : Bool},
   +hpc: {rs == Nil{} : List<&2, Pr.Req>},
-  ih: BG(fa, o, pt, dcs, HD.force(&1, W.TOut, TS(o, fa, pt)))) ->
-  BG(fa, o, Pc{c, rs, False{}, k, c0, l} <> pt, dcs, HD.force(&1, W.TOut, TS(o, fa, Pc{c, rs, False{}, k, c0, l} <> pt))):
+  ih: BG(dfs, fa, o, pt, dcs, HD.force(&1, W.TOut, TS(dfs, o, fa, pt)))) ->
+  BG(dfs, fa, o, Pc{c, rs, False{}, k, c0, l} <> pt, dcs, HD.force(&1, W.TOut, TS(dfs, o, fa, Pc{c, rs, False{}, k, c0, l} <> pt))):
   match rs:
     case Nil{}:
-      fcons.k(fa, o, c, Nil{}, False{}, k, c0, l, pt, dcs,
-        W.task(o, E.enc(c), False{}, Nil{}, Pr.Unknown{}, Pr.Unknown{}, k, c0, l), HD.force(&1, W.TOut, TS(o, fa, pt)),
-        ON.one_no(fa, o, List.append(&2, String, texts(pt), dcs), c, Nil{}, k, c0, l, hcb, hcn),
+      fcons.k(dfs, fa, o, c, Nil{}, False{}, k, c0, l, pt, dcs,
+        W.task(o, E.enc(c), False{}, Nil{}, Pr.Unknown{}, Pr.Unknown{}, k, c0, l, dfs), HD.force(&1, W.TOut, TS(dfs, o, fa, pt)),
+        ON.one_no(dfs, fa, o, List.append(&2, String, texts(pt), dcs), c, Nil{}, k, c0, l, hcb, hcn),
         ih)
     case +a <> +t:
-      Empty.absurd(BG(fa, o, Pc{c, a <> t, False{}, k, c0, l} <> pt, dcs, HD.force(&1, W.TOut, TS(o, fa, Pc{c, a <> t, False{}, k, c0, l} <> pt))),
+      Empty.absurd(BG(dfs, fa, o, Pc{c, a <> t, False{}, k, c0, l} <> pt, dcs, HD.force(&1, W.TOut, TS(dfs, o, fa, Pc{c, a <> t, False{}, k, c0, l} <> pt))),
         N.false_ne_true(Equal.cong(List<&2, Pr.Req>, Bool, z => List.is_empty(&2, Pr.Req, z), a <> t, Nil{}, hpc)))
 
-def force_ok(+fa: List<&2, B.Contig>, +o: B.Opts, +ps: List<&2, Pc>, +dcs: List<&2, String>,
+def force_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +ps: List<&2, Pc>, +dcs: List<&2, String>,
   +hb: {PC.fa_bytes(fa) == True{} : Bool},
   +hab: {E.all_bytes(S.opts_args(o)) == True{} : Bool},
   +hc: {Bool.and(E.all_bytes(texts(ps)), E.pieces_ok(texts(ps))) == True{} : Bool},
   hps: PcsOK(ps, dcs)) ->
-  BG(fa, o, ps, dcs, HD.force(&1, W.TOut, TS(o, fa, ps))):
+  BG(dfs, fa, o, ps, dcs, HD.force(&1, W.TOut, TS(dfs, o, fa, ps))):
   match ps:
     case Nil{}:
       (Nil{}, ({==}, Unit{}))
@@ -434,23 +434,23 @@ def force_ok(+fa: List<&2, B.Contig>, +o: B.Opts, +ps: List<&2, Pc>, +dcs: List<
           +hA = BUF.andl(E.all_bytes(c <> texts(pt)), E.pieces_ok(c <> texts(pt)), hc)
           +hP = BUF.andr(E.all_bytes(c <> texts(pt)), E.pieces_ok(c <> texts(pt)), hc)
           +hct = and_in(E.all_bytes(texts(pt)), E.pieces_ok(texts(pt)), BUF.andr(E.is_bytes(c), E.all_bytes(texts(pt)), hA), BUF.andr(E.le31(String.length(c)), E.pieces_ok(texts(pt)), hP))
-          force_true(fa, o, c, rs, k, c0, l, pt, dcs, hb, hab, BUF.andl(E.is_bytes(c), E.all_bytes(texts(pt)), hA), BUF.andl(E.le31(String.length(c)), E.pieces_ok(texts(pt)), hP),
-            hpc, force_ok(fa, o, pt, dcs, hb, hab, hct, hpt))
+          force_true(dfs, fa, o, c, rs, k, c0, l, pt, dcs, hb, hab, BUF.andl(E.is_bytes(c), E.all_bytes(texts(pt)), hA), BUF.andl(E.le31(String.length(c)), E.pieces_ok(texts(pt)), hP),
+            hpc, force_ok(dfs, fa, o, pt, dcs, hb, hab, hct, hpt))
         case False{}:
           (hpc, hpt) = hps
           +hA = BUF.andl(E.all_bytes(c <> texts(pt)), E.pieces_ok(c <> texts(pt)), hc)
           +hP = BUF.andr(E.all_bytes(c <> texts(pt)), E.pieces_ok(c <> texts(pt)), hc)
           +hct = and_in(E.all_bytes(texts(pt)), E.pieces_ok(texts(pt)), BUF.andr(E.is_bytes(c), E.all_bytes(texts(pt)), hA), BUF.andr(E.le31(String.length(c)), E.pieces_ok(texts(pt)), hP))
-          force_false(fa, o, c, rs, k, c0, l, pt, dcs, BUF.andl(E.is_bytes(c), E.all_bytes(texts(pt)), hA), BUF.andl(E.le31(String.length(c)), E.pieces_ok(texts(pt)), hP),
-            hpc, force_ok(fa, o, pt, dcs, hb, hab, hct, hpt))
+          force_false(dfs, fa, o, c, rs, k, c0, l, pt, dcs, BUF.andl(E.is_bytes(c), E.all_bytes(texts(pt)), hA), BUF.andl(E.le31(String.length(c)), E.pieces_ok(texts(pt)), hP),
+            hpc, force_ok(dfs, fa, o, pt, dcs, hb, hab, hct, hpt))
 
-def batch_k(+fa: List<&2, B.Contig>, +o: B.Opts, +ps: List<&2, Pc>, +dcs: List<&2, String>,
-  fr: BG(fa, o, ps, dcs, HD.force(&1, W.TOut, TS(o, fa, ps)))) ->
-  &xs: List<&2, TOutP> -> ({HH.all(&1, W.TOut, W.tasks(o, mkPls(ps), W.pairs(M.truths(fa, reqs_of(ps))))) == mkTOuts(fa, ps, xs) : List<&1, W.TOut>}
-    & BatchOK(fa, o, ps, xs, dcs)):
+def batch_k(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +ps: List<&2, Pc>, +dcs: List<&2, String>,
+  fr: BG(dfs, fa, o, ps, dcs, HD.force(&1, W.TOut, TS(dfs, o, fa, ps)))) ->
+  &xs: List<&2, TOutP> -> ({HH.all(&1, W.TOut, W.tasks(o, mkPls(ps), W.pairs(M.truths(fa, reqs_of(ps))), dfs)) == mkTOuts(fa, ps, xs) : List<&1, W.TOut>}
+    & BatchOK(dfs, fa, o, ps, xs, dcs)):
   (+xs, f1) = fr
   (+e, h) = f1
-  (xs, (Equal.trans(List<&1, W.TOut>, HH.all(&1, W.TOut, TS(o, fa, ps)), HD.force(&1, W.TOut, TS(o, fa, ps)), mkTOuts(fa, ps, xs), HA.all_force(&1, W.TOut, TS(o, fa, ps)), e), h))
+  (xs, (Equal.trans(List<&1, W.TOut>, HH.all(&1, W.TOut, TS(dfs, o, fa, ps)), HD.force(&1, W.TOut, TS(dfs, o, fa, ps)), mkTOuts(fa, ps, xs), HA.all_force(&1, W.TOut, TS(dfs, o, fa, ps)), e), h))
 
 # ---------------------------------------------------------------------------
 # Deliverables (each: the statement is fixed; replace ?TODO by a proof)
@@ -469,11 +469,11 @@ def plan_all(+cs: List<&2, String>, +dcs: List<&2, String>,
       plan_step(c, t, dcs, hb, hn, h1 => h2 => plan_all(t, dcs, h1, h2))
 
 # The batch's tasks, run in parallel with the truthful answers to its reads.
-def batch(+fa: List<&2, B.Contig>, +o: B.Opts, +ps: List<&2, Pc>, +dcs: List<&2, String>,
+def batch(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +ps: List<&2, Pc>, +dcs: List<&2, String>,
   hb: {PC.fa_bytes(fa) == True{} : Bool},
   hab: {E.all_bytes(S.opts_args(o)) == True{} : Bool},
   hcs: {E.all_bytes(texts(ps)) && E.pieces_ok(texts(ps)) == True{} : Bool},
   hps: PcsOK(ps, dcs)) ->
-  &xs: List<&2, TOutP> -> ({HH.all(&1, W.TOut, W.tasks(o, mkPls(ps), W.pairs(M.truths(fa, reqs_of(ps))))) == mkTOuts(fa, ps, xs) : List<&1, W.TOut>}
-    & BatchOK(fa, o, ps, xs, dcs)):
-  batch_k(fa, o, ps, dcs, force_ok(fa, o, ps, dcs, hb, hab, hcs, hps))
+  &xs: List<&2, TOutP> -> ({HH.all(&1, W.TOut, W.tasks(o, mkPls(ps), W.pairs(M.truths(fa, reqs_of(ps))), dfs)) == mkTOuts(fa, ps, xs) : List<&1, W.TOut>}
+    & BatchOK(dfs, fa, o, ps, xs, dcs)):
+  batch_k(dfs, fa, o, ps, dcs, force_ok(dfs, fa, o, ps, dcs, hb, hab, hcs, hps))

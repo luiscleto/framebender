@@ -32,42 +32,42 @@ def pre_eq(O, N, st):
 # ---------------------------------------------------------------------------
 
 # A report does not depend on what settle forgets.
-def settle_inv(+ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt) ->
-  {R.finish(L.run.go(ls, fa, o, P.settle(st))) == R.finish(L.run.go(ls, fa, o, st)) : R.Report}:
+def settle_inv(+dfs: B.Defs, +ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt) ->
+  {R.finish(L.run.go(ls, fa, dfs, o, P.settle(st))) == R.finish(L.run.go(ls, fa, dfs, o, st)) : R.Report}:
   match st:
     case R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +so, +ns, False{}}:
-      BL.inv(ls, fa, o, R.RunSt{n, i, h, c, e, l, b, k, so, ns, False{}})
+      BL.inv(dfs, ls, fa, o, R.RunSt{n, i, h, c, e, l, b, k, so, ns, False{}})
     case R.RunSt{+n, True{}, +h, +c, +e, +l, +b, +k, +so, +ns, True{}}:
       +S1 = {R.RunSt{n, True{}, h, c, e, None{}, Nil{}, k, so, ns, True{}} : R.RunSt}
       +S0 = {R.RunSt{n, True{}, h, c, e, l, b, k, so, ns, True{}} : R.RunSt}
-      Equal.trans(R.Report, R.finish(L.run.go(ls, fa, o, S1)), R.finish(S1), R.finish(L.run.go(ls, fa, o, S0)),
-        Equal.cong(R.RunSt, R.Report, z => R.finish(z), L.run.go(ls, fa, o, S1), S1, F.run_halted(ls, fa, o, S1, {==})),
-        Equal.sym(R.Report, R.finish(L.run.go(ls, fa, o, S0)), R.finish(S0),
-          Equal.cong(R.RunSt, R.Report, z => R.finish(z), L.run.go(ls, fa, o, S0), S0, F.run_halted(ls, fa, o, S0, {==}))))
+      Equal.trans(R.Report, R.finish(L.run.go(ls, fa, dfs, o, S1)), R.finish(S1), R.finish(L.run.go(ls, fa, dfs, o, S0)),
+        Equal.cong(R.RunSt, R.Report, z => R.finish(z), L.run.go(ls, fa, dfs, o, S1), S1, F.run_halted(dfs, ls, fa, o, S1, {==})),
+        Equal.sym(R.Report, R.finish(L.run.go(ls, fa, dfs, o, S0)), R.finish(S0),
+          Equal.cong(R.RunSt, R.Report, z => R.finish(z), L.run.go(ls, fa, dfs, o, S0), S0, F.run_halted(dfs, ls, fa, o, S0, {==}))))
     case R.RunSt{+n, False{}, +h, +c, +e, +l, +b, +k, +so, +ns, True{}}:
       +S1 = {R.RunSt{n, False{}, h, c, e, None{}, Nil{}, k, so, ns, True{}} : R.RunSt}
       +S0 = {R.RunSt{n, False{}, h, c, e, l, b, k, so, ns, True{}} : R.RunSt}
-      Equal.trans(R.Report, R.finish(L.run.go(ls, fa, o, S1)), R.finish(S1), R.finish(L.run.go(ls, fa, o, S0)),
-        Equal.cong(R.RunSt, R.Report, z => R.finish(z), L.run.go(ls, fa, o, S1), S1, F.run_halted(ls, fa, o, S1, {==})),
-        Equal.sym(R.Report, R.finish(L.run.go(ls, fa, o, S0)), R.finish(S0),
-          Equal.cong(R.RunSt, R.Report, z => R.finish(z), L.run.go(ls, fa, o, S0), S0, F.run_halted(ls, fa, o, S0, {==}))))
+      Equal.trans(R.Report, R.finish(L.run.go(ls, fa, dfs, o, S1)), R.finish(S1), R.finish(L.run.go(ls, fa, dfs, o, S0)),
+        Equal.cong(R.RunSt, R.Report, z => R.finish(z), L.run.go(ls, fa, dfs, o, S1), S1, F.run_halted(dfs, ls, fa, o, S1, {==})),
+        Equal.sym(R.Report, R.finish(L.run.go(ls, fa, dfs, o, S0)), R.finish(S0),
+          Equal.cong(R.RunSt, R.Report, z => R.finish(z), L.run.go(ls, fa, dfs, o, S0), S0, F.run_halted(dfs, ls, fa, o, S0, {==}))))
 
 # One line of the spec with O and N in front: the same line, then O and N in
 # front (before the #CHROM line nothing has been written or noted).
-def step_pre(+fa: List<&2, B.Contig>, +o: B.Opts, +O: String, +N: List<&2, B.Note>, +st: R.RunSt, +l: B.Line,
+def step_pre(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +O: String, +N: List<&2, B.Note>, +st: R.RunSt, +l: B.Line,
   hg: {R.RunSt.inbody(st) || (String.is_empty(O) && List.is_empty(&2, B.Note, N)) == True{} : Bool}) ->
-  {L.line_step(fa, o, S.pre(O, N, st), l) == S.pre(O, N, L.line_step(fa, o, st, l)) : R.RunSt}:
-  %pre_eq(O, N, st) : {L.line_step(fa, o, _, l) == S.pre(O, N, L.line_step(fa, o, st, l)) : R.RunSt}
-  %pre_eq(O, N, L.line_step(fa, o, st, l)) : {L.line_step(fa, o, F.pre(O, N, st), l) == _ : R.RunSt}
-  F.step_pre(fa, o, O, N, st, l, hg)
+  {L.line_step(fa, dfs, o, S.pre(O, N, st), l) == S.pre(O, N, L.line_step(fa, dfs, o, st, l)) : R.RunSt}:
+  %pre_eq(O, N, st) : {L.line_step(fa, dfs, o, _, l) == S.pre(O, N, L.line_step(fa, dfs, o, st, l)) : R.RunSt}
+  %pre_eq(O, N, L.line_step(fa, dfs, o, st, l)) : {L.line_step(fa, dfs, o, F.pre(O, N, st), l) == _ : R.RunSt}
+  F.step_pre(dfs, fa, o, O, N, st, l, hg)
 
 # The whole rest of the run likewise.
-def run_pre(+ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, +O: String, +N: List<&2, B.Note>, +st: R.RunSt,
+def run_pre(+dfs: B.Defs, +ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, +O: String, +N: List<&2, B.Note>, +st: R.RunSt,
   hg: {R.RunSt.inbody(st) || (String.is_empty(O) && List.is_empty(&2, B.Note, N)) == True{} : Bool}) ->
-  {L.run.go(ls, fa, o, S.pre(O, N, st)) == S.pre(O, N, L.run.go(ls, fa, o, st)) : R.RunSt}:
-  %pre_eq(O, N, st) : {L.run.go(ls, fa, o, _) == S.pre(O, N, L.run.go(ls, fa, o, st)) : R.RunSt}
-  %pre_eq(O, N, L.run.go(ls, fa, o, st)) : {L.run.go(ls, fa, o, F.pre(O, N, st)) == _ : R.RunSt}
-  F.run_pre(ls, fa, o, O, N, st, hg)
+  {L.run.go(ls, fa, dfs, o, S.pre(O, N, st)) == S.pre(O, N, L.run.go(ls, fa, dfs, o, st)) : R.RunSt}:
+  %pre_eq(O, N, st) : {L.run.go(ls, fa, dfs, o, _) == S.pre(O, N, L.run.go(ls, fa, dfs, o, st)) : R.RunSt}
+  %pre_eq(O, N, L.run.go(ls, fa, dfs, o, st)) : {L.run.go(ls, fa, dfs, o, F.pre(O, N, st)) == _ : R.RunSt}
+  F.run_pre(dfs, ls, fa, o, O, N, st, hg)
 
 # The end of the run with O and N in front.
 def finish_pre(+O: String, +N: List<&2, B.Note>, +st: R.RunSt,
@@ -86,7 +86,7 @@ def settle_pre(+O: String, +N: List<&2, B.Note>, +st: R.RunSt) ->
       {==}
 
 # A stopped run stays as it is.
-def run_halted(+ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt,
+def run_halted(+dfs: B.Defs, +ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt,
   hh: {R.RunSt.halt(st) == True{} : Bool}) ->
-  {L.run.go(ls, fa, o, st) == st : R.RunSt}:
-  F.run_halted(ls, fa, o, st, hh)
+  {L.run.go(ls, fa, dfs, o, st) == st : R.RunSt}:
+  F.run_halted(dfs, ls, fa, o, st, hh)

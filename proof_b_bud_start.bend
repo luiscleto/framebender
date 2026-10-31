@@ -114,7 +114,7 @@ def at_len(xs):
 
 def oargs(o: B.Opts) -> List<&2, String>:
   match o:
-    case B.Opts{s, w, a}:
+    case B.Opts{s, w, om_m, om_z, a}:
       a
 
 def cfg_al(m: Maybe<&2, B.Cfg>) -> Nat:
@@ -129,35 +129,8 @@ law al_done:
   {Nat.is_le(cfg_al(B.Args.done(st)), A.kl(st)) == True{} : Bool}
 
 def al_done(st):
-  match st:
-    case B.ArgSt{pe, s, w, t, r, v, ok, k}:
-      match pe:
-        case B.PNone{}:
-          match r:
-            case None{}:
-              N.le_zero_l(M.args_len(k))
-            case Some{r1}:
-              match v:
-                case None{}:
-                  N.le_zero_l(M.args_len(k))
-                case Some{v1}:
-                  match ok:
-                    case True{}:
-                      N.le_refl(M.args_len(k))
-                    case False{}:
-                      N.le_zero_l(M.args_len(k))
-        case B.PRef{}:
-          N.le_zero_l(M.args_len(k))
-        case B.PCheck{}:
-          N.le_zero_l(M.args_len(k))
-        case B.PWin{}:
-          N.le_zero_l(M.args_len(k))
-        case B.PThr{}:
-          N.le_zero_l(M.args_len(k))
-        case B.POut{}:
-          N.le_zero_l(M.args_len(k))
-        case B.PType{}:
-          N.le_zero_l(M.args_len(k))
+  ?TODO
+
 
 law al_if:
   for +c: Bool
@@ -260,7 +233,7 @@ law ob1:
 
 def ob1(vcf, o, AL, hA):
   match o:
-    case B.Opts{+s, +w, +args}:
+    case B.Opts{+s, +w, +om_m, +om_z, +args}:
       ob_le(1n+String.length(vcf), String.length(R.args_text(args)), AL, N.le_zero_l(String.length(vcf)), hA)
 
 law ob2:
@@ -322,6 +295,7 @@ def sub0_le(n):
 
 # The hand-outs still to come at the start: at most (|vcf| + 1) + args_len.
 law ho_le:
+  for +dfs: B.Defs
   for +argv: List<&2, String>
   for +o: B.Opts
   for +ref: String
@@ -331,12 +305,12 @@ law ho_le:
   for +ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>}
   {Nat.is_le(BN.HO(L.run(fasta, vcf, o), ""), Nat.add(1n+String.length(vcf), M.args_len(argv))) == True{} : Bool}
 
-def ho_le(argv, o, ref, vcfpath, fasta, vcf, ha):
+def ho_le(dfs,argv, o, ref, vcfpath, fasta, vcf, ha):
   +n = String.length(R.Report.out(L.run(fasta, vcf, o)))
   +X = Nat.add(1n+String.length(vcf), M.args_len(argv))
   div_le(Nat.sub(n, String.length("")), X, 256n, {==},
     N.le_trans(Nat.sub(n, String.length("")), n, Nat.mul(248n, X), sub0_le(n),
-      N.le_trans(n, Nat.add(BR.OB(vcf, o), BR.OB(vcf, o)), Nat.mul(248n, X), BR.out_len(fasta, vcf, o),
+      N.le_trans(n, Nat.add(BR.OB(vcf, o), BR.OB(vcf, o)), Nat.mul(248n, X), BR.out_len(dfs, fasta, vcf, o),
         ob2(vcf, o, M.args_len(argv), args_le(argv, o, ref, vcfpath, ha)))))
 
 # The empty line end at the start holds no text.
@@ -769,6 +743,7 @@ def fin(c, H, W, AL, v, F, FM, hH, hW, hF):
     core(H, W, AL, v, Qv, hH, N.le_trans(W, Nat.mul(v, 2n+FM), Qv, hW, N.le_mul_l(v, 2n+FM, 2n+F, hF))))
 
 law bud_bi:
+  for +dfs: B.Defs
   for +argv: List<&2, String>
   for +o: B.Opts
   for +ref: String
@@ -778,15 +753,16 @@ law bud_bi:
   for +cs: List<&2, String>
   for +p: S.StP
   for +ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>}
-  for +hst: {DD.start_st(Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}
+  for +hst: {DD.start_st(dfs, Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}
   {BN.bi(B.Fasta.parse(fasta), L.run(fasta, vcf, o), p, cs, False{}, Pr.More{}, "") == True{} : Bool}
 
-def bud_bi(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hst):
+def bud_bi(dfs,argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hst):
   %hst : {BN.biS(_, cs) == True{} : Bool}
-  %Equal.sym(Maybe<&2, B.Cfg>, B.Args.parse(argv), Some{B.Cfg{o, ref, vcfpath}}, ha) : {BN.biS(DD.start_st(Norm.start.of(_)), cs) == True{} : Bool}
+  %Equal.sym(Maybe<&2, B.Cfg>, B.Args.parse(argv), Some{B.Cfg{o, ref, vcfpath}}, ha) : {BN.biS(DD.start_st(dfs, Norm.start.of(_)), cs) == True{} : Bool}
   bi0(BN.lines(Nil{}, Norm.PB{BY.empty(0n)}, False{}, cs))
 
 law bud_need:
+  for +dfs: B.Defs
   for +argv: List<&2, String>
   for +o: B.Opts
   for +ref: String
@@ -797,10 +773,10 @@ law bud_need:
   for +p: S.StP
   for +ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>}
   for +h: {String.concat(cs) == vcf : String}
-  for +hst: {DD.start_st(Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}
+  for +hst: {DD.start_st(dfs, Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}
   {Nat.is_le(BN.need(B.Fasta.parse(fasta), L.run(fasta, vcf, o), p, cs, False{}, Pr.More{}, ""), M.bound(argv, fasta, vcf, cs)) == True{} : Bool}
 
-def bud_need(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, h, hst):
+def bud_need(dfs,argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, h, hst):
   +fa = B.Fasta.parse(fasta)
   +T = L.run(fasta, vcf, o)
   +bd = M.bound(argv, fasta, vcf, cs)
@@ -808,14 +784,15 @@ def bud_need(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, h, hst):
   +v = Nat.add(1n, String.length(vcf))
   %hst : {Nat.is_le(BN.needS(fa, T, _, cs, False{}, Pr.More{}, ""), bd) == True{} : Bool}
   %Equal.sym(Maybe<&2, B.Cfg>, B.Args.parse(argv), Some{B.Cfg{o, ref, vcfpath}}, ha) :
-    {Nat.is_le(BN.needS(fa, T, DD.start_st(Norm.start.of(_)), cs, False{}, Pr.More{}, ""), bd) == True{} : Bool}
+    {Nat.is_le(BN.needS(fa, T, DD.start_st(dfs, Norm.start.of(_)), cs, False{}, Pr.More{}, ""), bd) == True{} : Bool}
   fin(List.length(&2, String, cs), BN.HO(T, ""), BN.WA.ls(fa, True{}, 0n, Norm.WNone{}, None{}, ls), M.args_len(argv), v, String.length(fasta), BN.FM(fa),
-    ho_le(argv, o, ref, vcfpath, fasta, vcf, ha),
+    ho_le(dfs, argv, o, ref, vcfpath, fasta, vcf, ha),
     N.le_trans(BN.WA.ls(fa, True{}, 0n, Norm.WNone{}, None{}, ls), BN.LAs(fa, ls), Nat.mul(v, BN.ZW(fa)), wa_le(fa, ls), las_cs(fa, cs, vcf, h)),
     fa_fm(fasta))
 
 # bud_start (proof_b_budget_api.bend).
 law bud_start_h:
+  for +dfs: B.Defs
   for +argv: List<&2, String>
   for +o: B.Opts
   for +ref: String
@@ -826,9 +803,9 @@ law bud_start_h:
   for +p: S.StP
   for +ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>}
   for +h: {String.concat(cs) == vcf : String}
-  for +hst: {DD.start_st(Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}
+  for +hst: {DD.start_st(dfs, Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St}
   {BN.bi(B.Fasta.parse(fasta), L.run(fasta, vcf, o), p, cs, False{}, Pr.More{}, "") == True{} : Bool}
     & {Nat.is_le(BN.need(B.Fasta.parse(fasta), L.run(fasta, vcf, o), p, cs, False{}, Pr.More{}, ""), M.bound(argv, fasta, vcf, cs)) == True{} : Bool}
 
-def bud_start_h(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, h, hst):
-  (bud_bi(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hst), bud_need(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, h, hst))
+def bud_start_h(dfs,argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, h, hst):
+  (bud_bi(dfs, argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, hst), bud_need(dfs, argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, h, hst))

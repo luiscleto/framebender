@@ -99,15 +99,15 @@ def kbg(+len: U32, +t: AT.Tree<U32>, +d: Nat, +x: U32, +y: U32,
   %Equal.sym(Nat, U32.to_nat((y + 1 : U32)), Nat.add(U32.to_nat(y), 1n), hinc) : {Nat.is_le(_, U32.to_nat(len)) == True{} : Bool}
   C.succ_le(U32.to_nat(y), U32.to_nat(len), hy)
 
-def hdec(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hdec(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -116,20 +116,20 @@ def hdec(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: 
   +hf: {B.Fasta.find(fa, c) == Some{r} : Maybe<&2, String>},
   +cbl: U32, +cbt: AT.Tree<U32>,
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win}) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.decoded(back, o, P.mkRun(rp), C.BT(len, t), at, DE.CX(rest, pd, eof), WK(c, cbl, cbt, a, b, r), fneed)):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.decoded(back, o, P.mkRun(rp), C.BT(len, t), at, DE.CX(False{}, dfs, rest, pd, eof), WK(c, cbl, cbt, a, b, r), fneed)):
   %Equal.sym(Norm.Win, WK(c, cbl, cbt, a, b, r), CD.mkWin(fa, CD.WPKnown{c, a, b}), emk) :
-    BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.decoded(back, o, P.mkRun(rp), C.BT(len, t), at, DE.CX(rest, pd, eof), _, fneed))
-  BDe.c.dec(fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, fneed, hb, hw, hr, hg, hx, hbig, hbi)
+    BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.decoded(back, o, P.mkRun(rp), C.BT(len, t), at, DE.CX(False{}, dfs, rest, pd, eof), _, fneed))
+  BDe.c.dec(dfs, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, fneed, hb, hw, hr, hg, hx, hbig, hbi)
 
-def hcw(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hcw(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -140,24 +140,24 @@ def hcw(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win},
   x: NR.Run,
   sl: LI.SPLIT(len, t, d, at, lf) & ({P.nolf(P.btext(len, t, at, (lf - at : U32))) == True{} : Bool} & ({U32.is_le((lf + 1 : U32), len) == True{} : Bool} & {E.is_bytes(P.btext(len, t, at, (lf - at : U32))) == True{} : Bool}))) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.Went{Norm.St{o, Norm.MB{x}, Con{Norm.SB{C.BT(len, t), (lf + 1 : U32)}, P.mkSrcs(rest)}, P.mkPd(pd), eof, 0n, WK(c, cbl, cbt, a, b, r), None{}, False{}}}):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.Went{Norm.St{o, Norm.MB{x}, Con{Norm.SB{C.BT(len, t), (lf + 1 : U32)}, P.mkSrcs(rest)}, P.mkPd(pd), eof, 0n, WK(c, cbl, cbt, a, b, r), None{}, False{}, dfs}}):
   match sl:
     case (hsp, q):
       match q:
         case (hn, q2):
         %Equal.sym(Norm.Win, WK(c, cbl, cbt, a, b, r), CD.mkWin(fa, CD.WPKnown{c, a, b}), emk) :
-          BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.Went{Norm.St{o, Norm.MB{x}, Con{Norm.SB{C.BT(len, t), (lf + 1 : U32)}, P.mkSrcs(rest)}, P.mkPd(pd), eof, 0n, _, None{}, False{}}})
-        DH.CW(fa, cs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, fneed, hb, hw, hx, hbig, hbi, hi, hok, hs, lf, hsp, hn, x)
+          BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.Went{Norm.St{o, Norm.MB{x}, Con{Norm.SB{C.BT(len, t), (lf + 1 : U32)}, P.mkSrcs(rest)}, P.mkPd(pd), eof, 0n, _, None{}, False{}, dfs}})
+        DH.CW(dfs, fa, cs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, fneed, hb, hw, hx, hbig, hbi, hi, hok, hs, lf, hsp, hn, x)
 
-def fout(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def fout(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -167,20 +167,20 @@ def fout(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: 
   +cbl: U32, +cbt: AT.Tree<U32>,
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win},
   X: NR.Run & D.Bytes) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.out(o, X, lf, C.BT(len, t), DE.CX(rest, pd, eof), WK(c, cbl, cbt, a, b, r))):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.out(o, X, lf, C.BT(len, t), DE.CX(False{}, dfs, rest, pd, eof), WK(c, cbl, cbt, a, b, r))):
   match X:
     case (x, sc):
-      hcw(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, x, LN.src_line(len, t, d, at, lf, hok, hs, PJ.lf_first(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)), PJ.lf_lt(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp))))
+      hcw(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, x, LN.src_line(len, t, d, at, lf, hok, hs, PJ.lf_first(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)), PJ.lf_lt(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp))))
 
-def ftick(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def ftick(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -190,20 +190,20 @@ def ftick(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T:
   +cbl: U32, +cbt: AT.Tree<U32>,
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win},
   p: NR.Run & Nat, +q: Nat, +sl: U32, +st: AT.Tree<U32>, +m: U32) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.tick(o, p, q, pos, lf, C.BT(len, t), C.BT(sl, st), m, DE.CX(rest, pd, eof), WK(c, cbl, cbt, a, b, r))):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.tick(o, p, q, pos, lf, C.BT(len, t), C.BT(sl, st), m, DE.CX(False{}, dfs, rest, pd, eof), WK(c, cbl, cbt, a, b, r))):
   match p:
     case (x, +k):
-      fout(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, NR.fix_done(x, R.Opts.w(o), k, q, U32.to_nat(pos), C.BT(sl, st), m))
+      fout(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, NR.fix_done(x, R.Opts.w(o), k, q, U32.to_nat(pos), C.BT(sl, st), m))
 
-def hts(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hts(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -212,20 +212,20 @@ def hts(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R
   +hf: {B.Fasta.find(fa, c) == Some{r} : Maybe<&2, String>},
   +cbl: U32, +cbt: AT.Tree<U32>,
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win}) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.to_str(o, P.mkRun(rp), C.BT(len, t), at, back, DE.CX(rest, pd, eof), WK(c, cbl, cbt, a, b, r), False{})):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.to_str(o, P.mkRun(rp), C.BT(len, t), at, back, DE.CX(False{}, dfs, rest, pd, eof), WK(c, cbl, cbt, a, b, r), False{})):
   %Equal.sym(Norm.Win, WK(c, cbl, cbt, a, b, r), CD.mkWin(fa, CD.WPKnown{c, a, b}), emk) :
-    BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.to_str(o, P.mkRun(rp), C.BT(len, t), at, back, DE.CX(rest, pd, eof), _, False{}))
-  DH.TMC(fa, cs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, fneed, hb, hw, hx, hbig, hbi, hi, hok, hs, False{})
+    BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.to_str(o, P.mkRun(rp), C.BT(len, t), at, back, DE.CX(False{}, dfs, rest, pd, eof), _, False{}))
+  DH.TMC(dfs, fa, cs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, fneed, hb, hw, hx, hbig, hbi, hi, hok, hs, False{})
 
-def hfits(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hfits(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -235,22 +235,22 @@ def hfits(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T:
   +cbl: U32, +cbt: AT.Tree<U32>,
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win},
   +f: Bool, +q: Nat, +sl: U32, +st: AT.Tree<U32>) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.fits(f, back, o, P.mkRun(rp), q, pos, at, lf, C.BT(len, t), C.BT(sl, st), sl, DE.CX(rest, pd, eof), WK(c, cbl, cbt, a, b, r))):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.fits(f, back, o, P.mkRun(rp), q, pos, at, lf, C.BT(len, t), C.BT(sl, st), sl, DE.CX(False{}, dfs, rest, pd, eof), WK(c, cbl, cbt, a, b, r))):
   match f:
     case True{}:
-      ftick(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, Norm.ticked(P.mkRun(rp)), q, sl, st, sl)
+      ftick(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, Norm.ticked(P.mkRun(rp)), q, sl, st, sl)
     case False{}:
-      hts(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk)
+      hts(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk)
 
-def hlen(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hlen(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -260,20 +260,20 @@ def hlen(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: 
   +cbl: U32, +cbt: AT.Tree<U32>,
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win},
   +q: Nat, +sl: U32, +st: AT.Tree<U32>) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.ne(False{}, back, o, P.mkRun(rp), q, pos, at, lf, C.BT(sl, st), C.BT(len, t), DE.CX(rest, pd, eof), WK(c, cbl, cbt, a, b, r), fneed)):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.ne(False{}, back, o, P.mkRun(rp), q, pos, at, lf, C.BT(sl, st), C.BT(len, t), DE.CX(False{}, dfs, rest, pd, eof), WK(c, cbl, cbt, a, b, r), fneed)):
   %Equal.sym(NR.Run & U32, Norm.Run.oblen(P.mkRun(rp)), (P.mkRun(rp), P.RunP.obl(rp)), SLW.oblen_eq(rp)) :
-    BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.len(back, o, _, q, pos, at, lf, C.BT(len, t), BY.len(C.BT(sl, st)), DE.CX(rest, pd, eof), WK(c, cbl, cbt, a, b, r)))
-  hfits(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, U32.is_le(sl, (1073741824 - P.RunP.obl(rp) : U32)), q, sl, st)
+    BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.len(back, o, _, q, pos, at, lf, C.BT(len, t), BY.len(C.BT(sl, st)), DE.CX(False{}, dfs, rest, pd, eof), WK(c, cbl, cbt, a, b, r)))
+  hfits(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, U32.is_le(sl, (1073741824 - P.RunP.obl(rp) : U32)), q, sl, st)
 
-def hne(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hne(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -283,22 +283,22 @@ def hne(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R
   +cbl: U32, +cbt: AT.Tree<U32>,
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win},
   +e: Bool, +q: Nat, +sl: U32, +st: AT.Tree<U32>) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.ne(e, back, o, P.mkRun(rp), q, pos, at, lf, C.BT(sl, st), C.BT(len, t), DE.CX(rest, pd, eof), WK(c, cbl, cbt, a, b, r), fneed)):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.ne(e, back, o, P.mkRun(rp), q, pos, at, lf, C.BT(sl, st), C.BT(len, t), DE.CX(False{}, dfs, rest, pd, eof), WK(c, cbl, cbt, a, b, r), fneed)):
   match e:
     case True{}:
-      hdec(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk)
+      hdec(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk)
     case False{}:
-      hlen(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, q, sl, st)
+      hlen(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, q, sl, st)
 
-def hcmp(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hcmp(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -308,24 +308,24 @@ def hcmp(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: 
   +cbl: U32, +cbt: AT.Tree<U32>,
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win},
   +g: Bool, +q: Nat, +sl: U32, +st: AT.Tree<U32>) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.cmp.k(back, o, P.mkRun(rp), q, pos, at, lf, Norm.fix.cmp.if(g, C.BT(sl, st), C.BT(len, t), at, sl), DE.CX(rest, pd, eof), WK(c, cbl, cbt, a, b, r), fneed)):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.cmp.k(back, o, P.mkRun(rp), q, pos, at, lf, Norm.fix.cmp.if(g, C.BT(sl, st), C.BT(len, t), at, sl), DE.CX(False{}, dfs, rest, pd, eof), WK(c, cbl, cbt, a, b, r), fneed)):
   match g:
     case False{}:
-      hlen(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, q, sl, st)
+      hlen(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, q, sl, st)
     case True{}:
       %Equal.sym(D.Bytes & (D.Bytes & Bool), BY.same(C.BT(sl, st), 0, C.BT(len, t), at, sl), (C.BT(sl, st), (C.BT(len, t), Pair.snd(D.Bytes, Bool, Pair.snd(D.Bytes, D.Bytes & Bool, BY.same(C.BT(sl, st), 0, C.BT(len, t), at, sl))))), SMB.same_pair_t(sl, st, len, t, 0, at, sl)) :
-        BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.cmp.k(back, o, P.mkRun(rp), q, pos, at, lf, _, DE.CX(rest, pd, eof), WK(c, cbl, cbt, a, b, r), fneed))
-      hne(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, Pair.snd(D.Bytes, Bool, Pair.snd(D.Bytes, D.Bytes & Bool, BY.same(C.BT(sl, st), 0, C.BT(len, t), at, sl))), q, sl, st)
+        BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.cmp.k(back, o, P.mkRun(rp), q, pos, at, lf, _, DE.CX(False{}, dfs, rest, pd, eof), WK(c, cbl, cbt, a, b, r), fneed))
+      hne(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, Pair.snd(D.Bytes, Bool, Pair.snd(D.Bytes, D.Bytes & Bool, BY.same(C.BT(sl, st), 0, C.BT(len, t), at, sl))), q, sl, st)
 
-def hok2(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hok2(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -335,22 +335,22 @@ def hok2(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: 
   +cbl: U32, +cbt: AT.Tree<U32>,
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win},
   +ok: Bool, +q: Nat, +sl: U32, +st: AT.Tree<U32>) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.wb(back, o, P.mkRun(rp), q, pos, at, lf, DE.CX(rest, pd, eof), c, C.BT(cbl, cbt), a, b, String.length(r), Nat.min(a, String.length(r)), OFU(a, r), RL(r, a, b), CLU(a, r), fneed, NX.Wb{C.BT(sl, st), C.BT(len, t), C.BT(RL(r, a, b), RT(r, a, b)), ok})):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.wb(back, o, P.mkRun(rp), q, pos, at, lf, DE.CX(False{}, dfs, rest, pd, eof), c, C.BT(cbl, cbt), a, b, String.length(r), Nat.min(a, String.length(r)), OFU(a, r), RL(r, a, b), CLU(a, r), fneed, NX.Wb{C.BT(sl, st), C.BT(len, t), C.BT(RL(r, a, b), RT(r, a, b)), ok})):
   match ok:
     case False{}:
-      hdec(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk)
+      hdec(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk)
     case True{}:
-      hcmp(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, U32.is_eq(sl, ((lf + 1 : U32) - at : U32)), q, sl, st)
+      hcmp(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, U32.is_eq(sl, ((lf + 1 : U32) - at : U32)), q, sl, st)
 
-def hwr(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hwr(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -360,7 +360,7 @@ def hwr(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R
   +cbl: U32, +cbt: AT.Tree<U32>,
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win},
   +k: U32, +tr: U32, +dl: Nat, m: TX.WR(len, t, RL(r, a, b), RT(r, a, b), NX.write(C.BT(len, t), C.BT(RL(r, a, b), RT(r, a, b)), at, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, PE.REF(e2, e3) <> Q.TL(als), k, tr, dl, pos, OFU(a, r)), TX.TXT(len, t, d, RL(r, a, b), RT(r, a, b), at, e0, e1, e2, e4, lf, TX.QQ(pos, k, dl), TX.ALA(len, t, RL(r, a, b), RT(r, a, b), PE.REF(e2, e3), k, tr, dl, pos, OFU(a, r)), TX.ACC(Q.TL(als), "", True{}, len, t, RL(r, a, b), RT(r, a, b), k, tr, dl, pos, OFU(a, r))))) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.wb(back, o, P.mkRun(rp), TX.QQ(pos, k, dl), pos, at, lf, DE.CX(rest, pd, eof), c, C.BT(cbl, cbt), a, b, String.length(r), Nat.min(a, String.length(r)), OFU(a, r), RL(r, a, b), CLU(a, r), fneed, NX.write(C.BT(len, t), C.BT(RL(r, a, b), RT(r, a, b)), at, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, PE.REF(e2, e3) <> Q.TL(als), k, tr, dl, pos, OFU(a, r)))):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.wb(back, o, P.mkRun(rp), TX.QQ(pos, k, dl), pos, at, lf, DE.CX(False{}, dfs, rest, pd, eof), c, C.BT(cbl, cbt), a, b, String.length(r), Nat.min(a, String.length(r)), OFU(a, r), RL(r, a, b), CLU(a, r), fneed, NX.write(C.BT(len, t), C.BT(RL(r, a, b), RT(r, a, b)), at, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, PE.REF(e2, e3) <> Q.TL(als), k, tr, dl, pos, OFU(a, r)))):
   match m:
     case (+sl, m1):
       match m1:
@@ -370,18 +370,18 @@ def hwr(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R
               match m3:
                 case (eqw, m4):
                   %Equal.sym(NX.Wb, NX.write(C.BT(len, t), C.BT(RL(r, a, b), RT(r, a, b)), at, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, PE.REF(e2, e3) <> Q.TL(als), k, tr, dl, pos, OFU(a, r)), NX.Wb{C.BT(sl, st), C.BT(len, t), C.BT(RL(r, a, b), RT(r, a, b)), ok}, eqw) :
-                    BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.wb(back, o, P.mkRun(rp), TX.QQ(pos, k, dl), pos, at, lf, DE.CX(rest, pd, eof), c, C.BT(cbl, cbt), a, b, String.length(r), Nat.min(a, String.length(r)), OFU(a, r), RL(r, a, b), CLU(a, r), fneed, _))
-                  hok2(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, ok, TX.QQ(pos, k, dl), sl, st)
+                    BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.wb(back, o, P.mkRun(rp), TX.QQ(pos, k, dl), pos, at, lf, DE.CX(False{}, dfs, rest, pd, eof), c, C.BT(cbl, cbt), a, b, String.length(r), Nat.min(a, String.length(r)), OFU(a, r), RL(r, a, b), CLU(a, r), fneed, _))
+                  hok2(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, ok, TX.QQ(pos, k, dl), sl, st)
 
-def hsame(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hsame(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -391,25 +391,25 @@ def hsame(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T:
   +cbl: U32, +cbt: AT.Tree<U32>,
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win},
   +g: Bool, +k: U32, +tr: U32, +dl: Nat) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.same(g, back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, PE.REF(e2, e3) <> Q.TL(als), k, tr, dl, DE.CX(rest, pd, eof), c, C.BT(cbl, cbt), a, b, String.length(r), Nat.min(a, String.length(r)), OFU(a, r), RL(r, a, b), CLU(a, r), fneed, C.BT(len, t), C.BT(RL(r, a, b), RT(r, a, b)))):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.same(g, back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, PE.REF(e2, e3) <> Q.TL(als), k, tr, dl, DE.CX(False{}, dfs, rest, pd, eof), c, C.BT(cbl, cbt), a, b, String.length(r), Nat.min(a, String.length(r)), OFU(a, r), RL(r, a, b), CLU(a, r), fneed, C.BT(len, t), C.BT(RL(r, a, b), RT(r, a, b)))):
   match g:
     case True{}:
-      hdec(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk)
+      hdec(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk)
     case False{}:
-      hwr(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, k, tr, dl, TX.write_t(len, t, d, RL(r, a, b), RT(r, a, b), at, e0, e1, e2, e3, e4, e5, e6, e7, lf, PE.REF(e2, e3), Q.TL(als), k, tr, dl, pos, OFU(a, r), hok,
+      hwr(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, k, tr, dl, TX.write_t(len, t, d, RL(r, a, b), RT(r, a, b), at, e0, e1, e2, e3, e4, e5, e6, e7, lf, PE.REF(e2, e3), Q.TL(als), k, tr, dl, pos, OFU(a, r), hok,
         kbg(len, t, d, at, e0, hok, PJ.lf_s0(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)), N.lt_le_trans(U32.to_nat(e0), U32.to_nat(e4), U32.to_nat(len), N.lt_trans(U32.to_nat(e0), U32.to_nat(e1), U32.to_nat(e4), PJ.lf_01(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)), N.lt_trans(U32.to_nat(e1), U32.to_nat(e2), U32.to_nat(e4), PJ.lf_12(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)), N.lt_trans(U32.to_nat(e2), U32.to_nat(e3), U32.to_nat(e4), PJ.lf_23(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)), PJ.lf_34(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp))))), AF.e4le(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp))),
         kbg(len, t, d, e1, e2, hok, N.lt_to_le(U32.to_nat(e1), U32.to_nat(e2), PJ.lf_12(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp))), N.lt_le_trans(U32.to_nat(e2), U32.to_nat(e4), U32.to_nat(len), N.lt_trans(U32.to_nat(e2), U32.to_nat(e3), U32.to_nat(e4), PJ.lf_23(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)), PJ.lf_34(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp))), AF.e4le(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp))),
         kbg(len, t, d, e4, lf, hok, N.lt_to_le(U32.to_nat(e4), U32.to_nat(lf), N.lt_le_trans(U32.to_nat(e4), U32.to_nat(e7), U32.to_nat(lf), N.lt_trans(U32.to_nat(e4), U32.to_nat(e5), U32.to_nat(e7), PJ.lf_45(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)), N.lt_trans(U32.to_nat(e5), U32.to_nat(e6), U32.to_nat(e7), PJ.lf_56(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)), PJ.lf_67(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)))), PJ.lf_7l(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)))), PJ.lf_lt(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, AF.lfd(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)))))
 
-def hnz(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hnz(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -419,22 +419,22 @@ def hnz(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R
   +cbl: U32, +cbt: AT.Tree<U32>,
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win},
   +m: Maybe<&2, Q.K3>) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.nr(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, PE.REF(e2, e3) <> Q.TL(als), up, DE.CX(rest, pd, eof), c, C.BT(cbl, cbt), a, b, String.length(r), Nat.min(a, String.length(r)), OFU(a, r), RL(r, a, b), CLU(a, r), fneed, Q.NZB(len, t, RL(r, a, b), RT(r, a, b), m))):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.nr(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, PE.REF(e2, e3) <> Q.TL(als), up, DE.CX(False{}, dfs, rest, pd, eof), c, C.BT(cbl, cbt), a, b, String.length(r), Nat.min(a, String.length(r)), OFU(a, r), RL(r, a, b), CLU(a, r), fneed, Q.NZB(len, t, RL(r, a, b), RT(r, a, b), m))):
   match m:
     case None{}:
-      hdec(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk)
+      hdec(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk)
     case Some{Q.K3{+k, +tr, +dl}}:
-      hsame(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, Bool.and(Bool.and(Bool.and(U32.is_zero(k), U32.is_zero(tr)), Nat.is_eq(dl, 0n)), up), k, tr, dl)
+      hsame(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, Bool.and(Bool.and(Bool.and(U32.is_zero(k), U32.is_zero(tr)), Nat.is_eq(dl, 0n)), up), k, tr, dl)
 
-def hm(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hm(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -443,21 +443,21 @@ def hm(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.
   +hf: {B.Fasta.find(fa, c) == Some{r} : Maybe<&2, String>},
   +cbl: U32, +cbt: AT.Tree<U32>,
   +emk: {WK(c, cbl, cbt, a, b, r) == CD.mkWin(fa, CD.WPKnown{c, a, b}) : Norm.Win}) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.hit(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, PE.REF(e2, e3) <> Q.TL(als), up, DE.CX(rest, pd, eof), CD.mkWin(fa, CD.WPKnown{c, a, b}), C.BT(len, t), fneed)):
-  %emk : BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.hit(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, PE.REF(e2, e3) <> Q.TL(als), up, DE.CX(rest, pd, eof), _, C.BT(len, t), fneed))
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.hit(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, PE.REF(e2, e3) <> Q.TL(als), up, DE.CX(False{}, dfs, rest, pd, eof), CD.mkWin(fa, CD.WPKnown{c, a, b}), C.BT(len, t), fneed)):
+  %emk : BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.hit(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, PE.REF(e2, e3) <> Q.TL(als), up, DE.CX(False{}, dfs, rest, pd, eof), _, C.BT(len, t), fneed))
   %Equal.sym(NX.Nr, NX.norm(C.BT(len, t), C.BT(RL(r, a, b), RT(r, a, b)), PE.REF(e2, e3) <> Q.TL(als), pos, OFU(a, r)), Q.NZB(len, t, RL(r, a, b), RT(r, a, b), Q.NZ(len, t, RL(r, a, b), RT(r, a, b), PE.REF(e2, e3) <> Q.TL(als), pos, OFU(a, r))), TP.norm_pair_t(len, t, RL(r, a, b), RT(r, a, b), PE.REF(e2, e3) <> Q.TL(als), pos, OFU(a, r))) :
-    BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.nr(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, PE.REF(e2, e3) <> Q.TL(als), up, DE.CX(rest, pd, eof), c, C.BT(cbl, cbt), a, b, String.length(r), Nat.min(a, String.length(r)), OFU(a, r), RL(r, a, b), CLU(a, r), fneed, _))
-  hnz(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, Q.NZ(len, t, RL(r, a, b), RT(r, a, b), PE.REF(e2, e3) <> Q.TL(als), pos, OFU(a, r)))
+    BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.nr(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, PE.REF(e2, e3) <> Q.TL(als), up, DE.CX(False{}, dfs, rest, pd, eof), c, C.BT(cbl, cbt), a, b, String.length(r), Nat.min(a, String.length(r)), OFU(a, r), RL(r, a, b), CLU(a, r), fneed, _))
+  hnz(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, emk, Q.NZ(len, t, RL(r, a, b), RT(r, a, b), PE.REF(e2, e3) <> Q.TL(als), pos, OFU(a, r)))
 
-def hmir(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hmir(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
@@ -465,29 +465,29 @@ def hmir(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: 
   +hp: AF.FXP(len, t, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up),
   +hf: {B.Fasta.find(fa, c) == Some{r} : Maybe<&2, String>},
   m: C.BMirror(NR.of_str(c))) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.hit(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, PE.REF(e2, e3) <> Q.TL(als), up, DE.CX(rest, pd, eof), CD.mkWin(fa, CD.WPKnown{c, a, b}), C.BT(len, t), fneed)):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.hit(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, PE.REF(e2, e3) <> Q.TL(als), up, DE.CX(False{}, dfs, rest, pd, eof), CD.mkWin(fa, CD.WPKnown{c, a, b}), C.BT(len, t), fneed)):
   match m:
     case (+cbl, m1):
       match m1:
         case (+cbt, e):
-          hm(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, CA.ah.mk(fa, c, a, b, r, cbl, cbt, hf, Equal.sym(D.Bytes, C.BT(cbl, cbt), NR.of_str(c), e)))
+          hm(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, cbl, cbt, CA.ah.mk(fa, c, a, b, r, cbl, cbt, hf, Equal.sym(D.Bytes, C.BT(cbl, cbt), NR.of_str(c), e)))
 
-def hit(+c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def hit(+dfs: B.Defs, +c: String, +a: Nat, +b: Nat, +r: String, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +fneed: Bool,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
-  +hr: {S.report(fa, cs, O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
-  +hg: {S.guard(O, N, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hw: {S.WF(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
+  +hr: {S.report(fa, cs, O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == T : R.Report},
+  +hg: {S.guard(O, N, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)) == True{} : Bool},
   +hx: {P.RunP.x(rp) == False{} : Bool},
   +hbig: {U32.is_le(536870912, P.RunP.obl(rp)) == False{} : Bool},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
   +hi: {PR.RunInv(rp) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
   +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, +als: List<&2, NX.Ap>, +up: Bool,
   +hp: AF.FXP(len, t, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up),
   +hf: {B.Fasta.find(fa, c) == Some{r} : Maybe<&2, String>}) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.hit(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, als, up, DE.CX(rest, pd, eof), CD.mkWin(fa, CD.WPKnown{c, a, b}), C.BT(len, t), fneed)):
+  BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.hit(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, als, up, DE.CX(False{}, dfs, rest, pd, eof), CD.mkWin(fa, CD.WPKnown{c, a, b}), C.BT(len, t), fneed)):
   %Equal.sym(List<&2, NX.Ap>, als, PE.REF(e2, e3) <> Q.TL(als), alsE(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)) :
-    BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.hit(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, _, up, DE.CX(rest, pd, eof), CD.mkWin(fa, CD.WPKnown{c, a, b}), C.BT(len, t), fneed))
-  hmir(c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, C.bmirror(NR.of_str(c)))
+    BD.AdvC(fa, cs, LI.PPs(False{}, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed), Norm.fix.hit(back, o, P.mkRun(rp), at, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, lf, _, up, DE.CX(False{}, dfs, rest, pd, eof), CD.mkWin(fa, CD.WPKnown{c, a, b}), C.BT(len, t), fneed))
+  hmir(dfs, c, a, b, r, fa, T, cs, O, N, o, rp, len, t, d, at, rest, pd, eof, back, fneed, hb, hw, hr, hg, hx, hbig, hbi, hi, hok, hs, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hp, hf, C.bmirror(NR.of_str(c)))

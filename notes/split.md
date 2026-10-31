@@ -7,6 +7,281 @@ committed): the toy reference, the cases, `run.sh`, `gen_ex.py` (writes the exam
 `draft/` the science files with the proposed change applied (`draft_r1/`, `draft_r2/`: earlier
 rounds'). The draft type-checks, and its 107 examples evaluate.
 
+## Law change: the step bound with -m (option (a), draft for the reviewers)
+
+**Status.** Draft. The owner's consent is being asked; the budget proofs are not changed for it yet.
+
+**What the bound is.** Law `machine` (MACHINE.bend) says the program finishes "within bound steps
+and bound reads", where
+
+    bound = pieces + 3 + args length + (VCF length + 1) × (FASTA length + 3)
+
+and MACHINE.bend's comment states its purpose: "A bound for the proof (the machine must stop and
+cannot read without end); not a speed target." The proof (the budget, `proof_b_budget_*`,
+`proof_b_bud_*`, and the threads machine's `proof_e_bud_*`) gives every input line that can ask
+for reads an allowance `LA = 2 RW + 2 ZW` (RW = 1 + max(1, |REF|), ZW = 2 + the longest contig)
+and shows the steps and reads stay within the sum, which fits `bound`.
+
+**Why it no longer fits with -m.** A split line's records are not input lines, and each record
+may ask for its own reads (it is normalized on its own). Charging each record a full `LA`, as the
+budget charges a line, does not fit the bound:
+
+- Example: a 10-base contig (`|FASTA|` = 14), one line `1 1 . <10-base REF> <100 one-base ALTs>
+  . . .` (about 223 bytes). Charged per record: 100 × 46 = 4600. That line's share of the bound
+  is about 224 × 17 = 3808.
+- In general the charge grows like (pieces × |REF|), which is quadratic in the line's length,
+  while the bound grows like (line length × |FASTA|). With a short FASTA, no constant factor
+  covers it.
+
+The real machine reads far less (the records share POS and REF, their windows nest, and after the
+first record the window is held), so the law is very likely still true. Proving that needs a new
+amortised argument about the window across all the records of a line, in the byte and String
+modes, the fast path and the threads machine. That is a large proof with a real risk of a late
+dead end. Option (a) keeps the per-record charge simple and gives the bound room for it.
+
+**The change (only with -m).** Without `-m` the bound stays exactly as it is.
+
+```
+# The command line asks to split multiallelic records (-m).
+def splits(argv: List<&2, String>) -> Bool:
+  match B.Args.parse(argv):
+    case Some{B.Cfg{B.Opts{s, w, split, over0, args}, r, v}}:
+      split
+    case None{}:
+      False{}
+
+def bound(argv: List<&2, String>, fasta: String, vcf: String, cs: List<&2, String>) -> Nat:
+  Nat.add(Nat.add(Nat.add(Nat.add(pieces_len(cs), 3n), args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n))),
+    Bool.pick(Nat, splits(argv), Nat.mul(1n+String.length(vcf), 1n+String.length(vcf)), 0n))
+```
+
+The comment in MACHINE.bend gains one sentence after "…up to FASTA length + 3 reads.": "With
+-m, plus (VCF length + 1)^2: a line's records (at most one per ALT) may each need a line's reads."
+The plain statement of law `machine` in docs/LAWS.md does not mention the bound's formula and
+does not change.
+
+**Why it is still only a proof bound.** It changes no output, message or exit code, and no step
+the machine takes; it only gives the proof's allowance room. It is still finite and computed from
+the inputs before the run (the machine still must stop, and still cannot read without end). The
+machine's real use is unchanged: a split line costs its records' reads, which in practice are
+almost always served by the window the first record asked for.
+
+**The fit, with margin.** V = VCF length, F = FASTA length. Per line of length L (with its LF):
+
+- Pieces: k = number of ALTs. The line holds at least 8 fields, REF (R ≥ 1 bytes) and k ALTs with
+  k − 1 commas, so R + 2k + 13 ≤ L, and a = 1 + k ≤ (L − R − 11) / 2.
+- Charge: the line and each of its records get `LA ≤ 2(1 + R) + 2(2 + FM) = 2R + 2FM + 6`, with
+  FM (the longest contig) ≤ F: a × LA ≤ 2aR + a(2F + 6).
+  - 2aR ≤ L²/4 (2a + R ≤ L, so the product 2a·R is at most (L/2)²).
+  - a(2F + 6) ≤ (L/2)(2F + 6) = L(F + 3).
+- Summed over lines (Σ L ≤ V, Σ L² ≤ V²): at most V²/4 + V(F + 3). The existing term
+  (V + 1)(F + 3) covers V(F + 3); the new (V + 1)² covers V²/4.
+- Output: a record is at most its line's length plus 22 bytes (POS can gain digits, and a
+  padding base is added to REF and ALT). So the output grows by at most Σ a(L + 22) ≤ V²/2 + 11V
+  bytes, which is at most V²/512 + V/23 hand-out steps (each at least 256 bytes).
+- Total extra ≤ V²/4 + V²/512 + V/23 ≤ 0.26 (V + 1)². **Margin: the new term is about 3.9 times
+  what the per-record charge needs**, at every V; the rest of the bound is used as before.
+
+Option (b), proving the amortised bound under the current law, stays possible later. It would not
+change the law back; the larger bound would only be looser than needed.
+
+**Unrelated, already done (no law change): the pump's fuel.** With `-m` a split line makes records
+during the pump, so the pump's one fuel could run out and cost unpaid `Ask[]` steps. The pump now
+has two fuels: the input's, and the records', refilled from the state when spent (`pump.r`,
+`pump.fill` in norm_seq.bend). With the measure ordered by the input, then the records, neither
+runs out (`proof_b_drive_pump.bend`, `pumpL`/`pumpR`, invariant `LX`).
+
+## Law change: CR (accepted, installed)
+
+During milestone (2), the proof of `twice_run` under `-m` failed: the law was false as approved.
+The lead kept `twice_run` whole and changed `split_when` instead. The three reviewers accepted the
+change (`reviews/*-split-cr.md`, decisions 24-28 in `reviews/responses-split-law.md`). It is
+installed in `types.bend` and `LAWS.bend` and proven (the draft was `data/tmp/split/draft_cr/`).
+
+**The counterexample** (`data/tmp/split/cr/t2.vcf`, reference `ACGTACGTACGTACGTACGT`). The header
+defines `END` as `Number=A`, and the one body line is
+
+    1	05	.	A	C,G	.	.	END=5\r,6          (\r: a CR byte inside the line)
+
+- Run 1 (`norm -c w -m -any`) split it. Record 1's INFO is `END=5\r`, which is not a number:
+  BAD_END, passed as it came, written as `1	05	.	A	C	.	.	END=5\r` and LF.
+- Run 2 reads that text back as body `…END=5` with a CR LF terminator. END is now fine, so the
+  record is normalized and POS `05` is rewritten as `5`. Both runs exit 0, and the bodies differ.
+- **Cause.** A value cut from the middle of a comma list can end a record in a bare CR. An input
+  line cannot: the reader takes CR LF as the terminator. Read back, the CR becomes part of the
+  terminator, so run 2 judges a different line.
+
+**The change.** With `-m`, a line to split (not MALFORMED, two or more ALTs) whose body holds a CR
+byte anywhere is not split. The body is the line without its terminator (LF, or CR LF), so a CR
+just before the final LF is the terminator's, and `\r\r\n` is refused. It gets a new code,
+`BAD_CR`.
+- **Precedence.** `BAD_CR` comes first in `split_problem` (before ALT_DUP); it is a property of the
+  whole line. Decision 7's order is unchanged: if `judge`'s outcome for the whole line stops the
+  run, that outcome comes first (`unsplit_in`). So on `t2.vcf`, `-c e` stops with BAD_END (the
+  whole line's END is `5\r,6`), as without `-m`.
+- **Handling** is as for every split refusal. Under `-c w` the line passes as it came, with a
+  warning `BAD_CR <chrom> <pos> line N<TAB>carriage return inside the line; not split`. Under
+  `-c e` the run stops.
+- **Unchanged:** lines with one ALT (a CR or not), runs without `-m`, and every other split law.
+  The statement of `split_when` (`refusal(parts) == Some{split_problem}`) is unchanged; its
+  definitions gain one case each:
+  - `types.bend`: `Code` gains `BadCr` ("BAD_CR", with the detail above); `Text.has_cr`;
+    `Rec.parts` passes `Text.has_cr(body)` (the whole body, decision 28) to `Rec.parts.if`, which
+    checks it first, through a new `Rec.parts.cr`.
+  - `LAWS.bend`: `split_problem`'s list starts with `Bool.pick(…, B.Text.has_cr(body),
+    Some{B.BadCr{}}, None{})`.
+- **Why it keeps `twice_run` whole.** No record of a split line holds a CR, so every record reads
+  back as written. A refused line is passed as it came, and reads back as itself.
+
+**Plain statement** (docs/LAWS.md, and the `split_when` row of the laws table): "With `-m`, a
+well-formed line with two or more ALTs is split exactly when none of these holds: a carriage
+return anywhere in the line other than the one just before its final LF (`BAD_CR`); two equal
+ALTs (`ALT_DUP`); … (the rest as now). Otherwise the line is refused. A whole-line outcome that
+stops the run is reported first; otherwise the message names `BAD_CR`, if it holds, and then the
+first of the later reasons, reading the line left to right."
+
+**Differences from bcftools**, a new row:
+
+| case | bcftools 1.24 | framebender | why |
+|---|---|---|---|
+| a line to split with a CR inside (`t2.vcf`, `in.vcf`) | splits it. Typed numbers drop the CR (`END=5\r,6` with `Integer`: `END=5`, `END=6`, POS `05` read as 5). Strings keep it: `in.vcf` (`AF=0.1\r,0.2`, `String`) gives a record ending in `0.1\r`, which bcftools' own second run reads as `0.1`, so bcftools is not idempotent there | `BAD_CR`, not split (passed as it came under `-c w`) | a CR inside a line is not valid VCF; cutting a value at a CR can leave a record ending in CR, which a second run reads as a CRLF ending |
+
+**Examples** (in `examples.bend`):
+- `parts` of `t2.vcf`'s line and of `1 2 . C A,G . . AF=0.1\r,0.2`: `Unsplit{BAD_CR}`.
+  `split_problem` gives `Some{BAD_CR}`.
+- `1 2 . C A . . AF=0.1\r` (one ALT): `Whole`, as before.
+- The AF line, `-c w`: passed as it came, warning `BAD_CR` (line 6), exit 0. `-c e`: stops with
+  `BAD_CR`.
+- `t2.vcf`'s line, `-c e`: stops with BAD_END (decision 7). `-c w`: passed as it came with
+  `BAD_CR`, and running again on that output gives the same body (`twice_run`).
+
+**Machine.** The byte splitter counts CR bytes in the body (`go.nocr`, `norm_split.bend`) and hands
+a line with one to the String path; its proof against `B.Rec.parts` covers that guard
+(`proof_s_drv.bend`).
+
+## Open leads
+
+**Pieces redone on the main thread (deferred until `-m` lands; a machine design change to the
+phase-E proofs).** With `-m` on the cohort, 16 threads are no faster than 8 (1.8 s; one thread
+5.5 s). The main thread is busy 1.4-1.6 s of that, so it is the bottleneck. A scratch build
+(`data/tmp/split/dirty/tree`, not in the tree) in which a task says why its piece came back
+found where its work comes from:
+- **Cohort `-m`:** 62 pieces; 6 left to the main thread.
+  - 3 are empty pieces (length 0), and cost nothing.
+  - 3 are tasks whose own run stopped with UNSORTED. A task starts as if the last record written
+    had its first line's POS. In all three, that first line holds an insertion whose record
+    normalizes one base left: `20051835 G A,GCG` gives record `20051834 A AGC`;
+    `20059895 T G,TAT` gives `20059894 C CTA`; `20113389 G C,GGG` gives `20113388 C CGG`. Inside
+    the task the record is below that stand-in, so it looks unsorted. In the real run it is not.
+  - Each of these pieces (about 25 lines, about 75 ms with `-m`) is then redone by the main
+    thread. With the first line of every other piece (about 3 ms each, also split there), this is
+    most of the serial time.
+- **Not caused by `-m`:** the cohort already split (no `-m`) has 7 such pieces and 4 empty ones.
+  `joined.vcf` with `-m` has 6 merge refusals and 13 empty pieces.
+- **The lead:** let a task start from a lower stand-in key and leave the UNSORTED check to the
+  merge, which already makes it. That changes the task's start state and the phase-E proofs
+  (`proof_e_task_*`, the merge).
+
+**Output reserve (done, kept).** A task now reserves twice its piece's size for output under `-m`
+(`task.res`, `norm.bend`); without `-m`, the piece's size as before. Memory blocks come in powers
+of two, so any reserve over 4 MiB takes an 8 MiB block. Measured against the build without it (3
+rounds, the same outputs, the same times):
+- **Cohort `-m`:** 494-500 MB to 353-358 MB. Its output is 1.32 times its input, so each 4 MiB
+  buffer used to grow into an 8 MiB block while still holding the 4 MiB one.
+- **Lighter files pay for the larger block:** `-m` on joined 276-281 to 316-322 MB; `-m` on HG002
+  chr22 139-142 to 179-181 MB.
+- **Without `-m`:** unchanged.
+
+Kept: heavy multiallelic cohorts are what `-m` is for. Halving the pieces under `-m` might save
+memory everywhere, at the cost of more first lines on the main thread; it is untested.
+
+## Stage 2, milestone (2): the machine integration (in progress)
+
+**State.** main (47e2aa5, phase J: `-W`) is merged into the working tree (file-wise; `types.bend`
+and `proof_f_args.bend` resolved by hand: the `-m` parsing and `-W` side by side). Build
+`data/tmp/split/fb_m3`.
+
+**Machine changes in this milestone** (no approved law changed beyond the CR change):
+- The pump has two fuels (`norm_seq.bend`: `pump`, `pump.r`, `pump.fill`): the input's, and
+  the records', refilled from the state when spent. With `-m` a split line makes records during
+  the pump, so one fuel could run out; with two, the measure ordered by the input, then the
+  records, never runs out (`proof_b_drive_pump.bend`, `pumpL`/`pumpR`, invariant `LX`). Cost:
+  none measurable.
+- `-m` reserves twice the piece size for a task (`norm.bend`, `task.res`), as approved.
+
+**Proof design changes** (internal definitions, no law):
+- `S.Moved` (byte mode to byte mode) also says the definitions of the text still to come are
+  kept: `DEFS(p2, cs) == DEFS(p, cs)`. Six places build it; each had the fact at hand.
+- `S.Kept`, when the first source is a record buffer (`SPP`, `SRP`), says the plain sources are
+  those after it: `plain(s2) == plain(rest)`. It holds by reduction at every place.
+- The threads task invariant (`proof_e_task_loop.bend`): `Trk` carries `DEFS(p, cs) == dfs` and
+  the run through the pending records (`RG`); `Hold` says the piece is Q's only *plain* source
+  (records of a split line may sit in front, which the machine's `src_b` skips); the task state's
+  own definitions field is kept apart from the batch's.
+- The feeding guarantee `Fed` (`proof_e_qif_fed.bend`) says the fed state keeps the definitions
+  and the record sources.
+
+**Proof status.** The run laws (`twice_run` with `-m`), the CR case, the byte and String layers,
+the driver layer, the task loop, the feeding steps, the output layer (`proof_f_out`) and most of
+the threads machine check. 51 holes are left: 43 in the step budget (waiting on option (a)) and 8
+in the threads machine, all waiting on the open point below (`wrap` 4, `wrap_col` 2: `col_eof`,
+`ask_ref`; `wrap_clean` 1: the merge call in `splice_ok`; `mach_asm` 1: `machine_go`, which
+assembles them).
+
+Done in this stretch: `proof_f_out` (the `-m` parser states, the `-W` record); `wrap_mc` (the
+merge: "in the body" comes from `segok`'s first conjunct, so the state's `DEFS` is its field);
+`wrap_clean` (the edge's fuel is 4096 since milestone 1, so the four generated levels E3..E0
+became one lemma recursive on the fuel, `Ef`, with the level below as a hypothesis, `IHE`);
+`wrap_col`'s `wf_args` and `none_chunk`; `seg_drain`'s `drain` (a split line's records go
+through the phase-1 chain one by one: the chain is now stated for "the line's other records,
+then the lines after", `pieces_drain`, `drain_body`; the hand-off to phase 2 lifts the records
+first, `parP`).
+
+**Open: Q's definitions field and the batch's.** The threads machine runs a batch's tasks, and
+merges them, with Q's own definitions field at that step (`norm.bend`, `dfs_of`), while the
+invariant `WD.InvW` states the tasks' facts (`BatchOK`) over a fixed `dfs` that nothing ties to
+that field. Nothing is wrong in the machine: a batch starts only when Q is quiet, in the body,
+where the field is the file's header definitions. But the proof needs that fact, and today no
+layer gives it. The plan (internal definitions, no law):
+- `InvW` also says `S.DEFS(p, held ++ cs) == dfs` (Q's definitions of the whole rest are the
+  batch's). At a quiet Q this gives "field == dfs", which is what `col_eof`, `ask_ref` and the
+  merge need.
+- Keeping it across Q's steps needs each step to keep `DEFS`. `S.Moved` says so for byte mode to
+  byte mode; the String mode lemmas compute the same fact for the report but do not export it.
+  So `S.Moved` would say it in every mode, and the drive layer (the pump's invariant, `StepG2`)
+  would carry it: about 10 to 15 checked files reopened, mechanically.
+- `wstart`'s statement (my port) holds for any `dfs`, which is false: it needs
+  `dfs == L.defs(String.concat(cs))`, which `machine_go` has at hand.
+
+**Tests** (all on `fb_m3`):
+- Spec against machine (`specrun/vs_all.sh`): 150 of 150 identical (28 fuzz files and the two
+  CR cases, five option sets each).
+- bcftools 1.24 `-c w -m -any` (`cmp_m.sh`): cohort 3,341 records, 0 differing; HG002 chr22
+  50,861, 0; HG002 whole genome 4,096,123, 0; scrambled set 20,739, 0; joined `sub.vcf` and
+  `data/kg/sub.vcf` 57,534 each, 12 differing (the symbolic SVs bcftools realigns, as without
+  `-m`).
+- Well-formed fuzz (`test/split.sh`, new, with `test/gen_split.py`): 100 seeds, both
+  `--multi-overlaps` settings, 200 of 200 the same as bcftools.
+- `test/same.sh` 128 identical; `test/par.sh` 312 identical against main's build (`fb_ref`; the
+  old default `fb_seq` predates the UNSORTED check); `test/threads.sh` 2,128 identical;
+  `-m` with every `--threads` (`thr_m.sh`) 1,092 identical; `test/out.sh` OK (in a fresh
+  directory: the old one had a stale cache); `test/index.sh` ALL PASS, with new `-m` cases
+  (`-m` with `-W` on chr22, the scrambled file and the edge cases).
+
+**Timings** (`bench/m2.sh`, under the bench lock, `taskset -c 0-15`, three rounds):
+
+| run | framebender | bcftools |
+|---|---|---|
+| cohort, `-m -any` | 1.76-1.81 s, 349 MB | 1.31-1.46 s |
+| joined `sub.vcf`, `-m -any` | 1.23-1.29 s | 3.46-3.63 s |
+| HG002 chr22, `-m -any` | 0.08 s | 0.12-0.13 s |
+| HG002 whole genome, `-m -any` | 2.43-2.48 s | 8.09-8.15 s |
+| HG002 whole genome, no `-m` (main: 1.74-1.79 s) | 1.78-1.84 s | |
+| joined, no `-m` (main: 0.27-0.28 s) | 0.29-0.30 s | |
+
+Milestone 1's build took 1.77-1.84 s and 488-491 MB on the cohort; the reserve change brings
+the memory to 349 MB at the same speed.
+
 ## Stage 2, milestone (1): the byte splitter and its proof
 
 The approved plan (after the prototype timing below): the byte splitter is the main path and
@@ -405,7 +680,8 @@ Round 1 review: `reviews/responses-split-law.md` (decisions 1-16) and `claude-`,
   - Joining (`-m +...`), `-m -snps`, `-m -indels` and `--keep-sum` are usage errors for now.
   - Splitting is defined on the text of a line, before `judge`. Each record is then judged as a
     line is today, so every existing law about one record applies to each.
-  - Where bcftools guesses, drops or crashes, framebender refuses the line instead:
+  - Where bcftools guesses, drops or crashes, or where a record would not read back as written,
+    framebender refuses the line instead:
     `UNDEFINED_TAG`, `BAD_COUNT`, `BAD_GT` (new), or `ALT_DUP`. These stop the run under
     `-c e`; under `-c w` the line passes through unsplit with a warning, unless the whole line
     stops the run anyway (UNKNOWN_CHROM).
@@ -712,7 +988,7 @@ the 0-based place of a record among a line's records, so record `i` is ALT `i+1`
 | `whole_biallelic` | With `-m`, a record with one ALT is handled as without `-m`. |
 | `whole_malformed` | With `-m`, a MALFORMED line is handled as without `-m` (it stops the run). |
 | `biallelic_run` | On a file with no multiallelic record, `-m` changes nothing: same output, messages and exit code, apart from the recorded command line. |
-| `split_when` | With `-m`, a well-formed line with two or more ALTs is split exactly when none of these holds: two equal ALTs (`ALT_DUP`); an INFO entry with a value whose tag is undefined or has an unread Number (`UNDEFINED_TAG`); an A/R/G INFO entry without a value, or whose value is not `.` and has not the expected count (`BAD_COUNT`); in a sample, a GT allele that is not `.` or a number from 0 to n without leading zeros (`BAD_GT`), a value whose key is undefined or unread (`UNDEFINED_TAG`), an A/R/G value that is not `.` and has not the expected count for the copies its GT names (`BAD_COUNT`), or more values than keys (`BAD_COUNT`). Expected count: A, n; R, n+1; G, n+1 for one copy, (n+1)(n+2)/2 for two, either for a lone `.` GT. Otherwise the line is refused, and the message names the first of these, reading the line left to right (ALTs, INFO, then each sample in FORMAT's order, its extra values last). |
+| `split_when` | With `-m`, a well-formed line with two or more ALTs is split exactly when none of these holds: a carriage return anywhere in the line other than the one just before its final LF (`BAD_CR`); two equal ALTs (`ALT_DUP`); an INFO entry with a value whose tag is undefined or has an unread Number (`UNDEFINED_TAG`); an A/R/G INFO entry without a value, or whose value is not `.` and has not the expected count (`BAD_COUNT`); in a sample, a GT allele that is not `.` or a number from 0 to n without leading zeros (`BAD_GT`), a value whose key is undefined or unread (`UNDEFINED_TAG`), an A/R/G value that is not `.` and has not the expected count for the copies its GT names (`BAD_COUNT`), or more values than keys (`BAD_COUNT`). Expected count: A, n; R, n+1; G, n+1 for one copy, (n+1)(n+2)/2 for two, either for a lone `.` GT. Otherwise the line is refused. A whole-line outcome that stops the run is reported first; otherwise the message names `BAD_CR`, if it holds, and then the first of the later reasons, reading the line left to right (ALTs, INFO, then each sample in FORMAT's order, its extra values last). |
 | `split_alts` | One record per ALT, each with that ALT alone, in the input's ALT order. |
 | `split_site` | Each record keeps CHROM, POS, ID, REF, QUAL, FILTER and FORMAT byte for byte, and its number of columns. |
 | `split_valid` | If the line is a valid variant on its contig, so is every record; the laws of the normal form apply to each. |
@@ -1819,7 +2095,7 @@ only the 32 laws as TODO (13 existing, 19 new) and no other error.
 +#     record per ALT (B.Rec.parts, reading the header's definitions); each
 +#     record then goes through the rest of this rule in ALT order, as a line of
 +#     its own with the line's number and input POS. A line that cannot be
-+#     split (ALT_DUP, UNDEFINED_TAG, BAD_COUNT, BAD_GT) is a problem, after
++#     split (BAD_CR, ALT_DUP, UNDEFINED_TAG, BAD_COUNT, BAD_GT) is a problem, after
 +#     any outcome of the whole line that stops the run (unsplit_in).
  #   - Each body line is judged (judge). If its outcome stops the run, the run
  #     stops without writing anything more. Else, if its CHROM differs from the

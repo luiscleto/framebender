@@ -6,10 +6,30 @@
 #   ./build.sh [output]        (default: framebender next to this script)
 # A plain `bend main.bend -o framebender` still builds; that binary stops on a
 # BGZF VCF with "error: no BGZF in this build <path>".
+# The index (-W) needs htslib 1.24 built without libcurl, GCS and S3
+# (tools/build_htslib.sh installs it in ~/.local/opt/htslib-1.24-nocurl),
+# found by pkg-config (PKG_CONFIG_PATH, default that prefix) and linked
+# statically: its tbx_parse1 and hts_adjust_csi_settings are not exported by
+# libhts.so. FB_NO_HTSLIB=1 builds without it; -W then stops with "error: no
+# index in this build <path>".
 set -e
 here=$(dirname "$0")
 out=${1:-$here/framebender}
 export BEND_NO_TELEMETRY=1
+hts=
+if [ "${FB_NO_HTSLIB:-0}" != 1 ]; then
+  pfx=$HOME/.local/opt/htslib-1.24-nocurl
+  export PKG_CONFIG_PATH=${PKG_CONFIG_PATH:-$pfx/lib/pkgconfig}
+  need="-W needs htslib 1.24 built without libcurl: tools/build_htslib.sh installs it in $pfx (./configure --disable-libcurl --disable-gcs --disable-s3), found with PKG_CONFIG_PATH=$pfx/lib/pkgconfig; FB_NO_HTSLIB=1 builds without -W"
+  [ "$(pkg-config --modversion htslib 2>/dev/null)" = 1.24 ] || { echo "build.sh: no htslib 1.24 found by pkg-config. $need" >&2; exit 1; }
+  lib=$(pkg-config --variable=libdir htslib)/libhts.a
+  libs=$(pkg-config --variable=static_libs htslib)
+  case " $libs " in *" -lcurl "*) echo "build.sh: $lib is built with libcurl. $need" >&2; exit 1 ;; esac
+  for f in tbx_parse1 hts_adjust_csi_settings; do
+    nm "$lib" 2>/dev/null | grep -q " T $f\$" || { echo "build.sh: $lib does not define $f. $need" >&2; exit 1; }
+  done
+  hts="-DFB_HTSLIB $(pkg-config --cflags htslib) $lib $libs"
+fi
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 bend "$here/main.bend" -o "$tmp/framebender.c"
@@ -61,4 +81,4 @@ awk '{ print }
   print "    return;"
   print "  }"
 }' "$c" > "$tmp/patched.c"
-${CC:-clang} -std=c11 -O3 -DFB_LIBDEFLATE "$tmp/patched.c" -lpthread -lm -ldeflate -o "$out"
+${CC:-clang} -std=c11 -O3 -DFB_LIBDEFLATE "$tmp/patched.c" $hts -lpthread -lm -ldeflate -o "$out"

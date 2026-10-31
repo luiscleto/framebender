@@ -101,6 +101,11 @@ def srcT(src: List<&1, Norm.Src>) -> String:
       String.append(NR.chars(List.drop(&2, U32, D.view(b), U32.to_nat(at))), srcT(t))
     case Con{Norm.SL{+p}, t}:
       String.append(p ++ "\n", srcT(t))
+    case Con{Norm.SP{b, +at}, t}:
+      srcT(t)
+    case Con{Norm.SR{l}, t}:
+      srcT(t)
+
 
 def pdT(pd: Norm.Pd) -> String:
   match pd:
@@ -177,7 +182,7 @@ def RD(nx: Pr.Next) -> Nat:
 
 def WAS(+fa: List<&2, B.Contig>, st: Norm.St, +cs: List<&2, String>) -> Nat:
   match st:
-    case Norm.St{o, md, src, pend, +eof, +back, win, asked, +fneed}:
+    case Norm.St{o, md, src, pend, +eof, +back, win, asked, +fneed, +dfs}:
       WA.ls(fa, fast_left(md, fneed), back, win, asked, lines(src, pend, eof, cs))
 
 def needS(+fa: List<&2, B.Contig>, +T: R.Report, st: Norm.St, +cs: List<&2, String>, +eof: Bool, +nx: Pr.Next, +O: String) -> Nat:
@@ -221,7 +226,7 @@ def bi.ls(+back: Nat, w: Norm.Win, m: Maybe<&2, List<&2, Pr.Req>>, ls: List<&2, 
 
 def biS(st: Norm.St, +cs: List<&2, String>) -> Bool:
   match st:
-    case Norm.St{o, md, src, pend, +eof, +back, win, asked, fneed}:
+    case Norm.St{o, md, src, pend, +eof, +back, win, asked, fneed, +dfs}:
       bi.ls(back, win, asked, lines(src, pend, eof, cs))
 
 # The API's need and bi: on the state a picture stands for.

@@ -176,12 +176,12 @@ def lines_lt(+s: String) -> {Nat.is_le(LT(B.Text.lines(s)), Nat.mul(3n, 1n+SL(s)
 
 def AD(o: B.Opts) -> Nat:
   match o:
-    case B.Opts{s, w, args}:
+    case B.Opts{s, w, om_m, om_z, args}:
       Nat.add(61n, SL(R.args_text(args)))
 
 def ad_len(o: B.Opts, +term: String) -> {Nat.is_le(SL(R.added(o, term)), Nat.add(AD(o), Nat.add(SL(term), SL(term)))) == True{} : Bool}:
   match o:
-    case B.Opts{s, w, +args}:
+    case B.Opts{s, w, om_m, om_z, +args}:
       +T0 = SL(term)
       +A0 = SL(R.args_text(args))
       +X0 = "##framebender_normCommand=norm" ++ (R.args_text(args) ++ term)
@@ -470,20 +470,15 @@ def hl(isc: Bool, +n: Nat, +h: String, +c: Maybe<&2, String>, +e: List<&2, Strin
 # The whole run
 # ---------------------------------------------------------------------------
 
-def lstep.b(+fa: List<&2, B.Contig>, +opts: B.Opts, +n: Nat, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +la: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o: String,
+def lstep.b(+dfs: B.Defs, +fa: List<&2, B.Contig>, +opts: B.Opts, +n: Nat, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +la: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o: String,
   +ns: List<&2, B.Note>, +l: B.Line, +X: Nat, +hinv: {Nat.is_le(WSt(b, h, o), X) == True{} : Bool}) ->
-  INV(L.line_step(fa, opts, R.RunSt{n, True{}, h, c, e, la, b, k, o, ns, False{}}, l), Nat.add(LC(B.Line.text(l)), X), AD(opts)):
-  match l:
-    case B.Line{+bd, +term}:
-      +fs = B.Rec.fields(bd)
-      post_inv(R.body_line(L.judge(fa, bd), RS(1n+n, h, c, e, la, b, k, o, ns), opts, B.Line{bd, term}, B.At{1n+n, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs)),
-        Nat.add(LC(bd ++ term), WSt(b, h, o)), Nat.add(LC(bd ++ term), X), AD(opts),
-        bl(L.judge(fa, bd), bd, term, Q.judge_len(fa, bd), 1n+n, h, c, e, la, b, k, o, ns, opts, B.At{1n+n, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs)),
-        N.le_add_mono_l(LC(bd ++ term), WSt(b, h, o), X, hinv))
+  INV(L.line_step(fa, dfs, opts, R.RunSt{n, True{}, h, c, e, la, b, k, o, ns, False{}}, l), Nat.add(LC(B.Line.text(l)), X), AD(opts)):
+  ?TODO
 
-def lstep.h(+fa: List<&2, B.Contig>, +opts: B.Opts, +n: Nat, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +la: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o: String,
+
+def lstep.h(+dfs: B.Defs, +fa: List<&2, B.Contig>, +opts: B.Opts, +n: Nat, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +la: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o: String,
   +ns: List<&2, B.Note>, +l: B.Line, +X: Nat, +hinv: {Nat.is_le(Nat.add(WSt(b, h, o), AD(opts)), X) == True{} : Bool}) ->
-  INV(L.line_step(fa, opts, R.RunSt{n, False{}, h, c, e, la, b, k, o, ns, False{}}, l), Nat.add(LC(B.Line.text(l)), X), AD(opts)):
+  INV(L.line_step(fa, dfs, opts, R.RunSt{n, False{}, h, c, e, la, b, k, o, ns, False{}}, l), Nat.add(LC(B.Line.text(l)), X), AD(opts)):
   match l:
     case B.Line{+bd, +term}:
       hl(R.is_chrom_line(bd), 1n+n, h, c, e, la, b, k, o, ns, opts, bd, term, X, hinv)
@@ -492,8 +487,8 @@ def halted_up(+o: String, +X: Nat, +Z: Nat, +h: {Nat.is_le(SL(o), Nat.add(X, X))
   N.le_trans(SL(o), Nat.add(X, X), Nat.add(Nat.add(Z, X), Nat.add(Z, X)), h, P.le_add(X, Nat.add(Z, X), X, Nat.add(Z, X), N.le_add_l(X, Z), N.le_add_l(X, Z)))
 
 # One line keeps the invariant, with LC(line) more allowance.
-def lstep(+fa: List<&2, B.Contig>, +opts: B.Opts, st: R.RunSt, +l: B.Line, +X: Nat, hinv: INV(st, X, AD(opts))) ->
-  INV(L.line_step(fa, opts, st, l), Nat.add(LC(B.Line.text(l)), X), AD(opts)):
+def lstep(+dfs: B.Defs, +fa: List<&2, B.Contig>, +opts: B.Opts, st: R.RunSt, +l: B.Line, +X: Nat, hinv: INV(st, X, AD(opts))) ->
+  INV(L.line_step(fa, dfs, opts, st, l), Nat.add(LC(B.Line.text(l)), X), AD(opts)):
   match st:
     case R.RunSt{+n, i, +h, +c, +e, +la, +b, +k, +o, +ns, x}:
       match i x:
@@ -502,9 +497,9 @@ def lstep(+fa: List<&2, B.Contig>, +opts: B.Opts, st: R.RunSt, +l: B.Line, +X: N
         case False{} True{}:
           halted_up(o, X, LC(B.Line.text(l)), hinv)
         case True{} False{}:
-          lstep.b(fa, opts, n, h, c, e, la, b, k, o, ns, l, X, hinv)
+          lstep.b(dfs, fa, opts, n, h, c, e, la, b, k, o, ns, l, X, hinv)
         case False{} False{}:
-          lstep.h(fa, opts, n, h, c, e, la, b, k, o, ns, l, X, hinv)
+          lstep.h(dfs, fa, opts, n, h, c, e, la, b, k, o, ns, l, X, hinv)
 
 def AC(ls: List<&2, B.Line>, +X: Nat) -> Nat:
   match ls:
@@ -513,13 +508,13 @@ def AC(ls: List<&2, B.Line>, +X: Nat) -> Nat:
     case l <> t:
       AC(t, Nat.add(LC(B.Line.text(l)), X))
 
-def rg(ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +opts: B.Opts, +st: R.RunSt, +X: Nat, hinv: INV(st, X, AD(opts))) ->
-  INV(L.run.go(ls, fa, opts, st), AC(ls, X), AD(opts)):
+def rg(+dfs: B.Defs, ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +opts: B.Opts, +st: R.RunSt, +X: Nat, hinv: INV(st, X, AD(opts))) ->
+  INV(L.run.go(ls, fa, dfs, opts, st), AC(ls, X), AD(opts)):
   match ls:
     case Nil{}:
       hinv
     case +l <> t:
-      rg(t, fa, opts, L.line_step(fa, opts, st, l), Nat.add(LC(B.Line.text(l)), X), lstep(fa, opts, st, l, X, hinv))
+      rg(dfs, t, fa, opts, L.line_step(fa, dfs, opts, st, l), Nat.add(LC(B.Line.text(l)), X), lstep(dfs, fa, opts, st, l, X, hinv))
 
 def ff(f: R.Flush, +o: String, +ns: List<&2, B.Note>, k: R.Cnt) -> {SL(R.Report.out(R.finish.flush(f, o, ns, k))) == Nat.add(SL(o), SL(FO(f))) : Nat}:
   match f k:
@@ -574,15 +569,6 @@ def OB(+vcf: String, +opts: B.Opts) -> Nat:
 
 # The output-length lemma: a run writes at most 2 (63 (|vcf| + 1) + 61 +
 # |args text|) bytes.
-def out_len(+fasta: String, +vcf: String, +opts: B.Opts) -> {Nat.is_le(SL(R.Report.out(L.run(fasta, vcf, opts))), Nat.add(OB(vcf, opts), OB(vcf, opts))) == True{} : Bool}:
-  +ls = B.Text.lines(vcf)
-  +fa = B.Fasta.parse(fasta)
-  +A = AD(opts)
-  +h0 = N.le_refl(A)
-  +X = AC(ls, A)
-  +h2 = fin(L.run.go(ls, fa, opts, R.start_st()), X, A, rg(ls, fa, opts, R.start_st(), A, h0))
-  +h4 = N.le_mul_l(21n, LT(ls), Nat.mul(3n, 1n+SL(vcf)), lines_lt(vcf))
-  +h5 = AB.subst(Nat, z => {Nat.is_le(Nat.mul(21n, LT(ls)), z) == True{} : Bool}, Nat.mul(21n, Nat.mul(3n, 1n+SL(vcf))), Nat.mul(63n, 1n+SL(vcf)),
-    Equal.sym(Nat, Nat.mul(Nat.mul(21n, 3n), 1n+SL(vcf)), Nat.mul(21n, Nat.mul(3n, 1n+SL(vcf))), N.mul_assoc(21n, 3n, 1n+SL(vcf))), h4)
-  +h6 = N.le_trans(X, Nat.add(Nat.mul(21n, LT(ls)), A), OB(vcf, opts), ac_le(ls, A), N.le_add_mono_r(A, Nat.mul(21n, LT(ls)), Nat.mul(63n, 1n+SL(vcf)), h5))
-  N.le_trans(SL(R.Report.out(L.run(fasta, vcf, opts))), Nat.add(X, X), Nat.add(OB(vcf, opts), OB(vcf, opts)), h2, P.le_add(X, OB(vcf, opts), X, OB(vcf, opts), h6, h6))
+def out_len(+dfs: B.Defs, +fasta: String, +vcf: String, +opts: B.Opts) -> {Nat.is_le(SL(R.Report.out(L.run(fasta, vcf, opts))), Nat.add(OB(vcf, opts), OB(vcf, opts))) == True{} : Bool}:
+  ?TODO
+

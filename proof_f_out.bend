@@ -111,7 +111,7 @@ def pre_O(a, h):
 # The value of -O, accepted: only the driver options change.
 law typ_some:
   for +m: Maybe<&2, B.OType>
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -128,9 +128,10 @@ def typ_some(m, s, w, t, r, v, ok, k, hm):
     case None{}:
       Empty.absurd({A.unthr(B.Args.typ(None{}, B.ArgSt{B.PType{}, s, w, t, r, v, ok, k})) == B.ArgSt{B.PNone{}, s, w, B.Drv.none(), r, v, ok, k} : B.ArgSt}, PB.false_ne_true(hm))
 
+
 # The glued -OT, T accepted.
 law glued:
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -151,7 +152,7 @@ def glued(s, w, t, r, v, ok, k, d, hd):
           typ_some(B.Args.otype(SCon{Chr{x}, e}), s, w, t, r, v, ok, k, hd)
 
 law glued_any:
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -170,7 +171,7 @@ def glued_any(s, w, t, r, v, ok, k, a, h):
 
 # -o PATH, PATH not a .bcf.
 law two_o:
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -190,7 +191,7 @@ def two_o(s, w, t, r, v, ok, k, b, hb):
 
 # -O T, T accepted.
 law two_O:
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -215,7 +216,7 @@ def neq_O(a, ea):
 
 # The two words a b of Args.out_opt.two, split on whether a is -o (c).
 law two_k:
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -270,6 +271,10 @@ def out_words(st, o, he, ho):
                       Empty.absurd({A.unthr(B.Args.go(a <> b <> c <> t3, B.ArgSt{B.PNone{}, s, w, t, r, v, ok, k})) == A.unthr(B.ArgSt{B.PNone{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(ho))
         case B.PRef{}:
           Empty.absurd({A.unthr(B.Args.go(o, B.ArgSt{B.PRef{}, s, w, t, r, v, ok, k})) == A.unthr(B.ArgSt{B.PRef{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
+        case B.PMulti{}:
+          Empty.absurd({A.unthr(B.Args.go(o, B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, k})) == A.unthr(B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
+        case B.POver{}:
+          Empty.absurd({A.unthr(B.Args.go(o, B.ArgSt{B.POver{}, s, w, t, r, v, ok, k})) == A.unthr(B.ArgSt{B.POver{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
         case B.PCheck{}:
           Empty.absurd({A.unthr(B.Args.go(o, B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, k})) == A.unthr(B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
         case B.PWin{}:
@@ -280,6 +285,8 @@ def out_words(st, o, he, ho):
           Empty.absurd({A.unthr(B.Args.go(o, B.ArgSt{B.POut{}, s, w, t, r, v, ok, k})) == A.unthr(B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
         case B.PType{}:
           Empty.absurd({A.unthr(B.Args.go(o, B.ArgSt{B.PType{}, s, w, t, r, v, ok, k})) == A.unthr(B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
+
+
 
 # The parser fact behind law output.
 law parse_out:
@@ -385,20 +392,26 @@ def sink_done_ok(st):
     case B.ArgSt{p, s, w, t, r, v, ok, k}:
       match p:
         case B.PNone{}:
-          match r:
-            case None{}:
-              {==}
-            case Some{r1}:
-              match v:
+          match s:
+            case B.Sci{sc, sm, sz}:
+              match r:
                 case None{}:
                   {==}
-                case Some{v1}:
-                  match ok:
-                    case True{}:
+                case Some{r1}:
+                  match v:
+                    case None{}:
                       {==}
-                    case False{}:
-                      {==}
+                    case Some{v1}:
+                      match ok:
+                        case True{}:
+                          {==}
+                        case False{}:
+                          {==}
         case B.PRef{}:
+          {==}
+        case B.PMulti{}:
+          {==}
+        case B.POver{}:
           {==}
         case B.PCheck{}:
           {==}
@@ -410,6 +423,8 @@ def sink_done_ok(st):
           {==}
         case B.PType{}:
           {==}
+
+
 
 law output_if:
   for +c: Bool

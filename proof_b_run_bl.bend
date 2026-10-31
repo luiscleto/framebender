@@ -314,10 +314,10 @@ def bl.r(+r: B.Res, +o: B.Opts, +n: Nat, +h: String, +c: Maybe<&2, String>, +cbl
       bl.stop.k(B.Res{B.Broken{}, k2, t, stl}, o, n, h, c, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, line, chA, poA, bd, tm, inpos, sl, st, sd, s, k, B.Stop{B.Malformed{}, Some{B.At{line, chA, poA}}, None{}}, bl.stop(n, h, c, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, B.Stop{B.Malformed{}, Some{B.At{line, chA, poA}}, None{}}, hi))
     case B.Res{B.NoContig{}, +k2, +t, +stl} _:
       bl.stop.k(B.Res{B.NoContig{}, k2, t, stl}, o, n, h, c, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, line, chA, poA, bd, tm, inpos, sl, st, sd, s, k, B.Stop{B.UnknownChrom{}, Some{B.At{line, chA, poA}}, None{}}, bl.stop(n, h, c, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, B.Stop{B.UnknownChrom{}, Some{B.At{line, chA, poA}}, None{}}, hi))
-    case B.Res{B.Problem{+cd}, +k2, +t, +stl} B.Opts{True{}, +w, +args}:
-      bl.stop.k(B.Res{B.Problem{cd}, k2, t, stl}, B.Opts{True{}, w, args}, n, h, c, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, line, chA, poA, bd, tm, inpos, sl, st, sd, s, k, B.Stop{cd, Some{B.At{line, chA, poA}}, None{}}, bl.stop(n, h, c, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, B.Stop{cd, Some{B.At{line, chA, poA}}, None{}}, hi))
-    case B.Res{B.Problem{+cd}, +k2, +t, +stl} B.Opts{False{}, +w, +args}:
-      bl.kr(B.Opts{False{}, w, args}, n, h, c, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, line, chA, poA, bd, tm, inpos, sl, st, sd, s, k, [B.Warning{cd, B.At{line, chA, poA}}], False{}, False{}, True{}, hi, hok, hs, ht, hbig, hk, hcb, hcl)
+    case B.Res{B.Problem{+cd}, +k2, +t, +stl} B.Opts{True{}, +w, +om_m, +om_z, +args}:
+      bl.stop.k(B.Res{B.Problem{cd}, k2, t, stl}, B.Opts{True{}, w, om_m, om_z, args}, n, h, c, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, line, chA, poA, bd, tm, inpos, sl, st, sd, s, k, B.Stop{cd, Some{B.At{line, chA, poA}}, None{}}, bl.stop(n, h, c, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, B.Stop{cd, Some{B.At{line, chA, poA}}, None{}}, hi))
+    case B.Res{B.Problem{+cd}, +k2, +t, +stl} B.Opts{False{}, +w, +om_m, +om_z, +args}:
+      bl.kr(B.Opts{False{}, w, om_m, om_z, args}, n, h, c, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, line, chA, poA, bd, tm, inpos, sl, st, sd, s, k, [B.Warning{cd, B.At{line, chA, poA}}], False{}, False{}, True{}, hi, hok, hs, ht, hbig, hk, hcb, hcl)
     case B.Res{B.Skipped{}, +k2, +t, +stl} _:
       bl.kr(o, n, h, c, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, line, chA, poA, bd, tm, inpos, sl, st, sd, s, k, Nil{}, False{}, True{}, False{}, hi, hok, hs, ht, hbig, hk, hcb, hcl)
     case B.Res{B.Normalized{}, +k2, +t, +stl} _:

@@ -400,19 +400,22 @@ def parts_eq(+len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +os: Bool, +ow: Nat, +o
   +h3: {B.Text.is_letters(WT.TX(len, t, f3)) == True{} : Bool},
   +he: {B.Text.any_empty(K.TXS(len, t, alts)) == False{} : Bool},
   +h2: {Nat.is_le(2n, List.length(&2, NS.Rg, alts)) == True{} : Bool},
-  +hd: {B.Alts.distinct(K.TXS(len, t, alts)) == True{} : Bool}) ->
+  +hd: {B.Alts.distinct(K.TXS(len, t, alts)) == True{} : Bool},
+  +hcr: {B.Text.has_cr(body) == False{} : Bool}) ->
   {B.Rec.parts(defs, B.Opts{os, ow, True{}, o0, oa}, body) == PT(len, t, defs, o0, FS7(f0, f1, f2, f3, f4, f5, f6, Con{x, r}), alts) : B.Parts}:
   +FS = FS7(f0, f1, f2, f3, f4, f5, f6, Con{x, r})
   +TF = K.TXS(len, t, FS)
   +TA = K.TXS(len, t, alts)
   +P = PT(len, t, defs, o0, FS, alts)
+  %Equal.sym(Bool, B.Text.has_cr(body), False{}, hcr) :
+    {B.Rec.parts.if(Bool.and(Bool.not(B.Rec.malformed(B.Rec.fields(body))), Nat.is_le(2n, List.length(&2, String, B.Rec.alts(B.Rec.fields(body))))), _, defs, o0, B.Rec.fields(body)) == P : B.Parts}
   %Equal.sym(Ss(), B.Rec.fields(body), TF, hf) :
-    {B.Rec.parts.if(Bool.and(Bool.not(B.Rec.malformed(_)), Nat.is_le(2n, List.length(&2, String, B.Rec.alts(_)))), defs, o0, _) == P : B.Parts}
+    {B.Rec.parts.if(Bool.and(Bool.not(B.Rec.malformed(_)), Nat.is_le(2n, List.length(&2, String, B.Rec.alts(_)))), False{}, defs, o0, _) == P : B.Parts}
   %Equal.sym(Bool, B.Rec.malformed(TF), False{}, mal_f(len, t, f0, f1, f2, f3, f4, f5, f6, x, r, alts, ha, h0, h1, h3, he)) :
-    {B.Rec.parts.if(Bool.and(Bool.not(_), Nat.is_le(2n, List.length(&2, String, B.Rec.alts(TF)))), defs, o0, TF) == P : B.Parts}
-  %ha : {B.Rec.parts.if(Nat.is_le(2n, List.length(&2, String, _)), defs, o0, TF) == P : B.Parts}
-  %Equal.sym(Nat, List.length(&2, String, TA), List.length(&2, NS.Rg, alts), txs_len(len, t, alts)) : {B.Rec.parts.if(Nat.is_le(2n, _), defs, o0, TF) == P : B.Parts}
-  %Equal.sym(Bool, Nat.is_le(2n, List.length(&2, NS.Rg, alts)), True{}, h2) : {B.Rec.parts.if(_, defs, o0, TF) == P : B.Parts}
+    {B.Rec.parts.if(Bool.and(Bool.not(_), Nat.is_le(2n, List.length(&2, String, B.Rec.alts(TF)))), False{}, defs, o0, TF) == P : B.Parts}
+  %ha : {B.Rec.parts.if(Nat.is_le(2n, List.length(&2, String, _)), False{}, defs, o0, TF) == P : B.Parts}
+  %Equal.sym(Nat, List.length(&2, String, TA), List.length(&2, NS.Rg, alts), txs_len(len, t, alts)) : {B.Rec.parts.if(Nat.is_le(2n, _), False{}, defs, o0, TF) == P : B.Parts}
+  %Equal.sym(Bool, Nat.is_le(2n, List.length(&2, NS.Rg, alts)), True{}, h2) : {B.Rec.parts.if(_, False{}, defs, o0, TF) == P : B.Parts}
   %ha : {B.Rec.parts.split(B.Alts.distinct(_), _, TF, defs, o0) == P : B.Parts}
   %Equal.sym(Bool, B.Alts.distinct(TA), True{}, hd) : {B.Rec.parts.split(_, TA, TF, defs, o0) == P : B.Parts}
   %Equal.sym(Nat, List.length(&2, String, TA), List.length(&2, NS.Rg, alts), txs_len(len, t, alts)) : {B.Parts.of(B.Rec.pieces.go(TA, TF, defs, o0, _, 1n)) == P : B.Parts}

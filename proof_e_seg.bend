@@ -16,6 +16,7 @@ import ./proof_e_seg_main.bend as SM
 # ---------------------------------------------------------------------------
 
 law seg:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +c0: String
@@ -23,11 +24,11 @@ law seg:
   for +S: R.RunSt
   for +ls: List<&2, B.Line>
   for +hc: {SD.first_chrom(ls) == Some{c0} : Maybe<&2, String>}
-  for +hk: {SD.segok(R.Opts.w(o), c0, l, S, L.run.go(ls, fa, o, SD.rs0(c0, l))) == True{} : Bool}
-  {P.settle(L.run.go(ls, fa, o, S)) == P.settle(SD.shiftS(c0, S, L.run.go(ls, fa, o, SD.rs0(c0, l)))) : R.RunSt}
+  for +hk: {SD.segok(R.Opts.w(o), c0, l, S, L.run.go(ls, fa, dfs, o, SD.rs0(c0, l))) == True{} : Bool}
+  {P.settle(L.run.go(ls, fa, dfs, o, S)) == P.settle(SD.shiftS(c0, S, L.run.go(ls, fa, dfs, o, SD.rs0(c0, l)))) : R.RunSt}
 
 # The true run over ls is exactly shiftS of S and T (proof_e_seg_main.bend);
 # settle both sides.
-def seg(fa, o, c0, l, S, ls, hc, hk):
-  Equal.cong(R.RunSt, R.RunSt, st => P.settle(st), L.run.go(ls, fa, o, S), SD.shiftS(c0, S, L.run.go(ls, fa, o, SD.rs0(c0, l))),
-    SM.segx(fa, o, c0, l, S, ls, hc, hk))
+def seg(dfs,fa, o, c0, l, S, ls, hc, hk):
+  Equal.cong(R.RunSt, R.RunSt, st => P.settle(st), L.run.go(ls, fa, dfs, o, S), SD.shiftS(c0, S, L.run.go(ls, fa, dfs, o, SD.rs0(c0, l))),
+    SM.segx(dfs, fa, o, c0, l, S, ls, hc, hk))

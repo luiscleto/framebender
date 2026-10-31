@@ -305,6 +305,101 @@ def body_line_bl(r, st, o, l, at, inpos):
       keyed_bl(R.RunSt{n, i, h, c, e, la, b, k, so, ns, x}, R.Opts.w(o), R.Item{kk, inpos, at, t ++ B.Line.term(l)}, R.stale_note(s, at),
         R.bump(k, Bool.not(String.eq(t, B.Line.body(l))), False{}, False{}))
 
+law blank_st2:
+  for +st: R.RunSt
+  {PD.blank_st(PD.blank_st(st)) == PD.blank_st(st) : R.RunSt}
+
+def blank_st2(st):
+  match st:
+    case R.RunSt{+n, +i, +h, +c, +e, +la, +b, +k, +so, +ns, +x}:
+      %Equal.sym(Maybe<&2, R.Item>, PD.blank(PD.blank(la)), PD.blank(la), blank_blank(la)) :
+        {R.RunSt{n, i, h, c, e, _, b, k, so, ns, x} == R.RunSt{n, i, h, c, e, PD.blank(la), b, k, so, ns, x} : R.RunSt}
+      {==}
+
+# -m: the records of a split line, a line that cannot be split, and what
+# B.Rec.parts says of a line.
+law piece_bl:
+  for +p: String
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +st: R.RunSt
+  for +term: String
+  for +at: B.At
+  for +inpos: Nat
+  {PD.blank_st(L.piece_in(R.RunSt.halt(PD.blank_st(st)), p, fa, o, PD.blank_st(st), term, at, inpos)) == PD.blank_st(L.piece_in(R.RunSt.halt(st), p, fa, o, st, term, at, inpos)) : R.RunSt}
+
+def piece_bl(p, fa, o, st, term, at, inpos):
+  match st:
+    case R.RunSt{+n, +i, +h, +c, +e, +la, +b, +k, +so, +ns, +x}:
+      match x:
+        case True{}:
+          %Equal.sym(Maybe<&2, R.Item>, PD.blank(PD.blank(la)), PD.blank(la), blank_blank(la)) :
+            {R.RunSt{n, i, h, c, e, _, b, k, so, ns, True{}} == R.RunSt{n, i, h, c, e, PD.blank(la), b, k, so, ns, True{}} : R.RunSt}
+          {==}
+        case False{}:
+          body_line_bl(L.judge(fa, p), R.RunSt{n, i, h, c, e, la, b, k, so, ns, False{}}, o, B.Line{p, term}, at, inpos)
+
+law pieces_bl:
+  for +ps: List<&2, String>
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +st: R.RunSt
+  for +term: String
+  for +at: B.At
+  for +inpos: Nat
+  {PD.blank_st(L.pieces_in(ps, fa, o, PD.blank_st(st), term, at, inpos)) == PD.blank_st(L.pieces_in(ps, fa, o, st, term, at, inpos)) : R.RunSt}
+
+def pieces_bl(ps, fa, o, st, term, at, inpos):
+  match ps:
+    case Nil{}:
+      blank_st2(st)
+    case Con{+p, +t}:
+      +X1 = L.piece_in(R.RunSt.halt(PD.blank_st(st)), p, fa, o, PD.blank_st(st), term, at, inpos)
+      +X2 = L.piece_in(R.RunSt.halt(st), p, fa, o, st, term, at, inpos)
+      +E1 = piece_bl(p, fa, o, st, term, at, inpos)
+      Equal.trans(R.RunSt, PD.blank_st(L.pieces_in(t, fa, o, X1, term, at, inpos)), PD.blank_st(L.pieces_in(t, fa, o, PD.blank_st(X1), term, at, inpos)), PD.blank_st(L.pieces_in(t, fa, o, X2, term, at, inpos)),
+        Equal.sym(R.RunSt, PD.blank_st(L.pieces_in(t, fa, o, PD.blank_st(X1), term, at, inpos)), PD.blank_st(L.pieces_in(t, fa, o, X1, term, at, inpos)), pieces_bl(t, fa, o, X1, term, at, inpos)),
+        {%Equal.sym(R.RunSt, PD.blank_st(X1), PD.blank_st(X2), E1) : {PD.blank_st(L.pieces_in(t, fa, o, _, term, at, inpos)) == PD.blank_st(L.pieces_in(t, fa, o, X2, term, at, inpos)) : R.RunSt};
+          pieces_bl(t, fa, o, X2, term, at, inpos) : {PD.blank_st(L.pieces_in(t, fa, o, PD.blank_st(X1), term, at, inpos)) == PD.blank_st(L.pieces_in(t, fa, o, X2, term, at, inpos)) : R.RunSt}})
+
+law unsplit_bl.k:
+  for +b: Bool
+  for +r: B.Res
+  for +c: B.Code
+  for +st: R.RunSt
+  for +o: B.Opts
+  for +l: B.Line
+  for +at: B.At
+  for +inpos: Nat
+  {PD.blank_st(Bool.pick(R.RunSt, b, R.body_line(r, PD.blank_st(st), o, l, at, inpos), R.problem_line(R.Opts.strict(o), PD.blank_st(st), R.Opts.w(o), c, l, at, inpos)))
+    == PD.blank_st(Bool.pick(R.RunSt, b, R.body_line(r, st, o, l, at, inpos), R.problem_line(R.Opts.strict(o), st, R.Opts.w(o), c, l, at, inpos))) : R.RunSt}
+
+def unsplit_bl.k(b, r, c, st, o, l, at, inpos):
+  match b:
+    case True{}:
+      body_line_bl(r, st, o, l, at, inpos)
+    case False{}:
+      problem_bl(R.Opts.strict(o), st, R.Opts.w(o), c, l, at, inpos)
+
+law body_in_bl:
+  for +pt: B.Parts
+  for +fa: List<&2, B.Contig>
+  for +st: R.RunSt
+  for +o: B.Opts
+  for +l: B.Line
+  for +at: B.At
+  for +inpos: Nat
+  {PD.blank_st(L.body_in(pt, fa, o, PD.blank_st(st), l, at, inpos)) == PD.blank_st(L.body_in(pt, fa, o, st, l, at, inpos)) : R.RunSt}
+
+def body_in_bl(pt, fa, st, o, l, at, inpos):
+  match pt:
+    case B.Whole{}:
+      body_line_bl(L.judge(fa, B.Line.body(l)), st, o, l, at, inpos)
+    case B.Pieces{+ps}:
+      pieces_bl(ps, fa, o, st, B.Line.term(l), at, inpos)
+    case B.Unsplit{+c}:
+      unsplit_bl.k(L.stops(L.judge(fa, B.Line.body(l)), R.Opts.strict(o)), L.judge(fa, B.Line.body(l)), c, st, o, l, at, inpos)
+
 law head_bl:
   for +isc: Bool
   for +st: R.RunSt
@@ -327,13 +422,14 @@ def head_bl(isc, st, o, l):
 # ================================
 
 law step_bl:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +st: R.RunSt
   for +l: B.Line
-  {PD.blank_st(L.line_step(fa, o, PD.blank_st(st), l)) == PD.blank_st(L.line_step(fa, o, st, l)) : R.RunSt}
+  {PD.blank_st(L.line_step(fa, dfs, o, PD.blank_st(st), l)) == PD.blank_st(L.line_step(fa, dfs, o, st, l)) : R.RunSt}
 
-def step_bl(fa, o, st, l):
+def step_bl(dfs,fa, o, st, l):
   match st:
     case R.RunSt{+n, +i, +h, +c, +e, +la, +b, +k, +so, +ns, True{}}:
       %Equal.sym(Maybe<&2, R.Item>, PD.blank(PD.blank(la)), PD.blank(la), blank_blank(la)) :
@@ -343,7 +439,7 @@ def step_bl(fa, o, st, l):
       head_bl(R.is_chrom_line(B.Line.body(l)), R.RunSt{1n+n, False{}, h, c, e, la, b, k, so, ns, False{}}, o, l)
     case R.RunSt{+n, True{}, +h, +c, +e, +la, +b, +k, +so, +ns, False{}}:
       +fs = B.Rec.fields(B.Line.body(l))
-      body_line_bl(L.judge(fa, B.Line.body(l)), R.RunSt{1n+n, True{}, h, c, e, la, b, k, so, ns, False{}}, o, l,
+      body_in_bl(B.Rec.parts(dfs, o, B.Line.body(l)), fa, R.RunSt{1n+n, True{}, h, c, e, la, b, k, so, ns, False{}}, o, l,
         B.At{1n+n, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))
 
 law ff_bl:
@@ -378,21 +474,22 @@ def finish_bl(st):
 
 # The report of a run from st is the report from st with last's text blanked.
 law inv:
+  for +dfs: B.Defs
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +st: R.RunSt
-  {R.finish(L.run.go(ls, fa, o, PD.blank_st(st))) == R.finish(L.run.go(ls, fa, o, st)) : R.Report}
+  {R.finish(L.run.go(ls, fa, dfs, o, PD.blank_st(st))) == R.finish(L.run.go(ls, fa, dfs, o, st)) : R.Report}
 
-def inv(ls, fa, o, st):
+def inv(dfs,ls, fa, o, st):
   match ls:
     case Nil{}:
       finish_bl(st)
     case +l <> +t:
-      +A = L.line_step(fa, o, PD.blank_st(st), l)
-      +Bs = L.line_step(fa, o, st, l)
-      Equal.trans(R.Report, R.finish(L.run.go(t, fa, o, A)), R.finish(L.run.go(t, fa, o, PD.blank_st(A))), R.finish(L.run.go(t, fa, o, Bs)),
-        Equal.sym(R.Report, R.finish(L.run.go(t, fa, o, PD.blank_st(A))), R.finish(L.run.go(t, fa, o, A)), inv(t, fa, o, A)),
-        Equal.trans(R.Report, R.finish(L.run.go(t, fa, o, PD.blank_st(A))), R.finish(L.run.go(t, fa, o, PD.blank_st(Bs))), R.finish(L.run.go(t, fa, o, Bs)),
-          Equal.cong(R.RunSt, R.Report, z => R.finish(L.run.go(t, fa, o, z)), PD.blank_st(A), PD.blank_st(Bs), step_bl(fa, o, st, l)),
-          inv(t, fa, o, Bs)))
+      +A = L.line_step(fa, dfs, o, PD.blank_st(st), l)
+      +Bs = L.line_step(fa, dfs, o, st, l)
+      Equal.trans(R.Report, R.finish(L.run.go(t, fa, dfs, o, A)), R.finish(L.run.go(t, fa, dfs, o, PD.blank_st(A))), R.finish(L.run.go(t, fa, dfs, o, Bs)),
+        Equal.sym(R.Report, R.finish(L.run.go(t, fa, dfs, o, PD.blank_st(A))), R.finish(L.run.go(t, fa, dfs, o, A)), inv(dfs, t, fa, o, A)),
+        Equal.trans(R.Report, R.finish(L.run.go(t, fa, dfs, o, PD.blank_st(A))), R.finish(L.run.go(t, fa, dfs, o, PD.blank_st(Bs))), R.finish(L.run.go(t, fa, dfs, o, Bs)),
+          Equal.cong(R.RunSt, R.Report, z => R.finish(L.run.go(t, fa, dfs, o, z)), PD.blank_st(A), PD.blank_st(Bs), step_bl(dfs, fa, o, st, l)),
+          inv(dfs, t, fa, o, Bs)))

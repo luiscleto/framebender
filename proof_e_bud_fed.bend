@@ -37,7 +37,7 @@ import ./proof_e_qif_step.bend as QS
 # The fields the budget reads besides the input.
 def stK(st: Norm.St) -> Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>)):
   match st:
-    case Norm.St{o, md, src, pend, eof, +back, win, asked, +fneed}:
+    case Norm.St{o, md, src, pend, eof, +back, win, asked, +fneed, +dfs}:
       (BN.fast_left(md, fneed), (back, (win, asked)))
 
 def wak(+fa: List<&2, B.Contig>, k: Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>)), +ls: List<&2, B.Line>) -> Nat:
@@ -56,6 +56,7 @@ def bik(k: Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>)), +ls: List<&2
 # =================================
 
 law fk_all:
+  for +dfs: B.Defs
   for +o: B.Opts
   for md: Norm.Md
   for r: D.Bytes & U32
@@ -65,13 +66,14 @@ law fk_all:
   for win: Norm.Win
   for asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  {stK(Norm.feed.all(o, md, r, pend, eof, back, win, asked, fneed)) == (BN.fast_left(md, fneed), (back, (win, asked))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
+  {stK(Norm.feed.all(o, md, r, pend, eof, back, win, asked, fneed, dfs)) == (BN.fast_left(md, fneed), (back, (win, asked))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
 
-def fk_all(o, md, r, pend, eof, back, win, asked, fneed):
+def fk_all(dfs,o, md, r, pend, eof, back, win, asked, fneed):
   (b, +n) = r
   {==}
 
 law fk_join:
+  for +dfs: B.Defs
   for +o: B.Opts
   for md: Norm.Md
   for +k: U32
@@ -81,13 +83,14 @@ law fk_join:
   for win: Norm.Win
   for asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  {stK(Norm.feed.join(o, md, k, p, eof, back, win, asked, fneed)) == (BN.fast_left(md, fneed), (back, (win, asked))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
+  {stK(Norm.feed.join(o, md, k, p, eof, back, win, asked, fneed, dfs)) == (BN.fast_left(md, fneed), (back, (win, asked))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
 
-def fk_join(o, md, k, p, eof, back, win, asked, fneed):
+def fk_join(dfs,o, md, k, p, eof, back, win, asked, fneed):
   (j, b) = p
   {==}
 
 law fk_lf:
+  for +dfs: B.Defs
   for none: Bool
   for +o: B.Opts
   for md: Norm.Md
@@ -99,16 +102,17 @@ law fk_lf:
   for win: Norm.Win
   for asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  {stK(Norm.feed.lf(none, o, md, b, k, pend, eof, back, win, asked, fneed)) == (BN.fast_left(md, fneed), (back, (win, asked))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
+  {stK(Norm.feed.lf(none, o, md, b, k, pend, eof, back, win, asked, fneed, dfs)) == (BN.fast_left(md, fneed), (back, (win, asked))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
 
-def fk_lf(none, o, md, b, k, pend, eof, back, win, asked, fneed):
+def fk_lf(dfs,none, o, md, b, k, pend, eof, back, win, asked, fneed):
   match none:
     case True{}:
-      fk_all(o, md, BY.len(b), pend, eof, back, win, asked, fneed)
+      fk_all(dfs, o, md, BY.len(b), pend, eof, back, win, asked, fneed)
     case False{}:
-      fk_join(o, md, k, Norm.join.k(pend, b, k), eof, back, win, asked, fneed)
+      fk_join(dfs, o, md, k, Norm.join.k(pend, b, k), eof, back, win, asked, fneed)
 
 law fk_find:
+  for +dfs: B.Defs
   for +o: B.Opts
   for md: Norm.Md
   for t: NF.Tb
@@ -118,14 +122,15 @@ law fk_find:
   for win: Norm.Win
   for asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  {stK(Norm.feed.find(o, md, t, pend, eof, back, win, asked, fneed)) == (BN.fast_left(md, fneed), (back, (win, asked))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
+  {stK(Norm.feed.find(o, md, t, pend, eof, back, win, asked, fneed, dfs)) == (BN.fast_left(md, fneed), (back, (win, asked))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
 
-def fk_find(o, md, t, pend, eof, back, win, asked, fneed):
+def fk_find(dfs,o, md, t, pend, eof, back, win, asked, fneed):
   match t:
     case NF.Tb{b, +k, none, x}:
-      fk_lf(none, o, md, b, k, pend, eof, back, win, asked, fneed)
+      fk_lf(dfs, none, o, md, b, k, pend, eof, back, win, asked, fneed)
 
 law fk_if:
+  for +dfs: B.Defs
   for empty: Bool
   for +o: B.Opts
   for md: Norm.Md
@@ -137,16 +142,17 @@ law fk_if:
   for win: Norm.Win
   for asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  {stK(Norm.feed.if(empty, o, md, src, b, pend, eof, back, win, asked, fneed)) == (BN.fast_left(md, fneed), (back, (win, asked))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
+  {stK(Norm.feed.if(empty, o, md, src, b, pend, eof, back, win, asked, fneed, dfs)) == (BN.fast_left(md, fneed), (back, (win, asked))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
 
-def fk_if(empty, o, md, src, b, pend, eof, back, win, asked, fneed):
+def fk_if(dfs,empty, o, md, src, b, pend, eof, back, win, asked, fneed):
   match empty:
     case True{}:
       {==}
     case False{}:
-      fk_find(o, md, NF.lf(b, 0), pend, eof, back, win, asked, fneed)
+      fk_find(dfs, o, md, NF.lf(b, 0), pend, eof, back, win, asked, fneed)
 
 law fk:
+  for +dfs: B.Defs
   for +o: B.Opts
   for md: Norm.Md
   for src: List<&1, Norm.Src>
@@ -157,16 +163,17 @@ law fk:
   for win: Norm.Win
   for asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  {stK(Norm.feed.k(o, md, src, b, r, eof, back, win, asked, fneed)) == (BN.fast_left(md, fneed), (back, (win, asked))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
+  {stK(Norm.feed.k(o, md, src, b, r, eof, back, win, asked, fneed, dfs)) == (BN.fast_left(md, fneed), (back, (win, asked))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
 
-def fk(o, md, src, b, r, eof, back, win, asked, fneed):
+def fk(dfs,o, md, src, b, r, eof, back, win, asked, fneed):
   (pend, +n) = r
-  fk_if(Nat.is_eq(n, 0n), o, md, src, b, pend, eof, back, win, asked, fneed)
+  fk_if(dfs, Nat.is_eq(n, 0n), o, md, src, b, pend, eof, back, win, asked, fneed)
 
 # From Fed to FedG
 # ================
 
 law fedg_k2:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +L: List<&2, String>
   for +c: String
@@ -181,16 +188,16 @@ law fedg_k2:
   for +p1: S.StP
   for +e: {X == S.mkSt(fa, p1) : Norm.St}
   for +hK: {stK(X) == (BN.fast_left(S.mkMd(md), fneed), (back, (PC.mkWin(fa, wp), None{}))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
-  for +hi1: {S.intext(p1, L) == S.intext(S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed}, c <> L) : String}
-  {Nat.is_le(BDs.WP(fa, L, p1), BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed})) == True{} : Bool}
-    & {BN.biS(S.mkSt(fa, p1), L) == BN.biS(S.mkSt(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}), c <> L) : Bool}
+  for +hi1: {S.intext(p1, L) == S.intext(S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}, c <> L) : String}
+  {Nat.is_le(BDs.WP(fa, L, p1), BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs})) == True{} : Bool}
+    & {BN.biS(S.mkSt(fa, p1), L) == BN.biS(S.mkSt(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), c <> L) : Bool}
 
-def fedg_k2(fa, L, c, o, md, md0, pd, back, wp, fneed, X, p1, e, hK, hi1):
+def fedg_k2(dfs,fa, L, c, o, md, md0, pd, back, wp, fneed, X, p1, e, hK, hi1):
   match p1:
-    case S.StP{+o1, +md1, +src1, +pd1, +eof1, +back1, +wp1, +asked1, +fneed1}:
-      +q1 = {S.StP{o1, md1, src1, pd1, eof1, back1, wp1, asked1, fneed1} : S.StP}
-      +q0 = {S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed} : S.StP}
-      +qp = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed} : S.StP}
+    case S.StP{+o1, +md1, +src1, +pd1, +eof1, +back1, +wp1, +asked1, +fneed1, +dfs}:
+      +q1 = {S.StP{o1, md1, src1, pd1, eof1, back1, wp1, asked1, fneed1, dfs} : S.StP}
+      +q0 = {S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+      +qp = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
       +s1 = String.append(BN.srcT(P.mkSrcs(src1)), String.append(BN.pdT(P.mkPd(pd1)), S.concat_if(eof1, L)))
       +s0 = String.append(BN.srcT(P.mkSrcs(Nil{})), String.append(BN.pdT(P.mkPd(pd)), S.concat_if(False{}, c <> L)))
       +es = Equal.trans(String, s1, S.intext(q1, L), s0, BL.text_pic(q1, L),
@@ -210,6 +217,7 @@ def fedg_k2(fa, L, c, o, md, md0, pd, back, wp, fneed, X, p1, e, hK, hi1):
        {==})
 
 law fedg_k3:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +c: String
@@ -227,28 +235,31 @@ law fedg_k3:
   for +p1: S.StP
   for +e: {X == S.mkSt(fa, p1) : Norm.St}
   for +hw: {S.WF(fa, p1) == True{} : Bool}
-  for +hmd: {S.StP.md(p1) == S.StP.md(S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed}) : S.MdP}
-  for +ho: {S.StP.o(p1) == S.StP.o(S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed}) : B.Opts}
+  for +hmd: {S.StP.md(p1) == S.StP.md(S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) : S.MdP}
+  for +ho: {S.StP.o(p1) == S.StP.o(S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) : B.Opts}
   for +ha: {S.StP.asked(p1) == None{} : Maybe<&2, List<&2, Pr.Req>>}
-  for +hiL: {S.intext(p1, L) == S.intext(S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed}, c <> L) : String}
-  for +hr0: {S.report(fa, c <> L, O, N, S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed}) == T : R.Report}
-  for +hg0: {S.guard(O, N, S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed}) == True{} : Bool}
-  for +hbi: {BN.biS(S.mkSt(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}), c <> L) == True{} : Bool}
-  for r: {Nat.is_le(BDs.WP(fa, L, p1), BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed})) == True{} : Bool}
-    & {BN.biS(S.mkSt(fa, p1), L) == BN.biS(S.mkSt(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}), c <> L) : Bool}
-  BDs.FedG(fa, T, L, O, N, BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}), X)
+  for +hiL: {S.intext(p1, L) == S.intext(S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}, c <> L) : String}
+  for +hdf: {S.StP.dfs(p1) == S.StP.dfs(S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) : B.Defs}
+  for +hrc: {S.recs(S.StP.src(p1)) == S.recs(S.StP.src(S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs})) : List<&2, P.SrcP>}
+  for +hr0: {S.report(fa, c <> L, O, N, S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == T : R.Report}
+  for +hg0: {S.guard(O, N, S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == True{} : Bool}
+  for +hbi: {BN.biS(S.mkSt(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), c <> L) == True{} : Bool}
+  for r: {Nat.is_le(BDs.WP(fa, L, p1), BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs})) == True{} : Bool}
+    & {BN.biS(S.mkSt(fa, p1), L) == BN.biS(S.mkSt(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), c <> L) : Bool}
+  BDs.FedG(fa, T, L, O, N, BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), X)
 
-def fedg_k3(fa, T, c, L, O, N, o, md, md0, pd, back, wp, fneed, X, p1, e, hw, hmd, ho, ha, hiL, hr0, hg0, hbi, r):
+def fedg_k3(dfs,fa, T, c, L, O, N, o, md, md0, pd, back, wp, fneed, X, p1, e, hw, hmd, ho, ha, hiL, hdf, hrc, hr0, hg0, hbi, r):
   (hle, hbe) = r
-  +p0 = {S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed} : S.StP}
-  +p = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed} : S.StP}
-  (p1, (e, (hw, (Equal.trans(R.Report, S.report(fa, L, O, N, p1), S.report(fa, c <> L, O, N, p0), T, QS.rep_of(fa, L, O, N, c, p0, p1, hmd, ho, hiL), hr0),
+  +p0 = {S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+  +p = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+  (p1, (e, (hw, (Equal.trans(R.Report, S.report(fa, L, O, N, p1), S.report(fa, c <> L, O, N, p0), T, QS.rep_of(fa, L, O, N, c, p0, p1, hmd, ho, hiL, hdf, hrc), hr0),
     (AB.subst(S.MdP, m => {Bool.or(R.RunSt.inbody(S.smd(m)), Bool.and(String.is_empty(O), List.is_empty(&2, B.Note, N))) == True{} : Bool}, S.StP.md(p0), S.StP.md(p1),
        Equal.sym(S.MdP, S.StP.md(p1), S.StP.md(p0), hmd), hg0),
     (ha, (hle, Equal.trans(Bool, BN.biS(S.mkSt(fa, p1), L), BN.biS(S.mkSt(fa, p), c <> L), True{}, hbe, hbi))))))))
 
 # A Fed state is a FedG state for the budget, given that feed.k kept the fields.
 law fedg_k:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +c: String
@@ -264,95 +275,76 @@ law fedg_k:
   for +fneed: Bool
   for -X: Norm.St
   for +hK: {stK(X) == (BN.fast_left(S.mkMd(md), fneed), (back, (PC.mkWin(fa, wp), None{}))) : Bool & (Nat & (Norm.Win & Maybe<&2, List<&2, Pr.Req>>))}
-  for +hr0: {S.report(fa, c <> L, O, N, S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed}) == T : R.Report}
-  for +hg0: {S.guard(O, N, S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed}) == True{} : Bool}
-  for +hbi: {BN.biS(S.mkSt(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}), c <> L) == True{} : Bool}
-  for f: F.Fed(fa, c, S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed}, X)
-  BDs.FedG(fa, T, L, O, N, BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}), X)
+  for +hr0: {S.report(fa, c <> L, O, N, S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == T : R.Report}
+  for +hg0: {S.guard(O, N, S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == True{} : Bool}
+  for +hbi: {BN.biS(S.mkSt(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), c <> L) == True{} : Bool}
+  for f: F.Fed(fa, c, S.StP{o, md0, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}, X)
+  BDs.FedG(fa, T, L, O, N, BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), X)
 
-def fedg_k(fa, T, c, L, O, N, o, md, md0, pd, back, wp, fneed, X, hK, hr0, hg0, hbi, f):
+def fedg_k(dfs,fa, T, c, L, O, N, o, md, md0, pd, back, wp, fneed, X, hK, hr0, hg0, hbi, f):
   (+p1, f1) = f
   (+e, f2) = f1
   (+hw, f3) = f2
   (+hmd, f4) = f3
   (+ho, f5) = f4
   (+ha, f6) = f5
-  (+he, hi) = f6
+  (+he, f7) = f6
+  (+hdf, f8) = f7
+  (+hrc, hi) = f8
   +hiL = hi(L)
-  fedg_k3(fa, T, c, L, O, N, o, md, md0, pd, back, wp, fneed, X, p1, e, hw, hmd, ho, ha, hiL, hr0, hg0, hbi,
-    fedg_k2(fa, L, c, o, md, md0, pd, back, wp, fneed, X, p1, e, hK, hiL))
+  fedg_k3(dfs, fa, T, c, L, O, N, o, md, md0, pd, back, wp, fneed, X, p1, e, hw, hmd, ho, ha, hiL, hdf, hrc, hr0, hg0, hbi,
+    fedg_k2(dfs, fa, L, c, o, md, md0, pd, back, wp, fneed, X, p1, e, hK, hiL))
 
 # The run gets room for the piece (proof_b_drive_chunk.bend's chunk_mb2).
-def fb_mb2(+fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def fb_mb2(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +rp2: P.RunP, +pd: P.PdP, +back: Nat, +wp: PC.WP, +fneed: Bool, +len: U32, +t: AT.Tree<U32>, +d: Nat,
   +hb: {PC.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed}) == True{} : Bool},
-  +hr: {S.report(fa, c <> cs, O, N, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed}) == T : R.Report},
-  +hg: {S.guard(O, N, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed}) == True{} : Bool},
+  +hw: {S.WF(fa, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == True{} : Bool},
+  +hr: {S.report(fa, c <> cs, O, N, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == T : R.Report},
+  +hg: {S.guard(O, N, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hv: {D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>},
   +e: {NR.reserve(P.mkRun(rp), len) == P.mkRun(rp2) : NR.Run},
   +hi2: {RN.RunInv(rp2) == True{} : Bool},
   +hs: {P.specRun(rp2) == P.specRun(rp) : R.RunSt},
-  +hbi: {BN.biS(S.mkSt(fa, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed}), c <> cs) == True{} : Bool}) ->
-  BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed}), Norm.feed.k(o, Norm.MB{NR.reserve(P.mkRun(rp), len)}, Nil{}, C.BT(len, t), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed)):
-  +md = {S.MBP{rp} : S.MdP}
-  +md2 = {S.MBP{rp2} : S.MdP}
-  +hw2 = DO.x9_mk(S.md_ok(md2), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md2, wp), E.all_bytes(S.opts_args(o)), hi2,
-    DO.x9_1(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o)), hw), DO.x9_2(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o)), hw), DO.x9_3(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o)), hw), DO.x9_4(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o)), hw),
-    DO.x9_5(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o)), hw), DO.x9_6(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o)), hw), DO.x9_7(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o)), hw), DO.x9_8(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o)), hw))
-  +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed} : S.StP}
-  +q2 = {S.StP{o, md2, Nil{}, pd, False{}, back, wp, None{}, fneed} : S.StP}
-  +hr2 = Equal.trans(R.Report, S.report(fa, c <> cs, O, N, q2), S.report(fa, c <> cs, O, N, q), T,
-    Equal.cong(R.RunSt, R.Report, z => R.finish(L.run.go(B.Text.lines(S.intext(q, c <> cs)), fa, o, S.pre(O, N, z))), P.specRun(rp2), P.specRun(rp), hs), hr)
-  +hg2 = AB.subst(R.RunSt, z => {Bool.or(R.RunSt.inbody(z), Bool.and(String.is_empty(O), List.is_empty(&2, B.Note, N))) == True{} : Bool}, P.specRun(rp), P.specRun(rp2),
-    Equal.sym(R.RunSt, P.specRun(rp2), P.specRun(rp), hs), hg)
-  %Equal.sym(NR.Run, NR.reserve(P.mkRun(rp), len), P.mkRun(rp2), e) :
-    BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed}), Norm.feed.k(o, Norm.MB{_}, Nil{}, C.BT(len, t), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed))
-  fedg_k(fa, T, c, cs, O, N, o, md, md2, pd, back, wp, fneed, Norm.feed.k(o, S.mkMd(md2), Nil{}, C.BT(len, t), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed),
-    fk(o, S.mkMd(md2), Nil{}, C.BT(len, t), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed), hr2, hg2, hbi,
-    F.core(fa, c, len, t, d, o, md2, pd, back, wp, fneed, hw2, hok, hv))
+  +hbi: {BN.biS(S.mkSt(fa, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), c <> cs) == True{} : Bool}) ->
+  BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed.k(o, Norm.MB{NR.reserve(P.mkRun(rp), len)}, Nil{}, C.BT(len, t), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs)):
+  ?TODO
 
-def fb_mb(+fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+
+def fb_mb(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +rp: P.RunP, +pd: P.PdP, +back: Nat, +wp: PC.WP, +fneed: Bool, +len: U32, +t: AT.Tree<U32>, +d: Nat,
   +hb: {PC.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed}) == True{} : Bool},
-  +hr: {S.report(fa, c <> cs, O, N, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed}) == T : R.Report},
-  +hg: {S.guard(O, N, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed}) == True{} : Bool},
+  +hw: {S.WF(fa, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == True{} : Bool},
+  +hr: {S.report(fa, c <> cs, O, N, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == T : R.Report},
+  +hg: {S.guard(O, N, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hv: {D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>},
   r: &p2: P.RunP -> ({NR.reserve(P.mkRun(rp), len) == P.mkRun(p2) : NR.Run}
     & ({RN.RunInv(p2) == True{} : Bool}
     & ({P.specRun(p2) == P.specRun(rp) : R.RunSt}
     & {P.RunP.ow(p2) == P.RunP.ow(rp) : U32}))),
-  +hbi: {BN.biS(S.mkSt(fa, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed}), c <> cs) == True{} : Bool}) ->
-  BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed}), Norm.feed.k(o, Norm.MB{NR.reserve(P.mkRun(rp), len)}, Nil{}, C.BT(len, t), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed)):
+  +hbi: {BN.biS(S.mkSt(fa, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), c <> cs) == True{} : Bool}) ->
+  BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, S.StP{o, S.MBP{rp}, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed.k(o, Norm.MB{NR.reserve(P.mkRun(rp), len)}, Nil{}, C.BT(len, t), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed, dfs)):
   (+rp2, r1) = r
   (+e, r2) = r1
   (+hi2, r3) = r2
   (hs, ho) = r3
-  fb_mb2(fa, T, c, cs, O, N, o, rp, rp2, pd, back, wp, fneed, len, t, d, hb, hw, hr, hg, hok, hv, e, hi2, hs, hbi)
+  fb_mb2(dfs, fa, T, c, cs, O, N, o, rp, rp2, pd, back, wp, fneed, len, t, d, hb, hw, hr, hg, hok, hv, e, hi2, hs, hbi)
 
 # By the run's mode (the String mode's run has no buffer).
-def fb_md(+fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
+def fb_md(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>,
   +o: B.Opts, +md: S.MdP, +pd: P.PdP, +back: Nat, +wp: PC.WP, +fneed: Bool, +len: U32, +t: AT.Tree<U32>, +d: Nat,
   +hb: {PC.fa_bytes(fa) == True{} : Bool},
-  +hw: {S.WF(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}) == True{} : Bool},
-  +hr: {S.report(fa, c <> cs, O, N, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}) == T : R.Report},
-  +hg: {S.guard(O, N, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}) == True{} : Bool},
+  +hw: {S.WF(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == True{} : Bool},
+  +hr: {S.report(fa, c <> cs, O, N, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == T : R.Report},
+  +hg: {S.guard(O, N, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == True{} : Bool},
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hv: {D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>},
-  +hbi: {BN.biS(S.mkSt(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}), c <> cs) == True{} : Bool}) ->
-  BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}), Norm.feed(S.mkSt(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}), C.BT(len, t))):
-  match md:
-    case S.MBP{+rp}:
-      fb_mb(fa, T, c, cs, O, N, o, rp, pd, back, wp, fneed, len, t, d, hb, hw, hr, hg, hok, hv,
-        RN.run_reserve(rp, len, DO.x8_a(S.md_ok(S.MBP{rp}), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(S.MBP{rp}, wp), E.all_bytes(S.opts_args(o)), hw)), hbi)
-    case S.MSP{+s, +qs, +ql, +code}:
-      +md0 = {S.MSP{s, qs, ql, code} : S.MdP}
-      fedg_k(fa, T, c, cs, O, N, o, md0, md0, pd, back, wp, fneed, Norm.feed.k(o, S.mkMd(md0), Nil{}, C.BT(len, t), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed),
-        fk(o, S.mkMd(md0), Nil{}, C.BT(len, t), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed), hr, hg, hbi,
-        F.core(fa, c, len, t, d, o, md0, pd, back, wp, fneed, hw, hok, hv))
+  +hbi: {BN.biS(S.mkSt(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), c <> cs) == True{} : Bool}) ->
+  BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), Norm.feed(S.mkSt(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), C.BT(len, t))):
+  ?TODO
+
 
 
 # By the state (a state waiting for more has no source, is before the end of
@@ -367,21 +359,21 @@ def fedg_bt(+fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, Str
   +hv: {D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>}) ->
   BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, p), Norm.feed(S.mkSt(fa, p), C.BT(len, t))):
   match p:
-    case S.StP{+o, +md, Con{+x, +r}, +pd, +eof, +back, +wp, +asked, +fneed}:
-      +q = {S.StP{o, md, Con{x, r}, pd, eof, back, wp, asked, fneed} : S.StP}
+    case S.StP{+o, +md, Con{+x, +r}, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      +q = {S.StP{o, md, Con{x, r}, pd, eof, back, wp, asked, fneed, dfs} : S.StP}
       Empty.absurd(BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, q), Norm.feed(S.mkSt(fa, q), C.BT(len, t))),
         PB.false_ne_true(DS.mo_se(S.WF(fa, q), False{}, Bool.not(eof), Maybe.is_none(&2, List<&2, Pr.Req>, asked), hm)))
-    case S.StP{+o, +md, Nil{}, +pd, True{}, +back, +wp, +asked, +fneed}:
-      +q = {S.StP{o, md, Nil{}, pd, True{}, back, wp, asked, fneed} : S.StP}
+    case S.StP{+o, +md, Nil{}, +pd, True{}, +back, +wp, +asked, +fneed, +dfs}:
+      +q = {S.StP{o, md, Nil{}, pd, True{}, back, wp, asked, fneed, dfs} : S.StP}
       Empty.absurd(BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, q), Norm.feed(S.mkSt(fa, q), C.BT(len, t))),
         PB.false_ne_true(DS.mo_ne(S.WF(fa, q), True{}, False{}, Maybe.is_none(&2, List<&2, Pr.Req>, asked), hm)))
-    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, Some{+rs}, +fneed}:
-      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, Some{rs}, fneed} : S.StP}
+    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, Some{+rs}, +fneed, +dfs}:
+      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, Some{rs}, fneed, dfs} : S.StP}
       Empty.absurd(BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, q), Norm.feed(S.mkSt(fa, q), C.BT(len, t))),
         PB.false_ne_true(DS.mo_no(S.WF(fa, q), True{}, True{}, False{}, hm)))
-    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, None{}, +fneed}:
-      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed} : S.StP}
-      fb_md(fa, T, c, cs, O, N, o, md, pd, back, wp, fneed, len, t, d, hb, DS.mo_w(S.WF(fa, q), True{}, True{}, True{}, hm), hr, hg, hok, hv, hbi)
+    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, None{}, +fneed, +dfs}:
+      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+      fb_md(dfs, fa, T, c, cs, O, N, o, md, pd, back, wp, fneed, len, t, d, hb, DS.mo_w(S.WF(fa, q), True{}, True{}, True{}, hm), hr, hg, hok, hv, hbi)
 
 def fedg_line(+fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +p: S.StP, +len: U32, +t: AT.Tree<U32>, +d: Nat,
   +hm: {DR.more_ok(fa, p) == True{} : Bool},
@@ -392,20 +384,20 @@ def fedg_line(+fa: List<&2, B.Contig>, +T: R.Report, +c: String, +cs: List<&2, S
   +hv: {D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>}) ->
   BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, p), W.feed_line(S.mkSt(fa, p), C.BT(len, t))):
   match p:
-    case S.StP{+o, +md, Con{+x, +r}, +pd, +eof, +back, +wp, +asked, +fneed}:
-      +q = {S.StP{o, md, Con{x, r}, pd, eof, back, wp, asked, fneed} : S.StP}
+    case S.StP{+o, +md, Con{+x, +r}, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      +q = {S.StP{o, md, Con{x, r}, pd, eof, back, wp, asked, fneed, dfs} : S.StP}
       Empty.absurd(BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, q), W.feed_line(S.mkSt(fa, q), C.BT(len, t))),
         PB.false_ne_true(DS.mo_se(S.WF(fa, q), False{}, Bool.not(eof), Maybe.is_none(&2, List<&2, Pr.Req>, asked), hm)))
-    case S.StP{+o, +md, Nil{}, +pd, True{}, +back, +wp, +asked, +fneed}:
-      +q = {S.StP{o, md, Nil{}, pd, True{}, back, wp, asked, fneed} : S.StP}
+    case S.StP{+o, +md, Nil{}, +pd, True{}, +back, +wp, +asked, +fneed, +dfs}:
+      +q = {S.StP{o, md, Nil{}, pd, True{}, back, wp, asked, fneed, dfs} : S.StP}
       Empty.absurd(BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, q), W.feed_line(S.mkSt(fa, q), C.BT(len, t))),
         PB.false_ne_true(DS.mo_ne(S.WF(fa, q), True{}, False{}, Maybe.is_none(&2, List<&2, Pr.Req>, asked), hm)))
-    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, Some{+rs}, +fneed}:
-      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, Some{rs}, fneed} : S.StP}
+    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, Some{+rs}, +fneed, +dfs}:
+      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, Some{rs}, fneed, dfs} : S.StP}
       Empty.absurd(BDs.FedG(fa, T, cs, O, N, BDs.WP(fa, c <> cs, q), W.feed_line(S.mkSt(fa, q), C.BT(len, t))),
         PB.false_ne_true(DS.mo_no(S.WF(fa, q), True{}, True{}, False{}, hm)))
-    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, None{}, +fneed}:
-      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed} : S.StP}
-      fedg_k(fa, T, c, cs, O, N, o, md, md, pd, back, wp, fneed, W.feed_line(S.mkSt(fa, q), C.BT(len, t)),
-        fk(o, S.mkMd(md), Nil{}, C.BT(len, t), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed), hr, hg, hbi,
-        F.core(fa, c, len, t, d, o, md, pd, back, wp, fneed, DS.mo_w(S.WF(fa, q), True{}, True{}, True{}, hm), hok, hv))
+    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, None{}, +fneed, +dfs}:
+      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+      fedg_k(dfs, fa, T, c, cs, O, N, o, md, md, pd, back, wp, fneed, W.feed_line(S.mkSt(fa, q), C.BT(len, t)),
+        fk(dfs, o, S.mkMd(md), Nil{}, C.BT(len, t), Norm.Pd.len(P.mkPd(pd)), False{}, back, PC.mkWin(fa, wp), None{}, fneed), hr, hg, hbi,
+        F.core(dfs, fa, c, len, t, d, o, md, pd, back, wp, fneed, DS.mo_w(S.WF(fa, q), True{}, True{}, True{}, hm), hok, hv))

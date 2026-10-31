@@ -107,6 +107,7 @@ def pcsok_dup(ps, dcs, h):
 
 
 law tcok_k:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +c: String
@@ -120,14 +121,15 @@ law tcok_k:
   for +a1: {PR.RunInv(rp) && P.RunP.i(rp) && Bool.not(P.RunP.x(rp)) && P.pd_ok(pd) && P.nolf(P.pdtext(pd)) && PC.wp_ok(fa, wp) && S.mb_win(S.MBP{rp}, wp) == True{} : Bool}
   for +ls: List<&2, B.Line>
   for +a2: {B.Text.lines(String.append(PT.after(c, k), String.concat(cs))) == List.append(&2, B.Line, ls, B.Text.lines(String.append(P.pdtext(pd), String.concat(cs)))) : List<&2, B.Line>}
-  for d: {P.settle(P.specRun(rp)) == P.settle(L.run.go(ls, fa, o, SD.rs0(c0, l))) : R.RunSt} & {P.settle(P.specRun(rp)) == P.settle(L.run.go(ls, fa, o, SD.rs0(c0, l))) : R.RunSt}
-  PT.TcOK(fa, o, c, k, c0, l, cs, PT.TcP{rp, pd, wp}) & PT.TcOK(fa, o, c, k, c0, l, cs, PT.TcP{rp, pd, wp})
+  for d: {P.settle(P.specRun(rp)) == P.settle(L.run.go(ls, fa, dfs, o, SD.rs0(c0, l))) : R.RunSt} & {P.settle(P.specRun(rp)) == P.settle(L.run.go(ls, fa, dfs, o, SD.rs0(c0, l))) : R.RunSt}
+  PT.TcOK(dfs, fa, o, c, k, c0, l, cs, PT.TcP{rp, pd, wp}) & PT.TcOK(dfs, fa, o, c, k, c0, l, cs, PT.TcP{rp, pd, wp})
 
-def tcok_k(fa, o, c, k, c0, l, cs, rp, pd, wp, a1, ls, a2, d):
+def tcok_k(dfs,fa, o, c, k, c0, l, cs, rp, pd, wp, a1, ls, a2, d):
   (d1, d2) = d
   ((a1, (ls, (a2, d1))), (a1, (ls, (a2, d2))))
 
 law tcok_dup:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +c: String
@@ -136,18 +138,19 @@ law tcok_dup:
   for +l: Nat
   for +cs: List<&2, String>
   for +x: PT.TcP
-  for h: PT.TcOK(fa, o, c, k, c0, l, cs, x)
-  PT.TcOK(fa, o, c, k, c0, l, cs, x) & PT.TcOK(fa, o, c, k, c0, l, cs, x)
+  for h: PT.TcOK(dfs, fa, o, c, k, c0, l, cs, x)
+  PT.TcOK(dfs, fa, o, c, k, c0, l, cs, x) & PT.TcOK(dfs, fa, o, c, k, c0, l, cs, x)
 
-def tcok_dup(fa, o, c, k, c0, l, cs, x, h):
+def tcok_dup(dfs,fa, o, c, k, c0, l, cs, x, h):
   match x:
     case PT.TcP{+rp, +pd, +wp}:
       (+a1, h1) = h
       (+ls, h2) = h1
       (+a2, h3) = h2
-      tcok_k(fa, o, c, k, c0, l, cs, rp, pd, wp, a1, ls, a2, eq_dup(R.RunSt, P.settle(P.specRun(rp)), P.settle(L.run.go(ls, fa, o, SD.rs0(c0, l))), h3))
+      tcok_k(dfs, fa, o, c, k, c0, l, cs, rp, pd, wp, a1, ls, a2, eq_dup(R.RunSt, P.settle(P.specRun(rp)), P.settle(L.run.go(ls, fa, dfs, o, SD.rs0(c0, l))), h3))
 
 law tresok_dup:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +c: String
@@ -157,57 +160,59 @@ law tresok_dup:
   for +l: Nat
   for +cs: List<&2, String>
   for +r: PT.TResP
-  for h: PT.TResOK(fa, o, c, ok, k, c0, l, cs, r)
-  PT.TResOK(fa, o, c, ok, k, c0, l, cs, r) & PT.TResOK(fa, o, c, ok, k, c0, l, cs, r)
+  for h: PT.TResOK(dfs, fa, o, c, ok, k, c0, l, cs, r)
+  PT.TResOK(dfs, fa, o, c, ok, k, c0, l, cs, r) & PT.TResOK(dfs, fa, o, c, ok, k, c0, l, cs, r)
 
-def tresok_dup(fa, o, c, ok, k, c0, l, cs, r, h):
+def tresok_dup(dfs,fa, o, c, ok, k, c0, l, cs, r, h):
   match ok r:
     case _ PT.TDirtyP{}:
       (Unit{}, Unit{})
     case True{} PT.TCleanP{+x}:
-      tcok_dup(fa, o, c, k, c0, l, cs, x, h)
+      tcok_dup(dfs, fa, o, c, k, c0, l, cs, x, h)
     case False{} PT.TCleanP{+x}:
-      Empty.absurd(PT.TResOK(fa, o, c, False{}, k, c0, l, cs, PT.TCleanP{x}) & PT.TResOK(fa, o, c, False{}, k, c0, l, cs, PT.TCleanP{x}), h)
+      Empty.absurd(PT.TResOK(dfs, fa, o, c, False{}, k, c0, l, cs, PT.TCleanP{x}) & PT.TResOK(dfs, fa, o, c, False{}, k, c0, l, cs, PT.TCleanP{x}), h)
 
 law toutok_dup:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +p: PT.Pc
   for +cs: List<&2, String>
   for +x: PT.TOutP
-  for h: PT.TOutOK(fa, o, p, cs, x)
-  PT.TOutOK(fa, o, p, cs, x) & PT.TOutOK(fa, o, p, cs, x)
+  for h: PT.TOutOK(dfs, fa, o, p, cs, x)
+  PT.TOutOK(dfs, fa, o, p, cs, x) & PT.TOutOK(dfs, fa, o, p, cs, x)
 
-def toutok_dup(fa, o, p, cs, x, h):
+def toutok_dup(dfs,fa, o, p, cs, x, h):
   match p x:
     case PT.Pc{+c, +rs, +ok, +k, +c0, +l} PT.TOutP{+len, +t, +d, +r}:
       (+a1, h1) = h
       (+a2, h2) = h1
-      cons2({D.ok(C.BT(len, t), d) == True{} : Bool}, {D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>} & PT.TResOK(fa, o, c, ok, k, c0, l, cs, r), a1,
-        cons2({D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>}, PT.TResOK(fa, o, c, ok, k, c0, l, cs, r), a2,
-          tresok_dup(fa, o, c, ok, k, c0, l, cs, r, h2)))
+      cons2({D.ok(C.BT(len, t), d) == True{} : Bool}, {D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>} & PT.TResOK(dfs, fa, o, c, ok, k, c0, l, cs, r), a1,
+        cons2({D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>}, PT.TResOK(dfs, fa, o, c, ok, k, c0, l, cs, r), a2,
+          tresok_dup(dfs, fa, o, c, ok, k, c0, l, cs, r, h2)))
 
 law batchok_dup:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +ps: List<&2, PT.Pc>
   for +xs: List<&2, PT.TOutP>
   for +dcs: List<&2, String>
-  for h: PT.BatchOK(fa, o, ps, xs, dcs)
-  PT.BatchOK(fa, o, ps, xs, dcs) & PT.BatchOK(fa, o, ps, xs, dcs)
+  for h: PT.BatchOK(dfs, fa, o, ps, xs, dcs)
+  PT.BatchOK(dfs, fa, o, ps, xs, dcs) & PT.BatchOK(dfs, fa, o, ps, xs, dcs)
 
-def batchok_dup(fa, o, ps, xs, dcs, h):
+def batchok_dup(dfs,fa, o, ps, xs, dcs, h):
   match ps xs:
     case Nil{} Nil{}:
       (Unit{}, Unit{})
     case Con{+p, +pt} Con{+x, +xt}:
       (h1, h2) = h
-      pair2(PT.TOutOK(fa, o, p, List.append(&2, String, PT.texts(pt), dcs), x), PT.BatchOK(fa, o, pt, xt, dcs),
-        toutok_dup(fa, o, p, List.append(&2, String, PT.texts(pt), dcs), x, h1), batchok_dup(fa, o, pt, xt, dcs, h2))
+      pair2(PT.TOutOK(dfs, fa, o, p, List.append(&2, String, PT.texts(pt), dcs), x), PT.BatchOK(dfs, fa, o, pt, xt, dcs),
+        toutok_dup(dfs, fa, o, p, List.append(&2, String, PT.texts(pt), dcs), x, h1), batchok_dup(dfs, fa, o, pt, xt, dcs, h2))
     case Nil{} Con{+x, +xt}:
-      Empty.absurd(PT.BatchOK(fa, o, Nil{}, x <> xt, dcs) & PT.BatchOK(fa, o, Nil{}, x <> xt, dcs), h)
+      Empty.absurd(PT.BatchOK(dfs, fa, o, Nil{}, x <> xt, dcs) & PT.BatchOK(dfs, fa, o, Nil{}, x <> xt, dcs), h)
     case Con{+p, +pt} Nil{}:
-      Empty.absurd(PT.BatchOK(fa, o, p <> pt, Nil{}, dcs) & PT.BatchOK(fa, o, p <> pt, Nil{}, dcs), h)
+      Empty.absurd(PT.BatchOK(dfs, fa, o, p <> pt, Nil{}, dcs) & PT.BatchOK(dfs, fa, o, p <> pt, Nil{}, dcs), h)
 
 law eofok_dup:
   for +e: Bool
@@ -251,16 +256,17 @@ def qnext_dup(fa, p, nx, ef, h):
       Empty.absurd(WD.QNext(fa, p, Pr.Finish{c}, ef) & WD.QNext(fa, p, Pr.Finish{c}, ef), h)
 
 law phase_dup:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +cs: List<&2, String>
   for +p: S.StP
   for +b: WD.BatP
   for +nx: Pr.Next
   for +ef: Bool
-  for h: WD.PhaseOK(fa, cs, p, b, nx, ef)
-  WD.PhaseOK(fa, cs, p, b, nx, ef) & WD.PhaseOK(fa, cs, p, b, nx, ef)
+  for h: WD.PhaseOK(dfs, fa, cs, p, b, nx, ef)
+  WD.PhaseOK(dfs, fa, cs, p, b, nx, ef) & WD.PhaseOK(dfs, fa, cs, p, b, nx, ef)
 
-def phase_dup(fa, cs, p, b, nx, ef, h):
+def phase_dup(dfs,fa, cs, p, b, nx, ef, h):
   match b:
     case WD.BNoneP{}:
       qnext_dup(fa, p, nx, ef, h)
@@ -290,22 +296,23 @@ def phase_dup(fa, cs, p, b, nx, ef, h):
       (+a3, h3) = h2
       (h4, h5) = h3
       (h6, h7) = h5
-      cons2({nx == Pr.Ask{Nil{}} : Pr.Next}, {DR.more_ok(fa, p) == True{} : Bool} & ({S.stopped(S.StP.md(p)) == False{} : Bool} & (PT.PcsOK(ps, cs) & ((PT.BatchOK(fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs)))), a1,
-        cons2({DR.more_ok(fa, p) == True{} : Bool}, {S.stopped(S.StP.md(p)) == False{} : Bool} & (PT.PcsOK(ps, cs) & ((PT.BatchOK(fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs))), a2,
-          cons2({S.stopped(S.StP.md(p)) == False{} : Bool}, (PT.PcsOK(ps, cs) & ((PT.BatchOK(fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs))), a3,
-            pair2(PT.PcsOK(ps, cs), (PT.BatchOK(fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs), pcsok_dup(ps, cs, h4),
-              pair2((PT.BatchOK(fa, S.StP.o(p), ps, xs, cs)), WD.EofOK(e, ef, cs), batchok_dup(fa, S.StP.o(p), ps, xs, cs, h6), eofok_dup(e, ef, cs, h7))))))
+      cons2({nx == Pr.Ask{Nil{}} : Pr.Next}, {DR.more_ok(fa, p) == True{} : Bool} & ({S.stopped(S.StP.md(p)) == False{} : Bool} & (PT.PcsOK(ps, cs) & ((PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs)))), a1,
+        cons2({DR.more_ok(fa, p) == True{} : Bool}, {S.stopped(S.StP.md(p)) == False{} : Bool} & (PT.PcsOK(ps, cs) & ((PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs))), a2,
+          cons2({S.stopped(S.StP.md(p)) == False{} : Bool}, (PT.PcsOK(ps, cs) & ((PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs))), a3,
+            pair2(PT.PcsOK(ps, cs), (PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs), pcsok_dup(ps, cs, h4),
+              pair2((PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)), WD.EofOK(e, ef, cs), batchok_dup(dfs, fa, S.StP.o(p), ps, xs, cs, h6), eofok_dup(e, ef, cs, h7))))))
     case WD.BCombP{+ps, +xs, +e, True{}}:
       (h1, h2) = h
       (+a2, h3) = h2
       (h4, h5) = h3
       (h6, h7) = h5
-      pair2(WD.QNext(fa, p, nx, False{}), {WD.next_is_more(nx) == False{} : Bool} & (PT.PcsOK(ps, cs) & ((PT.BatchOK(fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs))), qnext_dup(fa, p, nx, False{}, h1),
-        cons2({WD.next_is_more(nx) == False{} : Bool}, (PT.PcsOK(ps, cs) & ((PT.BatchOK(fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs))), a2,
-          pair2(PT.PcsOK(ps, cs), (PT.BatchOK(fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs), pcsok_dup(ps, cs, h4),
-            pair2((PT.BatchOK(fa, S.StP.o(p), ps, xs, cs)), WD.EofOK(e, ef, cs), batchok_dup(fa, S.StP.o(p), ps, xs, cs, h6), eofok_dup(e, ef, cs, h7)))))
+      pair2(WD.QNext(fa, p, nx, False{}), {WD.next_is_more(nx) == False{} : Bool} & (PT.PcsOK(ps, cs) & ((PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs))), qnext_dup(fa, p, nx, False{}, h1),
+        cons2({WD.next_is_more(nx) == False{} : Bool}, (PT.PcsOK(ps, cs) & ((PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs))), a2,
+          pair2(PT.PcsOK(ps, cs), (PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)) & WD.EofOK(e, ef, cs), pcsok_dup(ps, cs, h4),
+            pair2((PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)), WD.EofOK(e, ef, cs), batchok_dup(dfs, fa, S.StP.o(p), ps, xs, cs, h6), eofok_dup(e, ef, cs, h7)))))
 
 law inv_dup:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -314,20 +321,21 @@ law inv_dup:
   for +x: WD.WPic
   for +nx: Pr.Next
   for +ef: Bool
-  for h: WD.InvW(fa, T, cs, O, N, x, nx, ef)
-  WD.InvW(fa, T, cs, O, N, x, nx, ef) & WD.InvW(fa, T, cs, O, N, x, nx, ef)
+  for h: WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef)
+  WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef) & WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef)
 
-def inv_dup(fa, T, cs, O, N, x, nx, ef, h):
+def inv_dup(dfs,fa, T, cs, O, N, x, nx, ef, h):
   match x:
     case WD.WPic{+p, +b}:
       (+a1, h1) = h
       (+a2, h2) = h1
       (+a3, h3) = h2
-      cons2({E.all_bytes(WD.held(b)) && E.pieces_ok(WD.held(b)) == True{} : Bool}, {S.guard(O, N, p) == True{} : Bool} & ({WD.wreport(fa, cs, O, N, WD.WPic{p, b}) == T : R.Report} & (WD.PhaseOK(fa, cs, p, b, nx, ef))), a1,
-        cons2({S.guard(O, N, p) == True{} : Bool}, {WD.wreport(fa, cs, O, N, WD.WPic{p, b}) == T : R.Report} & (WD.PhaseOK(fa, cs, p, b, nx, ef)), a2,
-          cons2({WD.wreport(fa, cs, O, N, WD.WPic{p, b}) == T : R.Report}, (WD.PhaseOK(fa, cs, p, b, nx, ef)), a3, phase_dup(fa, cs, p, b, nx, ef, h3))))
+      cons2({E.all_bytes(WD.held(b)) && E.pieces_ok(WD.held(b)) == True{} : Bool}, {S.guard(O, N, p) == True{} : Bool} & ({WD.wreport(fa, cs, O, N, WD.WPic{p, b}) == T : R.Report} & (WD.PhaseOK(dfs, fa, cs, p, b, nx, ef))), a1,
+        cons2({S.guard(O, N, p) == True{} : Bool}, {WD.wreport(fa, cs, O, N, WD.WPic{p, b}) == T : R.Report} & (WD.PhaseOK(dfs, fa, cs, p, b, nx, ef)), a2,
+          cons2({WD.wreport(fa, cs, O, N, WD.WPic{p, b}) == T : R.Report}, (WD.PhaseOK(dfs, fa, cs, p, b, nx, ef)), a3, phase_dup(dfs, fa, cs, p, b, nx, ef, h3))))
 
 law inv_dup3.k:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -336,14 +344,15 @@ law inv_dup3.k:
   for +x: WD.WPic
   for +nx: Pr.Next
   for +ef: Bool
-  for d: WD.InvW(fa, T, cs, O, N, x, nx, ef) & WD.InvW(fa, T, cs, O, N, x, nx, ef)
-  WD.InvW(fa, T, cs, O, N, x, nx, ef) & (WD.InvW(fa, T, cs, O, N, x, nx, ef) & WD.InvW(fa, T, cs, O, N, x, nx, ef))
+  for d: WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef) & WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef)
+  WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef) & (WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef) & WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef))
 
-def inv_dup3.k(fa, T, cs, O, N, x, nx, ef, d):
+def inv_dup3.k(dfs,fa, T, cs, O, N, x, nx, ef, d):
   (a, b) = d
-  (a, inv_dup(fa, T, cs, O, N, x, nx, ef, b))
+  (a, inv_dup(dfs, fa, T, cs, O, N, x, nx, ef, b))
 
 law inv_dup3:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -352,8 +361,8 @@ law inv_dup3:
   for +x: WD.WPic
   for +nx: Pr.Next
   for +ef: Bool
-  for h: WD.InvW(fa, T, cs, O, N, x, nx, ef)
-  WD.InvW(fa, T, cs, O, N, x, nx, ef) & (WD.InvW(fa, T, cs, O, N, x, nx, ef) & WD.InvW(fa, T, cs, O, N, x, nx, ef))
+  for h: WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef)
+  WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef) & (WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef) & WD.InvW(dfs, fa, T, cs, O, N, x, nx, ef))
 
-def inv_dup3(fa, T, cs, O, N, x, nx, ef, h):
-  inv_dup3.k(fa, T, cs, O, N, x, nx, ef, inv_dup(fa, T, cs, O, N, x, nx, ef, h))
+def inv_dup3(dfs,fa, T, cs, O, N, x, nx, ef, h):
+  inv_dup3.k(dfs, fa, T, cs, O, N, x, nx, ef, inv_dup(dfs, fa, T, cs, O, N, x, nx, ef, h))

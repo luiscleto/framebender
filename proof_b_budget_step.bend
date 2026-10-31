@@ -125,11 +125,11 @@ def idle_bud(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: S
   +hW: {Nat.is_le(BN.WAS(fa, S.mkSt(fa, p2), cs), W0) == True{} : Bool}) ->
   BD.BudS(fa, T, cs, O, W0, Norm.idle(S.mkSt(fa, p2))):
   match p2:
-    case S.StP{+o, +md, +src, +pd, False{}, +back, +wp, +asked, +fneed}:
-      out_bud(fa, T, cs, O, S.StP{o, md, src, pd, False{}, back, wp, asked, fneed}, Pr.More{}, W0, hbi, hW)
-    case S.StP{+o, +md, +src, +pd, True{}, +back, +wp, +asked, +fneed}:
-      bud_mono(fa, T, cs, O, BN.WAS(fa, S.mkSt(fa, S.StP{o, md, src, pd, True{}, back, wp, asked, fneed}), cs), W0, Norm.finish(S.mkSt(fa, S.StP{o, md, src, pd, True{}, back, wp, asked, fneed})),
-        fin_bud(fa, T, cs, O, S.StP{o, md, src, pd, True{}, back, wp, asked, fneed}, hw2, hbi), hW)
+    case S.StP{+o, +md, +src, +pd, False{}, +back, +wp, +asked, +fneed, +dfs}:
+      out_bud(fa, T, cs, O, S.StP{o, md, src, pd, False{}, back, wp, asked, fneed, dfs}, Pr.More{}, W0, hbi, hW)
+    case S.StP{+o, +md, +src, +pd, True{}, +back, +wp, +asked, +fneed, +dfs}:
+      bud_mono(fa, T, cs, O, BN.WAS(fa, S.mkSt(fa, S.StP{o, md, src, pd, True{}, back, wp, asked, fneed, dfs}), cs), W0, Norm.finish(S.mkSt(fa, S.StP{o, md, src, pd, True{}, back, wp, asked, fneed, dfs})),
+        fin_bud(fa, T, cs, O, S.StP{o, md, src, pd, True{}, back, wp, asked, fneed, dfs}, hw2, hbi), hW)
 
 # A yield: the state as it was, its test passed, out with Ask{[]}: HO pays.
 def yb.k(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +p: S.StP,
@@ -184,14 +184,8 @@ def went_k(+g: Nat, -st: Norm.St, +fa: List<&2, B.Contig>, +T: R.Report, +cs: Li
   abi: {BN.biS(st, cs) == True{} : Bool},
   ih: IHG(g, fa, T, cs, O, N)) ->
   BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(1n+(1n+g), Norm.Went{st})):
-  +ab2 = AB.subst(Norm.St, z => {Nat.is_le(BN.WAS(fa, z, cs), BD.WP(fa, cs, p)) == True{} : Bool}, st, S.mkSt(fa, p2), est, ab)
-  +bi2 = AB.subst(Norm.St, z => {BN.biS(z, cs) == True{} : Bool}, st, S.mkSt(fa, p2), est, abi)
-  %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(1n+g, Norm.advance(_)))
-  bud_mono(fa, T, cs, O, BD.WP(fa, cs, p2), BD.WP(fa, cs, p), Norm.pump(1n+g, Norm.advance(S.mkSt(fa, p2))),
-    ih(p2, wf2, DP.fuel_le(S.measure(p2), S.measure(p), g, elt, hf),
-      SA.adv_ok(fa, T, cs, O, N, p2, hb, wf2, er2, eg2),
-      adv_bud(fa, T, cs, O, N, p2, hb, wf2, er2, eg2, eask2, bi2),
-      adv_bi(fa, T, cs, O, N, p2, hb, wf2, er2, eg2, eask2, bi2)), ab2)
+  ?TODO
+
 
 # The pump: from p (advance's result a), the step keeps the budget.
 def pb_go(+f: Nat, a: Norm.Adv, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +p: S.StP,
@@ -200,51 +194,8 @@ def pb_go(+f: Nat, a: Norm.Adv, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List
   +hf: {Nat.is_le(S.measure(p), f) == True{} : Bool},
   ag: S.AdvG(fa, T, cs, O, N, p, a), ab: BD.AdvB(fa, cs, p, a), abi: BD.AdvBi(cs, a)) ->
   BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(1n+f, a)):
-  match f a:
-    case 0n Norm.Went{st}:
-      (+p2, a1) = ag
-      (est, a2) = a1
-      (wf2, a3) = a2
-      (er2, a4) = a3
-      (elt, a5) = a4
-      Empty.absurd(BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(1n, Norm.Went{st})),
-        AB.lt_zero_absurd(S.measure(p2), N.lt_le_trans(S.measure(p2), S.measure(p), 0n, elt, hf)))
-    case 1n+g Norm.Went{st}:
-      (+p2, a1) = ag
-      (est, a2) = a1
-      (wf2, a3) = a2
-      (er2, a4) = a3
-      (elt, a5) = a4
-      (eask2, a6) = a5
-      (eeof, a7) = a6
-      (eg2, a8) = a7
-      went_k(g, st, fa, T, cs, O, N, p, p2, hb, hf, est, wf2, er2, elt, eask2, eg2, ab, abi,
-        +q => hwq => hfq => agq => abq => abiq => pb_go(g, Norm.advance(S.mkSt(fa, q)), fa, T, cs, O, N, q, hb, hwq, hfq, agq, abq, abiq))
-    case _ Norm.Want{st, +r}:
-      (+p2, a1) = ag
-      (+est, a2) = a1
-      +ab2 = AB.subst(Norm.St, z => {Nat.is_le(Nat.add(1n+List.length(&2, Pr.Req, r), BN.WAS(fa, z, cs)), BD.WP(fa, cs, p)) == True{} : Bool}, st, S.mkSt(fa, p2), est, ab)
-      +bi2 = AB.subst(Norm.St, z => {BN.biS(z, cs) == True{} : Bool}, st, S.mkSt(fa, p2), est, abi)
-      %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.out(_, Pr.Ask{r}))
-      out_bud(fa, T, cs, O, p2, Pr.Ask{r}, BD.WP(fa, cs, p), bi2, ab2)
-    case _ Norm.Idle{st}:
-      (+p2, a1) = ag
-      (+est, a2) = a1
-      (+wf2, a3) = a2
-      +ab2 = AB.subst(Norm.St, z => {Nat.is_le(BN.WAS(fa, z, cs), BD.WP(fa, cs, p)) == True{} : Bool}, st, S.mkSt(fa, p2), est, ab)
-      +bi2 = AB.subst(Norm.St, z => {BN.biS(z, cs) == True{} : Bool}, st, S.mkSt(fa, p2), est, abi)
-      %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.idle(_))
-      idle_bud(fa, T, cs, O, p2, BD.WP(fa, cs, p), wf2, bi2, ab2)
-    case _ Norm.Ended{st}:
-      (+p2, a1) = ag
-      (+est, a2) = a1
-      (+wf2, a3) = a2
-      +ab2 = AB.subst(Norm.St, z => {Nat.is_le(BN.WAS(fa, z, cs), BD.WP(fa, cs, p)) == True{} : Bool}, st, S.mkSt(fa, p2), est, ab)
-      +bi2 = AB.subst(Norm.St, z => {BN.biS(z, cs) == True{} : Bool}, st, S.mkSt(fa, p2), est, abi)
-      %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.finish(_))
-      bud_mono(fa, T, cs, O, BD.WP(fa, cs, p2), BD.WP(fa, cs, p), Norm.finish(S.mkSt(fa, p2)), fin_bud(fa, T, cs, O, p2, wf2, bi2), ab2)
-    case _ Norm.Yield{st}:
-      yield_bud(fa, T, cs, O, p, st, hw, ab, abi)
+  ?TODO
+
 
 
 # go from a good state with nothing asked: the pump with its fuel.
@@ -257,11 +208,11 @@ def go_bud(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: Str
   +hbi: {BN.biS(S.mkSt(fa, q), cs) == True{} : Bool}) ->
   BD.BudS(fa, T, cs, O, BD.WP(fa, cs, q), Norm.go(S.mkSt(fa, q))):
   match q:
-    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
-      +Q = {S.StP{o, md, src, pd, eof, back, wp, asked, fneed} : S.StP}
-      %Equal.sym(List<&1, Norm.Src> & Nat, Norm.fuel.src(P.mkSrcs(src)), (P.mkSrcs(src), S.msrc(src)), DS.fuel_eq(src)) :
-        BD.BudS(fa, T, cs, O, BD.WP(fa, cs, Q), Norm.go.k(o, S.mkMd(md), _, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed))
-      pb_go(Nat.add(S.msrc(src), 1n), Norm.advance(S.mkSt(fa, Q)), fa, T, cs, O, N, Q, hb, hw, DS.meas_le(md, o, src, pd, eof, back, wp, asked, fneed),
+    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      +Q = {S.StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs} : S.StP}
+      %Equal.sym(List<&1, Norm.Src> & Nat, Norm.fuel.src(P.mkSrcs(src)), (P.mkSrcs(src), DP.fuelN(src)), DP.fuel_eq(src)) :
+        BD.BudS(fa, T, cs, O, BD.WP(fa, cs, Q), Norm.go.k(o, S.mkMd(md), _, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs))
+      pb_go(Nat.add(DP.fuelN(src), 1n), Norm.advance(S.mkSt(fa, Q)), fa, T, cs, O, N, Q, hb, hw, DS.meas_le(dfs, md, o, src, pd, eof, back, wp, asked, fneed),
         SA.adv_ok(fa, T, cs, O, N, Q, hb, hw, hr, hg), adv_bud(fa, T, cs, O, N, Q, hb, hw, hr, hg, ha, hbi), adv_bi(fa, T, cs, O, N, Q, hb, hw, hr, hg, ha, hbi))
 
 # ---------------------------------------------------------------------------

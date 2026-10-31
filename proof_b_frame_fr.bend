@@ -221,6 +221,93 @@ def fr_body_line(r, O, N, st, o, l, at, inpos):
       fr_keyed(O, N, R.RunSt{n, i, h, cu, e, la, b, kk, so, ns, x}, R.Opts.w(o), R.Item{k, inpos, at, String.append(t, B.Line.term(l))},
         R.stale_note(s, at), R.bump(kk, Bool.not(String.eq(t, B.Line.body(l))), False{}, False{}))
 
+# -m: the records of a split line (L.pieces_in), a line that cannot be split
+# (L.unsplit_in), and what B.Rec.parts says of a line (L.body_in).
+law fr_piece:
+  for +p: String
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +st: R.RunSt
+  for +term: String
+  for +at: B.At
+  for +inpos: Nat
+  {L.piece_in(R.RunSt.halt(pre(O, N, st)), p, fa, o, pre(O, N, st), term, at, inpos) == pre(O, N, L.piece_in(R.RunSt.halt(st), p, fa, o, st, term, at, inpos)) : R.RunSt}
+
+def fr_piece(p, fa, o, O, N, st, term, at, inpos):
+  match st:
+    case R.RunSt{+n, +i, +h, +cu, +e, +la, +b, +k, +so, +ns, +x}:
+      match x:
+        case True{}:
+          {==}
+        case False{}:
+          fr_body_line(L.judge(fa, p), O, N, R.RunSt{n, i, h, cu, e, la, b, k, so, ns, False{}}, o, B.Line{p, term}, at, inpos)
+
+law fr_pieces:
+  for +ps: List<&2, String>
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +st: R.RunSt
+  for +term: String
+  for +at: B.At
+  for +inpos: Nat
+  {L.pieces_in(ps, fa, o, pre(O, N, st), term, at, inpos) == pre(O, N, L.pieces_in(ps, fa, o, st, term, at, inpos)) : R.RunSt}
+
+def fr_pieces(ps, fa, o, O, N, st, term, at, inpos):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{+p, +t}:
+      +X = L.piece_in(R.RunSt.halt(st), p, fa, o, st, term, at, inpos)
+      %Equal.sym(R.RunSt, L.piece_in(R.RunSt.halt(pre(O, N, st)), p, fa, o, pre(O, N, st), term, at, inpos), pre(O, N, X), fr_piece(p, fa, o, O, N, st, term, at, inpos)) :
+        {L.pieces_in(t, fa, o, _, term, at, inpos) == pre(O, N, L.pieces_in(t, fa, o, X, term, at, inpos)) : R.RunSt}
+      fr_pieces(t, fa, o, O, N, X, term, at, inpos)
+
+law fr_unsplit.k:
+  for +b: Bool
+  for +r: B.Res
+  for +c: B.Code
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +st: R.RunSt
+  for +o: B.Opts
+  for +l: B.Line
+  for +at: B.At
+  for +inpos: Nat
+  {Bool.pick(R.RunSt, b, R.body_line(r, pre(O, N, st), o, l, at, inpos), R.problem_line(R.Opts.strict(o), pre(O, N, st), R.Opts.w(o), c, l, at, inpos))
+    == pre(O, N, Bool.pick(R.RunSt, b, R.body_line(r, st, o, l, at, inpos), R.problem_line(R.Opts.strict(o), st, R.Opts.w(o), c, l, at, inpos))) : R.RunSt}
+
+def fr_unsplit.k(b, r, c, O, N, st, o, l, at, inpos):
+  match b:
+    case True{}:
+      fr_body_line(r, O, N, st, o, l, at, inpos)
+    case False{}:
+      fr_problem_line(R.Opts.strict(o), O, N, st, R.Opts.w(o), c, l, at, inpos)
+
+law fr_body_in:
+  for +pt: B.Parts
+  for +fa: List<&2, B.Contig>
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +st: R.RunSt
+  for +o: B.Opts
+  for +l: B.Line
+  for +at: B.At
+  for +inpos: Nat
+  {L.body_in(pt, fa, o, pre(O, N, st), l, at, inpos) == pre(O, N, L.body_in(pt, fa, o, st, l, at, inpos)) : R.RunSt}
+
+def fr_body_in(pt, fa, O, N, st, o, l, at, inpos):
+  match pt:
+    case B.Whole{}:
+      fr_body_line(L.judge(fa, B.Line.body(l)), O, N, st, o, l, at, inpos)
+    case B.Pieces{+ps}:
+      fr_pieces(ps, fa, o, O, N, st, B.Line.term(l), at, inpos)
+    case B.Unsplit{+c}:
+      fr_unsplit.k(L.stops(L.judge(fa, B.Line.body(l)), R.Opts.strict(o)), L.judge(fa, B.Line.body(l)), c, O, N, st, o, l, at, inpos)
+
 # Before the #CHROM line nothing was written, so a header line is the same.
 law fr_head_line:
   for +isc: Bool
@@ -377,6 +464,81 @@ def ib_body_line(r, st, o, l, at, inpos):
       ib_keyed(R.RunSt{n, i, h, cu, e, la, b, kk, so, ns, x}, R.Opts.w(o), R.Item{k, inpos, at, String.append(t, B.Line.term(l))},
         R.stale_note(s, at), R.bump(kk, Bool.not(String.eq(t, B.Line.body(l))), False{}, False{}))
 
+law ib_piece:
+  for +p: String
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +st: R.RunSt
+  for +term: String
+  for +at: B.At
+  for +inpos: Nat
+  {R.RunSt.inbody(L.piece_in(R.RunSt.halt(st), p, fa, o, st, term, at, inpos)) == R.RunSt.inbody(st) : Bool}
+
+def ib_piece(p, fa, o, st, term, at, inpos):
+  match st:
+    case R.RunSt{+n, +i, +h, +cu, +e, +la, +b, +k, +so, +ns, +x}:
+      match x:
+        case True{}:
+          {==}
+        case False{}:
+          ib_body_line(L.judge(fa, p), R.RunSt{n, i, h, cu, e, la, b, k, so, ns, False{}}, o, B.Line{p, term}, at, inpos)
+
+law ib_pieces:
+  for +ps: List<&2, String>
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +st: R.RunSt
+  for +term: String
+  for +at: B.At
+  for +inpos: Nat
+  {R.RunSt.inbody(L.pieces_in(ps, fa, o, st, term, at, inpos)) == R.RunSt.inbody(st) : Bool}
+
+def ib_pieces(ps, fa, o, st, term, at, inpos):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{+p, +t}:
+      +X = L.piece_in(R.RunSt.halt(st), p, fa, o, st, term, at, inpos)
+      Equal.trans(Bool, R.RunSt.inbody(L.pieces_in(t, fa, o, X, term, at, inpos)), R.RunSt.inbody(X), R.RunSt.inbody(st),
+        ib_pieces(t, fa, o, X, term, at, inpos), ib_piece(p, fa, o, st, term, at, inpos))
+
+law ib_unsplit.k:
+  for +b: Bool
+  for +r: B.Res
+  for +c: B.Code
+  for +st: R.RunSt
+  for +o: B.Opts
+  for +l: B.Line
+  for +at: B.At
+  for +inpos: Nat
+  {R.RunSt.inbody(Bool.pick(R.RunSt, b, R.body_line(r, st, o, l, at, inpos), R.problem_line(R.Opts.strict(o), st, R.Opts.w(o), c, l, at, inpos))) == R.RunSt.inbody(st) : Bool}
+
+def ib_unsplit.k(b, r, c, st, o, l, at, inpos):
+  match b:
+    case True{}:
+      ib_body_line(r, st, o, l, at, inpos)
+    case False{}:
+      ib_problem_line(R.Opts.strict(o), st, R.Opts.w(o), c, l, at, inpos)
+
+law ib_body_in:
+  for +pt: B.Parts
+  for +fa: List<&2, B.Contig>
+  for +st: R.RunSt
+  for +o: B.Opts
+  for +l: B.Line
+  for +at: B.At
+  for +inpos: Nat
+  {R.RunSt.inbody(L.body_in(pt, fa, o, st, l, at, inpos)) == R.RunSt.inbody(st) : Bool}
+
+def ib_body_in(pt, fa, st, o, l, at, inpos):
+  match pt:
+    case B.Whole{}:
+      ib_body_line(L.judge(fa, B.Line.body(l)), st, o, l, at, inpos)
+    case B.Pieces{+ps}:
+      ib_pieces(ps, fa, o, st, B.Line.term(l), at, inpos)
+    case B.Unsplit{+c}:
+      ib_unsplit.k(L.stops(L.judge(fa, B.Line.body(l)), R.Opts.strict(o)), L.judge(fa, B.Line.body(l)), c, st, o, l, at, inpos)
+
 # One line, and the whole run
 # ===========================
 
@@ -400,6 +562,7 @@ def head_pre(isc, O, N, st, o, l, he):
         P.false_ne_true(he))
 
 law step_pre:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +O: String
@@ -407,9 +570,9 @@ law step_pre:
   for +st: R.RunSt
   for +l: B.Line
   for +hg: {R.RunSt.inbody(st) || (String.is_empty(O) && List.is_empty(&2, B.Note, N)) == True{} : Bool}
-  {L.line_step(fa, o, pre(O, N, st), l) == pre(O, N, L.line_step(fa, o, st, l)) : R.RunSt}
+  {L.line_step(fa, dfs, o, pre(O, N, st), l) == pre(O, N, L.line_step(fa, dfs, o, st, l)) : R.RunSt}
 
-def step_pre(fa, o, O, N, st, l, hg):
+def step_pre(dfs,fa, o, O, N, st, l, hg):
   match st:
     case R.RunSt{n, i, h, c, e, la, b, k, so, ns, True{}}:
       {==}
@@ -417,28 +580,29 @@ def step_pre(fa, o, O, N, st, l, hg):
       head_pre(R.is_chrom_line(B.Line.body(l)), O, N, R.RunSt{1n+n, False{}, h, c, e, la, b, k, so, ns, False{}}, o, l, hg)
     case R.RunSt{n, True{}, h, c, e, la, b, k, so, ns, False{}}:
       +fs = B.Rec.fields(B.Line.body(l))
-      fr_body_line(L.judge(fa, B.Line.body(l)), O, N, R.RunSt{1n+n, True{}, h, c, e, la, b, k, so, ns, False{}}, o, l,
+      fr_body_in(B.Rec.parts(dfs, o, B.Line.body(l)), fa, O, N, R.RunSt{1n+n, True{}, h, c, e, la, b, k, so, ns, False{}}, o, l,
         B.At{1n+n, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))
 
 # A line read in the body leaves the run in the body.
 law ib_step:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +st: R.RunSt
   for +l: B.Line
   for +hi: {R.RunSt.inbody(st) == True{} : Bool}
-  {R.RunSt.inbody(L.line_step(fa, o, st, l)) == True{} : Bool}
+  {R.RunSt.inbody(L.line_step(fa, dfs, o, st, l)) == True{} : Bool}
 
-def ib_step(fa, o, st, l, hi):
+def ib_step(dfs,fa, o, st, l, hi):
   match st:
     case R.RunSt{n, i, h, c, e, la, b, k, so, ns, True{}}:
       hi
     case R.RunSt{n, False{}, h, c, e, la, b, k, so, ns, False{}}:
-      Empty.absurd({R.RunSt.inbody(L.line_step(fa, o, R.RunSt{n, False{}, h, c, e, la, b, k, so, ns, False{}}, l)) == True{} : Bool},
+      Empty.absurd({R.RunSt.inbody(L.line_step(fa, dfs, o, R.RunSt{n, False{}, h, c, e, la, b, k, so, ns, False{}}, l)) == True{} : Bool},
         P.false_ne_true(hi))
     case R.RunSt{n, True{}, h, c, e, la, b, k, so, ns, False{}}:
       +fs = B.Rec.fields(B.Line.body(l))
-      ib_body_line(L.judge(fa, B.Line.body(l)), R.RunSt{1n+n, True{}, h, c, e, la, b, k, so, ns, False{}}, o, l,
+      ib_body_in(B.Rec.parts(dfs, o, B.Line.body(l)), fa, R.RunSt{1n+n, True{}, h, c, e, la, b, k, so, ns, False{}}, o, l,
         B.At{1n+n, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))
 
 law or_true_r:
@@ -453,6 +617,7 @@ def or_true_r(a):
       {==}
 
 law hg_go:
+  for +dfs: B.Defs
   for +c: Bool
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
@@ -461,20 +626,21 @@ law hg_go:
   for +l: B.Line
   for +hc: {R.RunSt.inbody(st) == c : Bool}
   for +hg: {Bool.or(c, E) == True{} : Bool}
-  {Bool.or(R.RunSt.inbody(L.line_step(fa, o, st, l)), E) == True{} : Bool}
+  {Bool.or(R.RunSt.inbody(L.line_step(fa, dfs, o, st, l)), E) == True{} : Bool}
 
-def hg_go(c, fa, o, E, st, l, hc, hg):
+def hg_go(dfs,c, fa, o, E, st, l, hc, hg):
   match c:
     case True{}:
-      %Equal.sym(Bool, R.RunSt.inbody(L.line_step(fa, o, st, l)), True{}, ib_step(fa, o, st, l, hc)) :
+      %Equal.sym(Bool, R.RunSt.inbody(L.line_step(fa, dfs, o, st, l)), True{}, ib_step(dfs, fa, o, st, l, hc)) :
         {Bool.or(_, E) == True{} : Bool}
       {==}
     case False{}:
-      %Equal.sym(Bool, E, True{}, hg) : {Bool.or(R.RunSt.inbody(L.line_step(fa, o, st, l)), _) == True{} : Bool}
-      or_true_r(R.RunSt.inbody(L.line_step(fa, o, st, l)))
+      %Equal.sym(Bool, E, True{}, hg) : {Bool.or(R.RunSt.inbody(L.line_step(fa, dfs, o, st, l)), _) == True{} : Bool}
+      or_true_r(R.RunSt.inbody(L.line_step(fa, dfs, o, st, l)))
 
 # The guard of step_pre holds after a line.
 law hg_step:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +O: String
@@ -482,12 +648,13 @@ law hg_step:
   for +st: R.RunSt
   for +l: B.Line
   for +hg: {R.RunSt.inbody(st) || (String.is_empty(O) && List.is_empty(&2, B.Note, N)) == True{} : Bool}
-  {R.RunSt.inbody(L.line_step(fa, o, st, l)) || (String.is_empty(O) && List.is_empty(&2, B.Note, N)) == True{} : Bool}
+  {R.RunSt.inbody(L.line_step(fa, dfs, o, st, l)) || (String.is_empty(O) && List.is_empty(&2, B.Note, N)) == True{} : Bool}
 
-def hg_step(fa, o, O, N, st, l, hg):
-  hg_go(R.RunSt.inbody(st), fa, o, String.is_empty(O) && List.is_empty(&2, B.Note, N), st, l, {==}, hg)
+def hg_step(dfs,fa, o, O, N, st, l, hg):
+  hg_go(dfs, R.RunSt.inbody(st), fa, o, String.is_empty(O) && List.is_empty(&2, B.Note, N), st, l, {==}, hg)
 
 law run_pre:
+  for +dfs: B.Defs
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
@@ -495,16 +662,16 @@ law run_pre:
   for +N: List<&2, B.Note>
   for +st: R.RunSt
   for +hg: {R.RunSt.inbody(st) || (String.is_empty(O) && List.is_empty(&2, B.Note, N)) == True{} : Bool}
-  {L.run.go(ls, fa, o, pre(O, N, st)) == pre(O, N, L.run.go(ls, fa, o, st)) : R.RunSt}
+  {L.run.go(ls, fa, dfs, o, pre(O, N, st)) == pre(O, N, L.run.go(ls, fa, dfs, o, st)) : R.RunSt}
 
-def run_pre(ls, fa, o, O, N, st, hg):
+def run_pre(dfs,ls, fa, o, O, N, st, hg):
   match ls:
     case Nil{}:
       {==}
     case +l <> +t:
-      %Equal.sym(R.RunSt, L.line_step(fa, o, pre(O, N, st), l), pre(O, N, L.line_step(fa, o, st, l)), step_pre(fa, o, O, N, st, l, hg)) :
-        {L.run.go(t, fa, o, _) == pre(O, N, L.run.go(t, fa, o, L.line_step(fa, o, st, l))) : R.RunSt}
-      run_pre(t, fa, o, O, N, L.line_step(fa, o, st, l), hg_step(fa, o, O, N, st, l, hg))
+      %Equal.sym(R.RunSt, L.line_step(fa, dfs, o, pre(O, N, st), l), pre(O, N, L.line_step(fa, dfs, o, st, l)), step_pre(dfs, fa, o, O, N, st, l, hg)) :
+        {L.run.go(t, fa, dfs, o, _) == pre(O, N, L.run.go(t, fa, dfs, o, L.line_step(fa, dfs, o, st, l))) : R.RunSt}
+      run_pre(dfs, t, fa, o, O, N, L.line_step(fa, dfs, o, st, l), hg_step(dfs, fa, o, O, N, st, l, hg))
 
 # The end of the run
 # ==================
@@ -583,19 +750,118 @@ def finish_pre(O, N, st, hg):
 # =============
 
 law run_halted:
+  for +dfs: B.Defs
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +st: R.RunSt
   for +hh: {R.RunSt.halt(st) == True{} : Bool}
-  {L.run.go(ls, fa, o, st) == st : R.RunSt}
+  {L.run.go(ls, fa, dfs, o, st) == st : R.RunSt}
 
-def run_halted(ls, fa, o, st, hh):
+def run_halted(dfs,ls, fa, o, st, hh):
   match ls st:
     case Nil{} _:
       {==}
     case l <> t R.RunSt{n, i, h, c, e, la, b, k, so, sns, True{}}:
-      run_halted(t, fa, o, R.RunSt{n, i, h, c, e, la, b, k, so, sns, True{}}, hh)
+      run_halted(dfs, t, fa, o, R.RunSt{n, i, h, c, e, la, b, k, so, sns, True{}}, hh)
     case l <> t R.RunSt{n, i, h, c, e, la, b, k, so, sns, False{}}:
-      Empty.absurd({L.run.go(l <> t, fa, o, R.RunSt{n, i, h, c, e, la, b, k, so, sns, False{}}) == R.RunSt{n, i, h, c, e, la, b, k, so, sns, False{}} : R.RunSt},
+      Empty.absurd({L.run.go(l <> t, fa, dfs, o, R.RunSt{n, i, h, c, e, la, b, k, so, sns, False{}}) == R.RunSt{n, i, h, c, e, la, b, k, so, sns, False{}} : R.RunSt},
         P.false_ne_true(hh))
+
+# The header's definitions (L.defs) and one line
+# ==============================================
+
+# Once in the body, the definitions are those read so far.
+law defs_done:
+  for +ls: List<&2, B.Line>
+  for +d: B.Defs
+  {L.defs.go(ls, True{}, d) == d : B.Defs}
+
+def defs_done(ls, d):
+  match ls:
+    case Nil{}:
+      {==}
+    case Con{+l, +t}:
+      defs_done(t, d)
+
+# A header line's step reads no definitions.
+law step_head:
+  for +fa: List<&2, B.Contig>
+  for +D1: B.Defs
+  for +D2: B.Defs
+  for +o: B.Opts
+  for +st: R.RunSt
+  for +l: B.Line
+  for +h: {R.RunSt.inbody(st) == False{} : Bool}
+  {L.line_step(fa, D1, o, st, l) == L.line_step(fa, D2, o, st, l) : R.RunSt}
+
+def step_head(fa, D1, D2, o, st, l, h):
+  match st:
+    case R.RunSt{+n, +i, +hh, +c, +e, +la, +b, +k, +so, +ns, +x}:
+      match i x:
+        case _ True{}:
+          {==}
+        case False{} False{}:
+          {==}
+        case True{} False{}:
+          Empty.absurd({L.line_step(fa, D1, o, R.RunSt{n, True{}, hh, c, e, la, b, k, so, ns, False{}}, l) == L.line_step(fa, D2, o, R.RunSt{n, True{}, hh, c, e, la, b, k, so, ns, False{}}, l) : R.RunSt},
+            P.false_ne_true(Equal.sym(Bool, True{}, False{}, h)))
+
+# The definitions run reads, for the rest of the file from st on, are those
+# the machine read so far (dfs) for a line's step: in the body they are dfs,
+# and a header line reads none.
+law ls_defs:
+  for +fa: List<&2, B.Contig>
+  for +ls: List<&2, B.Line>
+  for +dfs: B.Defs
+  for +o: B.Opts
+  for +st: R.RunSt
+  for +l: B.Line
+  {L.line_step(fa, L.defs.go(ls, R.RunSt.inbody(st), dfs), o, st, l) == L.line_step(fa, dfs, o, st, l) : R.RunSt}
+
+def ls_defs.k(+i: Bool, +fa: List<&2, B.Contig>, +ls: List<&2, B.Line>, +dfs: B.Defs, +o: B.Opts, +st: R.RunSt, +l: B.Line,
+  +hi: {R.RunSt.inbody(st) == i : Bool}) ->
+  {L.line_step(fa, L.defs.go(ls, i, dfs), o, st, l) == L.line_step(fa, dfs, o, st, l) : R.RunSt}:
+  match i:
+    case True{}:
+      %Equal.sym(B.Defs, L.defs.go(ls, True{}, dfs), dfs, defs_done(ls, dfs)) : {L.line_step(fa, _, o, st, l) == L.line_step(fa, dfs, o, st, l) : R.RunSt}
+      {==}
+    case False{}:
+      step_head(fa, L.defs.go(ls, False{}, dfs), dfs, o, st, l, hi)
+
+def ls_defs(fa, ls, dfs, o, st, l):
+  ls_defs.k(R.RunSt.inbody(st), fa, ls, dfs, o, st, l, {==})
+
+# A step from a run that has not stopped: in the body after it exactly when
+# in the body before it or the line is the #CHROM line.
+law ib_line:
+  for +fa: List<&2, B.Contig>
+  for +D: B.Defs
+  for +o: B.Opts
+  for +st: R.RunSt
+  for +l: B.Line
+  for +hx: {R.RunSt.halt(st) == False{} : Bool}
+  {R.RunSt.inbody(L.line_step(fa, D, o, st, l)) == Bool.or(R.RunSt.inbody(st), R.is_chrom_line(B.Line.body(l))) : Bool}
+
+def ib_line.h(+isc: Bool, +n: Nat, +hh: String, +c: Maybe<&2, String>, +e: List<&2, String>, +la: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +so: String, +ns: List<&2, B.Note>, +o: B.Opts, +l: B.Line) ->
+  {R.RunSt.inbody(R.head_line(isc, R.RunSt{n, False{}, hh, c, e, la, b, k, so, ns, False{}}, o, l)) == isc : Bool}:
+  match isc l:
+    case True{} B.Line{+bd, +term}:
+      {==}
+    case False{} _:
+      {==}
+
+def ib_line(fa, D, o, st, l, hx):
+  match st:
+    case R.RunSt{+n, +i, +hh, +c, +e, +la, +b, +k, +so, +ns, +x}:
+      match i x:
+        case _ True{}:
+          Empty.absurd({R.RunSt.inbody(L.line_step(fa, D, o, R.RunSt{n, i, hh, c, e, la, b, k, so, ns, True{}}, l)) == Bool.or(i, R.is_chrom_line(B.Line.body(l))) : Bool},
+            P.false_ne_true(Equal.sym(Bool, True{}, False{}, hx)))
+        case False{} False{}:
+          ib_line.h(R.is_chrom_line(B.Line.body(l)), 1n+n, hh, c, e, la, b, k, so, ns, o, l)
+        case True{} False{}:
+          +fs = B.Rec.fields(B.Line.body(l))
+          ib_body_in(B.Rec.parts(D, o, B.Line.body(l)), fa, R.RunSt{1n+n, True{}, hh, c, e, la, b, k, so, ns, False{}}, o, l,
+            B.At{1n+n, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))
+

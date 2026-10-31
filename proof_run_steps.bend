@@ -142,6 +142,16 @@ def stop_ok(c, a, p, h):
       {==}
     case B.Stale{}:
       {==}
+    case B.UndefinedTag{tag}:
+      {==}
+    case B.BadCount{}:
+      {==}
+    case B.BadGt{}:
+      {==}
+    case B.DupAlts{}:
+      {==}
+    case B.BadCr{}:
+      {==}
 
 def stale_ok(+s: Bool, +at: B.At) -> {L.any_unsorted(R.stale_note(s, at)) == False{} : Bool}:
   match s:
@@ -167,7 +177,7 @@ def BL(-M: R.RunSt -> Type, r: B.Res, +st: R.RunSt, +o: B.Opts, +l: B.Line, +at:
       hstop(B.UnknownChrom{}, {==})
     case B.Res{B.Problem{+c}, k, t, s}:
       match o:
-        case B.Opts{+sx, +w, +a}:
+        case B.Opts{+sx, +w, +om_m, +om_z, +a}:
           match sx:
             case True{}:
               hstop(c, stop_ok(c, Some{at}, None{}, hr))
@@ -255,6 +265,7 @@ def NR(-M: R.RunSt -> Type, +n: Nat, +i: Bool, +h: String, +c: Maybe<&2, String>
 law halted_go:
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
+  for +defs: B.Defs
   for +o: B.Opts
   for +n: Nat
   for +i: Bool
@@ -266,19 +277,20 @@ law halted_go:
   for +k: R.Cnt
   for +out: String
   for +ns: List<&2, B.Note>
-  {L.run.go(ls, fa, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}}) == R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}} : R.RunSt}
+  {L.run.go(ls, fa, defs, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}}) == R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}} : R.RunSt}
 
-def halted_go(ls, fa, o, n, i, h, c, e, l, b, k, out, ns):
+def halted_go(ls, fa, defs, o, n, i, h, c, e, l, b, k, out, ns):
   match ls:
     case Nil{}:
       {==}
     case x <> t:
-      halted_go(t, fa, o, n, i, h, c, e, l, b, k, out, ns)
+      halted_go(t, fa, defs, o, n, i, h, c, e, l, b, k, out, ns)
 
 # A stopped run ends with exit code 1 and the messages so far.
 law halted:
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
+  for +defs: B.Defs
   for +o: B.Opts
   for +n: Nat
   for +i: Bool
@@ -290,7 +302,7 @@ law halted:
   for +k: R.Cnt
   for +out: String
   for +ns: List<&2, B.Note>
-  {R.finish(L.run.go(ls, fa, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}})) == R.Report{out, ns, 1n} : R.Report}
+  {R.finish(L.run.go(ls, fa, defs, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}})) == R.Report{out, ns, 1n} : R.Report}
 
 def halted.fin(+n: Nat, +i: Bool, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>,
   +l: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +out: String, +ns: List<&2, B.Note>) ->
@@ -301,9 +313,9 @@ def halted.fin(+n: Nat, +i: Bool, +h: String, +c: Maybe<&2, String>, +e: List<&2
     case False{}:
       {==}
 
-def halted(ls, fa, o, n, i, h, c, e, l, b, k, out, ns):
-  %Equal.sym(R.RunSt, L.run.go(ls, fa, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}}), R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}},
-    halted_go(ls, fa, o, n, i, h, c, e, l, b, k, out, ns)) : {R.finish(_) == R.Report{out, ns, 1n} : R.Report}
+def halted(ls, fa, defs, o, n, i, h, c, e, l, b, k, out, ns):
+  %Equal.sym(R.RunSt, L.run.go(ls, fa, defs, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}}), R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}},
+    halted_go(ls, fa, defs, o, n, i, h, c, e, l, b, k, out, ns)) : {R.finish(_) == R.Report{out, ns, 1n} : R.Report}
   halted.fin(n, i, h, c, e, l, b, k, out, ns)
 
 # The items
@@ -350,6 +362,7 @@ def nitems_cons(l, t, fa, n):
 law halted_code:
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
+  for +defs: B.Defs
   for +o: B.Opts
   for +n: Nat
   for +i: Bool
@@ -361,16 +374,17 @@ law halted_code:
   for +k: R.Cnt
   for +out: String
   for +ns: List<&2, B.Note>
-  {R.Report.code(R.finish(L.run.go(ls, fa, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}}))) == 1n : Nat}
+  {R.Report.code(R.finish(L.run.go(ls, fa, defs, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}}))) == 1n : Nat}
 
-def halted_code(ls, fa, o, n, i, h, c, e, l, b, k, out, ns):
-  %Equal.sym(R.Report, R.finish(L.run.go(ls, fa, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}})), R.Report{out, ns, 1n},
-    halted(ls, fa, o, n, i, h, c, e, l, b, k, out, ns)) : {R.Report.code(_) == 1n : Nat}
+def halted_code(ls, fa, defs, o, n, i, h, c, e, l, b, k, out, ns):
+  %Equal.sym(R.Report, R.finish(L.run.go(ls, fa, defs, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}})), R.Report{out, ns, 1n},
+    halted(ls, fa, defs, o, n, i, h, c, e, l, b, k, out, ns)) : {R.Report.code(_) == 1n : Nat}
   {==}
 
 law halted_notes:
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
+  for +defs: B.Defs
   for +o: B.Opts
   for +n: Nat
   for +i: Bool
@@ -382,9 +396,9 @@ law halted_notes:
   for +k: R.Cnt
   for +out: String
   for +ns: List<&2, B.Note>
-  {R.Report.notes(R.finish(L.run.go(ls, fa, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}}))) == ns : List<&2, B.Note>}
+  {R.Report.notes(R.finish(L.run.go(ls, fa, defs, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}}))) == ns : List<&2, B.Note>}
 
-def halted_notes(ls, fa, o, n, i, h, c, e, l, b, k, out, ns):
-  %Equal.sym(R.Report, R.finish(L.run.go(ls, fa, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}})), R.Report{out, ns, 1n},
-    halted(ls, fa, o, n, i, h, c, e, l, b, k, out, ns)) : {R.Report.notes(_) == ns : List<&2, B.Note>}
+def halted_notes(ls, fa, defs, o, n, i, h, c, e, l, b, k, out, ns):
+  %Equal.sym(R.Report, R.finish(L.run.go(ls, fa, defs, o, R.RunSt{n, i, h, c, e, l, b, k, out, ns, True{}})), R.Report{out, ns, 1n},
+    halted(ls, fa, defs, o, n, i, h, c, e, l, b, k, out, ns)) : {R.Report.notes(_) == ns : List<&2, B.Note>}
   {==}

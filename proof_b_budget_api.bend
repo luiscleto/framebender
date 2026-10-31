@@ -53,17 +53,17 @@ def bi(+fa: List<&2, B.Contig>, +T: R.Report, +p: S.StP, +cs: List<&2, String>, 
   BN.bi(fa, T, p, cs, eof, nx, O)
 
 # The start: the program's first state (start_ok's p), nothing given yet.
-def bud_start(+argv: List<&2, String>, +o: B.Opts, +ref: String, +vcfpath: String, +fasta: String, +vcf: String, +cs: List<&2, String>, +p: S.StP,
+def bud_start(+dfs: B.Defs, +argv: List<&2, String>, +o: B.Opts, +ref: String, +vcfpath: String, +fasta: String, +vcf: String, +cs: List<&2, String>, +p: S.StP,
   ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>},
   hf: {Pr.Fasta.plain(fasta) == True{} : Bool},
   h: {String.concat(cs) == vcf : String},
   hb: {E.texts_ok(argv, fasta, cs) == True{} : Bool},
-  hst: {DD.start_st(Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St},
+  hst: {DD.start_st(dfs, Norm.start(argv)) == S.mkSt(B.Fasta.parse(fasta), p) : Norm.St},
   hm: {DD.more_ok(B.Fasta.parse(fasta), p) == True{} : Bool},
   hr: {S.report(B.Fasta.parse(fasta), cs, "", Nil{}, p) == L.run(fasta, vcf, o) : R.Report}) ->
   {bi(B.Fasta.parse(fasta), L.run(fasta, vcf, o), p, cs, False{}, Pr.More{}, "") == True{} : Bool}
   & {Nat.is_le(need(B.Fasta.parse(fasta), L.run(fasta, vcf, o), p, cs, False{}, Pr.More{}, ""), M.bound(argv, fasta, vcf, cs)) == True{} : Bool}:
-  BSt.bud_start_h(argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, h, hst)
+  BSt.bud_start_h(dfs, argv, o, ref, vcfpath, fasta, vcf, cs, p, ha, h, hst)
 
 # A piece of the file (the driver's More with pieces left).
 # Next state pictured by p2 (More or Ask{rs2}, nx2): need drops by 1 + the reads.

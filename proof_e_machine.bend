@@ -34,7 +34,7 @@ law machine:
   {M.launch(W.start(argv), argv, fasta, vcf, cs) == Some{M.Launch{ref, vcfpath, L.run(fasta, vcf, o)}} : Maybe<&2, M.Launch>}
 
 def machine(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb):
-  AS.machine_h(argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb)
+  AS.machine_h(B.Defs{Nil{}, Nil{}}, argv, o, ref, vcfpath, fasta, vcf, cs, ha, hf, h, hb)
 
 law usage:
   for +argv: List<&2, String>

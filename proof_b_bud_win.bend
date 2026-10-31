@@ -230,6 +230,16 @@ def cov_c(+c: B.Code, +p: Nat, +rl: Nat, +clen: Nat, +raw: String, +k: Nat, +t: 
       {==}
     case B.Stale{}:
       {==}
+    case B.UndefinedTag{tag}:
+      {==}
+    case B.BadCount{}:
+      {==}
+    case B.BadGt{}:
+      {==}
+    case B.DupAlts{}:
+      {==}
+    case B.BadCr{}:
+      {==}
 
 def cov_o(+oc: B.Outcome, +k: Nat, +t: String, +s: Bool, +p: Nat, +rl: Nat, +clen: Nat, +raw: String,
   +hcov: {Nat.is_le(Nat.min(Nat.add(Nat.sub(p, 1n), rl), clen), String.length(raw)) == True{} : Bool},
