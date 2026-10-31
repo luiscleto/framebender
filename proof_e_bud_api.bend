@@ -52,4 +52,4 @@ def bud_startW(+dfs: B.Defs, +argv: List<&2, String>, +o: B.Opts, +ref: String, 
   +hb: {E.texts_ok(argv, fasta, cs) == True{} : Bool}) ->
   {BD.biW(W.St{DD.start_st(dfs, Norm.start(argv)), W.BNone{}}, cs) == True{} : Bool}
   & {Nat.is_le(BD.needW(B.Fasta.parse(fasta), L.run(fasta, vcf, o), W.St{DD.start_st(dfs, Norm.start(argv)), W.BNone{}}, cs, False{}, Pr.More{}, ""), M.bound(argv, fasta, vcf, cs)) == True{} : Bool}:
-  (BS0.start_bi(dfs, argv, o, ref, vcfpath, cs, ha), BS0.start_need(dfs, argv, o, ref, vcfpath, fasta, vcf, cs, ha, h))
+  (BS0.start_bi(dfs, argv, o, ref, vcfpath, cs, ha), BS0.start_need(dfs, argv, o, ref, vcfpath, fasta, vcf, cs, ha, h, hb))

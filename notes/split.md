@@ -230,8 +230,8 @@ lemmas (`bud_need`, `start_need`) meet it by `need <= old bound <= bound` until 
 the split records. Phase B's potential now charges them (fb-budget's `BN.ALL`/`XA`/`WAX`,
 cherry-picked as 840fe0b): the threads machine's budget follows it (`proof_e_bud_fed`: `stK`
 carries the opts, `all_lines`; `proof_e_bud_comb`: the merged state's `XA` is within Q's, `xa_app`,
-the opts kept along the edge, `fed_o`). `proof_e_bud_start.start_need` waits for phase B's
-`start_fit` (the start fit with the threads machine's 12 per piece of 256 bytes, `K`, and the
+the opts kept along the edge, `fed_o`). `proof_e_bud_start.start_need` is phase B's
+`start_fit` (split-budget b27752d; it checks once split-budget is merged) (the start fit with the threads machine's 12 per piece of 256 bytes, `K`, and the
 output under the square: `BR.out_len` is false under `-m`, data/tmp/split/outlen/gen.py).
 
 Done in earlier stretches: `proof_f_out` (the `-m` parser states, the `-W` record); `wrap_mc` (the
