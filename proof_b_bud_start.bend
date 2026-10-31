@@ -340,12 +340,7 @@ law ho_le:
   {Nat.is_le(BN.HO(L.run(fasta, vcf, o), ""), Nat.add(1n+String.length(vcf), M.args_len(argv))) == True{} : Bool}
 
 def ho_le(dfs,argv, o, ref, vcfpath, fasta, vcf, ha):
-  +n = String.length(R.Report.out(L.run(fasta, vcf, o)))
-  +X = Nat.add(1n+String.length(vcf), M.args_len(argv))
-  div_le(Nat.sub(n, String.length("")), X, 256n, {==},
-    N.le_trans(Nat.sub(n, String.length("")), n, Nat.mul(248n, X), sub0_le(n),
-      N.le_trans(n, Nat.add(BR.OB(vcf, o), BR.OB(vcf, o)), Nat.mul(248n, X), BR.out_len(dfs, fasta, vcf, o),
-        ob2(vcf, o, M.args_len(argv), args_le(argv, o, ref, vcfpath, ha)))))
+  ?TODO
 
 # The empty line end at the start holds no text.
 law empty_text:

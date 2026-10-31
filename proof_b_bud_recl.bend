@@ -1,5 +1,6 @@
 import Base
 import ./types.bend as B
+import ./run.bend as R
 import ./proof_s_cr.bend as CR
 import ./proof_s_chars.bend as CH
 import ./proof_s_str.bend as ST
@@ -981,3 +982,30 @@ def rec_cnt(defs, o, body, ps, h):
   +fs = B.Rec.fields(body)
   +K = List.length(&2, String, B.Rec.alts(fs))
   AB.and_true_r(RLT(ps, Q.SN(fs)), Nat.is_le(List.length(&2, String, ps), K), parts_ok(defs, o, body, ps, h))
+
+def cnd.k(+c: Bool, +defs: B.Defs, +o0: Bool, +sp: Bool, +body: String, +ps: Ss(),
+  +e: {CH.COND(sp, B.Rec.fields(body)) == c : Bool},
+  +h: {B.Rec.parts.if(CH.COND(sp, B.Rec.fields(body)), False{}, defs, o0, B.Rec.fields(body)) == B.Pieces{ps} : B.Parts}) ->
+  {CH.COND(sp, B.Rec.fields(body)) == True{} : Bool}:
+  match c:
+    case False{}:
+      +fs = B.Rec.fields(body)
+      +h2 = {%e : {B.Rec.parts.if(_, False{}, defs, o0, fs) == B.Pieces{ps} : B.Parts}; h : {B.Rec.parts.if(False{}, False{}, defs, o0, fs) == B.Pieces{ps} : B.Parts}}
+      Empty.absurd({CH.COND(sp, fs) == True{} : Bool}, AB.false_ne_true(Equal.cong(B.Parts, Bool, CH.is_pieces, B.Whole{}, B.Pieces{ps}, h2)))
+    case True{}:
+      e
+
+# A split line is one -m may split: -m, not MALFORMED, two or more ALTs.
+law parts_cand:
+  for +defs: B.Defs
+  for +o: B.Opts
+  for +body: String
+  for +ps: Ss()
+  for +h: {B.Rec.parts(defs, o, body) == B.Pieces{ps} : B.Parts}
+  {CH.COND(R.Opts.split(o), B.Rec.fields(body)) == True{} : Bool}
+
+def parts_cand(defs, o, body, ps, h):
+  match o:
+    case B.Opts{+st, +w, +sp, +o0, +args}:
+      cnd.k(CH.COND(sp, B.Rec.fields(body)), defs, o0, sp, body, ps, {==},
+        CR.cr_h(CH.COND(sp, B.Rec.fields(body)), B.Text.has_cr(body), defs, o0, B.Rec.fields(body), ps, CR.cr_none(defs, B.Opts{st, w, sp, o0, args}, body, ps, h), h))
