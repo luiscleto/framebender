@@ -312,12 +312,9 @@ def wc.k(+dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opt
           +kR = MB.want_rem(fa, back, wp, RQ, L, lid_gate(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp, hse), hc, hk0)
           +h1 = AB.subst(Nat, z => {Nat.is_le(z, Nat.add(remB, RR)) == True{} : Bool}, Nat.add(Nat.add(K, remA), RR), Nat.add(K, Nat.add(remA, RR)),
             N.add_assoc(K, remA, RR), N.le_add_mono_r(RR, Nat.add(K, remA), remB, kR))
-          +h2 = AB.subst(Nat, z => {Nat.is_le(Nat.add(K, z), Nat.add(remB, RR)) == True{} : Bool}, Nat.add(remA, RR),
-            BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, Some{RQ}, True{})), cs),
-            Equal.sym(Nat, BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, Some{RQ}, True{})), cs), Nat.add(remA, RR), eA), h1)
-          (AB.subst(Nat, z => {Nat.is_le(Nat.add(K, BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, Some{RQ}, True{})), cs)), z) == True{} : Bool},
-             Nat.add(remB, RR), BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, False{})), cs),
-             Equal.sym(Nat, BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, False{})), cs), Nat.add(remB, RR), eB), h2),
+          +hx = MB.wax_want(fa, o, K, False{}, back, wp, Some{RQ}, True{}, back, wp, None{}, L <> B.Text.lines(MB.TP(post, cs)), h1)
+          +h2 = AB.subst(Nat, z => {Nat.is_le(Nat.add(K, z), BN.WAX(fa, o, True{}, back, CD.mkWin(fa, wp), None{}, L <> B.Text.lines(MB.TP(post, cs)))) == True{} : Bool}, BN.WAX(fa, o, False{}, back, CD.mkWin(fa, wp), Some{RQ}, L <> B.Text.lines(MB.TP(post, cs))), BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, Some{RQ}, True{})), cs), Equal.sym(Nat, BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, Some{RQ}, True{})), cs), BN.WAX(fa, o, False{}, back, CD.mkWin(fa, wp), Some{RQ}, L <> B.Text.lines(MB.TP(post, cs))), eA), hx)
+          (AB.subst(Nat, z => {Nat.is_le(Nat.add(K, BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, Some{RQ}, True{})), cs)), z) == True{} : Bool}, BN.WAX(fa, o, True{}, back, CD.mkWin(fa, wp), None{}, L <> B.Text.lines(MB.TP(post, cs))), BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, False{})), cs), Equal.sym(Nat, BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, False{})), cs), BN.WAX(fa, o, True{}, back, CD.mkWin(fa, wp), None{}, L <> B.Text.lines(MB.TP(post, cs))), eB), h2),
            MB.bi_b0(fa, back, wp, Some{RQ}, BN.lines(P.mkSrcs(Con{P.SBP{len, t, d, at}, rest}), P.mkPd(pd), eof, cs), hb0))
 
 # The fast path's Want (fast.need with fneed False and back 0).
