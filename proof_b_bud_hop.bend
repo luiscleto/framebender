@@ -199,10 +199,60 @@ def body_q(+r: B.Res, +st: R.RunSt, +o: B.Opts, +l: B.Line, +at: B.At, +inpos: N
     case B.Res{B.Normalized{}, +k, +t, +s}:
       keyed_q(st, R.Opts.w(o), R.Item{k, inpos, at, String.append(t, B.Line.term(l))}, R.stale_note(s, at), R.bump(R.RunSt.cnt(st), Bool.not(String.eq(t, B.Line.body(l))), False{}, False{}))
 
+# A split line's records, each as a body line (LAWS.bend's pieces_in).
+def pin_q(halted: Bool, +p: String, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +term: String, +at: B.At, +inpos: Nat) ->
+  {Q2(st, L.piece_in(halted, p, fa, o, st, term, at, inpos)) == True{} : Bool}:
+  match halted:
+    case True{}:
+      q2_refl(st)
+    case False{}:
+      body_q(L.judge(fa, p), st, o, B.Line{p, term}, at, inpos)
+
+def pins_q(ps: List<&2, String>, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +term: String, +at: B.At, +inpos: Nat) ->
+  {Q2(st, L.pieces_in(ps, fa, o, st, term, at, inpos)) == True{} : Bool}:
+  match ps:
+    case Nil{}:
+      q2_refl(st)
+    case +p <> +t:
+      +st1 = L.piece_in(R.RunSt.halt(st), p, fa, o, st, term, at, inpos)
+      q2_trans(st, st1, L.pieces_in(t, fa, o, st1, term, at, inpos), pin_q(R.RunSt.halt(st), p, fa, o, st, term, at, inpos), pins_q(t, fa, o, st1, term, at, inpos))
+
+def uns_q(b: Bool, +r: B.Res, +c: B.Code, +o: B.Opts, +st: R.RunSt, +l: B.Line, +at: B.At, +inpos: Nat) ->
+  {Q2(st, Bool.pick(R.RunSt, b, R.body_line(r, st, o, l, at, inpos), R.problem_line(R.Opts.strict(o), st, R.Opts.w(o), c, l, at, inpos))) == True{} : Bool}:
+  match b:
+    case True{}:
+      body_q(r, st, o, l, at, inpos)
+    case False{}:
+      prob_q(R.Opts.strict(o), st, R.Opts.w(o), c, l, at, inpos)
+
+# A body line by what -m does with it (LAWS.bend's body_in).
+def bin_q(pt: B.Parts, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +l: B.Line, +at: B.At, +inpos: Nat) ->
+  {Q2(st, L.body_in(pt, fa, o, st, l, at, inpos)) == True{} : Bool}:
+  match pt:
+    case B.Whole{}:
+      body_q(L.judge(fa, B.Line.body(l)), st, o, l, at, inpos)
+    case B.Pieces{ps}:
+      pins_q(ps, fa, o, st, B.Line.term(l), at, inpos)
+    case B.Unsplit{+c}:
+      uns_q(L.stops(L.judge(fa, B.Line.body(l)), R.Opts.strict(o)), L.judge(fa, B.Line.body(l)), c, o, st, l, at, inpos)
+
 # One line, in the body.
 def step_q(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +l: B.Line, +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
   {Q2(st, L.line_step(fa, dfs, o, st, l)) == True{} : Bool}:
-  ?TODO
+  match st:
+    case R.RunSt{+n, +i, +h, +c, +e, +la, +b, +k, +ou, +ns, True{}}:
+      q2_refl(R.RunSt{n, i, h, c, e, la, b, k, ou, ns, True{}})
+    case R.RunSt{+n, True{}, +h, +c, +e, +la, +b, +k, +ou, +ns, False{}}:
+      +st0 = {R.RunSt{n, True{}, h, c, e, la, b, k, ou, ns, False{}} : R.RunSt}
+      +st1 = R.tick(st0)
+      +fs = B.Rec.fields(B.Line.body(l))
+      +at = {B.At{R.RunSt.n(st1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
+      q2_trans(st0, st1, L.body_in(B.Rec.parts(dfs, o, B.Line.body(l)), fa, o, st1, l, at, B.Rec.pos(fs)),
+        q2_ext(st0, st1, "", Equal.sym(String, String.append(ou, ""), ou, PN.str_nil(ou)), {==}),
+        bin_q(B.Rec.parts(dfs, o, B.Line.body(l)), fa, o, st1, l, at, B.Rec.pos(fs)))
+    case R.RunSt{+n, False{}, +h, +c, +e, +la, +b, +k, +ou, +ns, False{}}:
+      Empty.absurd({Q2(R.RunSt{n, False{}, h, c, e, la, b, k, ou, ns, False{}}, L.line_step(fa, dfs, o, R.RunSt{n, False{}, h, c, e, la, b, k, ou, ns, False{}}, l)) == True{} : Bool},
+        AB.false_ne_true(hin))
 
 
 def run_q(+dfs: B.Defs, +ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
@@ -258,6 +308,66 @@ def run_out(+dfs: B.Defs, +ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.
     N.le_trans(String.length(P.RunSt.out(s0)), String.length(P.RunSt.out(sF)), String.length(R.Report.out(R.finish(sF))), q2_le(s0, sF, h1),
       fin_q(sF, beq_true(R.RunSt.inbody(s0), R.RunSt.inbody(sF), q2_ib(s0, sF, h1), hin0))))
 
+# The records still waiting (S.RG): each a step from the unticked run.
+def ut_q(+st: R.RunSt) -> {Q2(st, Norm.rs_untick(st)) == True{} : Bool}:
+  match st:
+    case R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, +x}:
+      q2_ext(R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}, Norm.rs_untick(R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}), "", Equal.sym(String, String.append(o, ""), o, PN.str_nil(o)), {==})
+
+def rsi_q(halt: Bool, +fa: List<&2, B.Contig>, +dfs: B.Defs, +o: B.Opts, +st: R.RunSt, +l: B.Line, +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
+  {Q2(st, S.rstep.if(halt, fa, dfs, o, st, l)) == True{} : Bool}:
+  match halt:
+    case True{}:
+      q2_refl(st)
+    case False{}:
+      +u = Norm.rs_untick(st)
+      +hu = ut_q(st)
+      q2_trans(st, u, L.line_step(fa, dfs, o, u, l), hu, step_q(dfs, fa, o, u, l, beq_true(R.RunSt.inbody(st), R.RunSt.inbody(u), q2_ib(st, u, hu), hin)))
+
+def rgo_q(ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +dfs: B.Defs, +o: B.Opts, +st: R.RunSt, +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
+  {Q2(st, S.rgo(ls, fa, dfs, o, st)) == True{} : Bool}:
+  match ls:
+    case Nil{}:
+      q2_refl(st)
+    case +l <> +t:
+      +st1 = S.rstep(fa, dfs, o, st, l)
+      +h1 = rsi_q(R.RunSt.halt(st), fa, dfs, o, st, l, hin)
+      q2_trans(st, st1, S.rgo(t, fa, dfs, o, st1), h1, rgo_q(t, fa, dfs, o, st1, beq_true(R.RunSt.inbody(st), R.RunSt.inbody(st1), q2_ib(st, st1, h1), hin)))
+
+def rg_q(rs: List<&2, P.SrcP>, +fa: List<&2, B.Contig>, +dfs: B.Defs, +o: B.Opts, +st: R.RunSt, +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
+  {Q2(st, S.RG(rs, fa, dfs, o, st)) == True{} : Bool}:
+  match rs:
+    case Nil{}:
+      q2_refl(st)
+    case Con{P.SPP{+len, +t, +d, +at}, +r}:
+      +st1 = S.rgo(B.Text.lines(P.srctext(P.SPP{len, t, d, at})), fa, dfs, o, st)
+      +h1 = rgo_q(B.Text.lines(P.srctext(P.SPP{len, t, d, at})), fa, dfs, o, st, hin)
+      q2_trans(st, st1, S.RG(r, fa, dfs, o, st1), h1, rg_q(r, fa, dfs, o, st1, beq_true(R.RunSt.inbody(st), R.RunSt.inbody(st1), q2_ib(st, st1, h1), hin)))
+    case Con{P.SRP{+l}, +r}:
+      +st1 = S.rstep(fa, dfs, o, st, l)
+      +h1 = rsi_q(R.RunSt.halt(st), fa, dfs, o, st, l, hin)
+      q2_trans(st, st1, S.RG(r, fa, dfs, o, st1), h1, rg_q(r, fa, dfs, o, st1, beq_true(R.RunSt.inbody(st), R.RunSt.inbody(st1), q2_ib(st, st1, h1), hin)))
+    case Con{P.SBP{+len, +t, +d, +at}, +r}:
+      q2_refl(st)
+    case Con{P.SLP{+q}, +r}:
+      q2_refl(st)
+
+# The same with the records first.
+def run_out2(+dfs: B.Defs, +rs: List<&2, P.SrcP>, +ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, +O: String, +N: List<&2, B.Note>, +st: R.RunSt,
+  +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
+  {Nat.is_le(String.length(O), String.length(R.Report.out(R.finish(L.run.go(ls, fa, dfs, o, S.RG(rs, fa, dfs, o, S.pre(O, N, st))))))) == True{} : Bool}:
+  +s0 = S.pre(O, N, st)
+  +hin0 = Equal.trans(Bool, R.RunSt.inbody(s0), R.RunSt.inbody(st), True{}, pre_ib(O, N, st), hin)
+  +s1 = S.RG(rs, fa, dfs, o, s0)
+  +h0 = rg_q(rs, fa, dfs, o, s0, hin0)
+  +hin1 = beq_true(R.RunSt.inbody(s0), R.RunSt.inbody(s1), q2_ib(s0, s1, h0), hin0)
+  +h1 = run_q(dfs, ls, fa, o, s1, hin1)
+  +sF = L.run.go(ls, fa, dfs, o, s1)
+  N.le_trans(String.length(O), String.length(P.RunSt.out(s0)), String.length(R.Report.out(R.finish(sF))), pre_out(O, N, st),
+    N.le_trans(String.length(P.RunSt.out(s0)), String.length(P.RunSt.out(s1)), String.length(R.Report.out(R.finish(sF))), q2_le(s0, s1, h0),
+      N.le_trans(String.length(P.RunSt.out(s1)), String.length(P.RunSt.out(sF)), String.length(R.Report.out(R.finish(sF))), q2_le(s1, sF, h1),
+        fin_q(sF, beq_true(R.RunSt.inbody(s1), R.RunSt.inbody(sF), q2_ib(s1, sF, h1), hin1)))))
+
 # The guard's two cases.
 def len0(+s: String, +h: {String.is_empty(s) == True{} : Bool}, +m: Nat) -> {Nat.is_le(String.length(s), m) == True{} : Bool}:
   match s:
@@ -279,7 +389,19 @@ def gcase(+ib: Bool, +O: String, +N: List<&2, B.Note>, +m: Nat,
 def hop_k(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +p: S.StP,
   +hg: {S.guard(O, N, p) == True{} : Bool}) ->
   {Nat.is_le(String.length(O), String.length(R.Report.out(S.report(fa, cs, O, N, p)))) == True{} : Bool}:
-  ?TODO
+  match p:
+    case S.StP{+o, S.MSP{+s, +qs, +ql, Some{+c}}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      len_app(O, Norm.cat(List.reverse(&2, String, qs)))
+    case S.StP{+o, S.MSP{+s, +qs, +ql, None{}}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      +st = S.smd(S.MSP{s, qs, ql, None{}})
+      +ls = B.Text.lines(S.intext(S.StP{o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}, cs))
+      gcase(R.RunSt.inbody(st), O, N, String.length(R.Report.out(R.finish(L.run.go(ls, fa, S.DEFS(S.StP{o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}, cs), o, S.RG(S.recs(src), fa, S.DEFS(S.StP{o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}, cs), o, S.pre(O, N, st)))))), hg,
+        hib => run_out2(S.DEFS(S.StP{o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}, cs), S.recs(src), ls, fa, o, O, N, st, hib))
+    case S.StP{+o, S.MBP{+rp}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      +st = S.smd(S.MBP{rp})
+      +ls = B.Text.lines(S.intext(S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}, cs))
+      gcase(R.RunSt.inbody(st), O, N, String.length(R.Report.out(R.finish(L.run.go(ls, fa, S.DEFS(S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}, cs), o, S.RG(S.recs(src), fa, S.DEFS(S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}, cs), o, S.pre(O, N, st)))))), hg,
+        hib => run_out2(S.DEFS(S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}, cs), S.recs(src), ls, fa, o, O, N, st, hib))
 
 
 # R1.
