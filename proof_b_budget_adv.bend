@@ -15,6 +15,7 @@ import ./proof_b_budget_sdefs.bend as BD
 import ./proof_b_budget_dec.bend as BDe
 import ./proof_b_budget_fast.bend as BFa
 import ./proof_b_budget_ms.bend as BMS
+import ./proof_b_budget_mb.bend as BM
 import lawful-bytes@0.1.0.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
@@ -71,10 +72,10 @@ def fl_ms(+rp: P.RunP, +f: Bool) -> {BN.fast_left(Norm.to_ms(P.mkRun(rp)), f) ==
 def to_ms_c(+dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP, +src: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +fneed: Bool,
   +hbi: {BN.biS(S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, src, pd, eof, back, wp, None{}, fneed)), cs) == True{} : Bool}) ->
   BD.AdvC(fa, cs, BD.StM(dfs, o, S.MBP{rp}, src, pd, eof, back, wp, None{}, fneed), Norm.Went{Norm.St{o, Norm.to_ms(P.mkRun(rp)), P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), None{}, fneed, dfs}}):
-  +ls = BN.lines(P.mkSrcs(src), P.mkPd(pd), eof, cs)
+  +ls = BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs)
   (%Equal.sym(Bool, BN.fast_left(Norm.to_ms(P.mkRun(rp)), fneed), False{}, fl_ms(rp, fneed)) :
-     {Nat.is_le(BN.WA.ls(fa, _, back, PC.mkWin(fa, wp), None{}, ls), BN.WA.ls(fa, Bool.not(fneed), back, PC.mkWin(fa, wp), None{}, ls)) == True{} : Bool}
-   wa_fl(fa, Bool.not(fneed), back, wp, None{}, ls),
+     {Nat.is_le(BN.WAX(fa, o, _, back, PC.mkWin(fa, wp), None{}, ls), BN.WAX(fa, o, Bool.not(fneed), back, PC.mkWin(fa, wp), None{}, ls)) == True{} : Bool}
+   BM.wax_le(fa, o, False{}, back, wp, None{}, Bool.not(fneed), back, wp, None{}, ls, wa_fl(fa, Bool.not(fneed), back, wp, None{}, ls)),
    hbi)
 
 def ss_mk(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +p: S.StP) -> {Nat.is_le(BN.WAS(fa, S.mkSt(fa, p), cs), BN.WAS(fa, S.mkSt(fa, p), cs)) == True{} : Bool}:
