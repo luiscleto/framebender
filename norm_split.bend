@@ -20,7 +20,16 @@ import lawful-fields@0.1.0.0/fields.bend as FC
 # (B.Tags.find on the key's text). Then each record is written from the
 # line's bytes: CHROM .. REF, its ALT, QUAL and FILTER, INFO with each
 # per-allele value cut (B.Vals.split), FORMAT, and each sample with its
-# genotype rewritten (B.Gt.split) and its per-allele values cut.
+# genotype rewritten (B.Gt.split) and its per-allele values cut. A sample's
+# values are found in place as it is written, with no list of them.
+#
+# Speed (notes/split.md, "Splitter speed"): the writer and everything that
+# calls it should compile to straight code, not calls through the runtime's
+# work loop. In the generated C a def is straight code when nothing it may
+# call recurses other than in tail position (Bool.pick evaluates both its
+# branches, so a recursive call inside one is not a tail call): the writer
+# has its own room for this. Lists built and
+# walked once (a sample's values, the places B.Vals.idx names) are avoided.
 #
 # Loops: a step (not recursive) on a state, driven by a fuel loop that stops
 # when the state says it is done (fuel: one more than the bytes scanned).
@@ -421,6 +430,40 @@ def Sw.fail(w: Sw) -> Sw:
     case Sw{b, o, p, ok}:
       Sw{b, o, p, False{}}
 
+# NR.room and NR.put_bytes, with NR.depth.go's search as a loop: its
+# Bool.pick evaluates the recursive call on both branches, which made every
+# function that may write (flush, cpr, ch, ...) a call through the runtime's
+# work loop instead of straight code (proof_s_w.bend: room_eq).
+def depth.go(fuel: Nat, stop: Bool, +d: Nat, +need: U32) -> Nat:
+  match fuel stop:
+    case 0n _:
+      d
+    case 1n+f True{}:
+      d
+    case 1n+f False{}:
+      depth.go(f, U32.is_le(need, U32.shln(4, Nat.add(d, 1n))), Nat.add(d, 1n), need)
+
+def room.if(ok: Bool, +n: U32, b: D.Bytes) -> D.Bytes:
+  match ok:
+    case True{}:
+      b
+    case False{}:
+      BY.grow(b, depth.go(29n, U32.is_le((n * 2 : U32), U32.shln(4, 0n)), 0n, (n * 2 : U32)))
+
+def room.k(+n: U32, r: D.Bytes & U32) -> D.Bytes:
+  (b, +cap) = r
+  room.if(U32.is_le(n, cap), n, b)
+
+def room.len(+k: U32, r: D.Bytes & U32) -> D.Bytes:
+  (b, +len) = r
+  room.k((len + k + 8 : U32), BY.capacity(b))
+
+def room(b: D.Bytes, +k: U32) -> D.Bytes:
+  room.len(k, BY.len(b))
+
+def put_bytes(dst: D.Bytes, src: D.Bytes, +s: U32, +n: U32) -> D.Bytes & D.Bytes:
+  F.append(room(dst, n), src, s, n)
+
 def small.k(+k: U32, r: D.Bytes & U32) -> D.Bytes & Bool:
   (o, +l) = r
   (o, U32.is_le(l, 536870912) && U32.is_le(k, 268435456))
@@ -432,7 +475,7 @@ def flush.fin(r: D.Bytes & D.Bytes, +z: U32) -> Sw:
 def flush.ok(ok: Bool, b: D.Bytes, o: D.Bytes, +a: U32, +z: U32) -> Sw:
   match ok:
     case True{}:
-      flush.fin(NR.put_bytes(o, b, a, (z - a : U32)), z)
+      flush.fin(put_bytes(o, b, a, (z - a : U32)), z)
     case False{}:
       Sw{b, o, Rg{a, z}, False{}}
 
@@ -480,7 +523,7 @@ def cpr(w: Sw, +x: Rg) -> Sw:
 def push.ok(ok: Bool, b: D.Bytes, o: D.Bytes, +z: U32, +x: U32) -> Sw:
   match ok:
     case True{}:
-      Sw{b, BY.push(NR.room(o, 1), x), Rg{z, z}, True{}}
+      Sw{b, BY.push(room(o, 1), x), Rg{z, z}, True{}}
     case False{}:
       Sw{b, o, Rg{z, z}, False{}}
 
@@ -586,7 +629,8 @@ def pick.if(inside: Bool, w: Sw, +x: Rg, +j: Nat) -> Sw:
 def pick(w: Sw, +x: Rg, +k: Nat, +j: Nat) -> Sw:
   pick.if(Nat.is_le(j, k), w, x, j)
 
-# The values whose places are js, separated by ','.
+# The values whose places are js, separated by ','. (The records use pix,
+# below, which writes the same with no list; the proof states it as picks.)
 def picks(js: List<&2, Nat>, w: Sw, +x: Rg, +k: Nat, first: Bool) -> Sw:
   match js:
     case Nil{}:
@@ -594,17 +638,39 @@ def picks(js: List<&2, Nat>, w: Sw, +x: Rg, +k: Nat, first: Bool) -> Sw:
     case +j <> t:
       picks(t, pick(sep(w, first, 44), x, k, j), x, k, False{})
 
-def vals.fit(ok: Bool, w: Sw, js: List<&2, Nat>, +x: Rg, +k: Nat) -> Sw:
+# picks of B.Vals.idx(num, p, i), with no list (B.Vals.idx's Bool.pick
+# builds both of its lists): A, value i - 1; R and G for one copy, values 0
+# and i; G for two copies, those of 0/0, 0/i and i/i (proof_s_vals.bend:
+# pix_eq).
+def pix.g(one: Bool, w: Sw, +x: Rg, +k: Nat, +i: Nat) -> Sw:
+  match one:
+    case True{}:
+      pick(ch(pick(w, x, k, 0n), 44), x, k, i)
+    case False{}:
+      pick(ch(pick(ch(pick(w, x, k, 0n), 44), x, k, B.Gt.index(0n, i)), 44), x, k, B.Gt.index(i, i))
+
+def pix(num: B.Num, +p: Nat, +i: Nat, w: Sw, +x: Rg, +k: Nat) -> Sw:
+  match num:
+    case B.NumA{}:
+      pick(w, x, k, Nat.sub(i, 1n))
+    case B.NumR{}:
+      pick(ch(pick(w, x, k, 0n), 44), x, k, i)
+    case B.NumG{}:
+      pix.g(Nat.is_eq(p, 1n), w, x, k, i)
+    case _:
+      w
+
+def vals.fit(ok: Bool, w: Sw, +num: B.Num, +q: Nat, +i: Nat, +x: Rg, +k: Nat) -> Sw:
   match ok:
     case True{}:
-      picks(js, w, x, k, True{})
+      pix(num, q, i, w, x, k)
     case False{}:
       Sw.fail(w)
 
 def vals.c(+num: B.Num, +n: Nat, cp: Maybe<&2, Nat>, +i: Nat, +x: Rg, r: D.Bytes & Nat, o: D.Bytes, +p: Rg, ok: Bool) -> Sw:
   (b, +k) = r
   +q = B.Vals.copies(cp, n, 1n+k)
-  vals.fit(B.Vals.fits(B.Vals.expected_count(num, n, q), 1n+k), Sw{b, o, p, ok}, B.Vals.idx(num, q, i), x, k)
+  vals.fit(B.Vals.fits(B.Vals.expected_count(num, n, q), 1n+k), Sw{b, o, p, ok}, num, q, i, x, k)
 
 def vals.dot(dot: Bool, +num: B.Num, +n: Nat, cp: Maybe<&2, Nat>, +i: Nat, +x: Rg, b: D.Bytes, o: D.Bytes, +p: Rg, ok: Bool) -> Sw:
   match dot:
@@ -762,15 +828,6 @@ def copies.v(r: D.Bytes & Bool, +x: Rg) -> D.Bytes & Maybe<&2, Nat>:
   (b, dot) = r
   copies.dot(dot, b, x)
 
-def copies(ks: List<&2, Fk>, vs: List<&2, Rg>, b: D.Bytes) -> D.Bytes & Maybe<&2, Nat>:
-  match ks vs:
-    case KGt{} <> kt +v <> vt:
-      copies.v(is1(b, v, 46), v)
-    case k <> kt v <> vt:
-      copies(kt, vt, b)
-    case _ _:
-      (b, Some{2n})
-
 # ---------------------------------------------------------------------------
 # A record
 # ---------------------------------------------------------------------------
@@ -802,28 +859,81 @@ def fmt.one(w: Sw, k: Fk, +over0: Bool, +n: Nat, cp: Maybe<&2, Nat>, +i: Nat, +x
     case KBad{}:
       Sw.fail(w)
 
-def fmt.go(ks: List<&2, Fk>, vs: List<&2, Rg>, w: Sw, +over0: Bool, +n: Nat, +cp: Maybe<&2, Nat>, +i: Nat, first: Bool) -> Sw:
-  match ks vs:
-    case _ Nil{}:
+# A sample's values are found in place, as String.split cuts the column at
+# ':': the value at s ends at e, the first ':' from s (or the column's end
+# z); unless e is z, another value starts at e + 1. In the functions below,
+# r holds e, found by the step before, and done says the values have ended
+# (there is no value at s).
+
+# The first key is GT.
+def hgt(ks: List<&2, Fk>) -> Bool:
+  match ks:
+    case KGt{} <> kt:
+      True{}
+    case _:
+      False{}
+
+# The sample's copies (above), its GT value found against the keys ks; g
+# says the first key is GT.
+def copies(ks: List<&2, Fk>, done: Bool, g: Bool, r: D.Bytes & U32, +s: U32, +z: U32) -> D.Bytes & Maybe<&2, Nat>:
+  match ks done g:
+    case _ True{} _:
+      (b, e) = r
+      (b, Some{2n})
+    case Nil{} False{} _:
+      (b, e) = r
+      (b, Some{2n})
+    case k <> kt False{} True{}:
+      (b, +e) = r
+      copies.v(is1(b, Rg{s, e}, 46), Rg{s, e})
+    case k <> +kt False{} False{}:
+      (b, +e) = r
+      copies(kt, U32.is_eq(e, z), hgt(kt), F.find(b, (e + 1 : U32), z, 58), (e + 1 : U32), z)
+
+def fone.f(r: D.Bytes & U32, o: D.Bytes, +p: Rg, ok: Bool) -> Sw & U32:
+  (b, +e) = r
+  (Sw{b, o, p, ok}, e)
+
+# The writer, with the end of the value at s.
+def fone.w(w: Sw, +s: U32, +z: U32) -> Sw & U32:
+  match w:
+    case Sw{b, o, +p, ok}:
+      fone.f(F.find(b, s, z, 58), o, p, ok)
+
+# The value s .. e-1 under the key k written (a ':' before it unless it is
+# the first), with the end of the value after it.
+def fone(k: Fk, w: Sw, +s: U32, +e: U32, +z: U32, +over0: Bool, +n: Nat, +cp: Maybe<&2, Nat>, +i: Nat, first: Bool) -> Sw & U32:
+  fone.w(fmt.one(sep(w, first, 58), k, over0, n, cp, i, Rg{s, e}), (e + 1 : U32), z)
+
+# The sample's values from s on, each under its key (B.Fmt.split.go): done
+# when the values end; a value with no key left fails.
+def fmt.go(ks: List<&2, Fk>, done: Bool, r: Sw & U32, +s: U32, +z: U32, +over0: Bool, +n: Nat, +cp: Maybe<&2, Nat>, +i: Nat, first: Bool) -> Sw:
+  match ks done:
+    case _ True{}:
+      (w, e) = r
       w
-    case k <> kt +v <> vt:
-      fmt.go(kt, vt, fmt.one(sep(w, first, 58), k, over0, n, cp, i, v), over0, n, cp, i, False{})
-    case Nil{} v <> vt:
+    case Nil{} False{}:
+      (w, e) = r
       Sw.fail(w)
+    case k <> kt False{}:
+      (w, +e) = r
+      fmt.go(kt, U32.is_eq(e, z), fone(k, w, s, e, z, over0, n, cp, i, first), (e + 1 : U32), z, over0, n, cp, i, False{})
 
-def sample.cp(+ks: List<&2, Fk>, +vs: List<&2, Rg>, r: D.Bytes & Maybe<&2, Nat>, o: D.Bytes, +p: Rg, ok: Bool, +over0: Bool, +n: Nat, +i: Nat) -> Sw:
+def sample.cp(+ks: List<&2, Fk>, +a: U32, +z: U32, +e: U32, r: D.Bytes & Maybe<&2, Nat>, o: D.Bytes, +p: Rg, ok: Bool, +over0: Bool, +n: Nat, +i: Nat) -> Sw:
   (b, +cp) = r
-  fmt.go(ks, vs, Sw{b, o, p, ok}, over0, n, cp, i, True{})
+  fmt.go(ks, False{}, (Sw{b, o, p, ok}, e), a, z, over0, n, cp, i, True{})
 
-def sample.k(+ks: List<&2, Fk>, r: D.Bytes & List<&2, Rg>, o: D.Bytes, +p: Rg, ok: Bool, +over0: Bool, +n: Nat, +i: Nat) -> Sw:
-  (b, +vs) = r
-  sample.cp(ks, vs, copies(ks, vs, b), o, p, ok, over0, n, i)
+def sample.e(+ks: List<&2, Fk>, +x: Rg, r: D.Bytes & U32, o: D.Bytes, +p: Rg, ok: Bool, +over0: Bool, +n: Nat, +i: Nat) -> Sw:
+  match x:
+    case Rg{+a, +z}:
+      (b, +e) = r
+      sample.cp(ks, a, z, e, copies(ks, False{}, hgt(ks), (b, e), a, z), o, p, ok, over0, n, i)
 
 # One sample's column x in the record for ALT i (B.Fmt.split).
 def sample(w: Sw, +ks: List<&2, Fk>, +x: Rg, +over0: Bool, +n: Nat, +i: Nat) -> Sw:
   match w:
     case Sw{b, o, +p, ok}:
-      sample.k(ks, cut(b, x, 58), o, p, ok, over0, n, i)
+      sample.e(ks, x, F.find(b, Rg.a(x), Rg.z(x), 58), o, p, ok, over0, n, i)
 
 # What one pass over the line found: its fields, its INFO entries' kinds
 # (a missing INFO '.' is one entry), the FORMAT keys' kinds, the

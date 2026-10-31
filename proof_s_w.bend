@@ -8,6 +8,7 @@ import ./proof_c_text_w.bend as TW
 import ./proof_b_adv_nat.bend as LP
 import lawful-bytes@0.1.0.0/defs.bend as D
 import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.0.0/fast.bend as F
 import lawful-bytes@0.1.0.0/proof_core.bend as C
 import lawful-bytes@0.1.0.0/proof_ops.bend as O
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
@@ -225,6 +226,67 @@ def pv_inc(+len: U32, +t: AT.Tree<U32>, +d: Nat, +a: U32, +z: U32, +hl: {D.ok(C.
   pv_mk(len, a, (z + 1 : U32), ha, hb)
 
 # ---------------------------------------------------------------------------
+# The writer's room and put_bytes are NR's
+# ---------------------------------------------------------------------------
+
+def depth.k(+c: Bool, +g: Nat, +d: Nat, +need: U32,
+  ih: @+e: Nat -> {NS.depth.go(g, U32.is_le(need, U32.shln(4, e)), e, need) == NR.depth.go(g, e, need) : Nat}) ->
+  {NS.depth.go(1n+g, c, d, need) == Bool.pick(Nat, c, d, NR.depth.go(g, Nat.add(d, 1n), need)) : Nat}:
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      ih(Nat.add(d, 1n))
+
+law depth_eq:
+  for +g: Nat
+  for +d: Nat
+  for +need: U32
+  {NS.depth.go(g, U32.is_le(need, U32.shln(4, d)), d, need) == NR.depth.go(g, d, need) : Nat}
+
+def depth_eq(g, d, need):
+  match g:
+    case 0n:
+      {==}
+    case 1n+h:
+      depth.k(U32.is_le(need, U32.shln(4, d)), h, d, need, +e => depth_eq(h, e, need))
+
+def room_if(+c: Bool, +n: U32, +l: U32, +t: AT.Tree<U32>) -> {NR.room.if(c, n, C.BT(l, t)) == NS.room.if(c, n, C.BT(l, t)) : D.Bytes}:
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      +need = (n * 2 : U32)
+      +sh = U32.is_le(need, U32.shln(4, 0n))
+      %Equal.sym(Nat, NS.depth.go(29n, sh, 0n, need), NR.depth.go(29n, 0n, need), depth_eq(29n, 0n, need)) :
+        {BY.grow(C.BT(l, t), NR.depth(need)) == BY.grow(C.BT(l, t), _) : D.Bytes}
+      {==}
+
+law room_eq:
+  for +l: U32
+  for +t: AT.Tree<U32>
+  for +k: U32
+  {NR.room(C.BT(l, t), k) == NS.room(C.BT(l, t), k) : D.Bytes}
+
+def room_eq(l, t, k):
+  +n = (l + k + 8 : U32)
+  %Equal.sym(D.Bytes & U32, BY.capacity(C.BT(l, t)), (C.BT(l, t), BF.CAPV(l, t)), O.capacity_pair_t(l, t)) :
+    {NR.room.k(n, _) == NS.room.k(n, _) : D.Bytes}
+  room_if(U32.is_le(n, BF.CAPV(l, t)), n, l, t)
+
+law put_eq:
+  for +l: U32
+  for +t: AT.Tree<U32>
+  for -src: D.Bytes
+  for +s: U32
+  for +k: U32
+  {NR.put_bytes(C.BT(l, t), src, s, k) == NS.put_bytes(C.BT(l, t), src, s, k) : D.Bytes & D.Bytes}
+
+def put_eq(l, t, src, s, k):
+  %room_eq(l, t, k) : {F.append(NR.room(C.BT(l, t), k), src, s, k) == F.append(_, src, s, k) : D.Bytes & D.Bytes}
+  {==}
+
+# ---------------------------------------------------------------------------
 # The writes on mirrors
 # ---------------------------------------------------------------------------
 
@@ -237,6 +299,8 @@ def flush_put.k(+len: U32, +t: AT.Tree<U32>, +l2: U32, +t2: AT.Tree<U32>, +a: U3
   (eq, r1) = pb
   (okd, r2) = r1
   (vw, ln) = r2
+  %put_eq(l2, t2, C.BT(len, t), a, (z - a : U32)) :
+    Rel(len, t, NS.flush.fin(_, z), Wm{List.append(&2, U32, V(l2, t2), SL(len, t, a, z)), NS.Rg{z, z}, True{}})
   %Equal.sym(D.Bytes & D.Bytes, NR.put_bytes(C.BT(l2, t2), C.BT(len, t), a, (z - a : U32)), (C.BT(l3, t3), C.BT(len, t)), eq) :
     Rel(len, t, NS.flush.fin(_, z), Wm{List.append(&2, U32, V(l2, t2), SL(len, t, a, z)), NS.Rg{z, z}, True{}})
   (l3, (t3, ({==}, (okd, (vw, pv_zz(len, a, z, hp))))))
@@ -296,6 +360,8 @@ def push_put(+len: U32, +t: AT.Tree<U32>, +l: U32, +t0: AT.Tree<U32>, +a: U32, +
   +okp = AB.subst(D.Bytes, q => {D.ok(q, RD.tdepth(T2)) == True{} : Bool}, BY.push(C.BT(l, T2), x), C.BT(L2, t2), ept, O.push_ok_t(l, T2, RD.tdepth(T2), x, ok2, hc))
   +vp = AB.subst(D.Bytes, q => {D.view(q) == List.append(&2, U32, V(l, T2), [x]) : List<&2, U32>}, BY.push(C.BT(l, T2), x), C.BT(L2, t2), ept, O.push_view_t(l, T2, RD.tdepth(T2), x, ok2, hc, hx))
   +vp2 = AB.subst(List<&2, U32>, q => {D.view(C.BT(L2, t2)) == List.append(&2, U32, q, [x]) : List<&2, U32>}, V(l, T2), V(l, t0), BF.rp_view(l, t0, 1, T2, BF.room_p(l, t0, 1, RD.tdepth(t0), hok, hL)), vp)
+  %room_eq(l, t0, 1) :
+    Rel(len, t, NS.Sw{C.BT(len, t), BY.push(_, x), NS.Rg{z, z}, True{}}, Wm{List.append(&2, U32, V(l, t0), [x]), NS.Rg{z, z}, True{}})
   %Equal.sym(D.Bytes, NR.room(C.BT(l, t0), 1), C.BT(l, T2), BF.room_eq(l, t0, 1, C.ok_full(l, t0, RD.tdepth(t0), hok))) :
     Rel(len, t, NS.Sw{C.BT(len, t), BY.push(_, x), NS.Rg{z, z}, True{}}, Wm{List.append(&2, U32, V(l, t0), [x]), NS.Rg{z, z}, True{}})
   %Equal.sym(D.Bytes, BY.push(C.BT(l, T2), x), C.BT(L2, t2), ept) :

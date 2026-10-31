@@ -277,6 +277,29 @@ def picks_t(js, first, len, t, d, hl, a, z, hpx, k, hk, w, m0, r):
           ws_pick(len, t, d, hl, a, z, hpx, k, hk, j, NS.sep(w, first, 44), m1, r1),
           +m2 => r2 => picks_t(rr, False{}, len, t, d, hl, a, z, hpx, k, hk, NS.pick(NS.sep(w, first, 44), x, k, j), m2, r2)))
 
+# pix: the picks of B.Vals.idx, written out.
+def pix_g(+c: Bool, -w: NS.Sw, +x: NS.Rg, +k: Nat, +i: Nat) ->
+  {NS.pix.g(c, w, x, k, i) == NS.picks(Bool.pick(Ns(), c, [0n, i], [0n, B.Gt.index(0n, i), B.Gt.index(i, i)]), w, x, k, True{}) : NS.Sw}:
+  match c:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+def pix_eq(+num: B.Num, +p: Nat, +i: Nat, -w: NS.Sw, +x: NS.Rg, +k: Nat) ->
+  {NS.pix(num, p, i, w, x, k) == NS.picks(B.Vals.idx(num, p, i), w, x, k, True{}) : NS.Sw}:
+  match num:
+    case B.NumA{}:
+      {==}
+    case B.NumR{}:
+      {==}
+    case B.NumG{}:
+      pix_g(Nat.is_eq(p, 1n), w, x, k, i)
+    case B.NumOther{}:
+      {==}
+    case B.NumUnknown{}:
+      {==}
+
 # ---------------------------------------------------------------------------
 # vals (B.Vals.split)
 # ---------------------------------------------------------------------------
@@ -304,13 +327,16 @@ def vfit(+f: Bool, +len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t)
   +hf: {B.Vals.fits(B.Vals.expected_count(num, na, B.Vals.copies(cp, na, 1n+k)), 1n+k) == f : Bool},
   +ev: {VSPL(num, na, cp, i, len, t, NS.Rg{a, z}) == KEEP(num, na, cp, i, VS(len, t, NS.Rg{a, z}), 1n+k) : MS()},
   -w: NS.Sw, +m0: W.Wm, r: W.Rel(len, t, w, m0)) ->
-  S.WS(len, t, NS.vals.fit(f, w, B.Vals.idx(num, B.Vals.copies(cp, na, 1n+k), i), NS.Rg{a, z}, k), m0,
+  S.WS(len, t, NS.vals.fit(f, w, num, B.Vals.copies(cp, na, 1n+k), i, NS.Rg{a, z}, k), m0,
     STR(VSPL(num, na, cp, i, len, t, NS.Rg{a, z})), ISS(VSPL(num, na, cp, i, len, t, NS.Rg{a, z}))):
   match f:
     case True{}:
       +vs = VS(len, t, NS.Rg{a, z})
-      +js = B.Vals.idx(num, B.Vals.copies(cp, na, 1n+k), i)
+      +q = B.Vals.copies(cp, na, 1n+k)
+      +js = B.Vals.idx(num, q, i)
       +V0 = VSPL(num, na, cp, i, len, t, NS.Rg{a, z})
+      %Equal.sym(NS.Sw, NS.pix(num, q, i, w, NS.Rg{a, z}, k), NS.picks(js, w, NS.Rg{a, z}, k, True{}), pix_eq(num, q, i, w, NS.Rg{a, z}, k)) :
+        S.WS(len, t, _, m0, STR(V0), ISS(V0))
       +ev2 = {%hf :
           {V0 == Bool.pick(MS(), _, B.Vals.join(B.Vals.pick(vs, js)), None{}) : MS()};
         ev : {V0 == B.Vals.join(B.Vals.pick(vs, js)) : MS()}}
