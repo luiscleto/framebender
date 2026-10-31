@@ -46,3 +46,23 @@ amended to match the experiment), and keep the exact refusal code in `split_when
 ## Round 3
 
 Claude, GPT and Grok: ACCEPT (decisions 17-23 carried out; nothing new broken).
+
+## The CR change (2026-10-31)
+
+While proving, the author found `twice_run` false under `-m`: a stray CR inside a comma list
+(`END=5\r,6`) can end a split record in a bare CR, which reads back as a CRLF ending. The lead
+kept `twice_run` whole (narrowing it needs the owner's consent) and chose to refuse such lines;
+the owner agreed. Prompt: `SPLIT_CR_PROMPT.md`. Claude (`claude-split-cr.md`), GPT
+(`gpt-split-cr.md`), Grok (`grok-split-cr.md`): ACCEPT. All three: `twice_run` holds again for
+every input (other bytes round-trip: NUL, vertical tab, empty values; a tab cannot be inside a
+value; a second CR before the LF stays in the body and is refused); the order (BAD_CR before
+ALT_DUP, decision 7 first) is right; no approved law is weakened; the simple rule is the one to
+approve.
+
+| # | finding | by | decision |
+|---|---|---|---|
+| 24 | Lists of the split refusals leave out BAD_CR (`run`'s comment in LAWS.bend, the `Parts` comment, `notes/split.md`, `docs/LAWS.md`); the summary says refusals are only where bcftools guesses, drops or crashes | Claude, Grok | **Fix:** add BAD_CR everywhere; the summary adds "or where a record would not read back as written". |
+| 25 | The plain statement: "a carriage return inside it" covers a CRLF ending, and leaves out that a whole-line outcome that stops the run is reported first | Grok, Claude | **Fix:** "a carriage return anywhere in the line other than the one just before its final LF" (so `\r\r\n` is refused); then: a whole-line outcome that stops the run is reported first, otherwise BAD_CR, then the later reasons. |
+| 26 | The "why" in the differences table says too much | Claude | **Fix:** "a CR inside a line is not valid VCF; cutting a value at a CR can leave a record ending in CR, which a second run reads as a CRLF ending." |
+| 27 | The comment on `Rec.parts` names BAD_CR after ALT_DUP | Claude | **Fix:** BAD_CR first; re-wrap. |
+| 28 | Test the whole body (`B.Text.has_cr(body)`), not its fields | Claude | **Fix:** it matches the plain statement and the machine's byte test, and saves a lemma. |
