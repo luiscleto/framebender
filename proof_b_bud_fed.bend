@@ -21,6 +21,7 @@ import ./proof_run_base.bend as RB
 import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BD
 import ./proof_b_budget_lem.bend as BL
+import ./proof_b_adv_wf.bend as W
 import ./proof_b_enc.bend as EN
 import ./proof_b_lines.bend as PL
 import ./proof_b_lines_str.bend as LS
@@ -78,18 +79,24 @@ law lines_eq:
   for +wp: PC.WP
   for +fneed: Bool
   for +hl: {B.Text.lines(S.intext(S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs}, cs2)) == B.Text.lines(S.intext(S.StP{o, md, src, pd, eof, back, wp, None{}, fneed, dfs}, cs)) : List<&2, B.Line>}
-  {BN.lines(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2) == BN.lines(P.mkSrcs(src), P.mkPd(pd), eof, cs) : List<&2, B.Line>}
+  for +hn2: {S.no_recs(src2) == True{} : Bool}
+  for +hn0: {S.no_recs(src) == True{} : Bool}
+  {BN.ALL(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2) == BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs) : List<&2, B.Line>}
 
-def lines_eq(dfs,cs2, cs, o, md, src2, pd2, eof2, src, pd, eof, back, wp, fneed, hl):
+def lines_eq(dfs,cs2, cs, o, md, src2, pd2, eof2, src, pd, eof, back, wp, fneed, hl, hn2, hn0):
   +Q2 = {S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs} : S.StP}
   +Q0 = {S.StP{o, md, src, pd, eof, back, wp, None{}, fneed, dfs} : S.StP}
   +A2 = String.append(BN.srcT(P.mkSrcs(src2)), String.append(BN.pdT(P.mkPd(pd2)), S.concat_if(eof2, cs2)))
   +A0 = String.append(BN.srcT(P.mkSrcs(src)), String.append(BN.pdT(P.mkPd(pd)), S.concat_if(eof, cs)))
-  Equal.trans(List<&2, B.Line>, B.Text.lines(A2), B.Text.lines(S.intext(Q2, cs2)), B.Text.lines(A0),
-    Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), A2, S.intext(Q2, cs2), BL.text_pic(Q2, cs2)),
+  +L2 = BN.lines(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2)
+  +L0 = BN.lines(P.mkSrcs(src), P.mkPd(pd), eof, cs)
+  +el = Equal.trans(List<&2, B.Line>, B.Text.lines(A2), B.Text.lines(S.intext(Q2, cs2)), B.Text.lines(A0),
+    Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), A2, S.intext(Q2, cs2), BL.text_pic(Q2, cs2, W.nr_first(src2, hn2))),
     Equal.trans(List<&2, B.Line>, B.Text.lines(S.intext(Q2, cs2)), B.Text.lines(S.intext(Q0, cs)), B.Text.lines(A0), hl,
       Equal.sym(List<&2, B.Line>, B.Text.lines(A0), B.Text.lines(S.intext(Q0, cs)),
-        Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), A0, S.intext(Q0, cs), BL.text_pic(Q0, cs)))))
+        Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), A0, S.intext(Q0, cs), BL.text_pic(Q0, cs, W.nr_first(src, hn0))))))
+  Equal.trans(List<&2, B.Line>, BN.ALL(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2), L2, BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs), BL.all_nr(src2, pd2, eof2, cs2, hn2),
+    Equal.trans(List<&2, B.Line>, L2, L0, BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs), el, Equal.sym(List<&2, B.Line>, BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs), L0, BL.all_nr(src, pd, eof, cs, hn0))))
 
 # A fed state that is the picture Q1 of Q0 with other sources, line end and
 # eof, whose text has the same lines.
@@ -116,17 +123,17 @@ law fed_leaf:
   for +hr1: {S.report(fa, cs2, O, N, S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs}) == T : R.Report}
   for +hg: {S.guard(O, N, S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs}) == True{} : Bool}
   for +hbi: {BN.biS(S.mkSt(fa, S.StP{o, md, src, pd, eof, back, wp, None{}, fneed, dfs}), cs) == True{} : Bool}
-  for +hl: {B.Text.lines(S.intext(S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs}, cs2)) == B.Text.lines(S.intext(S.StP{o, md, src, pd, eof, back, wp, None{}, fneed, dfs}, cs)) : List<&2, B.Line>}
+  for +hla: {BN.ALL(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2) == BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs) : List<&2, B.Line>}
   BD.FedG(fa, T, cs2, O, N, BD.WP(fa, cs, S.StP{o, md, src, pd, eof, back, wp, None{}, fneed, dfs}), S.mkSt(fa, S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs}))
 
-def fed_leaf(dfs,fa, T, cs, cs2, O, N, o, md, src, pd, eof, src2, pd2, eof2, back, wp, fneed, hw1, hr1, hg, hbi, hl):
-  +L2 = BN.lines(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2)
-  +L0 = BN.lines(P.mkSrcs(src), P.mkPd(pd), eof, cs)
-  +leq = lines_eq(dfs, cs2, cs, o, md, src2, pd2, eof2, src, pd, eof, back, wp, fneed, hl)
+def fed_leaf(dfs,fa, T, cs, cs2, O, N, o, md, src, pd, eof, src2, pd2, eof2, back, wp, fneed, hw1, hr1, hg, hbi, hla):
+  +L2 = BN.ALL(P.mkSrcs(src2), P.mkPd(pd2), eof2, cs2)
+  +L0 = BN.ALL(P.mkSrcs(src), P.mkPd(pd), eof, cs)
+  +leq = hla
   +fl = BN.fast_left(S.mkMd(md), fneed)
   (S.StP{o, md, src2, pd2, eof2, back, wp, None{}, fneed, dfs}, ({==}, (hw1, (hr1, (hg, ({==},
-    (le_eq(BN.WA.ls(fa, fl, back, PC.mkWin(fa, wp), None{}, L2), BN.WA.ls(fa, fl, back, PC.mkWin(fa, wp), None{}, L0),
-       Equal.cong(List<&2, B.Line>, Nat, z => BN.WA.ls(fa, fl, back, PC.mkWin(fa, wp), None{}, z), L2, L0, leq)),
+    (le_eq(BN.WAX(fa, o, fl, back, PC.mkWin(fa, wp), None{}, L2), BN.WAX(fa, o, fl, back, PC.mkWin(fa, wp), None{}, L0),
+       Equal.cong(List<&2, B.Line>, Nat, z => BN.WAX(fa, o, fl, back, PC.mkWin(fa, wp), None{}, z), L2, L0, leq)),
      Equal.trans(Bool, BN.bi.ls(back, PC.mkWin(fa, wp), None{}, L2), BN.bi.ls(back, PC.mkWin(fa, wp), None{}, L0), True{},
        Equal.cong(List<&2, B.Line>, Bool, z => BN.bi.ls(back, PC.mkWin(fa, wp), None{}, z), L2, L0, leq), hbi))))))))
 
