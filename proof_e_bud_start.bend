@@ -222,25 +222,8 @@ law start_need:
   {Nat.is_le(BD.needW(B.Fasta.parse(fasta), L.run(fasta, vcf, o), W.St{DD.start_st(dfs, Norm.start(argv)), W.BNone{}}, cs, False{}, Pr.More{}, ""), M.bound(argv, fasta, vcf, cs)) == True{} : Bool}
 
 def start_need(dfs,argv, o, ref, vcfpath, fasta, vcf, cs, ha, h):
-  +fa = B.Fasta.parse(fasta)
-  +T = L.run(fasta, vcf, o)
-  +bd = M.bound(argv, fasta, vcf, cs)
-  +ls = BN.lines(Nil{}, Norm.PB{BY.empty(0n)}, False{}, cs)
-  +v = Nat.add(1n, String.length(vcf))
-  +c1 = Nat.add(List.length(&2, String, cs), 1n)
-  +H = BN.HO(T, "")
-  +Wv = BN.WA.ls(fa, True{}, 0n, Norm.WNone{}, None{}, ls)
-  +X = BD.XK(cs)
-  %Equal.sym(Maybe<&2, B.Cfg>, B.Args.parse(argv), Some{B.Cfg{o, ref, vcfpath}}, ha) :
-    {Nat.is_le(Nat.add(BN.needS(fa, T, DD.start_st(dfs, Norm.start.of(_)), cs, False{}, Pr.More{}, ""), X), bd) == True{} : Bool}
-  %Equal.sym(Nat, Nat.add(Nat.add(c1, Nat.add(2n, Nat.add(H, Wv))), X), Nat.add(c1, Nat.add(2n, Nat.add(Nat.add(H, X), Wv))), shuffle(c1, H, Wv, X)) :
-    {Nat.is_le(_, bd) == True{} : Bool}
-  N.le_trans(Nat.add(c1, Nat.add(2n, Nat.add(Nat.add(H, X), Wv))), Nat.add(Nat.add(Nat.add(M.pieces_len(cs), 3n), M.args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n))), bd,
-    BSt.fin(List.length(&2, String, cs), Nat.add(H, X), Wv, M.args_len(argv), v, String.length(fasta), BN.FM(fa),
-      ho_xk(dfs, argv, o, ref, vcfpath, fasta, vcf, cs, ha, h),
-      N.le_trans(Wv, BN.LAs(fa, ls), Nat.mul(v, BN.ZW(fa)), BSt.wa_le(fa, ls), BSt.las_cs(fa, cs, vcf, h)),
-      BSt.fa_fm(fasta)),
-    N.le_add_r(Nat.add(Nat.add(Nat.add(M.pieces_len(cs), 3n), M.args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n))), M.split_room(M.splits.of(B.Args.parse(argv)), vcf)))
+  ?TODO
+
 
 law start_bi:
   for +dfs: B.Defs

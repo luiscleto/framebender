@@ -227,9 +227,12 @@ sources in `where_eq`, the edge's fuel 4096) and the sequential assembly (`proof
 `machine_go`/`machine_h`: the report with `L.defs(concat cs)`, as `start_ok` gives it).
 The bound of decisions 29-36 is installed in `MACHINE.bend` (`splits.of`, `split_room`); the start
 lemmas (`bud_need`, `start_need`) meet it by `need <= old bound <= bound` until the budget charges
-the split records. These budget proofs stand on phase B's present `BN.WAS`; fb-budget's change
-(the records' lines first and `XA`, n_alts x LA for each candidate line) will have to be carried
-into `proof_e_bud_fed`, `_comb`, `_start` (and the arithmetic of `_none`, `_seq`) once it is in.
+the split records. Phase B's potential now charges them (fb-budget's `BN.ALL`/`XA`/`WAX`,
+cherry-picked as 840fe0b): the threads machine's budget follows it (`proof_e_bud_fed`: `stK`
+carries the opts, `all_lines`; `proof_e_bud_comb`: the merged state's `XA` is within Q's, `xa_app`,
+the opts kept along the edge, `fed_o`). `proof_e_bud_start.start_need` waits for phase B's
+`start_fit` (the start fit with the threads machine's 12 per piece of 256 bytes, `K`, and the
+output under the square: `BR.out_len` is false under `-m`, data/tmp/split/outlen/gen.py).
 
 Done in earlier stretches: `proof_f_out` (the `-m` parser states, the `-W` record); `wrap_mc` (the
 merge: "in the body" comes from `segok`'s first conjunct, so the state's `DEFS` is its field);
