@@ -416,3 +416,148 @@ direction of `%`, a `match` after a let, a Type-valued `+` let, a forward refere
 cost a check over the 4 GB cap: a wrong argument list next to `Nat.pow(2n, 32n)` in context, where
 the error printer blows up (the known trap). `pass_fields`' `""` was read in 7 places downstream
 (two in the rewrite path's proofs, one in the budget proofs); each took a generalized parameter.
+
+# fb-rewrite: records that are rewritten (2026-10-31)
+
+Brief: `notes/briefs/SPEED_REWRITE.md`. Branch `speed-rewrite`, from the speed branch with fb-tasks,
+fb-refuse and fb-end merged (d4a14ba). Scratch: `data/tmp/rewrite/` (inputs, builds, profiles,
+the bench and comparison scripts).
+
+## Where the time went
+
+`data/scr.vcf` (20,739 records, 685 bytes a line, 14 MB: four 3.5 MB pieces). Found with fb-tasks'
+instrumented build (`data/tmp/tasks/instr.py`, a note for each piece left to the main thread), a
+debug build that prints `merge.ok`'s conjuncts, and gprof (`clang -pg`, 8 runs summed; each
+`spin_N` of the generated C mapped to the defs that call it, `data/tmp/rewrite/spinmap.py`).
+
+1. **The pieces ran twice.** At the default threads scr took about as long as at `--threads 1`
+   (0.095 s against 0.116 s, user time = wall time): of the three pieces after the first, two
+   were left to the main thread, and their tasks' work was thrown away.
+   - Window misses: scr is sparse (one record per 1.7 kb of chr22), so a piece spans 8.3-8.7 Mb.
+     The plan's two reads (`ahead()` on from the first line, `ahead()` back from the last, 4 MiB
+     each) cover 2 x 4.13 Mb; a record in the gap made the task dirty.
+   - Refused merges (seen once the windows covered): scr's three copies of each indel, with
+     different padding, normalize to the same record. The last copy in piece S (input POS
+     26633021) and the first in T (26633024) both get key 26633027. T ran from the phantom
+     key l = its first line's POS (26633024), and `merge.ok` asks S's buffered keys to be at most
+     l: refused, though splicing was correct (T's first write was 26633027). The same happens
+     whenever left trims move a record's key past the next line's POS (scr30, 30 copies: 11 of
+     39 pieces).
+2. **The String path**: scr takes it for no record (scr30: about 300 calls of `decoded` in 207k
+   records). With an INFO/END entry, every rewritten record does (below).
+3. **Single thread** (scr30, 207k records, 0.71 s): the line's cut, twice (`NF.line`, then
+   `NX.line`: 13%); `BY.grow` (9.5%: the rewritten line's buffer started at `BY.empty(0n)` and
+   doubled about three times a line, `NR.depth` running its 29 strict steps each time; then
+   one 4 MiB output buffer per task run); the byte copies (7%); refcounting (12%); the
+   normalizer's steps (6%); INFO's scans (4%).
+
+## What changed
+
+1. **The phantom** (`norm.bend`, `plan.first`): a task's phantom key is its first line's POS plus
+   the piece's length, above any key the task can write first (an item's key is at most its
+   line's POS plus its REF's length). So the first run stops, UNSORTED against the phantom, at
+   its first write, and fb-tasks' retry runs the piece again from that key: the highest phantom
+   the merge can take. The first run reads only the lines up to its first write (2-3 lines on
+   HG002 at `-w 1000`).
+2. **The first run's output buffer** (`task.start`, `task.run1`): 64 KiB (it grows if the run goes
+   on); the rerun reserves `task.res` as before. With the piece's size for both runs, every task
+   paid a second 4 MiB block: chr22 at `--threads 1` was 5% slower.
+3. **Windows for a sparse piece** (`plan.two`): when the first and last lines are on one CHROM
+   more than 2 `ahead()` letters apart and the span is at most 4 `ahead()`, the two reads are the
+   span's halves, overlapping by 2 `margin()` (each at most 2 `ahead()` + `margin()` + 1 letters,
+   an 8 MiB block). Pieces within 2 `ahead()` keep their 4 MiB windows, so dense files read as
+   before; the halves cover everything the old pair covered.
+4. **Buffers made at their size**: `NX.write`'s buffer with room for the line and 24 bytes (the
+   new line is at most a byte longer: one more POS digit; the alleles only lose bases), and
+   `NR.cut_tail`'s (the sorting buffer's tail, moved when a record is inserted before buffered
+   ones) with room for the tail, as `take` already did.
+
+No law, spec or contract change. Not touched: `norm_split.bend`, `norm_seq.bend`, `task.res`.
+
+## Proofs
+
+- `proof_e_task_buf.bend`: `two_win` (two `plan.win` reads: within 2^31 letters, of bytes
+  contigs) and `two_ok` (`plan.two`, either branch), used by `reqs.if`; `plcp` and `last_b` take
+  the phantom as a parameter. `proof_e_task_piece.bend`: the piece lemma's witness for the
+  phantom (it was already existential). About 50 lines.
+- `proof_e_task_one.bend`: `run1_ok` takes the room as a parameter (`ST.run0_ok` was generic in
+  it); `retry_ok` and `retry_r` pass 65536 and `task.res`.
+- `proof_c_text.bend` (the writer's start buffer `BY.empty(d0)`, with `empty_ok_td` and
+  `proof_b_lines_room.bend`'s `dg_le`) and `proof_b_run_add.bend` (`mid.k1`, `mid_t`: the tail's
+  buffer, as `proof_b_run_take.bend` does for `take`).
+- Every change kept the statements the rest of the proofs use; each took one or two check rounds.
+
+## Timings
+
+`data/tmp/rewrite/bench.sh` and `bench2.sh`: each run under `data/tmp/bench.lock`, `nice -n 19`,
+CPUs 0-15, output to /dev/null, `-c w`, 3 rounds, main (03c3ed4), this branch's base (d4a14ba) and
+the final build interleaved; bcftools 1.24 beside them. 23:13 to 23:30; load average 2.1 to 2.7
+(other agents' checks; no other timing ran). Wall seconds (min-max of 3), peak RSS.
+
+| input | main | base | final | bcftools |
+|---|---|---|---|---|
+| scr (HG002 chr22 indels scrambled, seed of `data/scr.vcf`) | 0.104-0.107 | 0.094-0.099 | **0.060-0.066** | 0.047-0.053 |
+| scr2 (`scramble.py`, 3 copies, seed 7) | 0.094-0.098 | 0.096-0.099 | **0.061-0.066** | 0.045-0.055 |
+| scr1 (1 copy, seed 9: one task piece) | 0.052-0.055 | 0.051-0.052 | 0.051-0.052 | 0.020-0.022 |
+| scr30 (30 copies, seed 11, 142 MB) | 0.690-0.698 | 0.371-0.379 | **0.195-0.197** | 0.420-0.427 |
+| scr, valid END on every record | 8.28-8.56 | 6.86-6.93 | 3.57-3.63 | 0.053-0.055 |
+| scr, END with 2% POS-1 | 8.30-8.52 | 6.80-6.88 | 3.47-3.59 | 0.053-0.057 |
+| scr, `,<NON_REF>` on every ALT | 0.392-0.394 | 0.032-0.034 | 0.033 | 0.038-0.045 |
+| scr as `<NON_REF>` blocks with END | 0.150-0.153 | 0.025-0.028 | 0.026-0.028 | (fails: exit 255) |
+| scr, `--threads 1` | 0.114-0.115 | 0.115-0.117 | **0.092-0.094** | |
+| scr2, `--threads 1` | 0.112-0.115 | 0.114-0.116 | **0.091-0.093** | |
+| HG002 chr22 | 0.047-0.052 | 0.048 | 0.046-0.049 | 0.072-0.078 |
+| HG002 chr22, `--threads 1` | 0.087-0.089 | 0.089-0.093 | 0.088-0.096 | |
+| HG002 whole genome | 1.24-1.28 (332 MB) | 1.26-1.30 (332 MB) | 1.24-1.27 (340 MB) | |
+| HG002 whole genome, `--threads 1` | 5.27-5.31 (45 MB) | 5.50-5.56 (45 MB) | 5.50-5.57 (65 MB) | |
+
+The END files gain only from the parallel side (pieces no longer run twice); their records still
+take the String path (not done, below). The whole genome at `--threads 1` is 4% over main on both
+the base and the final build: fb-end's cost (its section), not this branch's.
+
+**Memory: the halves windows cost 10-20 MB.** A scratch build without them (`fb_nohalf`, `plan.two`
+always the old pair): whole genome 333 MB default and 45 MB at `--threads 1`, against 343 and 65
+MB with them; no time difference on the genome. On scr they are what makes the pieces clean
+(0.091-0.094 s without them, 0.061-0.068 with; `--threads 1` 0.109-0.111 against 0.091-0.095).
+`notes/memory.md` chose windows of at most 4 MiB; the halves bring 8 MiB blocks back for sparse
+pieces only. For the lead to keep or drop (one condition in `plan.reqs.if`); the phantom and the
+buffer changes do not depend on it.
+
+## Checks
+
+- Gate (`data/tmp/rewrite/gate.sh`, each step through `test/bcheck.sh`): `examples.bend` TODOs only,
+  `main.bend` "rely on unsafe" only, `PROOF.bend` ALL PROOFS CHECK with `--check-only` and
+  `--verdict`.
+- Same as main's build (stdout, stderr, exit code), private output dirs
+  (`data/tmp/rewrite/suite.sh`): `same.sh` 128, `par.sh` 312, `threads.sh` 2128 (usage errors and
+  thread counts OK), `out.sh` OK, `index.sh` ALL PASS, `split.sh` 80 as bcftools.
+- `data/tmp/rewrite/cmp.sh`: 140 runs, all the same as main: scr, scr2, scr1, scr30, the END and
+  gVCF shapes above (and scr2 with END first in INFO), chr22 and fb-end's four chr22 files, each
+  under `-c e`, `-c w`, `--threads 1/3/16`, `-w 1/50/100000/100000000` and `-m -any`.
+- Whole genome (`wg_cmp.sh`, under the lock): `-c w`, `-c e`, `--threads 1`, `--threads 4` the same
+  as main.
+- Pieces left to the main thread (instrumented build): scr and scr2 2 → 0, scr30 13 → 1, chr22
+  0 → 0.
+
+## Not done
+
+- **END on the rewrite path** (brief item 2; END.md fix 1's second half). Not done: it does not
+  fit with the rest in this branch. What it needs: `NX.line` takes fb-end's `ends` (one valid END
+  entry, found with its value's bytes) in place of `NF.noend`; the writer copies INFO in three
+  pieces (up to the value, `Nat.show` of the new end, the rest); and a new splice lemma,
+  `Info.set_end(INFO, e) == take(INFO, a) ++ show(e) ++ drop(INFO, b)` for the one END entry's
+  digits a .. b, by induction over the entries (as `proof_b_end_key.bend`'s `info_end`). Then the
+  pre side's mirror and inversion (`proof_c_pre_pair`, `_inv`), `fix_info`, `rebuild_fix` (which
+  now uses `set_end_id`), and the text lemmas (`TXT`, `tx_eq`) take the spliced INFO. Estimate
+  1,000-1,500 lines. A shortcut without the splice (keep INFO when the end does not change) covers
+  almost nothing: the end stays only without a shift and a right trim, and nearly every scrambled
+  record has one. The cost it would remove: scr with a valid END on every record takes 3.6 s
+  (main 6.9 s) against 0.063 s without END, every record on the String path.
+- **The second cut**: `NF.line` cuts the line and answers Slow; `NX.line` cuts it again (about 6%
+  single thread). Handing the cut over changes `NF.Pr`, which phase B's and C's inversions read.
+- **The scratch buffer**: the rewritten line is written to its own buffer, then copied into the
+  output (phase C's decision 3). Writing it in place changes `proof_b_run_add`/`_bl`.
+- **The first piece**: Q handles the first piece itself (header and about 5,300 records on scr),
+  a quarter of scr's records on the critical path.
+- **Dense scrambles**: scr30 still leaves one piece of 39 to the main thread: a true crossing (a
+  record in T sorts before one buffered in S).
