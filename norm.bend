@@ -24,10 +24,10 @@ import lawful-halves@0.1.0.0/halves.bend as HH
 #    reads per such piece (none if there is no such piece).
 # 3. Run: one task per piece (lawful-halves' H.all, in parallel). A task runs
 #    Q's pump on the piece's lines after its first LF, from a fresh run whose
-#    CHROM is the first line's and whose last written key is l (a phantom:
-#    the task stops, UNSORTED, if it writes a smaller key; it then runs once
-#    more from the key it stopped at, which the merge checks against the
-#    true run's). It is clean when every complete line is handled on bytes,
+#    CHROM is the first line's and whose last written key is l (a phantom,
+#    above any key the task can write first: the task stops, UNSORTED, at
+#    its first write, and runs once more from the key it stopped at, which
+#    the merge checks against the true run's). It is clean when every complete line is handled on bytes,
 #    with no stop and no read its windows do not answer (its warnings, -c w,
 #    are kept, numbered from its first line).
 # 4. Combine, in order: the line across the boundary is handled by Q on the
@@ -306,11 +306,9 @@ def cp(b: D.Bytes, +s: U32, +e: U32) -> Cp:
 # The reads for a piece whose first complete line is at c1:p1 and last at
 # c2:p2 (POS 1-based): one window from margin() letters before the smaller
 # POS to margin() past the larger, when both are on one CHROM and it is at
-# most ahead() + margin() letters (and an empty one); else a window ahead()
-# letters on from the first, and one ahead() letters back from the last (each
-# empty if it is more than 2^31 letters). So no read takes more than a 4 MiB
-# block (notes/memory.md). A piece with a complete line after its first LF
-# has these two reads; any other piece none.
+# most ahead() + margin() letters (and an empty one); else two (plan.two),
+# each empty if it is more than 2^31 letters. A piece with a complete line
+# after its first LF has these two reads; any other piece none.
 def plan.win.if(one: Bool, +c: String, +a: Nat, +e: Nat) -> P.Req:
   match one:
     case True{}:
@@ -323,46 +321,66 @@ def plan.win.if(one: Bool, +c: String, +a: Nat, +e: Nat) -> P.Req:
 def plan.win(+c: String, +a: Nat, +e: Nat) -> P.Req:
   plan.win.if(Q.le31(Nat.sub(e, a)), c, a, e)
 
+# Two windows: a window ahead() letters on from the first line and one
+# ahead() letters back from the last, each in a 4 MiB block (notes/memory.md);
+# but when the lines are on one CHROM more than 2 ahead() letters apart (so
+# those two leave a gap: a sparse piece, or one with short lines) and the
+# span a .. e is at most 4 ahead() letters, its two halves, each with
+# margin() letters more where they meet (at most 2 ahead() + margin() + 1
+# letters, an 8 MiB block).
+def plan.two(halves: Bool, +c1: String, +p1: Nat, +c2: String, +p2: Nat, +a: Nat, +e: Nat) -> List<&2, P.Req>:
+  match halves:
+    case True{}:
+      +m = Nat.add(a, Nat.div(Nat.sub(e, a), 2n))
+      [plan.win(c1, a, Nat.add(m, Q.margin())), plan.win(c1, Nat.sub(m, Q.margin()), e)]
+    case False{}:
+      [plan.win(c1, Nat.sub(Nat.sub(p1, 1n), Q.margin()), Nat.add(p1, Q.ahead())),
+       plan.win(c2, Nat.sub(Nat.sub(p2, 1n), Q.ahead()), Nat.add(p2, Q.margin()))]
+
 def plan.reqs.if(one: Bool, +c1: String, +p1: Nat, +c2: String, +p2: Nat, +a: Nat, +e: Nat) -> List<&2, P.Req>:
   match one:
     case True{}:
       [P.Req{c1, a, e}, P.Req{c1, e, e}]
     case False{}:
-      [plan.win(c1, Nat.sub(Nat.sub(p1, 1n), Q.margin()), Nat.add(p1, Q.ahead())),
-       plan.win(c2, Nat.sub(Nat.sub(p2, 1n), Q.ahead()), Nat.add(p2, Q.margin()))]
+      plan.two(String.eq(c1, c2) && Bool.not(Nat.is_le(Nat.sub(Nat.sub(p2, p1), Q.ahead()), Q.ahead())) && Nat.is_le(Nat.sub(Nat.sub(Nat.sub(Nat.sub(e, a), Q.ahead()), Q.ahead()), Q.ahead()), Q.ahead()), c1, p1, c2, p2, a, e)
 
 def plan.reqs(+c1: String, +p1: Nat, +c2: String, +p2: Nat) -> List<&2, P.Req>:
   +a = Nat.sub(Nat.sub(Nat.min(p1, p2), 1n), Q.margin())
   +e = Nat.add(Nat.max(p1, p2), Q.margin())
   plan.reqs.if(String.eq(c1, c2) && Q.le31(Nat.sub(e, a)) && Nat.is_le(Nat.sub(Nat.sub(e, a), Q.margin()), Q.ahead()), c1, p1, c2, p2, a, e)
 
-def plan.last.cp(+k: U32, +c1: String, +p1: Nat, c: Cp) -> Pl:
+def plan.last.cp(+k: U32, +c1: String, +p1: Nat, +l: Nat, c: Cp) -> Pl:
   match c:
     case Cp{b, True{}, +c2, +p2}:
-      Pl{b, plan.reqs(c1, p1, c2, p2), True{}, k, c1, p1}
+      Pl{b, plan.reqs(c1, p1, c2, p2), True{}, k, c1, l}
     case Cp{b, False{}, c2, p2}:
-      Pl{b, plan.reqs(c1, p1, c1, p1), True{}, k, c1, p1}
+      Pl{b, plan.reqs(c1, p1, c1, p1), True{}, k, c1, l}
 
-def plan.last.at2(+k: U32, +c1: String, +p1: Nat, +el: U32, +s1: U32, b: D.Bytes, q: U32 & Bool) -> Pl:
+def plan.last.at2(+k: U32, +c1: String, +p1: Nat, +l: Nat, +el: U32, +s1: U32, b: D.Bytes, q: U32 & Bool) -> Pl:
   (+e0, f0) = q
-  plan.last.cp(k, c1, p1, cp(b, Bool.pick(U32, f0, (e0 + 1 : U32), s1), el))
+  plan.last.cp(k, c1, p1, l, cp(b, Bool.pick(U32, f0, (e0 + 1 : U32), s1), el))
 
-def plan.last.at(+k: U32, +c1: String, +p1: Nat, +el: U32, +s1: U32, r: D.Bytes & (U32 & Bool)) -> Pl:
+def plan.last.at(+k: U32, +c1: String, +p1: Nat, +l: Nat, +el: U32, +s1: U32, r: D.Bytes & (U32 & Bool)) -> Pl:
   (b, q) = r
-  plan.last.at2(k, c1, p1, el, s1, b, q)
+  plan.last.at2(k, c1, p1, l, el, s1, b, q)
 
-def plan.last.k2(+k: U32, +c1: String, +p1: Nat, +s1: U32, b: D.Bytes, q: U32 & Bool) -> Pl:
+def plan.last.k2(+k: U32, +c1: String, +p1: Nat, +l: Nat, +s1: U32, b: D.Bytes, q: U32 & Bool) -> Pl:
   (+el, len) = q
-  plan.last.at(k, c1, p1, el, s1, rlf(b, el, s1))
+  plan.last.at(k, c1, p1, l, el, s1, rlf(b, el, s1))
 
-def plan.last.k(+k: U32, +c1: String, +p1: Nat, +s1: U32, r: D.Bytes & (U32 & Bool)) -> Pl:
+def plan.last.k(+k: U32, +c1: String, +p1: Nat, +l: Nat, +s1: U32, r: D.Bytes & (U32 & Bool)) -> Pl:
   (b, q) = r
-  plan.last.k2(k, c1, p1, s1, b, q)
+  plan.last.k2(k, c1, p1, l, s1, b, q)
 
+# The phantom key is the first line's POS plus the piece's length: above any
+# key the task can write first (an item's key is at most its line's POS plus
+# its REF's length), so the task's first run stops at its first write and
+# runs again from that key, the highest phantom (merge.ok asks S's keys to be
+# at most the phantom). The first run reads only the lines up to that write.
 def plan.first(+len: U32, +k: U32, +s1: U32, c: Cp) -> Pl:
   match c:
     case Cp{b, True{}, +c1, +p1}:
-      plan.last.k(k, c1, p1, s1, rlf(b, len, s1))
+      plan.last.k(k, c1, p1, Nat.add(p1, U32.to_nat(len)), s1, rlf(b, len, s1))
     case Cp{b, False{}, c1, p1}:
       Pl{b, Nil{}, False{}, k, "", 0n}
 
