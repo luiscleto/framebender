@@ -1151,12 +1151,56 @@ def fast.pre(+back: Nat, +o: B.Opts, run: NR.Run, +s: U32, pr: NF.Pr, cx: Cx, wi
     case NF.Pr{b, NF.Incomplete{}}:
       decoded(back, o, run, b, s, cx, win, fneed)
 
-def split.out(o2: NS.Out, +back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+# A line the byte splitter refuses (code c) under -c w, its CHROM the
+# window's contig (so in the reference: not UNKNOWN_CHROM, and not MALFORMED
+# either): passed through as it came, with the warning c (LAWS.bend's
+# unsplit_in, as the String path's vd.unsplit gives it).
+def ref.pos(+o: B.Opts, p: NR.Run & Nat, +c: B.Code, +ch: String, r: D.Bytes & String, +s: U32, +lf: U32, cx: Cx, win: Win) -> Adv:
+  (run, +n) = p
+  (b, +pos) = r
+  done.b(o, NR.problem_line(False{}, run, R.Opts.w(o), c, B.At{n, ch, pos}, Maybe.default(&2, Nat, B.Pos.read(pos), 0n), b, s, (lf + 1 - s : U32)), (lf + 1 : U32), cx, win)
+
+def ref.if(ok: Bool, +back: Nat, +o: B.Opts, run: NR.Run, +c: B.Code, +ch: String, +f1: NS.Rg, b: D.Bytes, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  match ok:
+    case True{}:
+      ref.pos(o, ticked(run), c, ch, NS.txt(b, f1), s, lf, cx, win)
+    case False{}:
+      decoded(back, o, run, b, s, cx, win, fneed)
+
+def ref.on(p: Win & Bool, +big: Bool, +back: Nat, +o: B.Opts, run: NR.Run, +c: B.Code, +ch: String, +f1: NS.Rg, b: D.Bytes, +s: U32, +lf: U32, cx: Cx, +fneed: Bool) -> Adv:
+  (win, on) = p
+  ref.if(on && Bool.not(big), back, o, run, c, ch, f1, b, s, lf, cx, win, fneed)
+
+# The window is the contig ch's (WKnown).
+def Win.on(win: Win, +ch: String) -> Win & Bool:
+  match win:
+    case WKnown{+c0, cb, +a0, +b0, +clen, +off, raw, +offu, +rlen, +clenu}:
+      (WKnown{c0, cb, a0, b0, clen, off, raw, offu, rlen, clenu}, String.eq(ch, c0))
+    case w:
+      (w, False{})
+
+def ref.ch(r: D.Bytes & String, +back: Nat, +o: B.Opts, run: NR.Run, +c: B.Code, +f1: NS.Rg, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  (b, +ch) = r
+  ref.on(Win.on(win, ch), U32.is_lt(268435456, (lf - s : U32)), back, o, run, c, ch, f1, b, s, lf, cx, fneed)
+
+# Under -c e the run stops at the line: the String path says how. Under -c w
+# (and a line of at most 2^28 bytes) the line goes through here when its
+# CHROM is the window's contig, else the String path takes it.
+def ref.b(strict: Bool, +back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +c: B.Code, +f0: NS.Rg, +f1: NS.Rg, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  match strict:
+    case True{}:
+      decoded(back, o, run, b, s, cx, win, fneed)
+    case False{}:
+      ref.ch(NS.txt(b, f0), back, o, run, c, f1, s, lf, cx, win, fneed)
+
+def split.out(o2: NS.Ans, +back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
   match o2:
     case NS.Out{b, Some{recs}}:
       inject(o, run, b, lf, recs, cx, win)
     case NS.Out{b, None{}}:
       decoded(back, o, run, b, s, cx, win, fneed)
+    case NS.Ref{b, +c, +f0, +f1}:
+      ref.b(R.Opts.strict(o), back, o, run, b, c, f0, f1, s, lf, cx, win, fneed)
 
 def split.b(+back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
   match cx:

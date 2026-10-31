@@ -15,6 +15,9 @@ import ./proof_s_top.bend as TOP
 import ./proof_s_ck.bend as CK
 import ./proof_s_line.bend as LI
 import ./proof_s_scan.bend as SC
+import ./proof_s_ref.bend as RF
+import ./proof_s_when.bend as WH
+import ./LAWS.bend as L
 import lawful-bytes@0.1.0.0/defs.bend as D
 import lawful-bytes@0.1.0.0/bytes.bend as BY
 import lawful-bytes@0.1.0.0/proof_core.bend as C
@@ -64,24 +67,39 @@ def crt_eq(+fs: Rgs(), +iks: List<&2, NS.Ik>, +fks: List<&2, NS.Fk>, +term: NS.R
     case NS.Rg{+a, +z}:
       {==}
 
+# A line the splitter does not split: it comes back alone (False: the
+# String path decides), or refused (True) with the code c that B.Rec.parts
+# refuses its body bdy with, and the ranges of its CHROM and POS.
+def SPN(+r: Bool, +len: U32, +t: AT.Tree<U32>, -out: NS.Ans, +pt: B.Parts, +bdy: String) -> Type:
+  match r:
+    case False{}:
+      {out == NS.Out{C.BT(len, t), None{}} : NS.Ans}
+    case True{}:
+      &c: B.Code -> &f0: NS.Rg -> &f1: NS.Rg -> ({out == NS.Ref{C.BT(len, t), c, f0, f1} : NS.Ans} & ({pt == B.Unsplit{c} : B.Parts} &
+        ({NS.txt(C.BT(len, t), f0) == (C.BT(len, t), B.Rec.field(B.Rec.fields(bdy), 0n)) : D.Bytes & String} &
+          {NS.txt(C.BT(len, t), f1) == (C.BT(len, t), B.Rec.field(B.Rec.fields(bdy), 1n)) : D.Bytes & String})))
+
+def SPF(+len: U32, +t: AT.Tree<U32>, -out: NS.Ans, +pt: B.Parts, +bdy: String) -> Type:
+  &r: Bool -> SPN(r, len, t, out, pt, bdy)
+
 # The splitter's answer: the line back with records (True: the line is
 # split into pieces ps, the records' buffer holds their text, each followed
 # by the terminator, and passed the check: one LF per piece, and no CR
 # unless the terminator is CR LF, cr), or the line back alone (False).
-def SPB(+b: Bool, +len: U32, +t: AT.Tree<U32>, -out: NS.Out, +pt: B.Parts, +term: String, +cr: Bool) -> Type:
+def SPB(+b: Bool, +len: U32, +t: AT.Tree<U32>, -out: NS.Ans, +pt: B.Parts, +bdy: String, +term: String, +cr: Bool) -> Type:
   match b:
     case True{}:
-      &l2: U32 -> &t2: AT.Tree<U32> -> &ps: Ss() -> ({out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Out} &
+      &l2: U32 -> &t2: AT.Tree<U32> -> &ps: Ss() -> ({out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Ans} &
         ({W.OK(l2, t2) == True{} : Bool} & ({pt == B.Pieces{ps} : B.Parts} & ({NR.chars(W.V(l2, t2)) == Norm.recs_text(ps, term) : String} &
           CK.CK(l2, t2, List.length(&2, String, ps), cr)))))
     case False{}:
-      {out == NS.Out{C.BT(len, t), None{}} : NS.Out}
+      SPF(len, t, out, pt, bdy)
 
-def SPR(+len: U32, +t: AT.Tree<U32>, -out: NS.Out, +pt: B.Parts, +term: String, +cr: Bool) -> Type:
-  &b: Bool -> SPB(b, len, t, out, pt, term, cr)
+def SPR(+len: U32, +t: AT.Tree<U32>, -out: NS.Ans, +pt: B.Parts, +bdy: String, +term: String, +cr: Bool) -> Type:
+  &b: Bool -> SPB(b, len, t, out, pt, bdy, term, cr)
 
-def none(+len: U32, +t: AT.Tree<U32>, +pt: B.Parts, +term: String, +cr: Bool) -> SPR(len, t, NS.Out{C.BT(len, t), None{}}, pt, term, cr):
-  (False{}, {==})
+def none(+len: U32, +t: AT.Tree<U32>, +pt: B.Parts, +bdy: String, +term: String, +cr: Bool) -> SPR(len, t, NS.Out{C.BT(len, t), None{}}, pt, bdy, term, cr):
+  (False{}, (False{}, {==}))
 
 # ---------------------------------------------------------------------------
 # The mirrors, turned for rewriting
@@ -157,14 +175,184 @@ def ck.k(+l2: U32, +t2: AT.Tree<U32>, +k1: Nat, +k2: Nat, +cr: Bool, +e: {k1 == 
   (h10, hcr) = c
   (Equal.trans(Nat, FD.count(W.V(l2, t2), 10), k1, k2, h10, e), hcr)
 
+# ---------------------------------------------------------------------------
+# A line the writer gives up on: refused, or back alone
+# ---------------------------------------------------------------------------
+
+# FORMAT's keys k1 (what the writer's kinds are of) are those of field 8,
+# when there is one.
+def RK(+len: U32, +t: AT.Tree<U32>, +rest: Rgs(), +k1: Ss()) -> Type:
+  match rest:
+    case Nil{}:
+      {True{} == True{} : Bool}
+    case Con{+f8, +cols}:
+      {k1 == String.split(WT.TX(len, t, f8), ':') : Ss()}
+
+def sm2(x: Maybe<&2, Maybe<&2, B.Code>>) -> Bool:
+  match x:
+    case Some{Some{c}}:
+      True{}
+    case _:
+      False{}
+
+def un2(+d: B.Code, x: Maybe<&2, Maybe<&2, B.Code>>) -> B.Code:
+  match x:
+    case Some{Some{+c}}:
+      c
+    case _:
+      d
+
+def MMC() -> Data:
+  Maybe<&2, Maybe<&2, B.Code>>
+
+# A refusal c: the parts are Unsplit{c}.
+def unsplit_of(+pt: B.Parts, +c: B.Code, +h: {L.refusal(pt) == Some{Some{c}} : MMC()}) -> {pt == B.Unsplit{c} : B.Parts}:
+  match pt:
+    case B.Whole{}:
+      Empty.absurd({B.Whole{} == B.Unsplit{c} : B.Parts}, N.false_ne_true(Equal.cong(MMC(), Bool, x => sm2(x), None{}, Some{Some{c}}, h)))
+    case B.Pieces{+ps}:
+      Empty.absurd({B.Pieces{ps} == B.Unsplit{c} : B.Parts}, N.false_ne_true(Equal.cong(MMC(), Bool, x => sm2(x), Some{None{}}, Some{Some{c}}, h)))
+    case B.Unsplit{+c2}:
+      Equal.cong(B.Code, B.Parts, x => B.Unsplit{x}, c2, c, Equal.cong(MMC(), B.Code, x => un2(c2, x), Some{Some{c2}}, Some{Some{c}}, h))
+
+def spf.m(+m: Maybe<&2, B.Code>, +len: U32, +t: AT.Tree<U32>, +pt: B.Parts, +bdy: String, +f0: NS.Rg, +f1: NS.Rg,
+  +hr: {L.refusal(pt) == Some{m} : MMC()},
+  +h0: {NS.txt(C.BT(len, t), f0) == (C.BT(len, t), B.Rec.field(B.Rec.fields(bdy), 0n)) : D.Bytes & String},
+  +h1: {NS.txt(C.BT(len, t), f1) == (C.BT(len, t), B.Rec.field(B.Rec.fields(bdy), 1n)) : D.Bytes & String}) ->
+  SPF(len, t, RF.RF(len, t, m, f0, f1), pt, bdy):
+  match m:
+    case None{}:
+      (False{}, {==})
+    case Some{+c}:
+      (True{}, (c, (f0, (f1, ({==}, (unsplit_of(pt, c, hr), (h0, h1)))))))
+
+def pv_upr(+len: U32, +bb: U32, +x: NS.Rg, +hp: {W.PV(bb, x) == True{} : Bool}, +hb: {Nat.is_lt(n(bb), n(len)) == True{} : Bool}) -> {W.PV(len, x) == True{} : Bool}:
+  match x:
+    case NS.Rg{+a, +z}:
+      RC.pv_up(len, bb, a, z, hp, hb)
+
+# A field's text, as the record's fields say.
+def fld(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bdy: String, +fs: Rgs(), +x: NS.Rg, +k: Nat,
+  +hf: {B.Rec.fields(bdy) == K.TXS(len, t, fs) : Ss()}, +hp: {W.PV(len, x) == True{} : Bool},
+  +hx: {B.Rec.field(K.TXS(len, t, fs), k) == WT.TX(len, t, x) : String}) ->
+  {NS.txt(C.BT(len, t), x) == (C.BT(len, t), B.Rec.field(B.Rec.fields(bdy), k)) : D.Bytes & String}:
+  %Equal.sym(Ss(), B.Rec.fields(bdy), K.TXS(len, t, fs), hf) : {NS.txt(C.BT(len, t), x) == (C.BT(len, t), B.Rec.field(_, k)) : D.Bytes & String}
+  %Equal.sym(String, B.Rec.field(K.TXS(len, t, fs), k), WT.TX(len, t, x), hx) : {NS.txt(C.BT(len, t), x) == (C.BT(len, t), _) : D.Bytes & String}
+  RD.txt_t(len, t, d, x, hl, hp)
+
+# The parts refuse with the line's first problem after its ALTs.
+def ref_r(+len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +fs: Rgs(), +alts: Rgs(), +pt: B.Parts,
+  +hpe: {pt == LI.PT(len, t, defs, o0, fs, alts) : B.Parts},
+  +h2: {Nat.is_le(2n, List.length(&2, NS.Rg, alts)) == True{} : Bool},
+  +hl8: {Nat.is_lt(List.length(&2, String, K.TXS(len, t, fs)), 8n) == False{} : Bool}) ->
+  {L.refusal(pt) == Some{WH.PROBF(K.TXS(len, t, fs), defs, List.length(&2, NS.Rg, alts))} : MMC()}:
+  +TA = K.TXS(len, t, alts)
+  +TF = K.TXS(len, t, fs)
+  +nn = List.length(&2, NS.Rg, alts)
+  +el = LI.txs_len(len, t, alts)
+  +h2s = {%Equal.sym(Nat, List.length(&2, String, TA), nn, el) : {Nat.is_le(2n, _) == True{} : Bool}; h2 : {Nat.is_le(2n, List.length(&2, String, TA)) == True{} : Bool}}
+  %Equal.sym(B.Parts, pt, LI.PT(len, t, defs, o0, fs, alts), hpe) : {L.refusal(_) == Some{WH.PROBF(TF, defs, nn)} : MMC()}
+  %Equal.sym(Nat, nn, List.length(&2, String, TA), Equal.sym(Nat, List.length(&2, String, TA), nn, el)) :
+    {L.refusal(B.Parts.of(B.Rec.pieces.go(TA, TF, defs, o0, _, 1n))) == Some{WH.PROBF(TF, defs, _)} : MMC()}
+  WH.ws.p(TA, TF, defs, o0, h2s, hl8)
+
+def lt0(+x: Nat) -> {Nat.is_lt(x, 0n) == False{} : Bool}:
+  match x:
+    case 0n:
+      {==}
+    case 1n+k:
+      {==}
+
+def len8(+len: U32, +t: AT.Tree<U32>, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +rest: Rgs()) ->
+  {Nat.is_lt(List.length(&2, String, K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest))), 8n) == False{} : Bool}:
+  lt0(List.length(&2, String, K.TXS(len, t, rest)))
+
+def apd(+bb: U32, +x: NS.Rg, +r: Rgs(), +h: {K.ALLPV(bb, Con{x, r}) == True{} : Bool}) -> {K.ALLPV(bb, r) == True{} : Bool}:
+  N.and_true_r(W.PV(bb, x), K.ALLPV(bb, r), h)
+
+def drop8(+bb: U32, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +r: Rgs(),
+  +h: {K.ALLPV(bb, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, r)) == True{} : Bool}) -> {K.ALLPV(bb, r) == True{} : Bool}:
+  apd(bb, NS.Rg{a7, z7}, r, apd(bb, f6, Con{NS.Rg{a7, z7}, r}, apd(bb, f5, Con{f6, Con{NS.Rg{a7, z7}, r}}, apd(bb, f4, Con{f5, Con{f6, Con{NS.Rg{a7, z7}, r}}},
+    apd(bb, f3, Con{f4, Con{f5, Con{f6, Con{NS.Rg{a7, z7}, r}}}}, apd(bb, f2, Con{f3, Con{f4, Con{f5, Con{f6, Con{NS.Rg{a7, z7}, r}}}}},
+      apd(bb, f1, Con{f2, Con{f3, Con{f4, Con{f5, Con{f6, Con{NS.Rg{a7, z7}, r}}}}}}, apd(bb, f0, Con{f1, Con{f2, Con{f3, Con{f4, Con{f5, Con{f6, Con{NS.Rg{a7, z7}, r}}}}}}}, h))))))))
+
+
+# The writer gave up on the line (not MALFORMED, two or more ALTs, its
+# fields fs): refuse gives the code B.Rec.parts refuses it with, or the line
+# back alone.
+
+def ref.n8(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool},
+  +defs: B.Defs, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +nn: Nat,
+  +fks: List<&2, NS.Fk>, +pt: B.Parts, +bdy: String,
+  +h7: {W.PV(len, NS.Rg{a7, z7}) == True{} : Bool},
+  +hr: {L.refusal(pt) == Some{WH.PROBF(K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, Nil{})), defs, nn)} : MMC()},
+  +hf0: {NS.txt(C.BT(len, t), f0) == (C.BT(len, t), B.Rec.field(B.Rec.fields(bdy), 0n)) : D.Bytes & String},
+  +hf1: {NS.txt(C.BT(len, t), f1) == (C.BT(len, t), B.Rec.field(B.Rec.fields(bdy), 1n)) : D.Bytes & String}) ->
+  SPF(len, t, NS.refuse(C.BT(len, t), RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, Nil{}), fks, nn, defs), pt, bdy):
+  +FS = RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, Nil{})
+  %Equal.sym(NS.Ans, NS.refuse(C.BT(len, t), FS, fks, nn, defs), RF.RF(len, t, WH.PROBF(K.TXS(len, t, FS), defs, nn), f0, f1),
+    RF.refuse_t8(len, t, d, hl, f0, f1, f2, f3, f4, f5, f6, a7, z7, h7, fks, defs, nn)) :
+    SPF(len, t, _, pt, bdy)
+  spf.m(WH.PROBF(K.TXS(len, t, FS), defs, nn), len, t, pt, bdy, f0, f1, hr, hf0, hf1)
+
+def ref.n9(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bd: Nat, +hbd: {Nat.pow(2n, 32n) == bd : Nat},
+  +defs: B.Defs, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +f8: NS.Rg, +cols: Rgs(), +nn: Nat,
+  +pt: B.Parts, +bdy: String, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool},
+  +h7: {W.PV(len, NS.Rg{a7, z7}) == True{} : Bool}, +h8: {W.PV(len, f8) == True{} : Bool}, +hpc: {K.ALLPV(be, cols) == True{} : Bool},
+  +hn: {Nat.is_le(1n, nn) == True{} : Bool},
+  +hr: {L.refusal(pt) == Some{WH.PROBF(K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, Con{f8, cols})), defs, nn)} : MMC()},
+  +hf0: {NS.txt(C.BT(len, t), f0) == (C.BT(len, t), B.Rec.field(B.Rec.fields(bdy), 0n)) : D.Bytes & String},
+  +hf1: {NS.txt(C.BT(len, t), f1) == (C.BT(len, t), B.Rec.field(B.Rec.fields(bdy), 1n)) : D.Bytes & String}) ->
+  SPF(len, t, NS.refuse(C.BT(len, t), RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, Con{f8, cols}), KD.MAPF(RC.DF(defs), String.split(WT.TX(len, t, f8), ':')), nn, defs), pt, bdy):
+  +FS = RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, Con{f8, cols})
+  %Equal.sym(NS.Ans, NS.refuse(C.BT(len, t), FS, KD.MAPF(RC.DF(defs), String.split(WT.TX(len, t, f8), ':')), nn, defs), RF.RF(len, t, WH.PROBF(K.TXS(len, t, FS), defs, nn), f0, f1),
+    RF.refuse_t9(len, t, d, hl, f0, f1, f2, f3, f4, f5, f6, a7, z7, f8, cols, h7, h8, be, hpc, hbl, defs, nn, hn, bd, hbd)) :
+    SPF(len, t, _, pt, bdy)
+  spf.m(WH.PROBF(K.TXS(len, t, FS), defs, nn), len, t, pt, bdy, f0, f1, hr, hf0, hf1)
+
+# The writer gave up on the line (not MALFORMED, two or more ALTs, its
+# fields FSX(..., rest)): refuse gives the code B.Rec.parts refuses it with,
+# or the line back alone.
+def wr.f(+rest: Rgs(), +len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bd: Nat, +hbd: {Nat.pow(2n, 32n) == bd : Nat},
+  +defs: B.Defs, +o0: Bool, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +alts: Rgs(),
+  +k1: Ss(), +pt: B.Parts, +bdy: String, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool},
+  +hps: {K.ALLPV(be, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest)) == True{} : Bool},
+  +hf: {B.Rec.fields(bdy) == K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest)) : Ss()},
+  hk1: RK(len, t, rest, k1),
+  +hpe: {pt == LI.PT(len, t, defs, o0, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), alts) : B.Parts},
+  +h2: {Nat.is_le(2n, List.length(&2, NS.Rg, alts)) == True{} : Bool},
+  -out: NS.Ans, +q: {out == NS.Out{C.BT(len, t), None{}} : NS.Ans}) ->
+  SPF(len, t, NS.go.ref(out, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), KD.MAPF(RC.DF(defs), k1), List.length(&2, NS.Rg, alts), defs), pt, bdy):
+  match rest:
+    case Nil{}:
+      +FS = RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, Nil{})
+      %Equal.sym(NS.Ans, out, NS.Out{C.BT(len, t), None{}}, q) : SPF(len, t, NS.go.ref(_, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, Nil{}), KD.MAPF(RC.DF(defs), k1), List.length(&2, NS.Rg, alts), defs), pt, bdy)
+      ref.n8(len, t, d, hl, defs, f0, f1, f2, f3, f4, f5, f6, a7, z7, List.length(&2, NS.Rg, alts), KD.MAPF(RC.DF(defs), k1), pt, bdy,
+        pv_upr(len, be, NS.Rg{a7, z7}, LI.pv_at(be, FS, 7n, hps), hbl),
+        ref_r(len, t, defs, o0, FS, alts, pt, hpe, h2, len8(len, t, f0, f1, f2, f3, f4, f5, f6, a7, z7, Nil{})),
+        fld(len, t, d, hl, bdy, FS, f0, 0n, hf, pv_upr(len, be, f0, LI.pv_at(be, FS, 0n, hps), hbl), {==}),
+        fld(len, t, d, hl, bdy, FS, f1, 1n, hf, pv_upr(len, be, f1, LI.pv_at(be, FS, 1n, hps), hbl), {==}))
+    case Con{+f8, +cols}:
+      +FS = RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, Con{f8, cols})
+      %Equal.sym(NS.Ans, out, NS.Out{C.BT(len, t), None{}}, q) : SPF(len, t, NS.go.ref(_, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, Con{f8, cols}), KD.MAPF(RC.DF(defs), k1), List.length(&2, NS.Rg, alts), defs), pt, bdy)
+      %Equal.sym(Ss(), k1, String.split(WT.TX(len, t, f8), ':'), hk1) :
+        SPF(len, t, NS.refuse(C.BT(len, t), FS, KD.MAPF(RC.DF(defs), _), List.length(&2, NS.Rg, alts), defs), pt, bdy)
+      ref.n9(len, t, d, hl, bd, hbd, defs, f0, f1, f2, f3, f4, f5, f6, a7, z7, f8, cols, List.length(&2, NS.Rg, alts), pt, bdy, be, hbl,
+        pv_upr(len, be, NS.Rg{a7, z7}, LI.pv_at(be, FS, 7n, hps), hbl), pv_upr(len, be, f8, LI.pv_at(be, FS, 8n, hps), hbl),
+        apd(be, f8, cols, drop8(be, f0, f1, f2, f3, f4, f5, f6, a7, z7, Con{f8, cols}, hps)),
+        N.le_trans(1n, 2n, List.length(&2, NS.Rg, alts), {==}, h2),
+        ref_r(len, t, defs, o0, FS, alts, pt, hpe, h2, len8(len, t, f0, f1, f2, f3, f4, f5, f6, a7, z7, Con{f8, cols})),
+        fld(len, t, d, hl, bdy, FS, f0, 0n, hf, pv_upr(len, be, f0, LI.pv_at(be, FS, 0n, hps), hbl), {==}),
+        fld(len, t, d, hl, bdy, FS, f1, 1n, hf, pv_upr(len, be, f1, LI.pv_at(be, FS, 1n, hps), hbl), {==}))
+
 # The records' text is B.Rec.parts' pieces, each with the terminator.
-def wr.p(+len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term: NS.Rg, +fs: Rgs(), +alts: Rgs(), +k2: Ss(), +pt: B.Parts,
+def wr.p(+len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term: NS.Rg, +fs: Rgs(), +alts: Rgs(), +k2: Ss(), +pt: B.Parts, +bdy: String,
   pr: RC.PRT(len, t, defs, fs, k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n),
   +hpe: {pt == LI.PT(len, t, defs, o0, fs, alts) : B.Parts},
-  +l2: U32, +t2: AT.Tree<U32>, -out: NS.Out, eo: {out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Out}, hok: {W.OK(l2, t2) == True{} : Bool},
+  +l2: U32, +t2: AT.Tree<U32>, -out: NS.Ans, eo: {out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Ans}, hok: {W.OK(l2, t2) == True{} : Bool},
   hs: {NR.chars(W.V(l2, t2)) == RC.RT(len, t, defs, fs, k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) : String},
   ck: CK.CK(l2, t2, List.length(&2, NS.Rg, alts), CRT(term))) ->
-  SPB(True{}, len, t, out, pt, WT.TX(len, t, term), CRT(term)):
+  SPB(True{}, len, t, out, pt, bdy, WT.TX(len, t, term), CRT(term)):
   (P1, P2) = pr
   +PS = RC.PSL(len, t, defs, fs, k2, o0, List.length(&2, NS.Rg, alts), alts, 1n)
   +R2 = RC.RT(len, t, defs, fs, k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n)
@@ -173,21 +361,23 @@ def wr.p(+len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term: NS.Rg, +f
       ck.k(l2, t2, List.length(&2, NS.Rg, alts), List.length(&2, String, PS), CRT(term), Equal.sym(Nat, List.length(&2, String, PS), List.length(&2, NS.Rg, alts), psl_len(len, t, defs, fs, k2, o0, List.length(&2, NS.Rg, alts), alts, 1n)), ck))))))))
 
 def wr.t(+len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term: NS.Rg, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +rest: Rgs(), +alts: Rgs(),
-  +k1: Ss(), +k2: Ss(), +pt: B.Parts, +hk: {RC.KSS(K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest))) == k2 : Ss()},
+  +k1: Ss(), +k2: Ss(), +pt: B.Parts, +bdy: String, +hk: {RC.KSS(K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest))) == k2 : Ss()},
   +ert: {RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) == RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) : String}, +erg: {RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n) == RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), alts, 1n) : Bool}, +hpe: {pt == LI.PT(len, t, defs, o0, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), alts) : B.Parts},
-  +l2: U32, +t2: AT.Tree<U32>, -out: NS.Out, eo: {out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Out}, hok: {W.OK(l2, t2) == True{} : Bool},
+  +l2: U32, +t2: AT.Tree<U32>, -out: NS.Ans, eo: {out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Ans}, hok: {W.OK(l2, t2) == True{} : Bool},
   +hg: {RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n) == True{} : Bool}, +hs: {NR.chars(W.V(l2, t2)) == RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) : String},
   ck: CK.CK(l2, t2, List.length(&2, NS.Rg, alts), CRT(term))) ->
-  SPB(True{}, len, t, out, pt, WT.TX(len, t, term), CRT(term)):
+  SPB(True{}, len, t, out, pt, bdy, WT.TX(len, t, term), CRT(term)):
   +hg2 = Equal.trans(Bool, RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), alts, 1n), RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n), True{}, Equal.sym(Bool, RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n), RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), alts, 1n), erg), hg)
-  wr.p(len, t, defs, o0, term, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), alts, k2, pt, RC.parts_t(alts, 1n, len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), term, hk, hg2), hpe,
+  wr.p(len, t, defs, o0, term, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), alts, k2, pt, bdy, RC.parts_t(alts, 1n, len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), term, hk, hg2), hpe,
     l2, t2, out, eo, hok, Equal.trans(String, NR.chars(W.V(l2, t2)), RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n), RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n), hs, ert), ck)
 
 def wr.b(+b: Bool, +len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term: NS.Rg, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +rest: Rgs(), +alts: Rgs(),
-  +k1: Ss(), +k2: Ss(), +pt: B.Parts, +hk: {RC.KSS(K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest))) == k2 : Ss()},
+  +k1: Ss(), +k2: Ss(), +pt: B.Parts, +bdy: String, +hk: {RC.KSS(K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest))) == k2 : Ss()},
   +ert: {RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) == RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) : String}, +erg: {RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n) == RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), alts, 1n) : Bool}, +hpe: {pt == LI.PT(len, t, defs, o0, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), alts) : B.Parts},
-  -out: NS.Out, q: TOP.WRB(b, len, t, out, RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n), RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n), List.length(&2, NS.Rg, alts), CRT(term))) ->
-  SPB(b, len, t, out, pt, WT.TX(len, t, term), CRT(term)):
+  +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bd: Nat, +hbd: {Nat.pow(2n, 32n) == bd : Nat}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool},
+  +hps: {K.ALLPV(be, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest)) == True{} : Bool}, +hf: {B.Rec.fields(bdy) == K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest)) : Ss()}, hk1: RK(len, t, rest, k1), +h2: {Nat.is_le(2n, List.length(&2, NS.Rg, alts)) == True{} : Bool},
+  -out: NS.Ans, q: TOP.WRB(b, len, t, out, RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n), RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n), List.length(&2, NS.Rg, alts), CRT(term))) ->
+  SPB(b, len, t, NS.go.ref(out, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), KD.MAPF(RC.DF(defs), k1), List.length(&2, NS.Rg, alts), defs), pt, bdy, WT.TX(len, t, term), CRT(term)):
   match b:
     case True{}:
       (+l2, q1) = q
@@ -196,25 +386,30 @@ def wr.b(+b: Bool, +len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term:
       (hok, q4) = q3
       (hg, q5) = q4
       (hs, ck) = q5
-      wr.t(len, t, defs, o0, term, f0, f1, f2, f3, f4, f5, f6, a7, z7, rest, alts, k1, k2, pt, hk, ert, erg, hpe, l2, t2, out, eo, hok, hg, hs, ck)
+      wr.t(len, t, defs, o0, term, f0, f1, f2, f3, f4, f5, f6, a7, z7, rest, alts, k1, k2, pt, bdy, hk, ert, erg, hpe, l2, t2, NS.go.ref(out, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), KD.MAPF(RC.DF(defs), k1), List.length(&2, NS.Rg, alts), defs),
+        {%Equal.sym(NS.Ans, out, NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}}, eo) : {NS.go.ref(_, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), KD.MAPF(RC.DF(defs), k1), List.length(&2, NS.Rg, alts), defs) == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Ans}; {==} : {NS.go.ref(out, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), KD.MAPF(RC.DF(defs), k1), List.length(&2, NS.Rg, alts), defs) == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Ans}},
+        hok, hg, hs, ck)
     case False{}:
-      q
+      wr.f(rest, len, t, d, hl, bd, hbd, defs, o0, f0, f1, f2, f3, f4, f5, f6, a7, z7, alts, k1, pt, bdy, be, hbl, hps, hf, hk1, hpe, h2, out, q)
 
 def wr.r(+len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term: NS.Rg, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +rest: Rgs(), +alts: Rgs(),
-  +k1: Ss(), +k2: Ss(), +pt: B.Parts, +hk: {RC.KSS(K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest))) == k2 : Ss()},
+  +k1: Ss(), +k2: Ss(), +pt: B.Parts, +bdy: String, +hk: {RC.KSS(K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest))) == k2 : Ss()},
   +ert: {RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) == RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) : String}, +erg: {RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n) == RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), alts, 1n) : Bool}, +hpe: {pt == LI.PT(len, t, defs, o0, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), alts) : B.Parts},
-  -out: NS.Out, r: TOP.WRES(len, t, out, RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n), RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n), List.length(&2, NS.Rg, alts), CRT(term))) ->
-  SPR(len, t, out, pt, WT.TX(len, t, term), CRT(term)):
+  +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bd: Nat, +hbd: {Nat.pow(2n, 32n) == bd : Nat}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool},
+  +hps: {K.ALLPV(be, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest)) == True{} : Bool}, +hf: {B.Rec.fields(bdy) == K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest)) : Ss()}, hk1: RK(len, t, rest, k1), +h2: {Nat.is_le(2n, List.length(&2, NS.Rg, alts)) == True{} : Bool},
+  -out: NS.Ans, r: TOP.WRES(len, t, out, RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n), RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n), List.length(&2, NS.Rg, alts), CRT(term))) ->
+  SPR(len, t, NS.go.ref(out, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), KD.MAPF(RC.DF(defs), k1), List.length(&2, NS.Rg, alts), defs), pt, bdy, WT.TX(len, t, term), CRT(term)):
   (+b, q) = r
-  (b, wr.b(b, len, t, defs, o0, term, f0, f1, f2, f3, f4, f5, f6, a7, z7, rest, alts, k1, k2, pt, hk, ert, erg, hpe, out, q))
+  (b, wr.b(b, len, t, defs, o0, term, f0, f1, f2, f3, f4, f5, f6, a7, z7, rest, alts, k1, k2, pt, bdy, hk, ert, erg, hpe, d, hl, bd, hbd, be, hbl, hps, hf, hk1, h2, out, q))
 
 def wr.g(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +rest: Rgs(), +alts: Rgs(), +hps: {K.ALLPV(be, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest)) == True{} : Bool}, +hpas: {K.ALLPV(len, alts) == True{} : Bool},
-  +k1: Ss(), +k2: Ss(), +pt: B.Parts, +hk: {RC.KSS(K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest))) == k2 : Ss()},
-  +ert: {RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) == RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) : String}, +erg: {RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n) == RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), alts, 1n) : Bool}, +hpe: {pt == LI.PT(len, t, defs, o0, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), alts) : B.Parts}) ->
-  SPR(len, t, NS.go.write(s, NS.Ln{RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), KD.MAPI(len, t, RC.DI(defs), K.CUT(len, t, a7, z7, 59)), KD.MAPF(RC.DF(defs), k1), term}, C.BT(len, t), alts, o0), pt, WT.TX(len, t, term), CRT(term)):
+  +k1: Ss(), +k2: Ss(), +pt: B.Parts, +bdy: String, +hk: {RC.KSS(K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest))) == k2 : Ss()},
+  +ert: {RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) == RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) : String}, +erg: {RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n) == RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), alts, 1n) : Bool}, +hpe: {pt == LI.PT(len, t, defs, o0, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), alts) : B.Parts},
+  +hf: {B.Rec.fields(bdy) == K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest)) : Ss()}, hk1: RK(len, t, rest, k1), +h2: {Nat.is_le(2n, List.length(&2, NS.Rg, alts)) == True{} : Bool}) ->
+  SPR(len, t, NS.go.ref(NS.go.write(s, NS.Ln{RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), KD.MAPI(len, t, RC.DI(defs), K.CUT(len, t, a7, z7, 59)), KD.MAPF(RC.DF(defs), k1), term}, C.BT(len, t), alts, o0), RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), KD.MAPF(RC.DF(defs), k1), List.length(&2, NS.Rg, alts), defs), pt, bdy, WT.TX(len, t, term), CRT(term)):
   match bw:
     case BW{+bd, +hbd}:
-      wr.r(len, t, defs, o0, term, f0, f1, f2, f3, f4, f5, f6, a7, z7, rest, alts, k1, k2, pt, hk, ert, erg, hpe, NS.go.write(s, NS.Ln{RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), KD.MAPI(len, t, RC.DI(defs), K.CUT(len, t, a7, z7, 59)), KD.MAPF(RC.DF(defs), k1), term}, C.BT(len, t), alts, o0),
+      wr.r(len, t, defs, o0, term, f0, f1, f2, f3, f4, f5, f6, a7, z7, rest, alts, k1, k2, pt, bdy, hk, ert, erg, hpe, d, hl, bd, hbd, be, hbl, hps, hf, hk1, h2, NS.go.write(s, NS.Ln{RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), KD.MAPI(len, t, RC.DI(defs), K.CUT(len, t, a7, z7, 59)), KD.MAPF(RC.DF(defs), k1), term}, C.BT(len, t), alts, o0),
         recs(len, t, d, hl, bd, hbd, defs, k1, o0, s, hs, be, hbl, term, hpt, f0, f1, f2, f3, f4, f5, f6, a7, z7, rest, alts, hps, hpas))
 
 # ---------------------------------------------------------------------------
@@ -222,20 +417,20 @@ def wr.g(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == Tr
 # ---------------------------------------------------------------------------
 
 def gr8(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +alts: Rgs(), +hps: {K.ALLPV(be, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}})) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}})) : Ss()}, +h0: {String.is_empty(WT.TX(len, t, f0)) == False{} : Bool}, +h1: {Maybe.is_none(&2, Nat, B.Pos.read(WT.TX(len, t, f1))) == False{} : Bool}, +h3: {B.Text.is_letters(WT.TX(len, t, f3)) == True{} : Bool}, +hpas: {K.ALLPV(len, alts) == True{} : Bool}, +ha: {K.TXS(len, t, alts) == String.split(WT.TX(len, t, f4), ',') : Ss()}, +he: {B.Text.any_empty(K.TXS(len, t, alts)) == False{} : Bool}, +h2: {Nat.is_le(2n, List.length(&2, NS.Rg, alts)) == True{} : Bool}, +hd: {B.Alts.distinct(K.TXS(len, t, alts)) == True{} : Bool}) ->
-  SPR(len, t, NS.go.rest(Con{NS.Rg{a7, z7}, Nil{}}, C.BT(len, t), s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}}), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.rest(Con{NS.Rg{a7, z7}, Nil{}}, C.BT(len, t), s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}}), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   +pv7 = LI.pv_at(be, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}}), 7n, hps)
   +haz7 = LI.ule(be, a7, z7, pv7)
   +hz7 = RC.pv_lt(len, be, a7, z7, pv7, hbl)
   +I7 = K.CUT(len, t, a7, z7, 59)
   %cut_s(len, t, d, hl, a7, z7, 59, haz7, N.lt_to_le(n(z7), n(len), hz7), {==}) :
-    SPR(len, t, NS.go.ln(s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}}), alts, o0, NS.go.iks(_, B.Defs.info(defs)), Nil{}, term), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+    SPR(len, t, NS.go.ln(s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}}), alts, o0, NS.go.iks(_, B.Defs.info(defs)), Nil{}, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
   %iks_s(I7, len, t, d, B.Defs.info(defs), hl, K.cut_pv(len, t, d, a7, z7, 59, hl, haz7, hz7, {==})) :
-    SPR(len, t, NS.go.ln(s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}}), alts, o0, _, Nil{}, term), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
-  wr.g(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, f0, f1, f2, f3, f4, f5, f6, a7, z7, Nil{}, alts, hps, hpas, Nil{}, RC.KSS(K.TXS(len, t, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}}))), SPEC(len, t, defs, os, ow, o0, oa, s, be), {==}, RC.rt8(alts, 1n, len, t, defs, f0, f1, f2, f3, f4, f5, f6, a7, z7, Nil{}, RC.KSS(K.TXS(len, t, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}}))), o0, List.length(&2, NS.Rg, alts), term), RC.rg8(alts, 1n, len, t, defs, f0, f1, f2, f3, f4, f5, f6, a7, z7, Nil{}, RC.KSS(K.TXS(len, t, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}}))), o0, List.length(&2, NS.Rg, alts)), LI.parts_eq(len, t, defs, os, ow, o0, oa, LI.TXR(len, t, s, be), f0, f1, f2, f3, f4, f5, f6, NS.Rg{a7, z7}, Nil{}, alts, hf, ha, h0, h1, h3, he, h2, hd, hcr))
+    SPR(len, t, NS.go.ln(s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}}), alts, o0, _, Nil{}, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
+  wr.g(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, f0, f1, f2, f3, f4, f5, f6, a7, z7, Nil{}, alts, hps, hpas, Nil{}, RC.KSS(K.TXS(len, t, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}}))), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), {==}, RC.rt8(alts, 1n, len, t, defs, f0, f1, f2, f3, f4, f5, f6, a7, z7, Nil{}, RC.KSS(K.TXS(len, t, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}}))), o0, List.length(&2, NS.Rg, alts), term), RC.rg8(alts, 1n, len, t, defs, f0, f1, f2, f3, f4, f5, f6, a7, z7, Nil{}, RC.KSS(K.TXS(len, t, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Nil{}}))), o0, List.length(&2, NS.Rg, alts)), LI.parts_eq(len, t, defs, os, ow, o0, oa, LI.TXR(len, t, s, be), f0, f1, f2, f3, f4, f5, f6, NS.Rg{a7, z7}, Nil{}, alts, hf, ha, h0, h1, h3, he, h2, hd, hcr), hf, {==}, h2)
 
 
 def gr9(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +a8: U32, +z8: U32, +cols: Rgs(), +alts: Rgs(), +hps: {K.ALLPV(be, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}})) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}})) : Ss()}, +h0: {String.is_empty(WT.TX(len, t, f0)) == False{} : Bool}, +h1: {Maybe.is_none(&2, Nat, B.Pos.read(WT.TX(len, t, f1))) == False{} : Bool}, +h3: {B.Text.is_letters(WT.TX(len, t, f3)) == True{} : Bool}, +hpas: {K.ALLPV(len, alts) == True{} : Bool}, +ha: {K.TXS(len, t, alts) == String.split(WT.TX(len, t, f4), ',') : Ss()}, +he: {B.Text.any_empty(K.TXS(len, t, alts)) == False{} : Bool}, +h2: {Nat.is_le(2n, List.length(&2, NS.Rg, alts)) == True{} : Bool}, +hd: {B.Alts.distinct(K.TXS(len, t, alts)) == True{} : Bool}) ->
-  SPR(len, t, NS.go.rest(Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}}, C.BT(len, t), s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}}), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.rest(Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}}, C.BT(len, t), s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}}), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   +pv7 = LI.pv_at(be, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}}), 7n, hps)
   +haz7 = LI.ule(be, a7, z7, pv7)
   +hz7 = RC.pv_lt(len, be, a7, z7, pv7, hbl)
@@ -246,18 +441,18 @@ def gr9(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == Tru
   +K8 = K.CUT(len, t, a8, z8, 58)
   +kss = K.TXS(len, t, K8)
   %cut_s(len, t, d, hl, a8, z8, 58, haz8, N.lt_to_le(n(z8), n(len), hz8), {==}) :
-    SPR(len, t, NS.go.fmt(s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}}), alts, o0, NS.Rg{a7, z7}, term, defs, NS.go.keys.k(_, B.Defs.fmt(defs))), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+    SPR(len, t, NS.go.fmt(s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}}), alts, o0, NS.Rg{a7, z7}, term, defs, NS.go.keys.k(_, B.Defs.fmt(defs))), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
   %fks_s(K8, len, t, d, B.Defs.fmt(defs), hl, K.cut_pv(len, t, d, a8, z8, 58, hl, haz8, hz8, {==})) :
-    SPR(len, t, NS.go.fmt(s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}}), alts, o0, NS.Rg{a7, z7}, term, defs, _), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+    SPR(len, t, NS.go.fmt(s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}}), alts, o0, NS.Rg{a7, z7}, term, defs, _), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
   %cut_s(len, t, d, hl, a7, z7, 59, haz7, N.lt_to_le(n(z7), n(len), hz7), {==}) :
-    SPR(len, t, NS.go.ln(s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}}), alts, o0, NS.go.iks(_, B.Defs.info(defs)), KD.MAPF(B.Defs.fmt(defs), kss), term), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+    SPR(len, t, NS.go.ln(s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}}), alts, o0, NS.go.iks(_, B.Defs.info(defs)), KD.MAPF(B.Defs.fmt(defs), kss), term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
   %iks_s(I7, len, t, d, B.Defs.info(defs), hl, K.cut_pv(len, t, d, a7, z7, 59, hl, haz7, hz7, {==})) :
-    SPR(len, t, NS.go.ln(s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}}), alts, o0, _, KD.MAPF(B.Defs.fmt(defs), kss), term), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
-  wr.g(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, f0, f1, f2, f3, f4, f5, f6, a7, z7, Con{NS.Rg{a8, z8}, cols}, alts, hps, hpas, kss, kss, SPEC(len, t, defs, os, ow, o0, oa, s, be), Equal.sym(Ss(), kss, String.split(WT.TX(len, t, NS.Rg{a8, z8}), Chr{58}), K.cut_tx(len, t, d, a8, z8, 58, hl, haz8, hz8, {==})), {==}, {==}, LI.parts_eq(len, t, defs, os, ow, o0, oa, LI.TXR(len, t, s, be), f0, f1, f2, f3, f4, f5, f6, NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}, alts, hf, ha, h0, h1, h3, he, h2, hd, hcr))
+    SPR(len, t, NS.go.ln(s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}}), alts, o0, _, KD.MAPF(B.Defs.fmt(defs), kss), term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
+  wr.g(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, f0, f1, f2, f3, f4, f5, f6, a7, z7, Con{NS.Rg{a8, z8}, cols}, alts, hps, hpas, kss, kss, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), Equal.sym(Ss(), kss, String.split(WT.TX(len, t, NS.Rg{a8, z8}), Chr{58}), K.cut_tx(len, t, d, a8, z8, 58, hl, haz8, hz8, {==})), {==}, {==}, LI.parts_eq(len, t, defs, os, ow, o0, oa, LI.TXR(len, t, s, be), f0, f1, f2, f3, f4, f5, f6, NS.Rg{a7, z7}, Con{NS.Rg{a8, z8}, cols}, alts, hf, ha, h0, h1, h3, he, h2, hd, hcr), hf, Equal.sym(Ss(), String.split(WT.TX(len, t, NS.Rg{a8, z8}), Chr{58}), kss, Equal.sym(Ss(), kss, String.split(WT.TX(len, t, NS.Rg{a8, z8}), Chr{58}), K.cut_tx(len, t, d, a8, z8, 58, hl, haz8, hz8, {==}))), h2)
 
 
 def gr.r(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +r: Rgs(), +alts: Rgs(), +hps: {K.ALLPV(be, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, r})) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, r})) : Ss()}, +h0: {String.is_empty(WT.TX(len, t, f0)) == False{} : Bool}, +h1: {Maybe.is_none(&2, Nat, B.Pos.read(WT.TX(len, t, f1))) == False{} : Bool}, +h3: {B.Text.is_letters(WT.TX(len, t, f3)) == True{} : Bool}, +hpas: {K.ALLPV(len, alts) == True{} : Bool}, +ha: {K.TXS(len, t, alts) == String.split(WT.TX(len, t, f4), ',') : Ss()}, +he: {B.Text.any_empty(K.TXS(len, t, alts)) == False{} : Bool}, +h2: {Nat.is_le(2n, List.length(&2, NS.Rg, alts)) == True{} : Bool}, +hd: {B.Alts.distinct(K.TXS(len, t, alts)) == True{} : Bool}) ->
-  SPR(len, t, NS.go.rest(Con{NS.Rg{a7, z7}, r}, C.BT(len, t), s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, r}), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.rest(Con{NS.Rg{a7, z7}, r}, C.BT(len, t), s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, Con{NS.Rg{a7, z7}, r}), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match r:
     case Nil{}:
       gr8(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, f0, f1, f2, f3, f4, f5, f6, a7, z7, alts, hps, hf, h0, h1, h3, hpas, ha, he, h2, hd)
@@ -265,10 +460,10 @@ def gr.r(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == Tr
       gr9(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, f0, f1, f2, f3, f4, f5, f6, a7, z7, a8, z8, cols, alts, hps, hf, h0, h1, h3, hpas, ha, he, h2, hd)
 
 def gr(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +rest: Rgs(), +alts: Rgs(), +hps: {K.ALLPV(be, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest)) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest)) : Ss()}, +h0: {String.is_empty(WT.TX(len, t, f0)) == False{} : Bool}, +h1: {Maybe.is_none(&2, Nat, B.Pos.read(WT.TX(len, t, f1))) == False{} : Bool}, +h3: {B.Text.is_letters(WT.TX(len, t, f3)) == True{} : Bool}, +hpas: {K.ALLPV(len, alts) == True{} : Bool}, +ha: {K.TXS(len, t, alts) == String.split(WT.TX(len, t, f4), ',') : Ss()}, +he: {B.Text.any_empty(K.TXS(len, t, alts)) == False{} : Bool}, +h2: {Nat.is_le(2n, List.length(&2, NS.Rg, alts)) == True{} : Bool}, +hd: {B.Alts.distinct(K.TXS(len, t, alts)) == True{} : Bool}) ->
-  SPR(len, t, NS.go.rest(rest, C.BT(len, t), s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.rest(rest, C.BT(len, t), s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match rest:
     case Nil{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
     case Con{NS.Rg{+a7, +z7}, +r}:
       gr.r(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, f0, f1, f2, f3, f4, f5, f6, a7, z7, r, alts, hps, hf, h0, h1, h3, hpas, ha, he, h2, hd)
 
@@ -277,32 +472,32 @@ def gr(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True
 # ---------------------------------------------------------------------------
 
 def ga.d(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +rest: Rgs(), +alts: Rgs(), +hps: {K.ALLPV(be, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest)) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest)) : Ss()}, +h0: {String.is_empty(WT.TX(len, t, f0)) == False{} : Bool}, +h1: {Maybe.is_none(&2, Nat, B.Pos.read(WT.TX(len, t, f1))) == False{} : Bool}, +h3: {B.Text.is_letters(WT.TX(len, t, f3)) == True{} : Bool}, +hpas: {K.ALLPV(len, alts) == True{} : Bool}, +ha: {K.TXS(len, t, alts) == String.split(WT.TX(len, t, f4), ',') : Ss()}, +he: {B.Text.any_empty(K.TXS(len, t, alts)) == False{} : Bool}, +h2: {Nat.is_le(2n, List.length(&2, NS.Rg, alts)) == True{} : Bool}, +c: Bool, +e: {B.Alts.distinct(K.TXS(len, t, alts)) == c : Bool}) ->
-  SPR(len, t, NS.go.alts.ok(c, C.BT(len, t), rest, s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.alts.ok(c, C.BT(len, t), rest, s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match c:
     case True{}:
       gr(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, f0, f1, f2, f3, f4, f5, f6, rest, alts, hps, hf, h0, h1, h3, hpas, ha, he, h2, e)
     case False{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
 
 def ga.n(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +rest: Rgs(), +alts: Rgs(), +hps: {K.ALLPV(be, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest)) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest)) : Ss()}, +h0: {String.is_empty(WT.TX(len, t, f0)) == False{} : Bool}, +h1: {Maybe.is_none(&2, Nat, B.Pos.read(WT.TX(len, t, f1))) == False{} : Bool}, +h3: {B.Text.is_letters(WT.TX(len, t, f3)) == True{} : Bool}, +hpas: {K.ALLPV(len, alts) == True{} : Bool}, +ha: {K.TXS(len, t, alts) == String.split(WT.TX(len, t, f4), ',') : Ss()}, +c: Bool, +e: {Bool.and(Nat.is_le(2n, List.length(&2, NS.Rg, alts)), NS.nonempty(alts)) == c : Bool}) ->
-  SPR(len, t, NS.go.alts.n(c, C.BT(len, t), rest, s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.alts.n(c, C.BT(len, t), rest, s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match c:
     case True{}:
       +h2 = N.and_true_l(Nat.is_le(2n, List.length(&2, NS.Rg, alts)), NS.nonempty(alts), e)
       +hn = N.and_true_r(Nat.is_le(2n, List.length(&2, NS.Rg, alts)), NS.nonempty(alts), e)
       +he = LI.ne_any(alts, len, t, d, hl, hpas, hn)
-      %dst_s(alts, True{}, len, t, d, hl, hpas) : SPR(len, t, NS.go.alts.d(_, rest, s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      %dst_s(alts, True{}, len, t, d, hl, hpas) : SPR(len, t, NS.go.alts.d(_, rest, s, LI.FS7(f0, f1, f2, f3, f4, f5, f6, rest), alts, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
       ga.d(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, f0, f1, f2, f3, f4, f5, f6, rest, alts, hps, hf, h0, h1, h3, hpas, ha, he, h2, B.Alts.distinct(K.TXS(len, t, alts)), {==})
     case False{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
 
 def ga(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +a0: U32, +z0: U32, +a1: U32, +z1: U32, +f2: NS.Rg, +a3: U32, +z3: U32, +a4: U32, +z4: U32, +f5: NS.Rg, +f6: NS.Rg, +rest: Rgs(), +hps: {K.ALLPV(be, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest)) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest)) : Ss()}, +h0: {String.is_empty(WT.TX(len, t, NS.Rg{a0, z0})) == False{} : Bool}, +h1: {Maybe.is_none(&2, Nat, B.Pos.read(WT.TX(len, t, NS.Rg{a1, z1}))) == False{} : Bool}, +h3: {B.Text.is_letters(WT.TX(len, t, NS.Rg{a3, z3})) == True{} : Bool}) ->
-  SPR(len, t, NS.go.alts(NS.cut(C.BT(len, t), NS.Rg{a4, z4}, 44), rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.alts(NS.cut(C.BT(len, t), NS.Rg{a4, z4}, 44), rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   +pv4 = LI.pv_at(be, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), 4n, hps)
   +haz4 = LI.ule(be, a4, z4, pv4)
   +hz4 = RC.pv_lt(len, be, a4, z4, pv4, hbl)
   +A = K.CUT(len, t, a4, z4, 44)
-  %cut_s(len, t, d, hl, a4, z4, 44, haz4, N.lt_to_le(n(z4), n(len), hz4), {==}) : SPR(len, t, NS.go.alts(_, rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+  %cut_s(len, t, d, hl, a4, z4, 44, haz4, N.lt_to_le(n(z4), n(len), hz4), {==}) : SPR(len, t, NS.go.alts(_, rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
   ga.n(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest, A, hps, hf, h0, h1, h3, K.cut_pv(len, t, d, a4, z4, 44, hl, haz4, hz4, {==}), K.cut_tx(len, t, d, a4, z4, 44, hl, haz4, hz4, {==}),
     Bool.and(Nat.is_le(2n, List.length(&2, NS.Rg, A)), NS.nonempty(A)), {==})
 
@@ -311,95 +506,95 @@ def ga(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True
 # ---------------------------------------------------------------------------
 
 def gl.k(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +a0: U32, +z0: U32, +a1: U32, +z1: U32, +f2: NS.Rg, +a3: U32, +z3: U32, +a4: U32, +z4: U32, +f5: NS.Rg, +f6: NS.Rg, +rest: Rgs(), +hps: {K.ALLPV(be, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest)) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest)) : Ss()}, +h0: {String.is_empty(WT.TX(len, t, NS.Rg{a0, z0})) == False{} : Bool}, +h1: {Maybe.is_none(&2, Nat, B.Pos.read(WT.TX(len, t, NS.Rg{a1, z1}))) == False{} : Bool}, +c: Bool, +e: {B.Text.is_letters(WT.TX(len, t, NS.Rg{a3, z3})) == c : Bool}) ->
-  SPR(len, t, NS.go.ref.ok(c, C.BT(len, t), rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), NS.Rg{a4, z4}, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.ref.ok(c, C.BT(len, t), rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), NS.Rg{a4, z4}, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match c:
     case True{}:
       ga(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, a0, z0, a1, z1, f2, a3, z3, a4, z4, f5, f6, rest, hps, hf, h0, h1, e)
     case False{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
 
 def gp.k(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +a0: U32, +z0: U32, +a1: U32, +z1: U32, +f2: NS.Rg, +a3: U32, +z3: U32, +a4: U32, +z4: U32, +f5: NS.Rg, +f6: NS.Rg, +rest: Rgs(), +hps: {K.ALLPV(be, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest)) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest)) : Ss()}, +h0: {String.is_empty(WT.TX(len, t, NS.Rg{a0, z0})) == False{} : Bool}, +c: Bool, +e: {Pair.snd(D.Bytes, Bool, FC.digits(C.BT(len, t), a1, z1)) == c : Bool}) ->
-  SPR(len, t, NS.go.pos.ok(c, C.BT(len, t), NS.Rg{a3, z3}, rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), NS.Rg{a4, z4}, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.pos.ok(c, C.BT(len, t), NS.Rg{a3, z3}, rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), NS.Rg{a4, z4}, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match c:
     case True{}:
       +pv1 = LI.pv_at(be, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), 1n, hps)
       +pv3 = LI.pv_at(be, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), 3n, hps)
       +h1 = pos_ok(len, t, d, hl, a1, z1, LI.ule(be, a1, z1, pv1), N.lt_to_le(n(z1), n(len), RC.pv_lt(len, be, a1, z1, pv1, hbl)), e)
-      %lt_s(len, t, d, NS.Rg{a3, z3}, hl, RC.pv_up(len, be, a3, z3, pv3, hbl)) : SPR(len, t, NS.go.ref.k(_, rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), NS.Rg{a4, z4}, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      %lt_s(len, t, d, NS.Rg{a3, z3}, hl, RC.pv_up(len, be, a3, z3, pv3, hbl)) : SPR(len, t, NS.go.ref.k(_, rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), NS.Rg{a4, z4}, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
       gl.k(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, a0, z0, a1, z1, f2, a3, z3, a4, z4, f5, f6, rest, hps, hf, h0, h1, B.Text.is_letters(WT.TX(len, t, NS.Rg{a3, z3})), {==})
     case False{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
 
 def gc.k(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +a0: U32, +z0: U32, +a1: U32, +z1: U32, +f2: NS.Rg, +a3: U32, +z3: U32, +a4: U32, +z4: U32, +f5: NS.Rg, +f6: NS.Rg, +rest: Rgs(), +hps: {K.ALLPV(be, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest)) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest)) : Ss()}, +c: Bool, +e: {U32.is_lt(a0, z0) == c : Bool}) ->
-  SPR(len, t, NS.go.chrom(c, C.BT(len, t), NS.Rg{a1, z1}, NS.Rg{a3, z3}, NS.Rg{a4, z4}, rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.chrom(c, C.BT(len, t), NS.Rg{a1, z1}, NS.Rg{a3, z3}, NS.Rg{a4, z4}, rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match c:
     case True{}:
       +pv0 = LI.pv_at(be, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), 0n, hps)
       +hlt0 = Equal.trans(Bool, Nat.is_lt(n(a0), n(z0)), U32.is_lt(a0, z0), True{}, Equal.sym(Bool, U32.is_lt(a0, z0), Nat.is_lt(n(a0), n(z0)), U.is_lt_to_nat(a0, z0)), e)
       +h0 = LI.tx_ne(len, t, d, hl, a0, z0, N.lt_to_le(n(z0), n(len), RC.pv_lt(len, be, a0, z0, pv0, hbl)), hlt0)
-      %dg_s(len, t, a1, z1) : SPR(len, t, NS.go.pos.k(_, NS.Rg{a3, z3}, rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), NS.Rg{a4, z4}, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      %dg_s(len, t, a1, z1) : SPR(len, t, NS.go.pos.k(_, NS.Rg{a3, z3}, rest, s, LI.FS7(NS.Rg{a0, z0}, NS.Rg{a1, z1}, f2, NS.Rg{a3, z3}, NS.Rg{a4, z4}, f5, f6, rest), NS.Rg{a4, z4}, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
       gp.k(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, a0, z0, a1, z1, f2, a3, z3, a4, z4, f5, f6, rest, hps, hf, h0, Pair.snd(D.Bytes, Bool, FC.digits(C.BT(len, t), a1, z1)), {==})
     case False{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
 
 
 def gf7(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +a0: U32, +z0: U32, +a1: U32, +z1: U32, +f2: NS.Rg, +a3: U32, +z3: U32, +a4: U32, +z4: U32, +f5: NS.Rg, +f6: NS.Rg, +r: Rgs(), +hps: {K.ALLPV(be, Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, Con{NS.Rg{a4, z4}, Con{f5, Con{f6, r}}}}}}}) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, Con{NS.Rg{a4, z4}, Con{f5, Con{f6, r}}}}}}}) : Ss()}) ->
-  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, Con{NS.Rg{a4, z4}, Con{f5, Con{f6, r}}}}}}}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, Con{NS.Rg{a4, z4}, Con{f5, Con{f6, r}}}}}}}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   gc.k(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, a0, z0, a1, z1, f2, a3, z3, a4, z4, f5, f6, r, hps, hf, U32.is_lt(a0, z0), {==})
 
 def gf6(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +a0: U32, +z0: U32, +a1: U32, +z1: U32, +f2: NS.Rg, +a3: U32, +z3: U32, +a4: U32, +z4: U32, +f5: NS.Rg, +r: Rgs(), +hps: {K.ALLPV(be, Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, Con{NS.Rg{a4, z4}, Con{f5, r}}}}}}) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, Con{NS.Rg{a4, z4}, Con{f5, r}}}}}}) : Ss()}) ->
-  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, Con{NS.Rg{a4, z4}, Con{f5, r}}}}}}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, Con{NS.Rg{a4, z4}, Con{f5, r}}}}}}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match r:
     case Nil{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
     case Con{+f6, +r2}:
       gf7(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, a0, z0, a1, z1, f2, a3, z3, a4, z4, f5, f6, r2, hps, hf)
 
 def gf5(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +a0: U32, +z0: U32, +a1: U32, +z1: U32, +f2: NS.Rg, +a3: U32, +z3: U32, +a4: U32, +z4: U32, +r: Rgs(), +hps: {K.ALLPV(be, Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, Con{NS.Rg{a4, z4}, r}}}}}) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, Con{NS.Rg{a4, z4}, r}}}}}) : Ss()}) ->
-  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, Con{NS.Rg{a4, z4}, r}}}}}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, Con{NS.Rg{a4, z4}, r}}}}}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match r:
     case Nil{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
     case Con{+f5, +r2}:
       gf6(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, a0, z0, a1, z1, f2, a3, z3, a4, z4, f5, r2, hps, hf)
 
 def gf4(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +a0: U32, +z0: U32, +a1: U32, +z1: U32, +f2: NS.Rg, +a3: U32, +z3: U32, +r: Rgs(), +hps: {K.ALLPV(be, Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, r}}}}) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, r}}}}) : Ss()}) ->
-  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, r}}}}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, Con{NS.Rg{a3, z3}, r}}}}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match r:
     case Nil{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
     case Con{NS.Rg{+a4, +z4}, +r2}:
       gf5(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, a0, z0, a1, z1, f2, a3, z3, a4, z4, r2, hps, hf)
 
 def gf3(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +a0: U32, +z0: U32, +a1: U32, +z1: U32, +f2: NS.Rg, +r: Rgs(), +hps: {K.ALLPV(be, Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, r}}}) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, r}}}) : Ss()}) ->
-  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, r}}}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, Con{f2, r}}}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match r:
     case Nil{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
     case Con{NS.Rg{+a3, +z3}, +r2}:
       gf4(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, a0, z0, a1, z1, f2, a3, z3, r2, hps, hf)
 
 def gf2(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +a0: U32, +z0: U32, +a1: U32, +z1: U32, +r: Rgs(), +hps: {K.ALLPV(be, Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, r}}) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, r}}) : Ss()}) ->
-  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, r}}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, Con{NS.Rg{a1, z1}, r}}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match r:
     case Nil{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
     case Con{+f2, +r2}:
       gf3(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, a0, z0, a1, z1, f2, r2, hps, hf)
 
 def gf1(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +a0: U32, +z0: U32, +r: Rgs(), +hps: {K.ALLPV(be, Con{NS.Rg{a0, z0}, r}) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, Con{NS.Rg{a0, z0}, r}) : Ss()}) ->
-  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, r}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.fields.l(Con{NS.Rg{a0, z0}, r}, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match r:
     case Nil{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
     case Con{NS.Rg{+a1, +z1}, +r2}:
       gf2(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, a0, z0, a1, z1, r2, hps, hf)
 
 def gf(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(), +s: U32, +hs: {W.PV(len, NS.Rg{s, s}) == True{} : Bool}, +be: U32, +hbl: {Nat.is_lt(n(be), n(len)) == True{} : Bool}, +hcr: {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}, +term: NS.Rg, +hpt: {W.PV(len, term) == True{} : Bool}, +r: Rgs(), +hps: {K.ALLPV(be, r) == True{} : Bool}, +hf: {B.Rec.fields(LI.TXR(len, t, s, be)) == K.TXS(len, t, r) : Ss()}) ->
-  SPR(len, t, NS.go.fields.l(r, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term)):
+  SPR(len, t, NS.go.fields.l(r, C.BT(len, t), s, o0, term, defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term)):
   match r:
     case Nil{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, term), CRT(term))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, term), CRT(term))
     case Con{NS.Rg{+a0, +z0}, +r2}:
       gf1(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, term, hpt, a0, z0, r2, hps, hf)
 
@@ -482,7 +677,7 @@ def cnt0_cr(xs, h):
 def body_z(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(),
   +s: U32, +lf: U32, +hsl: {Nat.is_le(n(s), n(lf)) == True{} : Bool}, +hlf: {Nat.is_lt(n(lf), n(len)) == True{} : Bool},
   +hcr: {B.Text.has_cr(LI.TXR(len, t, s, LI.BE(len, t, s, lf))) == False{} : Bool}) ->
-  SPR(len, t, NS.go.fields(NS.cut(C.BT(len, t), NS.Rg{s, LI.BE(len, t, s, lf)}, 9), s, o0, TE(len, t, s, lf), defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf))):
+  SPR(len, t, NS.go.fields(NS.cut(C.BT(len, t), NS.Rg{s, LI.BE(len, t, s, lf)}, 9), s, o0, TE(len, t, s, lf), defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), LI.TXR(len, t, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf))):
   +be = LI.BE(len, t, s, lf)
   +lo = be_lo.k(len, t, s, lf, hsl, U32.is_lt(s, lf), {==})
   +hi = be_hi.k(len, t, s, lf, U32.is_lt(s, lf), {==})
@@ -498,7 +693,7 @@ def body_z(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == 
   +hpt = W.pv_mk(len, be, (lf + 1 : U32), N.le_trans(n(be), n(lf), n((lf + 1 : U32)), hi, hl2), hl1)
   +FS = K.CUT(len, t, s, be, 9)
   %cut_s(len, t, d, hl, s, be, 9, hsle, N.lt_to_le(n(be), n(len), hbl), {==}) :
-    SPR(len, t, NS.go.fields(_, s, o0, TE(len, t, s, lf), defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf)))
+    SPR(len, t, NS.go.fields(_, s, o0, TE(len, t, s, lf), defs), SPEC(len, t, defs, os, ow, o0, oa, s, be), LI.TXR(len, t, s, be), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf)))
   gf(len, t, d, hl, bw, defs, os, ow, o0, oa, s, hs, be, hbl, hcr, TE(len, t, s, lf), hpt, FS, K.cut_pvz(len, t, d, s, be, 9, hl, hsle, hbl, {==}),
     Equal.sym(Ss(), K.TXS(len, t, FS), String.split(WT.TX(len, t, NS.Rg{s, be}), Chr{9}), K.cut_tx(len, t, d, s, be, 9, hl, hsle, hbl, {==})))
 
@@ -506,7 +701,7 @@ def body_z(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == 
 def body_k(k2: Nat, +len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(),
   +s: U32, +lf: U32, +hsl: {Nat.is_le(n(s), n(lf)) == True{} : Bool}, +hlf: {Nat.is_lt(n(lf), n(len)) == True{} : Bool},
   +ek: {k2 == FD.count(SC.BS(len, t, s, LI.BE(len, t, s, lf)), 13) : Nat}) ->
-  SPR(len, t, NS.go.nocr.if(Nat.is_eq(k2, 0n), C.BT(len, t), s, LI.BE(len, t, s, lf), lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf))):
+  SPR(len, t, NS.go.nocr.if(Nat.is_eq(k2, 0n), C.BT(len, t), s, LI.BE(len, t, s, lf), lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), LI.TXR(len, t, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf))):
   match k2:
     case 0n:
       +be = LI.BE(len, t, s, lf)
@@ -514,23 +709,23 @@ def body_k(k2: Nat, +len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t
       +h0 = cnt0_cr(SC.BS(len, t, s, be), Equal.sym(Nat, 0n, FD.count(SC.BS(len, t, s, be), 13), ek))
       body_z(len, t, d, hl, bw, defs, os, ow, o0, oa, s, lf, hsl, hlf, {(%Equal.sym(Nat, n((be - s : U32)), Nat.sub(n(be), n(s)), W.nsub(s, be, lo)) : {B.Text.has_cr(NR.chars(D.slice(D.view(C.BT(len, t)), n(s), _))) == False{} : Bool}; h0) : {B.Text.has_cr(LI.TXR(len, t, s, be)) == False{} : Bool}})
     case 1n+(+m):
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf)))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), LI.TXR(len, t, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf)))
 
 def body_c(r: D.Bytes & Nat, +len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(),
   +s: U32, +lf: U32, +hsl: {Nat.is_le(n(s), n(lf)) == True{} : Bool}, +hlf: {Nat.is_lt(n(lf), n(len)) == True{} : Bool},
   cn: SC.CNT(len, t, 0n, s, LI.BE(len, t, s, lf), 13, r)) ->
-  SPR(len, t, NS.go.nocr(r, s, LI.BE(len, t, s, lf), lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf))):
+  SPR(len, t, NS.go.nocr(r, s, LI.BE(len, t, s, lf), lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), LI.TXR(len, t, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf))):
   match cn:
     case (+k2, e):
       match e:
         case (eq, ek):
           %Equal.sym(D.Bytes & Nat, r, (C.BT(len, t), k2), eq) :
-            SPR(len, t, NS.go.nocr(_, s, LI.BE(len, t, s, lf), lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf)))
+            SPR(len, t, NS.go.nocr(_, s, LI.BE(len, t, s, lf), lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), LI.TXR(len, t, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf)))
           body_k(k2, len, t, d, hl, bw, defs, os, ow, o0, oa, s, lf, hsl, hlf, SC.cnt_val(len, t, s, LI.BE(len, t, s, lf), 13, k2, ek))
 
 def body_t(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(),
   +s: U32, +lf: U32, +hsl: {Nat.is_le(n(s), n(lf)) == True{} : Bool}, +hlf: {Nat.is_lt(n(lf), n(len)) == True{} : Bool}) ->
-  SPR(len, t, NS.go.body(CR(len, t, s, lf), C.BT(len, t), s, lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf))):
+  SPR(len, t, NS.go.body(CR(len, t, s, lf), C.BT(len, t), s, lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), LI.TXR(len, t, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf))):
   +be = LI.BE(len, t, s, lf)
   +lo = be_lo.k(len, t, s, lf, hsl, U32.is_lt(s, lf), {==})
   +hi = be_hi.k(len, t, s, lf, U32.is_lt(s, lf), {==})
@@ -540,18 +735,18 @@ def body_t(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == 
 
 def sz.k(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(),
   +s: U32, +lf: U32, +hsl: {Nat.is_le(n(s), n(lf)) == True{} : Bool}, +hlf: {Nat.is_lt(n(lf), n(len)) == True{} : Bool}, +c: Bool) ->
-  SPR(len, t, NS.go.size(c, C.BT(len, t), s, lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf))):
+  SPR(len, t, NS.go.size(c, C.BT(len, t), s, lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), LI.TXR(len, t, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf))):
   match c:
     case True{}:
       %at_s(len, t, Bool.pick(U32, U32.is_lt(s, lf), (lf - 1 : U32), lf)) :
-        SPR(len, t, NS.go.cr(_, s, lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf)))
+        SPR(len, t, NS.go.cr(_, s, lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), LI.TXR(len, t, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf)))
       body_t(len, t, d, hl, bw, defs, os, ow, o0, oa, s, lf, hsl, hlf)
     case False{}:
-      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf)))
+      none(len, t, SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), LI.TXR(len, t, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf)))
 
 def split_body(+len: U32, +t: AT.Tree<U32>, +d: Nat, +hl: {D.ok(C.BT(len, t), d) == True{} : Bool}, +bw: BW, +defs: B.Defs, +os: Bool, +ow: Nat, +o0: Bool, +oa: Ss(),
   +s: U32, +lf: U32, +hsl: {Nat.is_le(n(s), n(lf)) == True{} : Bool}, +hlf: {Nat.is_lt(n(lf), n(len)) == True{} : Bool}) ->
-  SPR(len, t, NS.split(C.BT(len, t), s, lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf))):
+  SPR(len, t, NS.split(C.BT(len, t), s, lf, o0, defs), SPEC(len, t, defs, os, ow, o0, oa, s, LI.BE(len, t, s, lf)), LI.TXR(len, t, s, LI.BE(len, t, s, lf)), WT.TX(len, t, TE(len, t, s, lf)), CRT(TE(len, t, s, lf))):
   sz.k(len, t, d, hl, bw, defs, os, ow, o0, oa, s, lf, hsl, hlf, U32.is_le(s, lf) && U32.is_le((lf - s : U32), 268435456))
 
 # ---------------------------------------------------------------------------
@@ -584,9 +779,9 @@ law split_t:
   for +hsl: {Nat.is_le(n(s), n(lf)) == True{} : Bool}
   for +hlf: {Nat.is_lt(n(lf), n(len)) == True{} : Bool}
   for +h10: {C.AT(len, t, lf) == 10 : U32}
-  SPR(len, t, NS.split(C.BT(len, t), s, lf, o0, defs), B.Rec.parts(defs, B.Opts{os, ow, True{}, o0, oa}, B.Line.body(LP(len, t, s, lf))), B.Line.term(LP(len, t, s, lf)), CRT(TE(len, t, s, lf)))
+  SPR(len, t, NS.split(C.BT(len, t), s, lf, o0, defs), B.Rec.parts(defs, B.Opts{os, ow, True{}, o0, oa}, B.Line.body(LP(len, t, s, lf))), B.Line.body(LP(len, t, s, lf)), B.Line.term(LP(len, t, s, lf)), CRT(TE(len, t, s, lf)))
 
 def split_t(len, t, d, hl, bd, hbd, defs, os, ow, o0, oa, s, lf, hsl, hlf, h10):
   %Equal.sym(B.Line, LP(len, t, s, lf), LI.LINE(len, t, s, lf, LI.BE(len, t, s, lf)), LI.line_t(len, t, d, hl, s, lf, hsl, hlf, h10)) :
-    SPR(len, t, NS.split(C.BT(len, t), s, lf, o0, defs), B.Rec.parts(defs, B.Opts{os, ow, True{}, o0, oa}, B.Line.body(_)), B.Line.term(_), CRT(TE(len, t, s, lf)))
+    SPR(len, t, NS.split(C.BT(len, t), s, lf, o0, defs), B.Rec.parts(defs, B.Opts{os, ow, True{}, o0, oa}, B.Line.body(_)), B.Line.body(_), B.Line.term(_), CRT(TE(len, t, s, lf)))
   split_body(len, t, d, hl, bw(bd, hbd), defs, os, ow, o0, oa, s, lf, hsl, hlf)

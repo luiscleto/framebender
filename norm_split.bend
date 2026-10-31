@@ -10,10 +10,12 @@ import lawful-fields@0.1.0.0/fields.bend as FC
 # With -m, a body line whose ALT field has a comma is split here without
 # decoding it: one record per ALT, as types.bend's B.Rec.parts writes them,
 # each followed by the line's terminator, in a buffer of their own. The
-# machine reads that buffer as lines (norm_seq.bend). Any doubt (a line
-# B.Rec.parts would refuse or leave Whole, a size past the buffers' bounds)
-# gives None, and the line takes the String path, which calls B.Rec.parts
-# itself. notes/split.md has the design and the refinement argument.
+# machine reads that buffer as lines (norm_seq.bend). A line B.Rec.parts
+# refuses comes back with the code (Ref, from refuse, below), when the writer
+# got as far as its INFO and samples. Any other doubt (a line B.Rec.parts
+# would leave Whole, a size past the buffers' bounds, BAD_CR, ALT_DUP) gives
+# None, and the line takes the String path, which calls B.Rec.parts itself.
+# notes/split.md has the design and the refinement argument.
 #
 # One pass over the line cuts its fields and reads what does not depend on
 # the ALT: the ALTs, each INFO entry's and each FORMAT key's Number
@@ -980,10 +982,11 @@ def records(alts: List<&2, Rg>, w: Sw, +l: Ln, +over0: Bool, +n: Nat, +i: Nat) -
 
 # The line handed back, with the records' bytes (Some) or None (the String
 # path decides).
-type Out is Type:
+type Ans is Type:
   Out{b: D.Bytes, r: Maybe<&1, D.Bytes>}
+  Ref{b: D.Bytes, c: B.Code, chrom: Rg, pos: Rg}
 
-def out.of(w: Sw) -> Out:
+def out.of(w: Sw) -> Ans:
   match w:
     case Sw{b, o, p, True{}}:
       Out{b, Some{o}}
@@ -994,18 +997,18 @@ def out.of(w: Sw) -> Out:
 # it must hold exactly n LFs, one ending each record (none inside one), and,
 # when the terminator is LF alone, no CR (a record ending in CR would be read
 # with a CR LF terminator). Otherwise None: the String path splits the line.
-def out.if(ok: Bool, b: D.Bytes, o: D.Bytes) -> Out:
+def out.if(ok: Bool, b: D.Bytes, o: D.Bytes) -> Ans:
   match ok:
     case True{}:
       Out{b, Some{o}}
     case False{}:
       Out{b, None{}}
 
-def out.cr(b: D.Bytes, r: D.Bytes & Nat) -> Out:
+def out.cr(b: D.Bytes, r: D.Bytes & Nat) -> Ans:
   (o, +k) = r
   out.if(Nat.is_eq(k, 0n), b, o)
 
-def out.lf.if(ok: Bool, crlf: Bool, b: D.Bytes, o: D.Bytes, +len: U32) -> Out:
+def out.lf.if(ok: Bool, crlf: Bool, b: D.Bytes, o: D.Bytes, +len: U32) -> Ans:
   match ok crlf:
     case False{} _:
       Out{b, None{}}
@@ -1014,15 +1017,15 @@ def out.lf.if(ok: Bool, crlf: Bool, b: D.Bytes, o: D.Bytes, +len: U32) -> Out:
     case True{} False{}:
       out.cr(b, count(o, Rg{0, len}, 13))
 
-def out.lf(+n: Nat, +crlf: Bool, b: D.Bytes, r: D.Bytes & Nat, +len: U32) -> Out:
+def out.lf(+n: Nat, +crlf: Bool, b: D.Bytes, r: D.Bytes & Nat, +len: U32) -> Ans:
   (o, +k) = r
   out.lf.if(Nat.is_eq(k, n), crlf, b, o, len)
 
-def out.len(+n: Nat, +crlf: Bool, b: D.Bytes, r: D.Bytes & U32) -> Out:
+def out.len(+n: Nat, +crlf: Bool, b: D.Bytes, r: D.Bytes & U32) -> Ans:
   (o, +len) = r
   out.lf(n, crlf, b, count(o, Rg{0, len}, 10), len)
 
-def out.ck(w: Sw, +n: Nat, +crlf: Bool) -> Out:
+def out.ck(w: Sw, +n: Nat, +crlf: Bool) -> Ans:
   match w:
     case Sw{b, o, p, True{}}:
       out.len(n, crlf, b, BY.len(o))
@@ -1035,20 +1038,206 @@ def is_crlf(+l: Ln) -> Bool:
     case Ln{fs, iks, fks, Rg{+a, +z}}:
       U32.is_eq((z - a : U32), 2)
 
-def go.write(+s: U32, +l: Ln, b: D.Bytes, +alts: List<&2, Rg>, +over0: Bool) -> Out:
+# ---------------------------------------------------------------------------
+# Refusals (LAWS.bend's split_problem)
+# ---------------------------------------------------------------------------
+
+# When the writer gives up on a line that is not MALFORMED, has two or more
+# ALTs, none equal up to case, and no CR, the line is read again for what
+# split_problem says of its INFO entries and its samples, in order: the
+# first problem found. With one, B.Rec.parts refuses the line with it (law
+# split_when) and the line comes back with the code (Ref); with none, the
+# writer gave up for a size, and the String path decides.
+
+# The problems on text: LAWS.bend's definitions (first_code, count_problem,
+# info_problem, gt_problem, format_problem, sample_problems), copied.
+def first.put(m: Maybe<&2, B.Code>, rest: Maybe<&2, B.Code>) -> Maybe<&2, B.Code>:
+  match m:
+    case Some{c}:
+      Some{c}
+    case None{}:
+      rest
+
+def first(ms: List<&2, Maybe<&2, B.Code>>) -> Maybe<&2, B.Code>:
+  match ms:
+    case Nil{}:
+      None{}
+    case m <> t:
+      first.put(m, first(t))
+
+def count_problem(num: B.Num, +n: Nat, cp: Maybe<&2, Nat>, +v: String) -> Maybe<&2, B.Code>:
+  +c = List.length(&2, String, String.split(v, ','))
+  Bool.pick(Maybe<&2, B.Code>, String.eq(v, ".") || B.Vals.fits(B.Vals.expected_count(num, n, B.Vals.copies(cp, n, c)), c), None{}, Some{B.BadCount{}})
+
+def has_value(+e: String) -> Bool:
+  Nat.is_lt(String.length(B.Info.key(e)), String.length(e))
+
+def value_text(+e: String) -> String:
+  String.drop(e, Nat.add(String.length(B.Info.key(e)), 1n))
+
+def info_problem.of(m: Maybe<&2, B.Num>, +e: String, +n: Nat) -> Maybe<&2, B.Code>:
+  match m:
+    case None{}:
+      Some{B.UndefinedTag{"INFO/" ++ B.Info.key(e)}}
+    case Some{B.NumUnknown{}}:
+      Some{B.UndefinedTag{"INFO/" ++ B.Info.key(e)}}
+    case Some{B.NumOther{}}:
+      None{}
+    case Some{num}:
+      count_problem(num, n, Some{2n}, value_text(e))
+
+def info_problem(+m: Maybe<&2, B.Num>, +e: String, +n: Nat) -> Maybe<&2, B.Code>:
+  Bool.pick(Maybe<&2, B.Code>, has_value(e), info_problem.of(m, e, n),
+    Bool.pick(Maybe<&2, B.Code>, B.Num.per_allele(m), Some{B.BadCount{}}, None{}))
+
+def info_problems(es: List<&2, String>, +tags: List<&2, B.Tag>, +n: Nat) -> List<&2, Maybe<&2, B.Code>>:
+  match es:
+    case Nil{}:
+      Nil{}
+    case +e <> t:
+      info_problem(B.Tags.find(tags, B.Info.key(e)), e, n) <> info_problems(t, tags, n)
+
+def gt_cut(xs: List<&2, String>) -> List<&2, String>:
+  match xs:
+    case Nil{}:
+      Nil{}
+    case x <> t:
+      List.append(&2, String, String.split(x, '|'), gt_cut(t))
+
+def gt_ok.go(ts: List<&2, String>, +n: Nat) -> Bool:
+  match ts:
+    case Nil{}:
+      True{}
+    case +t <> r:
+      (String.eq(t, ".") || (B.Gt.canon(t) && Nat.is_le(Maybe.default(&2, Nat, B.Pos.read(t), 0n), n))) && gt_ok.go(r, n)
+
+def gt_problem(+n: Nat, g: String) -> Maybe<&2, B.Code>:
+  Bool.pick(Maybe<&2, B.Code>, gt_ok.go(gt_cut(String.split(g, '/')), n), None{}, Some{B.BadGt{}})
+
+def format_problem(m: Maybe<&2, B.Num>, +k: String, +v: String, +n: Nat, +p: Maybe<&2, Nat>) -> Maybe<&2, B.Code>:
+  match m:
+    case None{}:
+      Some{B.UndefinedTag{"FORMAT/" ++ k}}
+    case Some{B.NumUnknown{}}:
+      Some{B.UndefinedTag{"FORMAT/" ++ k}}
+    case Some{B.NumOther{}}:
+      None{}
+    case Some{num}:
+      count_problem(num, n, p, v)
+
+def sample_problems(ks: List<&2, String>, vs: List<&2, String>, +fmt: List<&2, B.Tag>, +n: Nat, +p: Maybe<&2, Nat>) -> List<&2, Maybe<&2, B.Code>>:
+  match ks vs:
+    case _ Nil{}:
+      Nil{}
+    case Nil{} v <> t:
+      [Some{B.BadCount{}}]
+    case +k <> kt +v <> vt:
+      Bool.pick(Maybe<&2, B.Code>, String.eq(k, "GT"), gt_problem(n, v), format_problem(B.Tags.find(fmt, k), k, v, n, p))
+        <> sample_problems(kt, vt, fmt, n, p)
+
+# A sample (its column col, its values cut at ':', the FORMAT keys ks): its
+# first problem.
+def sprob.str(r: D.Bytes & String, +ks: List<&2, String>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+  (b, +col) = r
+  +vs = String.split(col, ':')
+  (b, first(sample_problems(ks, vs, fmt, n, B.Gt.copies(B.Fmt.gt(ks, vs)))))
+
+def sprob.w(w: Sw, +x: Rg, +ks: List<&2, String>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+  match w:
+    case Sw{b, o, p, True{}}:
+      (b, None{})
+    case Sw{b, o, p, False{}}:
+      sprob.str(txt(b, x), ks, fmt, n)
+
+# A sample's column x: no problem when the writer writes it, alone, in the
+# record for ALT 1 (it writes only what B.Fmt.split gives, and B.Fmt.split
+# refuses a sample exactly when it has a problem); else read on its text.
+# fks: the keys' kinds, as the writer has them.
+def sprob(b: D.Bytes, +x: Rg, +ks: List<&2, String>, +fks: List<&2, Fk>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+  match x:
+    case Rg{+a, +z}:
+      sprob.w(sample(Sw{b, BY.empty(0n), Rg{a, a}, True{}}, fks, Rg{a, z}, False{}, n, 1n), Rg{a, z}, ks, fmt, n)
+
+def sprobs.m(m: Maybe<&2, B.Code>, b: D.Bytes, +x: Rg, +ks: List<&2, String>, +fks: List<&2, Fk>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+  match m:
+    case Some{c}:
+      (b, Some{c})
+    case None{}:
+      sprob(b, x, ks, fks, fmt, n)
+
+def sprobs.step(r: D.Bytes & Maybe<&2, B.Code>, +x: Rg, +ks: List<&2, String>, +fks: List<&2, Fk>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+  (b, m) = r
+  sprobs.m(m, b, x, ks, fks, fmt, n)
+
+# The first problem of the samples cols (r: the one found so far, if any).
+def sprobs(cols: List<&2, Rg>, r: D.Bytes & Maybe<&2, B.Code>, +ks: List<&2, String>, +fks: List<&2, Fk>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+  match cols:
+    case Nil{}:
+      r
+    case +c <> t:
+      sprobs(t, sprobs.step(r, c, ks, fks, fmt, n), ks, fks, fmt, n)
+
+def refuse.m(m: Maybe<&2, B.Code>, b: D.Bytes, +f0: Rg, +f1: Rg) -> Ans:
+  match m:
+    case Some{c}:
+      Ref{b, c, f0, f1}
+    case None{}:
+      Out{b, None{}}
+
+def refuse.out(r: D.Bytes & Maybe<&2, B.Code>, +f0: Rg, +f1: Rg) -> Ans:
+  (b, m) = r
+  refuse.m(m, b, f0, f1)
+
+def refuse.ks(r: D.Bytes & String, m: Maybe<&2, B.Code>, +cols: List<&2, Rg>, +fks: List<&2, Fk>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+  (b, +k) = r
+  sprobs(cols, (b, m), String.split(k, ':'), fks, fmt, n)
+
+# Then the samples: rest is FORMAT and the samples (fields 8 on).
+def refuse.fmt(+rest: List<&2, Rg>, r: D.Bytes & Maybe<&2, B.Code>, +fks: List<&2, Fk>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+  match rest:
+    case +f <> +cols:
+      (b, m) = r
+      refuse.ks(txt(b, f), m, cols, fks, fmt, n)
+    case Nil{}:
+      r
+
+def refuse.info(r: D.Bytes & String, +f0: Rg, +f1: Rg, +rest: List<&2, Rg>, +fks: List<&2, Fk>, +n: Nat, +defs: B.Defs) -> Ans:
+  (b, +info) = r
+  refuse.out(refuse.fmt(rest, (b, first(info_problems(String.split(info, ';'), B.Defs.info(defs), n))), fks, B.Defs.fmt(defs), n), f0, f1)
+
+# The line's first problem (n: its ALTs): its INFO entries', then its
+# samples' (fks: the FORMAT keys' kinds the writer used).
+def refuse(b: D.Bytes, +fs: List<&2, Rg>, +fks: List<&2, Fk>, +n: Nat, +defs: B.Defs) -> Ans:
+  match fs:
+    case +f0 <> +f1 <> f2 <> f3 <> f4 <> f5 <> f6 <> +f7 <> +rest:
+      refuse.info(txt(b, f7), f0, f1, rest, fks, n, defs)
+    case _:
+      Out{b, None{}}
+
+# The writer's answer; a line it gave up on is read for its refusal.
+def go.ref(o2: Ans, +fs: List<&2, Rg>, +fks: List<&2, Fk>, +n: Nat, +defs: B.Defs) -> Ans:
+  match o2:
+    case Out{b, None{}}:
+      refuse(b, fs, fks, n, defs)
+    case Out{b, Some{o}}:
+      Out{b, Some{o}}
+    case Ref{b, c, f0, f1}:
+      Ref{b, c, f0, f1}
+
+def go.write(+s: U32, +l: Ln, b: D.Bytes, +alts: List<&2, Rg>, +over0: Bool) -> Ans:
   out.ck(flush(records(alts, Sw{b, BY.empty(0n), Rg{s, s}, True{}}, l, over0, List.length(&2, Rg, alts), 1n)), List.length(&2, Rg, alts), is_crlf(l))
 
-def go.ln(+s: U32, +fs: List<&2, Rg>, +alts: List<&2, Rg>, +over0: Bool, r: D.Bytes & List<&2, Ik>, +fks: List<&2, Fk>, +term: Rg) -> Out:
+def go.ln(+s: U32, +fs: List<&2, Rg>, +alts: List<&2, Rg>, +over0: Bool, r: D.Bytes & List<&2, Ik>, +fks: List<&2, Fk>, +term: Rg, +defs: B.Defs) -> Ans:
   (b, +iks) = r
-  go.write(s, Ln{fs, iks, fks, term}, b, alts, over0)
+  go.ref(go.write(s, Ln{fs, iks, fks, term}, b, alts, over0), fs, fks, List.length(&2, Rg, alts), defs)
 
 def go.iks(r: D.Bytes & List<&2, Rg>, +tags: List<&2, B.Tag>) -> D.Bytes & List<&2, Ik>:
   (b, xs) = r
   ikinds(xs, b, tags)
 
-def go.fmt(+s: U32, +fs: List<&2, Rg>, +alts: List<&2, Rg>, +over0: Bool, +info: Rg, +term: Rg, +defs: B.Defs, r: D.Bytes & List<&2, Fk>) -> Out:
+def go.fmt(+s: U32, +fs: List<&2, Rg>, +alts: List<&2, Rg>, +over0: Bool, +info: Rg, +term: Rg, +defs: B.Defs, r: D.Bytes & List<&2, Fk>) -> Ans:
   (b, +fks) = r
-  go.ln(s, fs, alts, over0, go.iks(cut(b, info, 59), B.Defs.info(defs)), fks, term)
+  go.ln(s, fs, alts, over0, go.iks(cut(b, info, 59), B.Defs.info(defs)), fks, term, defs)
 
 def go.keys.k(r: D.Bytes & List<&2, Rg>, +tags: List<&2, B.Tag>) -> D.Bytes & List<&2, Fk>:
   (b, xs) = r
@@ -1061,7 +1250,7 @@ def go.keys(+f: Maybe<&2, Rg>, b: D.Bytes, +tags: List<&2, B.Tag>) -> D.Bytes & 
     case Some{+x}:
       go.keys.k(cut(b, x, 58), tags)
 
-def go.rest(rest: List<&2, Rg>, b: D.Bytes, +s: U32, +fs: List<&2, Rg>, +alts: List<&2, Rg>, +over0: Bool, +term: Rg, +defs: B.Defs) -> Out:
+def go.rest(rest: List<&2, Rg>, b: D.Bytes, +s: U32, +fs: List<&2, Rg>, +alts: List<&2, Rg>, +over0: Bool, +term: Rg, +defs: B.Defs) -> Ans:
   match rest:
     case +info <> Nil{}:
       go.fmt(s, fs, alts, over0, info, term, defs, go.keys(None{}, b, B.Defs.fmt(defs)))
@@ -1070,14 +1259,14 @@ def go.rest(rest: List<&2, Rg>, b: D.Bytes, +s: U32, +fs: List<&2, Rg>, +alts: L
     case _:
       Out{b, None{}}
 
-def go.alts.ok(ok: Bool, b: D.Bytes, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alts: List<&2, Rg>, +over0: Bool, +term: Rg, +defs: B.Defs) -> Out:
+def go.alts.ok(ok: Bool, b: D.Bytes, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alts: List<&2, Rg>, +over0: Bool, +term: Rg, +defs: B.Defs) -> Ans:
   match ok:
     case True{}:
       go.rest(rest, b, s, fs, alts, over0, term, defs)
     case False{}:
       Out{b, None{}}
 
-def go.alts.d(r: D.Bytes & Bool, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alts: List<&2, Rg>, +over0: Bool, +term: Rg, +defs: B.Defs) -> Out:
+def go.alts.d(r: D.Bytes & Bool, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alts: List<&2, Rg>, +over0: Bool, +term: Rg, +defs: B.Defs) -> Ans:
   (b, ok) = r
   go.alts.ok(ok, b, rest, s, fs, alts, over0, term, defs)
 
@@ -1088,7 +1277,7 @@ def nonempty(xs: List<&2, Rg>) -> Bool:
     case Rg{+a, +z} <> t:
       U32.is_lt(a, z) && nonempty(t)
 
-def go.alts.n(ok: Bool, b: D.Bytes, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alts: List<&2, Rg>, +over0: Bool, +term: Rg, +defs: B.Defs) -> Out:
+def go.alts.n(ok: Bool, b: D.Bytes, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alts: List<&2, Rg>, +over0: Bool, +term: Rg, +defs: B.Defs) -> Ans:
   match ok:
     case True{}:
       go.alts.d(distinct(alts, (b, True{})), rest, s, fs, alts, over0, term, defs)
@@ -1096,40 +1285,40 @@ def go.alts.n(ok: Bool, b: D.Bytes, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, 
       Out{b, None{}}
 
 # The ALTs: two or more, none empty, no two equal up to case.
-def go.alts(r: D.Bytes & List<&2, Rg>, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +over0: Bool, +term: Rg, +defs: B.Defs) -> Out:
+def go.alts(r: D.Bytes & List<&2, Rg>, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +over0: Bool, +term: Rg, +defs: B.Defs) -> Ans:
   (b, +alts) = r
   go.alts.n(Nat.is_le(2n, List.length(&2, Rg, alts)) && nonempty(alts), b, rest, s, fs, alts, over0, term, defs)
 
-def go.ref.ok(ok: Bool, b: D.Bytes, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alt: Rg, +over0: Bool, +term: Rg, +defs: B.Defs) -> Out:
+def go.ref.ok(ok: Bool, b: D.Bytes, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alt: Rg, +over0: Bool, +term: Rg, +defs: B.Defs) -> Ans:
   match ok:
     case True{}:
       go.alts(cut(b, alt, 44), rest, s, fs, over0, term, defs)
     case False{}:
       Out{b, None{}}
 
-def go.ref.k(r: D.Bytes & Bool, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alt: Rg, +over0: Bool, +term: Rg, +defs: B.Defs) -> Out:
+def go.ref.k(r: D.Bytes & Bool, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alt: Rg, +over0: Bool, +term: Rg, +defs: B.Defs) -> Ans:
   (b, ok) = r
   go.ref.ok(ok, b, rest, s, fs, alt, over0, term, defs)
 
-def go.pos.ok(ok: Bool, b: D.Bytes, +ref: Rg, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alt: Rg, +over0: Bool, +term: Rg, +defs: B.Defs) -> Out:
+def go.pos.ok(ok: Bool, b: D.Bytes, +ref: Rg, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alt: Rg, +over0: Bool, +term: Rg, +defs: B.Defs) -> Ans:
   match ok:
     case True{}:
       go.ref.k(letters(b, ref), rest, s, fs, alt, over0, term, defs)
     case False{}:
       Out{b, None{}}
 
-def go.pos.k(r: D.Bytes & Bool, +ref: Rg, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alt: Rg, +over0: Bool, +term: Rg, +defs: B.Defs) -> Out:
+def go.pos.k(r: D.Bytes & Bool, +ref: Rg, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +alt: Rg, +over0: Bool, +term: Rg, +defs: B.Defs) -> Ans:
   (b, ok) = r
   go.pos.ok(ok, b, ref, rest, s, fs, alt, over0, term, defs)
 
-def go.chrom(ok: Bool, b: D.Bytes, +f1: Rg, +f3: Rg, +f4: Rg, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +over0: Bool, +term: Rg, +defs: B.Defs) -> Out:
+def go.chrom(ok: Bool, b: D.Bytes, +f1: Rg, +f3: Rg, +f4: Rg, +rest: List<&2, Rg>, +s: U32, +fs: List<&2, Rg>, +over0: Bool, +term: Rg, +defs: B.Defs) -> Ans:
   match ok:
     case True{}:
       go.pos.k(FC.digits(b, Rg.a(f1), Rg.z(f1)), f3, rest, s, fs, f4, over0, term, defs)
     case False{}:
       Out{b, None{}}
 
-def go.fields.l(+fs: List<&2, Rg>, b: D.Bytes, +s: U32, +over0: Bool, +term: Rg, +defs: B.Defs) -> Out:
+def go.fields.l(+fs: List<&2, Rg>, b: D.Bytes, +s: U32, +over0: Bool, +term: Rg, +defs: B.Defs) -> Ans:
   match fs:
     case +f0 <> +f1 <> f2 <> +f3 <> +f4 <> f5 <> f6 <> +rest:
       go.chrom(U32.is_lt(Rg.a(f0), Rg.z(f0)), b, f1, f3, f4, rest, s, fs, over0, term, defs)
@@ -1138,32 +1327,32 @@ def go.fields.l(+fs: List<&2, Rg>, b: D.Bytes, +s: U32, +over0: Bool, +term: Rg,
 
 # Not MALFORMED (B.Rec.malformed): eight fields or more, CHROM not empty,
 # POS digits, REF letters (the ALTs are tested in go.alts).
-def go.fields(r: D.Bytes & List<&2, Rg>, +s: U32, +over0: Bool, +term: Rg, +defs: B.Defs) -> Out:
+def go.fields(r: D.Bytes & List<&2, Rg>, +s: U32, +over0: Bool, +term: Rg, +defs: B.Defs) -> Ans:
   (b, +fs) = r
   go.fields.l(fs, b, s, over0, term, defs)
 
 # A line with a CR byte in its body (s .. be-1) is not split here (BAD_CR,
 # B.Rec.parts.cr): the String path refuses it.
-def go.nocr.if(ok: Bool, b: D.Bytes, +s: U32, +be: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Out:
+def go.nocr.if(ok: Bool, b: D.Bytes, +s: U32, +be: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Ans:
   match ok:
     case True{}:
       go.fields(cut(b, Rg{s, be}, 9), s, over0, Rg{be, (lf + 1 : U32)}, defs)
     case False{}:
       Out{b, None{}}
 
-def go.nocr(r: D.Bytes & Nat, +s: U32, +be: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Out:
+def go.nocr(r: D.Bytes & Nat, +s: U32, +be: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Ans:
   (b, +k) = r
   go.nocr.if(Nat.is_eq(k, 0n), b, s, be, lf, over0, defs)
 
-def go.body(cr: Bool, b: D.Bytes, +s: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Out:
+def go.body(cr: Bool, b: D.Bytes, +s: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Ans:
   +be = Bool.pick(U32, cr, (lf - 1 : U32), lf)
   go.nocr(count(b, Rg{s, be}, 13), s, be, lf, over0, defs)
 
-def go.cr(r: D.Bytes & U32, +s: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Out:
+def go.cr(r: D.Bytes & U32, +s: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Ans:
   (b, +x) = r
   go.body(U32.is_lt(s, lf) && U32.is_eq(x, 13), b, s, lf, over0, defs)
 
-def go.size(ok: Bool, b: D.Bytes, +s: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Out:
+def go.size(ok: Bool, b: D.Bytes, +s: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Ans:
   match ok:
     case True{}:
       go.cr(BY.at(b, Bool.pick(U32, U32.is_lt(s, lf), (lf - 1 : U32), lf)), s, lf, over0, defs)
@@ -1175,7 +1364,7 @@ def go.size(ok: Bool, b: D.Bytes, +s: U32, +lf: U32, +over0: Bool, +defs: B.Defs
 # each followed by the line's terminator (LF, or CR LF); None for a line
 # B.Rec.parts would not split, and whenever this code does not decide (the
 # String path then does). The line is at most 2^28 bytes.
-def split(b: D.Bytes, +s: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Out:
+def split(b: D.Bytes, +s: U32, +lf: U32, +over0: Bool, +defs: B.Defs) -> Ans:
   go.size(U32.is_le(s, lf) && U32.is_le((lf - s : U32), 268435456), b, s, lf, over0, defs)
 
 # ---------------------------------------------------------------------------

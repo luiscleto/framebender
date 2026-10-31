@@ -206,3 +206,86 @@ change (same work: the tasks merged before too).
   phantom's own), so it never fired. The output buffer has the moved key.
 - A fixed lower phantom (POS - D) was considered and dropped: it refuses merges when the line
   before is within D bases, which a dense file hits; the retry costs nothing when there is no stop.
+
+# fb-refuse: refused lines under -m on bytes (speed phase, 2026-10-31)
+
+Brief: `notes/briefs/SPEED_REFUSE.md` (driver review 10, decision 13). With `-m -any`, a line the
+byte splitter could not split came back as `None`, and the machine sent it to the String path
+(`slow.parts`, which runs `B.Rec.parts` on decoded text): about 0.14 s per 146 KB cohort line.
+
+## What it does now
+
+- `norm_split.bend`: when the writer gives up on a line (one already found not MALFORMED, with
+  two or more ALTs, none equal up to case, and no CR), `refuse` reads the line again for
+  `split_problem`'s INFO and sample problems, in order. INFO is decoded (it is short) and judged
+  by copies of LAWS.bend's problem functions (`first`, `count_problem`, `info_problem`,
+  `gt_problem`, `format_problem`, `sample_problems`). Each sample is first given to the writer
+  alone, in the record for ALT 1 (`sprob`): when the writer writes it, it has no problem
+  (`sample_t`: the writer writes only what `B.Fmt.split` gives; `proof_s_when.bend`'s `col_gc`:
+  `B.Fmt.split` refuses a sample exactly with its first problem). Only a sample the writer gives
+  up on is decoded and judged on its text. A problem: the answer is `Ref{b, c, chrom, pos}`; none
+  (the writer gave up for a size): `Out{b, None}` as before.
+- `norm_seq.bend`: `split.out` on `Ref`. Under `-c e` the String path (the run stops there).
+  Under `-c w`, when the window is the line's contig (`Win.on`: a `WKnown` window, its name equal
+  to CHROM) and the line has at most 2^28 bytes, the line is written as it came with the warning c
+  (`ref.pos`, `NR.problem_line`); else the String path.
+- Proofs: `proof_s_ref.bend` (refuse is `PROBF`, the first problem after the ALTs);
+  `proof_s_drv.bend` (the splitter's answer `SPR` gains the refusal case, with
+  `B.Rec.parts == Unsplit{c}` from `ws.p`, and CHROM and POS as the line's fields);
+  `proof_b_adv_ref.bend` (the branch gives what the spec gives: the pass-through is
+  `body_done` of the problem c, which the String path's `SL.body` already covers, given that
+  judge's outcome does not stop the run under `-c w`: not MALFORMED, and the window says the
+  contig is in the reference); `proof_b_bud_ref.bend` (the budget, with `K.body`); and their
+  wiring in `proof_b_adv_split.bend` and `proof_b_bud_inj.bend` (a record buffer never gives a
+  refusal: a record has one ALT). No law or spec definition changed.
+
+## Timings
+
+`-c w -m -any`, default threads, wall seconds, three rounds interleaved with main's build
+(984688a = 03c3ed4 plus the briefs), each run under `data/tmp/bench.lock` on CPUs 0-15, 21:22 to
+21:29. The machine was not idle: load average 3.4 to 4.3 from other work. Output identical
+(md5) in every pair.
+
+| input | main | this branch | bcftools |
+|---|---|---|---|
+| u100: c100 without `##FORMAT=<ID=GQ`, every line refused | 15.12 14.64 15.81 | 0.33 0.32 0.32 | 0.09 0.10 0.11 |
+| u300: c300 the same | 45.38 51.76 53.51 | 0.73 0.74 0.73 | 0.27 0.26 0.28 |
+| p100: c100 with one PL value too many in each line's last sample | 18.10 19.48 17.85 | 0.44 0.46 0.44 | |
+| c100 (nothing refused) | 0.18 0.17 0.18 | 0.17 0.20 0.17 | |
+| c300 | 0.30 0.33 0.32 | 0.32 0.30 0.27 | |
+| cohort.vcf (218 MB) | 1.34 1.24 1.19 | 1.24 1.51 1.14 | |
+| HG002 chr22 | 0.07 0.08 0.07 | 0.07 0.08 0.08 | |
+| HG002 whole genome | 2.66 2.77 2.57 | 2.98 2.71 2.48 | |
+
+Refused lines: 45x to 70x faster, now 2.7x to 3.5x bcftools (bcftools drops the undefined tag and
+splits; framebender passes the line through with UNDEFINED_TAG). Lines that split, the cohort
+and HG002: within the noise (the only change on their path is one match on the writer's answer).
+
+## What paid, what did not
+
+- The cost was `B.Rec.parts` on Strings: a build that skipped it (wrongly, as an experiment)
+  took u100 from 14.0 s to 0.76 s; the rest was decoding the line and the String verdict.
+- `split_problem` on Strings, tried before `B.Rec.parts` (correct, by law `split_when`), saved
+  little: 12.4 s. The spec's problem functions on text cost about as much as the split.
+- A first prototype found every problem on bytes exactly (counts, genotypes, kinds); it ran as
+  fast as the version kept, but would have needed new exact (both-way) byte lemmas for
+  genotypes and counts. Checking each sample with the writer instead reuses its proofs, and costs
+  the same: the writer's per-sample check is a fresh small buffer per sample.
+- Passing the line through on bytes (rather than the String path with the code already known)
+  paid too: the decoded path's line decode and verdict alone cost about 5.7 ms per cohort line.
+
+## Still slow (documented in USAGE)
+
+- A line refused for `BAD_CR` or `ALT_DUP` (the splitter gives up before the writer runs).
+- A refused line met before the window is on its contig: in a file where every line is refused,
+  the first line of each contig takes the String path once (its verdict asks for the window).
+- Under `-c e`, the refused line the run stops at.
+
+## Proof-writing notes (Bend 2.0.39)
+
+- The checker overflowed its stack while printing an error whose context held a `+` hypothesis
+  of a `Type`-valued type (`hk1: RK(...)` with `RK -> Type`): the error itself was "must be
+  Data". Such hypotheses must be linear.
+- `match` must come before any `+x = ...` or `%` step in a body, and a computed value cannot be
+  destructured in place (give it its own def); defs must come before their uses, constructors
+  too.

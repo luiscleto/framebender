@@ -65,18 +65,18 @@ def out_chars(+m: W.Wm) -> {WT.Out(m) == NR.chars(WOUT(m)) : String}:
 
 # What out.ck gives: the records' buffer (Some) when the flag is set and the
 # buffer passes the check (k LFs; no CR unless cr).
-def WRB(+b: Bool, +len: U32, +t: AT.Tree<U32>, -out: NS.Out, +s: String, +g: Bool, +k: Nat, +cr: Bool) -> Type:
+def WRB(+b: Bool, +len: U32, +t: AT.Tree<U32>, -out: NS.Ans, +s: String, +g: Bool, +k: Nat, +cr: Bool) -> Type:
   match b:
     case True{}:
-      &l2: U32 -> &t2: AT.Tree<U32> -> ({out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Out} &
+      &l2: U32 -> &t2: AT.Tree<U32> -> ({out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Ans} &
         ({W.OK(l2, t2) == True{} : Bool} & ({g == True{} : Bool} & ({NR.chars(W.V(l2, t2)) == s : String} & CK.CK(l2, t2, k, cr)))))
     case False{}:
-      {out == NS.Out{C.BT(len, t), None{}} : NS.Out}
+      {out == NS.Out{C.BT(len, t), None{}} : NS.Ans}
 
-def WRES(+len: U32, +t: AT.Tree<U32>, -out: NS.Out, +s: String, +g: Bool, +k: Nat, +cr: Bool) -> Type:
+def WRES(+len: U32, +t: AT.Tree<U32>, -out: NS.Ans, +s: String, +g: Bool, +k: Nat, +cr: Bool) -> Type:
   &b: Bool -> WRB(b, len, t, out, s, g, k, cr)
 
-def end.b(+b: Bool, +len: U32, +t: AT.Tree<U32>, +l2: U32, +t2: AT.Tree<U32>, -out: NS.Out, +s: String, +g: Bool, +k: Nat, +cr: Bool,
+def end.b(+b: Bool, +len: U32, +t: AT.Tree<U32>, +l2: U32, +t2: AT.Tree<U32>, -out: NS.Ans, +s: String, +g: Bool, +k: Nat, +cr: Bool,
   +hok: {W.OK(l2, t2) == True{} : Bool}, +hg: {g == True{} : Bool}, +hs: {NR.chars(W.V(l2, t2)) == s : String},
   q: CK.CKB(b, len, t, l2, t2, out, k, cr)) -> WRB(b, len, t, out, s, g, k, cr):
   match b:
@@ -86,7 +86,7 @@ def end.b(+b: Bool, +len: U32, +t: AT.Tree<U32>, +l2: U32, +t2: AT.Tree<U32>, -o
     case False{}:
       q
 
-def end.c(+len: U32, +t: AT.Tree<U32>, +l2: U32, +t2: AT.Tree<U32>, -out: NS.Out, +s: String, +g: Bool, +k: Nat, +cr: Bool,
+def end.c(+len: U32, +t: AT.Tree<U32>, +l2: U32, +t2: AT.Tree<U32>, -out: NS.Ans, +s: String, +g: Bool, +k: Nat, +cr: Bool,
   +hok: {W.OK(l2, t2) == True{} : Bool}, +hg: {g == True{} : Bool}, +hs: {NR.chars(W.V(l2, t2)) == s : String},
   r: CK.CKR(len, t, l2, t2, out, k, cr)) -> WRES(len, t, out, s, g, k, cr):
   (+b, q) = r
