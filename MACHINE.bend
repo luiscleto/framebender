@@ -122,16 +122,35 @@ def args_len(xs: List<&2, String>) -> Nat:
     case Con{x, t}:
       Nat.add(Nat.add(String.length(x), 1n), args_len(t))
 
+# Whether a parsed command line asks to split multiallelic records (-m).
+def splits.of(m: Maybe<&2, B.Cfg>) -> Bool:
+  match m:
+    case Some{B.Cfg{B.Opts{s, w, split, over0, args}, r, v}}:
+      split
+    case None{}:
+      False{}
+
+# The bound's room for split records: (VCF length + 1) squared with -m, else
+# nothing.
+def split_room(sp: Bool, +vcf: String) -> Nat:
+  match sp:
+    case True{}:
+      Nat.mul(1n+String.length(vcf), 1n+String.length(vcf))
+    case False{}:
+      0n
+
 # How many driver steps the machine may take, and how many reference reads it
 # may make in all (a step is one input given to Norm.step: a piece, the end of
 # the file, or one batch of reference answers): the pieces, plus 3, plus the
 # command line's length (run echoes it in the header, and one step writes at
 # most 2^31 bytes), plus (VCF length + 1) times (FASTA length + 3), as if each
-# of at most VCF length + 1 lines needed up to FASTA length + 3 reads. A bound
-# for the proof (the machine must stop and cannot read without end); not a
-# speed target.
-def bound(argv: List<&2, String>, fasta: String, vcf: String, cs: List<&2, String>) -> Nat:
-  Nat.add(Nat.add(Nat.add(pieces_len(cs), 3n), args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n)))
+# of at most VCF length + 1 lines needed up to FASTA length + 3 reads. With
+# -m, plus (VCF length + 1) squared, so that each record of a split line (one
+# per ALT) can be charged a line's allowance. A bound for the proof (the
+# machine must stop and cannot read without end); not a speed target.
+def bound(+argv: List<&2, String>, fasta: String, +vcf: String, cs: List<&2, String>) -> Nat:
+  Nat.add(Nat.add(Nat.add(Nat.add(pieces_len(cs), 3n), args_len(argv)), Nat.mul(1n+String.length(vcf), Nat.add(String.length(fasta), 3n))),
+    split_room(splits.of(B.Args.parse(argv)), vcf))
 
 # What a started program produces: the FASTA and VCF paths it opens, and its
 # report.
@@ -252,6 +271,19 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 #   end-of-file block and exits 2 ("cannot index <path>"); for any other exit
 #   code the run is the run without -W, with no index. htslib's own log
 #   messages are switched off.
+# - Old indexes without -W: when B.Args.output(argv) names a BGZF -o file and
+#   B.Args.index(argv) is NoIdx, before any input is opened, at most one line
+#   on stderr for the index htslib 1.24 would read for the -o path: of the
+#   names in its order (<-o path>.csi, <stem>.csi, <-o path>.tbi,
+#   <stem>.tbi; <stem> as in (3), no <stem> names when the path has no '.'
+#   after its first byte), the first that is the -o path itself or where
+#   stat finds something; when that is something that is not a directory
+#   and not the -o path (htslib finds a directory too, but cannot read it):
+#   "warning: htslib would read <name> as the index of <path>; remove it or
+#   use -W". Nothing there is opened or changed (<stem>.csi may index another
+#   file). The line comes before the messages run says, and changes nothing
+#   else: the output bytes, the other messages and the exit code are as
+#   above, also when it cannot be written (it is then left out).
 # - Answering each reference read Req{chrom, a, b} of an Ask, in order, with
 #   exactly truth(B.Fasta.parse(fasta), chrom, a, b): Unknown when the .fai has
 #   no such contig, else Known with the contig's length String.length(Contig.raw)

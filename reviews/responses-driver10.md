@@ -30,3 +30,17 @@ laws do not state.
 |---|---|---|---|
 | 13 | A line the splitter refuses goes to the String path (`slow.parts`): about 0.15 s per 146 KB cohort line, 100x bcftools; harmless under `-c e` (the run stops), very slow under `-c w` | Claude | **Fix in the speed phase:** the byte splitter returns the refusal code, proven equal to `split_problem`. Until then, USAGE states the cost. |
 | 14 | Under `-m`, memory grows with a line's records and with the file (100k samples x 200 ALTs: 994 MB; 2000 samples x 30 ALTs x 3000 lines: 2.5 GB, 3x slower than bcftools); threads help little | Claude | **Fix in the speed phase:** stream a split line's records instead of holding them. Until then, README and USAGE state it. |
+
+## Round 2
+
+Decisions 1-12 carried out in b9b3aed (code, tests, `proof_b_defs_line.bend`), 9195faa, c15ca2b
+and 58d69d2 (docs); `check.sh` passes on 58d69d2 (`PROOF.bend` with `--check-only` and
+`--verdict`). Claude (`claude-driver10-r2.md`) and Grok (`grok-driver10-r2.md`): ACCEPT; GPT
+(`gpt-driver10-r2.md`): no defect, one minor point. All three agree with fb-split's call in
+decision 4 (no warning when the first name htslib would find is the `-o` file itself: htslib
+stops there once the file exists). Claude re-timed decision 14's figures with real thread counts;
+they hold.
+
+| # | finding | by | decision |
+|---|---|---|---|
+| 15 | README does not say that `-m` memory grows with a line's records (decision 14 asked for README and USAGE) | GPT | **Fixed** (c83b39d): one clause in the results section, pointing to USAGE. |

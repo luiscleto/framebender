@@ -187,23 +187,23 @@ def md.ok(md: Q.Md) -> Q.Md & Bool:
     case Q.MS{s, qs, ql, c}:
       (Q.MS{s, qs, ql, c}, False{})
 
-def quiet.k(+o: B.Opts, m: Q.Md & Bool, s: List<&1, Q.Src> & Bool, p: Q.Pd & Bool, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Bool:
+def quiet.k(+o: B.Opts, m: Q.Md & Bool, s: List<&1, Q.Src> & Bool, p: Q.Pd & Bool, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, +dfs: B.Defs) -> Q.St & Bool:
   (md, +b1) = m
   (src, +b2) = s
   (pend, +b3) = p
-  (Q.St{o, md, src, pend, eof, back, win, asked, fneed}, b1 && b2 && b3 && Bool.not(eof) && Bool.not(fneed) && is_none(asked))
+  (Q.St{o, md, src, pend, eof, back, win, asked, fneed, dfs}, b1 && b2 && b3 && Bool.not(eof) && Bool.not(fneed) && is_none(asked))
 
 # Q is in the body, on bytes, not stopped, with no input left and no read
 # asked: a batch can start.
 def quiet(q: Q.St) -> Q.St & Bool:
   match q:
-    case Q.St{+o, md, src, pend, +eof, +back, win, +asked, +fneed}:
-      quiet.k(o, md.ok(md), is_nil.src(src), is_pb(pend), eof, back, win, asked, fneed)
+    case Q.St{+o, md, src, pend, +eof, +back, win, +asked, +fneed, dfs}:
+      quiet.k(o, md.ok(md), is_nil.src(src), is_pb(pend), eof, back, win, asked, fneed, dfs)
 
 def opts(q: Q.St) -> Q.St & B.Opts:
   match q:
-    case Q.St{+o, md, src, pend, eof, back, win, asked, fneed}:
-      (Q.St{o, md, src, pend, eof, back, win, asked, fneed}, o)
+    case Q.St{+o, md, src, pend, eof, back, win, asked, fneed, dfs}:
+      (Q.St{o, md, src, pend, eof, back, win, asked, fneed, dfs}, o)
 
 def rev_b(xs: List<&1, D.Bytes>, acc: List<&1, D.Bytes>) -> List<&1, D.Bytes>:
   match xs:
@@ -414,14 +414,14 @@ def plan.reqs_all(pls: List<&1, Pl>) -> List<&1, Pl> & List<&2, P.Req>:
 
 def swap_win(st: Q.St, w: Q.Win) -> Q.St:
   match st:
-    case Q.St{o, md, src, pend, eof, back, win, asked, fneed}:
-      Q.St{o, md, src, pend, eof, back, w, None{}, fneed}
+    case Q.St{o, md, src, pend, eof, back, win, asked, fneed, dfs}:
+      Q.St{o, md, src, pend, eof, back, w, None{}, fneed, dfs}
 
 def task.done(st: Q.St, +k: U32, +c0: String, +l: Nat) -> TRes:
   match st:
-    case Q.St{o, Q.MB{run}, src, pend, eof, back, win, asked, fneed}:
+    case Q.St{o, Q.MB{run}, src, pend, eof, back, win, asked, fneed, dfs}:
       TClean{Tc{run, pend, win, k, c0, l}}
-    case Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed}:
+    case Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed, dfs}:
       TDirty{}
 
 # The buffer of Q's input (the piece, while the task has not taken it back).
@@ -433,10 +433,14 @@ def src_b(src: List<&1, Q.Src>) -> D.Bytes:
       b
     case Q.SL{p} <> t:
       BY.empty(0n)
+    case Q.SP{r, at} <> t:
+      src_b(t)
+    case Q.SR{l} <> t:
+      src_b(t)
 
 def st_b(st: Q.St) -> D.Bytes:
   match st:
-    case Q.St{o, md, src, pend, eof, back, win, asked, fneed}:
+    case Q.St{o, md, src, pend, eof, back, win, asked, fneed, dfs}:
       src_b(src)
 
 # The piece: held by the task, or Q's input.
@@ -452,61 +456,65 @@ def task.dirty(st: Q.St, ph: Ph) -> Tk:
 
 # Q's input made a copy of the piece's bytes from at (its last partial line),
 # the piece held by the task.
-def swap.put(+o: B.Opts, md: Q.Md, p: D.Bytes & D.Bytes, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+def swap.put(+o: B.Opts, md: Q.Md, p: D.Bytes & D.Bytes, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, +dfs: B.Defs) -> Q.St & Ph:
   (tail, b) = p
-  (Q.St{o, md, [Q.SB{tail, 0}], pend, eof, back, win, asked, fneed}, PHeld{b})
+  (Q.St{o, md, [Q.SB{tail, 0}], pend, eof, back, win, asked, fneed, dfs}, PHeld{b})
 
-def swap.len(+o: B.Opts, md: Q.Md, r: D.Bytes & U32, +at: U32, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+def swap.len(+o: B.Opts, md: Q.Md, r: D.Bytes & U32, +at: U32, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, +dfs: B.Defs) -> Q.St & Ph:
   (b, +len) = r
-  swap.put(o, md, NR.put_bytes(BY.empty(NR.depth((len - at + 8 : U32))), b, at, (len - at : U32)), pend, eof, back, win, asked, fneed)
+  swap.put(o, md, NR.put_bytes(BY.empty(NR.depth((len - at + 8 : U32))), b, at, (len - at : U32)), pend, eof, back, win, asked, fneed, dfs)
 
-def swap.if(go: Bool, +o: B.Opts, md: Q.Md, b: D.Bytes, +at: U32, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+def swap.if(go: Bool, +o: B.Opts, md: Q.Md, b: D.Bytes, +at: U32, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, +dfs: B.Defs) -> Q.St & Ph:
   match go:
     case True{}:
-      swap.len(o, md, BY.len(b), at, pend, eof, back, win, asked, fneed)
+      swap.len(o, md, BY.len(b), at, pend, eof, back, win, asked, fneed, dfs)
     case False{}:
-      (Q.St{o, md, [Q.SB{b, at}], pend, eof, back, win, asked, fneed}, PIn{})
+      (Q.St{o, md, [Q.SB{b, at}], pend, eof, back, win, asked, fneed, dfs}, PIn{})
 
 # The piece stays Q's input while its byte el is an LF at or after at.
-def swap.at(r: D.Bytes & U32, +at: U32, +el: U32, +o: B.Opts, md: Q.Md, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+def swap.at(r: D.Bytes & U32, +at: U32, +el: U32, +o: B.Opts, md: Q.Md, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, +dfs: B.Defs) -> Q.St & Ph:
   (b, +x) = r
-  swap.if(Bool.not(U32.is_le(at, el) && U32.is_eq(x, 10)), o, md, b, at, pend, eof, back, win, asked, fneed)
+  swap.if(Bool.not(U32.is_le(at, el) && U32.is_eq(x, 10)), o, md, b, at, pend, eof, back, win, asked, fneed, dfs)
 
-def swap.lt(lt: Bool, b: D.Bytes, +at: U32, +el: U32, +o: B.Opts, md: Q.Md, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+def swap.lt(lt: Bool, b: D.Bytes, +at: U32, +el: U32, +o: B.Opts, md: Q.Md, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, +dfs: B.Defs) -> Q.St & Ph:
   match lt:
     case True{}:
-      swap.at(BY.at(b, el), at, el, o, md, pend, eof, back, win, asked, fneed)
+      swap.at(BY.at(b, el), at, el, o, md, pend, eof, back, win, asked, fneed, dfs)
     case False{}:
-      swap.if(True{}, o, md, b, at, pend, eof, back, win, asked, fneed)
+      swap.if(True{}, o, md, b, at, pend, eof, back, win, asked, fneed, dfs)
 
-def swap.src(src: List<&1, Q.Src>, +el: U32, +len: U32, +o: B.Opts, md: Q.Md, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+def swap.src(src: List<&1, Q.Src>, +el: U32, +len: U32, +o: B.Opts, md: Q.Md, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, +dfs: B.Defs) -> Q.St & Ph:
   match src:
     case Nil{}:
-      (Q.St{o, md, Nil{}, pend, eof, back, win, asked, fneed}, PIn{})
+      (Q.St{o, md, Nil{}, pend, eof, back, win, asked, fneed, dfs}, PIn{})
     case Q.SB{b, +at} <> t:
       match t:
         case Nil{}:
-          swap.lt(U32.is_lt(el, len), b, at, el, o, md, pend, eof, back, win, asked, fneed)
+          swap.lt(U32.is_lt(el, len), b, at, el, o, md, pend, eof, back, win, asked, fneed, dfs)
         case h <> t2:
-          (Q.St{o, md, Q.SB{b, at} <> (h <> t2), pend, eof, back, win, asked, fneed}, PIn{})
+          (Q.St{o, md, Q.SB{b, at} <> (h <> t2), pend, eof, back, win, asked, fneed, dfs}, PIn{})
     case Q.SL{p} <> t:
-      (Q.St{o, md, Q.SL{p} <> t, pend, eof, back, win, asked, fneed}, PIn{})
+      (Q.St{o, md, Q.SL{p} <> t, pend, eof, back, win, asked, fneed, dfs}, PIn{})
+    case Q.SP{r, at} <> t:
+      (Q.St{o, md, Q.SP{r, at} <> t, pend, eof, back, win, asked, fneed, dfs}, PIn{})
+    case Q.SR{l} <> t:
+      (Q.St{o, md, Q.SR{l} <> t, pend, eof, back, win, asked, fneed, dfs}, PIn{})
 
 # Before Q reaches the piece's last partial line (no LF from at), where it
 # would drop its input, its input becomes a copy of that line and the task
 # holds the piece. el is where the piece's last LF should be (len: the
 # piece's length): while its byte is an LF at or after at, Q keeps the piece.
-def swap.ph(ph: Ph, +el: U32, +len: U32, +o: B.Opts, md: Q.Md, src: List<&1, Q.Src>, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Ph:
+def swap.ph(ph: Ph, +el: U32, +len: U32, +o: B.Opts, md: Q.Md, src: List<&1, Q.Src>, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, +dfs: B.Defs) -> Q.St & Ph:
   match ph:
     case PHeld{b}:
-      (Q.St{o, md, src, pend, eof, back, win, asked, fneed}, PHeld{b})
+      (Q.St{o, md, src, pend, eof, back, win, asked, fneed, dfs}, PHeld{b})
     case PIn{}:
-      swap.src(src, el, len, o, md, pend, eof, back, win, asked, fneed)
+      swap.src(src, el, len, o, md, pend, eof, back, win, asked, fneed, dfs)
 
 def swap(st: Q.St, ph: Ph, +el: U32, +len: U32) -> Q.St & Ph:
   match st:
-    case Q.St{+o, md, src, pend, +eof, +back, win, +asked, +fneed}:
-      swap.ph(ph, el, len, o, md, src, pend, eof, back, win, asked, fneed)
+    case Q.St{+o, md, src, pend, +eof, +back, win, +asked, +fneed, dfs}:
+      swap.ph(ph, el, len, o, md, src, pend, eof, back, win, asked, fneed, dfs)
 
 def task.tgo(p: Q.St & Ph, spare: List<&1, Q.Win>) -> Tk:
   (st, ph) = p
@@ -516,10 +524,10 @@ def task.tgo(p: Q.St & Ph, spare: List<&1, Q.Win>) -> Tk:
 # the task dirty (Q's input is then no longer kept for the piece).
 def task.next(st: Q.St, ph: Ph, spare: List<&1, Q.Win>, +el: U32, +len: U32) -> Tk:
   match st:
-    case Q.St{o, Q.MB{run}, src, pend, eof, back, win, asked, fneed}:
-      task.tgo(swap(Q.St{o, Q.MB{run}, src, pend, eof, back, win, asked, fneed}, ph, el, len), spare)
-    case Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed}:
-      task.dirty(Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed}, ph)
+    case Q.St{o, Q.MB{run}, src, pend, eof, back, win, asked, fneed, dfs}:
+      task.tgo(swap(Q.St{o, Q.MB{run}, src, pend, eof, back, win, asked, fneed, dfs}, ph, el, len), spare)
+    case Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed, dfs}:
+      task.dirty(Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed, dfs}, ph)
 
 def task.idle(st: Q.St, ph: Ph, +k: U32, +c0: String, +l: Nat) -> Tk:
   match ph:
@@ -568,26 +576,32 @@ def task.wins(ws: List<&1, Q.Win>) -> Q.Win & List<&1, Q.Win>:
       (w, t)
 
 # The task's run: in the body, the current CHROM c0, the phantom as the last
-# item written (key and input POS l, line 0, length 0), room for the piece.
+# item written (key and input POS l, line 0, length 0), room for len bytes of
+# output (task.res).
 def task.run0(+c0: String, +l: Nat, +len: U32) -> NR.Run:
   NR.reserve(NR.Run{0n, True{}, "", Some{c0}, NR.of_str(c0), Nil{}, Some{NR.Ck{l, l, 0n, None{}, 0}}, Nil{}, Nil{}, 0n, 0n, R.Cnt{0n, 0n, 0n, 0n}, BY.empty(0n), 0, Nil{}, False{}}, len)
 
-def task.start(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, p: Q.Win & List<&1, Q.Win>, +el: U32, +c0: String, +l: Nat) -> TOut:
+# Room for a task's output: its piece's length, twice that with -m (a split
+# line's records hold more bytes than the line; notes/split.md, memory).
+def task.res(+o: B.Opts, +len: U32) -> U32:
+  Bool.pick(U32, R.Opts.split(o), (len + len : U32), len)
+
+def task.start(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, p: Q.Win & List<&1, Q.Win>, +el: U32, +c0: String, +l: Nat, +dfs: B.Defs) -> TOut:
   (w, spare) = p
-  task.loop(Nat.add(U32.to_nat(len), 8n), task.next(Q.St{o, Q.MB{task.run0(c0, l, len)}, [Q.SB{b, (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, w, None{}, False{}}, PIn{}, spare, el, len), el, len, k, c0, l)
+  task.loop(Nat.add(U32.to_nat(len), 8n), task.next(Q.St{o, Q.MB{task.run0(c0, l, task.res(o, len))}, [Q.SB{b, (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, w, None{}, False{}, dfs}, PIn{}, spare, el, len), el, len, k, c0, l)
 
-def task.last.k(+o: B.Opts, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat, b: D.Bytes, q: U32 & Bool) -> TOut:
+def task.last.k(+o: B.Opts, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat, b: D.Bytes, q: U32 & Bool, +dfs: B.Defs) -> TOut:
   (+el, fl) = q
-  task.start(o, b, len, k, task.wins(ws), el, c0, l)
+  task.start(o, b, len, k, task.wins(ws), el, c0, l, dfs)
 
-def task.last(+o: B.Opts, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat, r: D.Bytes & (U32 & Bool)) -> TOut:
+def task.last(+o: B.Opts, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat, r: D.Bytes & (U32 & Bool), +dfs: B.Defs) -> TOut:
   (b, q) = r
-  task.last.k(o, len, ws, k, c0, l, b, q)
+  task.last.k(o, len, ws, k, c0, l, b, q, dfs)
 
-def task.len.if(small: Bool, +o: B.Opts, b: D.Bytes, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat) -> TOut:
+def task.len.if(small: Bool, +o: B.Opts, b: D.Bytes, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat, +dfs: B.Defs) -> TOut:
   match small:
     case True{}:
-      task.last(o, len, ws, k, c0, l, rlf(b, len, (k + 1 : U32)))
+      task.last(o, len, ws, k, c0, l, rlf(b, len, (k + 1 : U32)), dfs)
     case False{}:
       TOut{b, TDirty{}}
 
@@ -595,9 +609,9 @@ def task.len.if(small: Bool, +o: B.Opts, b: D.Bytes, +len: U32, ws: List<&1, Q.W
 # 3.5 MB); a larger one is left to Q. The task runs on the piece itself and
 # hands it back (for the combine), with no copy: its last LF el tells
 # when to take it back from Q.
-def task.len(+o: B.Opts, r: D.Bytes & U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat) -> TOut:
+def task.len(+o: B.Opts, r: D.Bytes & U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat, +dfs: B.Defs) -> TOut:
   (b, +len) = r
-  task.len.if(U32.is_lt(len, 1073741824), o, b, len, ws, k, c0, l)
+  task.len.if(U32.is_lt(len, 1073741824), o, b, len, ws, k, c0, l, dfs)
 
 def task.win.if(short: Bool, +r: P.Req, a: P.Ans) -> Q.Win:
   match short:
@@ -625,21 +639,21 @@ def task.wins2(rs: List<&2, P.Req>, a1: P.Ans, a2: P.Ans) -> List<&1, Q.Win>:
         case +r2 <> t2:
           [task.win(r1, a1), task.win(r2, a2)]
 
-def task.go(run: Bool, +o: B.Opts, b: D.Bytes, rs: List<&2, P.Req>, a1: P.Ans, a2: P.Ans, +k: U32, +c0: String, +l: Nat) -> TOut:
+def task.go(run: Bool, +o: B.Opts, b: D.Bytes, rs: List<&2, P.Req>, a1: P.Ans, a2: P.Ans, +k: U32, +c0: String, +l: Nat, +dfs: B.Defs) -> TOut:
   match run:
     case True{}:
-      task.len(o, BY.len(b), task.wins2(rs, a1, a2), k, c0, l)
+      task.len(o, BY.len(b), task.wins2(rs, a1, a2), k, c0, l, dfs)
     case False{}:
       TOut{b, TDirty{}}
 
 # A piece's task: the task runs on the piece and hands it back (for the
 # combine); a piece with no complete line after its first LF, or whose first
 # CHROM has more than 2^28 bytes (no byte-mode line has), is left to Q.
-def task(+o: B.Opts, b: D.Bytes, ok: Bool, rs: List<&2, P.Req>, a1: P.Ans, a2: P.Ans, +k: U32, +c0: String, +l: Nat) -> TOut:
-  task.go(ok && Q.len_le(c0, 268435456), o, b, rs, a1, a2, k, c0, l)
+def task(+o: B.Opts, b: D.Bytes, ok: Bool, rs: List<&2, P.Req>, a1: P.Ans, a2: P.Ans, +k: U32, +c0: String, +l: Nat, +dfs: B.Defs) -> TOut:
+  task.go(ok && Q.len_le(c0, 268435456), o, b, rs, a1, a2, k, c0, l, dfs)
 
-def task.mk(+o: B.Opts, b: D.Bytes, ok: Bool, rs: List<&2, P.Req>, a1: P.Ans, a2: P.Ans, +k: U32, +c0: String, +l: Nat) -> HD.Task<&1, TOut>:
-  HD.Task{u => task(o, b, ok, rs, a1, a2, k, c0, l)}
+def task.mk(+o: B.Opts, b: D.Bytes, ok: Bool, rs: List<&2, P.Req>, a1: P.Ans, a2: P.Ans, +k: U32, +c0: String, +l: Nat, +dfs: B.Defs) -> HD.Task<&1, TOut>:
+  HD.Task{u => task(o, b, ok, rs, a1, a2, k, c0, l, dfs)}
 
 # The answers, two at a time (each piece with reads has two).
 def pairs(as: List<&1, P.Ans>) -> List<&1, P.Ans & P.Ans>:
@@ -653,26 +667,26 @@ def pairs(as: List<&1, P.Ans>) -> List<&1, P.Ans & P.Ans>:
         case a2 <> r:
           (a1, a2) <> pairs(r)
 
-def task.of.k(+o: B.Opts, b: D.Bytes, ok: Bool, rs: List<&2, P.Req>, +k: U32, +c0: String, +l: Nat, x: P.Ans & P.Ans) -> HD.Task<&1, TOut>:
+def task.of.k(+o: B.Opts, b: D.Bytes, ok: Bool, rs: List<&2, P.Req>, +k: U32, +c0: String, +l: Nat, x: P.Ans & P.Ans, +dfs: B.Defs) -> HD.Task<&1, TOut>:
   (a1, a2) = x
-  task.mk(o, b, ok, rs, a1, a2, k, c0, l)
+  task.mk(o, b, ok, rs, a1, a2, k, c0, l, dfs)
 
-def task.of(+o: B.Opts, p: Pl, x: P.Ans & P.Ans) -> HD.Task<&1, TOut>:
+def task.of(+o: B.Opts, p: Pl, x: P.Ans & P.Ans, +dfs: B.Defs) -> HD.Task<&1, TOut>:
   match p:
     case Pl{b, rs, ok, +k, +c0, +l}:
-      task.of.k(o, b, ok, rs, k, c0, l, x)
+      task.of.k(o, b, ok, rs, k, c0, l, x, dfs)
 
 # One task per piece, with its answers (the next two, for a piece with reads).
-def tasks(+o: B.Opts, pls: List<&1, Pl>, ps: List<&1, P.Ans & P.Ans>) -> List<&1, HD.Task<&1, TOut>>:
+def tasks(+o: B.Opts, pls: List<&1, Pl>, ps: List<&1, P.Ans & P.Ans>, +dfs: B.Defs) -> List<&1, HD.Task<&1, TOut>>:
   match pls ps:
     case Nil{} x:
       Nil{}
     case Pl{b, rs, True{}, +k, +c0, +l} <> t x <> pt:
-      task.of(o, Pl{b, rs, True{}, k, c0, l}, x) <> tasks(o, t, pt)
+      task.of(o, Pl{b, rs, True{}, k, c0, l}, x, dfs) <> tasks(o, t, pt, dfs)
     case Pl{b, rs, True{}, +k, +c0, +l} <> t Nil{}:
-      task.of(o, Pl{b, rs, True{}, k, c0, l}, (P.Unknown{}, P.Unknown{})) <> tasks(o, t, Nil{})
+      task.of(o, Pl{b, rs, True{}, k, c0, l}, (P.Unknown{}, P.Unknown{}), dfs) <> tasks(o, t, Nil{}, dfs)
     case Pl{b, rs, False{}, +k, +c0, +l} <> t x:
-      task.of(o, Pl{b, rs, False{}, k, c0, l}, (P.Unknown{}, P.Unknown{})) <> tasks(o, t, x)
+      task.of(o, Pl{b, rs, False{}, k, c0, l}, (P.Unknown{}, P.Unknown{}), dfs) <> tasks(o, t, x, dfs)
 
 # ---------------------------------------------------------------------------
 # Merge: a clean task's run spliced after the true run
@@ -893,19 +907,19 @@ def seq_out(s: Q.Step, rest: List<&1, TOut>, +eofp: Bool) -> Step:
     case Q.Step{st, o, +ns, +nx}:
       seq.k(nx, st, o, ns, rest, eofp)
 
-def comb.mg(m: Mg, +o: B.Opts, tp: Q.Pd, tw: Q.Win, src: List<&1, Q.Src>, pend: Q.Pd, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, rest: List<&1, TOut>, +eofp: Bool) -> Step:
+def comb.mg(m: Mg, +o: B.Opts, tp: Q.Pd, tw: Q.Win, src: List<&1, Q.Src>, pend: Q.Pd, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, rest: List<&1, TOut>, +eofp: Bool, +dfs: B.Defs) -> Step:
   match m:
     case MOk{out, +ns, run}:
-      Step{St{Q.St{o, Q.MB{run}, Nil{}, tp, False{}, 0n, tw, None{}, False{}}, BComb{rest, eofp, False{}}}, out, ns, P.Ask{Nil{}}}
+      Step{St{Q.St{o, Q.MB{run}, Nil{}, tp, False{}, 0n, tw, None{}, False{}, dfs}, BComb{rest, eofp, False{}}}, out, ns, P.Ask{Nil{}}}
     case MNo{run}:
-      seq_out(Q.go(Q.St{o, Q.MB{run}, src, pend, False{}, back, win, asked, fneed}), rest, eofp)
+      seq_out(Q.go(Q.St{o, Q.MB{run}, src, pend, False{}, back, win, asked, fneed, dfs}), rest, eofp)
 
 def comb.splice(q2: Q.St, c: Tc, rest: List<&1, TOut>, +eofp: Bool) -> Step:
   match q2 c:
-    case Q.St{+o, Q.MB{s}, src, pend, eof, +back, win, +asked, +fneed} Tc{t, tp, tw, k, +c0, +l}:
-      comb.mg(merge(s, t, l, R.Opts.w(o), c0), o, tp, tw, src, pend, back, win, asked, fneed, rest, eofp)
-    case Q.St{o, Q.MS{s, qs, ql, cd}, src, pend, eof, back, win, asked, fneed} _:
-      seq_out(Q.go(Q.St{o, Q.MS{s, qs, ql, cd}, src, pend, eof, back, win, asked, fneed}), rest, eofp)
+    case Q.St{+o, Q.MB{s}, src, pend, eof, +back, win, +asked, +fneed, dfs} Tc{t, tp, tw, k, +c0, +l}:
+      comb.mg(merge(s, t, l, R.Opts.w(o), c0), o, tp, tw, src, pend, back, win, asked, fneed, rest, eofp, dfs)
+    case Q.St{o, Q.MS{s, qs, ql, cd}, src, pend, eof, back, win, asked, fneed, dfs} _:
+      seq_out(Q.go(Q.St{o, Q.MS{s, qs, ql, cd}, src, pend, eof, back, win, asked, fneed, dfs}), rest, eofp)
 
 # The input left: one buffer (and where in it), or more.
 def one_src(src: List<&1, Q.Src>) -> List<&1, Q.Src> & (U32 & Bool):
@@ -918,6 +932,10 @@ def one_src(src: List<&1, Q.Src>) -> List<&1, Q.Src> & (U32 & Bool):
       (Q.SB{b, at} <> (h <> t), (0, False{}))
     case Q.SL{p} <> t:
       (Q.SL{p} <> t, (0, False{}))
+    case Q.SP{r, at} <> t:
+      (Q.SP{r, at} <> t, (0, False{}))
+    case Q.SR{l} <> t:
+      (Q.SR{l} <> t, (0, False{}))
 
 def tc.k(c: Tc) -> Tc & U32:
   match c:
@@ -943,32 +961,32 @@ def md.n(md: Q.Md) -> Q.Md & Nat:
     case Q.MS{s, qs, ql, c}:
       (Q.MS{s, qs, ql, c}, 0n)
 
-def q.n.k(+o: B.Opts, m: Q.Md & Nat, src: List<&1, Q.Src>, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool) -> Q.St & Nat:
+def q.n.k(+o: B.Opts, m: Q.Md & Nat, src: List<&1, Q.Src>, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, +dfs: B.Defs) -> Q.St & Nat:
   (md, +n) = m
-  (Q.St{o, md, src, pend, eof, back, win, asked, fneed}, n)
+  (Q.St{o, md, src, pend, eof, back, win, asked, fneed, dfs}, n)
 
 def q.n(q: Q.St) -> Q.St & Nat:
   match q:
-    case Q.St{+o, md, src, pend, +eof, +back, win, +asked, +fneed}:
-      q.n.k(o, md.n(md), src, pend, eof, back, win, asked, fneed)
+    case Q.St{+o, md, src, pend, +eof, +back, win, +asked, +fneed, dfs}:
+      q.n.k(o, md.n(md), src, pend, eof, back, win, asked, fneed, dfs)
 
-def edge.where.q(+o: B.Opts, m: Q.Md & Nat, src: List<&1, Q.Src>, q: U32 & Bool, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, c: Tc, +k: U32, +n0: Nat) -> Ew:
+def edge.where.q(+o: B.Opts, m: Q.Md & Nat, src: List<&1, Q.Src>, q: U32 & Bool, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, c: Tc, +k: U32, +n0: Nat, +dfs: B.Defs) -> Ew:
   (md, +n) = m
   (+at, one) = q
-  edge.where.if(one && U32.is_eq(at, (k + 1 : U32)) && Nat.is_eq(n, 1n+n0), Bool.not(eof) && is_none(asked) && Bool.not(fneed), Q.St{o, md, src, pend, eof, back, win, asked, fneed}, c)
+  edge.where.if(one && U32.is_eq(at, (k + 1 : U32)) && Nat.is_eq(n, 1n+n0), Bool.not(eof) && is_none(asked) && Bool.not(fneed), Q.St{o, md, src, pend, eof, back, win, asked, fneed, dfs}, c)
 
-def edge.where.k(+o: B.Opts, md: Q.Md, r: List<&1, Q.Src> & (U32 & Bool), pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, p: Tc & U32, +n0: Nat) -> Ew:
+def edge.where.k(+o: B.Opts, md: Q.Md, r: List<&1, Q.Src> & (U32 & Bool), pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, p: Tc & U32, +n0: Nat, +dfs: B.Defs) -> Ew:
   (src, q) = r
   (c, +k) = p
-  edge.where.q(o, md.n(md), src, q, pend, eof, back, win, asked, fneed, c, k, n0)
+  edge.where.q(o, md.n(md), src, q, pend, eof, back, win, asked, fneed, c, k, n0, dfs)
 
 # Where Q is: past exactly one line since the piece came (n0: Q's line count
 # then), at the piece from k+1 on (the line across the boundary handled),
 # and whether nothing else waits; or not yet.
 def edge.where(q2: Q.St, c: Tc, +n0: Nat) -> Ew:
   match q2:
-    case Q.St{+o, md, src, pend, +eof, +back, win, +asked, +fneed}:
-      edge.where.k(o, md, one_src(src), pend, eof, back, win, asked, fneed, tc.k(c), n0)
+    case Q.St{+o, md, src, pend, +eof, +back, win, +asked, +fneed, dfs}:
+      edge.where.k(o, md, one_src(src), pend, eof, back, win, asked, fneed, tc.k(c), n0, dfs)
 
 def edge.of(a: Q.Adv, c: Tc, +n0: Nat) -> Ew:
   match a:
@@ -1000,12 +1018,12 @@ def edge(fuel: Nat, +n0: Nat, e: Ew, rest: List<&1, TOut>, +eofp: Bool) -> Step:
 # Q.feed without room for the whole piece (Q handles only its first line).
 def feed_line(q: Q.St, b: D.Bytes) -> Q.St:
   match q:
-    case Q.St{+o, md, src, pend, eof, +back, win, asked, +fneed}:
-      Q.feed.k(o, md, src, b, Q.Pd.len(pend), eof, back, win, asked, fneed)
+    case Q.St{+o, md, src, pend, eof, +back, win, asked, +fneed, dfs}:
+      Q.feed.k(o, md, src, b, Q.Pd.len(pend), eof, back, win, asked, fneed, dfs)
 
 def comb.clean(p: Q.St & Nat, b: D.Bytes, c: Tc, rest: List<&1, TOut>, +eofp: Bool) -> Step:
   (q, +n0) = p
-  edge(3n, n0, edge.of(Q.advance(feed_line(q, b)), c, n0), rest, eofp)
+  edge(4096n, n0, edge.of(Q.advance(feed_line(q, b)), c, n0), rest, eofp)
 
 def comb.piece(r: TRes, q: Q.St, b: D.Bytes, rest: List<&1, TOut>, +eofp: Bool) -> Step:
   match r:
@@ -1058,50 +1076,50 @@ def none.step(i: P.In, q: Q.St) -> Step:
     case P.Ref{as}:
       wrap(Q.step(q, P.Ref{as}), BNone{})
 
-def ask.run(p: Q.St & B.Opts, pls: List<&1, Pl>, as: List<&1, P.Ans>, +eofp: Bool) -> Step:
+def ask.run(p: Q.St & B.Opts, pls: List<&1, Pl>, as: List<&1, P.Ans>, +eofp: Bool, +dfs: B.Defs) -> Step:
   (q, +o) = p
-  comb.next(HH.all(&1, TOut, tasks(o, pls, pairs(as))), q, eofp)
+  comb.next(HH.all(&1, TOut, tasks(o, pls, pairs(as), dfs)), q, eofp)
 
-def plan.go(none: Bool, q: Q.St, pls: List<&1, Pl>, +reqs: List<&2, P.Req>, +eofp: Bool) -> Step:
+def plan.go(none: Bool, q: Q.St, pls: List<&1, Pl>, +reqs: List<&2, P.Req>, +eofp: Bool, +dfs: B.Defs) -> Step:
   match none:
     case True{}:
-      ask.run(opts(q), pls, Nil{}, eofp)
+      ask.run(opts(q), pls, Nil{}, eofp, dfs)
     case False{}:
       wrap(Q.out(q, P.Ask{reqs}), BAsk{pls, eofp})
 
-def plan.ask(q: Q.St, r: List<&1, Pl> & List<&2, P.Req>, +eofp: Bool) -> Step:
+def plan.ask(q: Q.St, r: List<&1, Pl> & List<&2, P.Req>, +eofp: Bool, +dfs: B.Defs) -> Step:
   (pls, +reqs) = r
-  plan.go(List.is_empty(&2, P.Req, reqs), q, pls, reqs, eofp)
+  plan.go(List.is_empty(&2, P.Req, reqs), q, pls, reqs, eofp, dfs)
 
 # A batch is complete (ps in order): its reads are asked, all at once (with
 # none, its tasks run in this step).
-def plan(q: Q.St, ps: List<&1, D.Bytes>, +eofp: Bool) -> Step:
-  plan.ask(q, plan.reqs_all(plan.all(ps)), eofp)
+def plan(q: Q.St, ps: List<&1, D.Bytes>, +eofp: Bool, +dfs: B.Defs) -> Step:
+  plan.ask(q, plan.reqs_all(plan.all(ps)), eofp, dfs)
 
-def col.add(full: Bool, q: Q.St, ps: List<&1, D.Bytes>, +k: Nat) -> Step:
+def col.add(full: Bool, q: Q.St, ps: List<&1, D.Bytes>, +k: Nat, +dfs: B.Defs) -> Step:
   match full:
     case True{}:
-      plan(q, rev_b(ps, Nil{}), False{})
+      plan(q, rev_b(ps, Nil{}), False{}, dfs)
     case False{}:
       wrap(Q.out(q, P.More{}), BCol{ps, k})
 
-def col.len(r: D.Bytes & U32, q: Q.St, ps: List<&1, D.Bytes>, +k: Nat) -> Step:
+def col.len(r: D.Bytes & U32, q: Q.St, ps: List<&1, D.Bytes>, +k: Nat, +dfs: B.Defs) -> Step:
   (b, +n) = r
-  col.add(Nat.is_le(kmax(), 1n+k) || U32.is_lt(n, minp()), q, b <> ps, 1n+k)
+  col.add(Nat.is_le(kmax(), 1n+k) || U32.is_lt(n, minp()), q, b <> ps, 1n+k, dfs)
 
-def col.step(i: P.In, q: Q.St, ps: List<&1, D.Bytes>, +k: Nat) -> Step:
+def col.step(i: P.In, q: Q.St, ps: List<&1, D.Bytes>, +k: Nat, +dfs: B.Defs) -> Step:
   match i:
     case P.Chunk{b}:
-      col.len(BY.len(b), q, ps, k)
+      col.len(BY.len(b), q, ps, k, dfs)
     case P.Eof{}:
-      plan(q, rev_b(ps, Nil{}), True{})
+      plan(q, rev_b(ps, Nil{}), True{}, dfs)
     case P.Ref{as}:
       wrap(Q.out(q, P.More{}), BCol{ps, k})
 
-def ask.step(i: P.In, q: Q.St, pls: List<&1, Pl>, +eofp: Bool) -> Step:
+def ask.step(i: P.In, q: Q.St, pls: List<&1, Pl>, +eofp: Bool, +dfs: B.Defs) -> Step:
   match i:
     case P.Ref{as}:
-      ask.run(opts(q), pls, as, eofp)
+      ask.run(opts(q), pls, as, eofp, dfs)
     case P.Chunk{b}:
       wrap(Q.out(q, P.Ask{Nil{}}), BAsk{pls, eofp})
     case P.Eof{}:
@@ -1114,19 +1132,29 @@ def comb.step(i: P.In, seq: Bool, q: Q.St, pcs: List<&1, TOut>, +eofp: Bool) -> 
     case False{}:
       comb.next(pcs, q, eofp)
 
-def step.bat(b: Bat, q: Q.St, i: P.In) -> Step:
+def step.bat(b: Bat, q: Q.St, i: P.In, +dfs: B.Defs) -> Step:
   match b:
     case BNone{}:
       none.step(i, q)
     case BCol{ps, +k}:
-      col.step(i, q, ps, k)
+      col.step(i, q, ps, k, dfs)
     case BAsk{pls, +e}:
-      ask.step(i, q, pls, e)
+      ask.step(i, q, pls, e, dfs)
     case BComb{pcs, +e, +s}:
       comb.step(i, s, q, pcs, e)
+
+# Q's header definitions (-m), for the tasks.
+def dfs_of(q: Q.St) -> Q.St & B.Defs:
+  match q:
+    case Q.St{o, md, src, pend, eof, back, win, asked, fneed, +dfs}:
+      (Q.St{o, md, src, pend, eof, back, win, asked, fneed, dfs}, dfs)
+
+def step.q(b: Bat, p: Q.St & B.Defs, i: P.In) -> Step:
+  (q, +dfs) = p
+  step.bat(b, q, i, dfs)
 
 # One step of the program.
 def step(st: St, i: P.In) -> Step:
   match st:
     case St{q, b}:
-      step.bat(b, q, i)
+      step.q(b, dfs_of(q), i)

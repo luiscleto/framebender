@@ -42,22 +42,28 @@ def args_done(st, h):
     case B.ArgSt{pe, s, w, t, r, v, ok, k}:
       match pe:
         case B.PNone{}:
-          match r:
-            case None{}:
-              {==}
-            case Some{r1}:
-              match v:
+          match s:
+            case B.Sci{+c, +m, +z}:
+              match r:
                 case None{}:
                   {==}
-                case Some{v1}:
-                  match ok:
-                    case True{}:
-                      h
-                    case False{}:
+                case Some{r1}:
+                  match v:
+                    case None{}:
                       {==}
+                    case Some{v1}:
+                      match ok:
+                        case True{}:
+                          h
+                        case False{}:
+                          {==}
         case B.PRef{}:
           {==}
         case B.PCheck{}:
+          {==}
+        case B.PMulti{}:
+          {==}
+        case B.POver{}:
           {==}
         case B.PWin{}:
           {==}
@@ -129,6 +135,7 @@ def AB_args(argv, o, ref, vcfpath, ha, hab):
   args_parse(argv, hab)
 
 law g_st:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +argv: List<&2, String>
   for +o: B.Opts
@@ -139,25 +146,26 @@ law g_st:
   for +ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>}
   for +e1: {NR.start() == P.mkRun(rp) : NR.Run}
   for +f1: {Norm.PB{BY.empty(0n)} == P.mkPd(pp) : Norm.Pd}
-  {DR.start_st(Norm.start(argv)) == S.mkSt(fa, S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}}) : Norm.St}
+  {DR.start_st(dfs, Norm.start(argv)) == S.mkSt(fa, S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}}) : Norm.St}
 
 law mk_p0:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +rp: P.RunP
   for +pp: P.PdP
-  {S.mkSt(fa, S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}}) == Norm.St{o, Norm.MB{P.mkRun(rp)}, Nil{}, P.mkPd(pp), False{}, 0n, Norm.WNone{}, None{}, False{}} : Norm.St}
+  {S.mkSt(fa, S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}}) == Norm.St{o, Norm.MB{P.mkRun(rp)}, Nil{}, P.mkPd(pp), False{}, 0n, Norm.WNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}} : Norm.St}
 
-def mk_p0(fa, o, rp, pp):
+def mk_p0(dfs,fa, o, rp, pp):
   {==}
 
-def g_st(fa, argv, o, ref, vcfpath, rp, pp, ha, e1, f1):
+def g_st(dfs,fa, argv, o, ref, vcfpath, rp, pp, ha, e1, f1):
   %Equal.sym(Maybe<&2, B.Cfg>, B.Args.parse(argv), Some{B.Cfg{o, ref, vcfpath}}, ha) :
-    {DR.start_st(Norm.start.of(_)) == Norm.St{o, Norm.MB{P.mkRun(rp)}, Nil{}, P.mkPd(pp), False{}, 0n, Norm.WNone{}, None{}, False{}} : Norm.St}
+    {DR.start_st(dfs, Norm.start.of(_)) == Norm.St{o, Norm.MB{P.mkRun(rp)}, Nil{}, P.mkPd(pp), False{}, 0n, Norm.WNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}} : Norm.St}
   %Equal.sym(NR.Run, NR.start(), P.mkRun(rp), e1) :
-    {Norm.St{o, Norm.MB{_}, Nil{}, Norm.PB{BY.empty(0n)}, False{}, 0n, Norm.WNone{}, None{}, False{}} == Norm.St{o, Norm.MB{P.mkRun(rp)}, Nil{}, P.mkPd(pp), False{}, 0n, Norm.WNone{}, None{}, False{}} : Norm.St}
+    {Norm.St{o, Norm.MB{_}, Nil{}, Norm.PB{BY.empty(0n)}, False{}, 0n, Norm.WNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}} == Norm.St{o, Norm.MB{P.mkRun(rp)}, Nil{}, P.mkPd(pp), False{}, 0n, Norm.WNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}} : Norm.St}
   %Equal.sym(Norm.Pd, Norm.PB{BY.empty(0n)}, P.mkPd(pp), f1) :
-    {Norm.St{o, Norm.MB{P.mkRun(rp)}, Nil{}, _, False{}, 0n, Norm.WNone{}, None{}, False{}} == Norm.St{o, Norm.MB{P.mkRun(rp)}, Nil{}, P.mkPd(pp), False{}, 0n, Norm.WNone{}, None{}, False{}} : Norm.St}
+    {Norm.St{o, Norm.MB{P.mkRun(rp)}, Nil{}, _, False{}, 0n, Norm.WNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}} == Norm.St{o, Norm.MB{P.mkRun(rp)}, Nil{}, P.mkPd(pp), False{}, 0n, Norm.WNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}} : Norm.St}
   {==}
 
 law g_paths:
@@ -174,15 +182,16 @@ def g_paths(argv, o, ref, vcfpath, ha):
   {==}
 
 law g_more:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +rp: P.RunP
   for +pp: P.PdP
-  for +hwf: {S.WF(fa, S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}}) == True{} : Bool}
-  {DR.more_ok(fa, S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}}) == True{} : Bool}
+  for +hwf: {S.WF(fa, S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}}) == True{} : Bool}
+  {DR.more_ok(fa, S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}}) == True{} : Bool}
 
-def g_more(fa, o, rp, pp, hwf):
-  %Equal.sym(Bool, S.WF(fa, S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}}), True{}, hwf) : {Bool.and(Bool.and(Bool.and(_, True{}), True{}), True{}) == True{} : Bool}
+def g_more(dfs,fa, o, rp, pp, hwf):
+  %Equal.sym(Bool, S.WF(fa, S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}}), True{}, hwf) : {Bool.and(Bool.and(Bool.and(_, True{}), True{}), True{}) == True{} : Bool}
   {==}
 
 law nolf_pp:
@@ -195,6 +204,7 @@ def nolf_pp(pp, f3):
   {==}
 
 law g_rep:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +cs: List<&2, String>
@@ -202,13 +212,13 @@ law g_rep:
   for +pp: P.PdP
   for +e3: {P.specRun(rp) == R.start_st() : R.RunSt}
   for +f3: {P.pdtext(pp) == "" : String}
-  {S.report(fa, cs, "", Nil{}, S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}}) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), fa, o, R.start_st())) : R.Report}
+  {S.report(fa, cs, "", Nil{}, S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}}) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), fa, L.defs(String.concat(cs)), o, R.start_st())) : R.Report}
 
-def g_rep(fa, o, cs, rp, pp, e3, f3):
+def g_rep(dfs,fa, o, cs, rp, pp, e3, f3):
   %Equal.sym(String, P.pdtext(pp), "", f3) :
-    {R.finish(L.run.go(B.Text.lines(String.append("", String.append(_, String.concat(cs)))), fa, o, S.pre("", Nil{}, P.specRun(rp)))) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), fa, o, R.start_st())) : R.Report}
+    {R.finish(L.run.go(B.Text.lines(String.append("", String.append(_, String.concat(cs)))), fa, L.defs.go(B.Text.lines(String.append("", String.append(_, String.concat(cs)))), R.RunSt.inbody(P.specRun(rp)), B.Defs{Nil{}, Nil{}}), o, S.pre("", Nil{}, P.specRun(rp)))) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), fa, L.defs(String.concat(cs)), o, R.start_st())) : R.Report}
   %Equal.sym(R.RunSt, P.specRun(rp), R.start_st(), e3) :
-    {R.finish(L.run.go(B.Text.lines(String.concat(cs)), fa, o, S.pre("", Nil{}, _))) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), fa, o, R.start_st())) : R.Report}
+    {R.finish(L.run.go(B.Text.lines(String.concat(cs)), fa, L.defs.go(B.Text.lines(String.concat(cs)), R.RunSt.inbody(_), B.Defs{Nil{}, Nil{}}), o, S.pre("", Nil{}, _))) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), fa, L.defs(String.concat(cs)), o, R.start_st())) : R.Report}
   {==}
 
 def StartR() -> Type:
@@ -217,11 +227,11 @@ def StartR() -> Type:
 def PdR() -> Type:
   &pp: P.PdP -> ({Norm.PB{BY.empty(0n)} == P.mkPd(pp) : Norm.Pd} & ({P.pd_ok(pp) == True{} : Bool} & {P.pdtext(pp) == "" : String}))
 
-def StartG(+fa: List<&2, B.Contig>, +argv: List<&2, String>, +o: B.Opts, +ref: String, +vcfpath: String, +cs: List<&2, String>) -> Type:
-  &p: S.StP -> ({DR.start_st(Norm.start(argv)) == S.mkSt(fa, p) : Norm.St}
+def StartG(+dfs: B.Defs, +fa: List<&2, B.Contig>, +argv: List<&2, String>, +o: B.Opts, +ref: String, +vcfpath: String, +cs: List<&2, String>) -> Type:
+  &p: S.StP -> ({DR.start_st(dfs, Norm.start(argv)) == S.mkSt(fa, p) : Norm.St}
   & ({DR.start_paths(Norm.start(argv)) == Some{DR.Paths{ref, vcfpath}} : Maybe<&2, DR.Paths>}
   & ({DR.more_ok(fa, p) == True{} : Bool}
-  & ({S.report(fa, cs, "", Nil{}, p) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), fa, o, R.start_st())) : R.Report}
+  & ({S.report(fa, cs, "", Nil{}, p) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), fa, L.defs(String.concat(cs)), o, R.start_st())) : R.Report}
   & {S.guard("", Nil{}, p) == True{} : Bool}))))
 
 # Nothing collected: the guard holds.
@@ -231,10 +241,11 @@ law guard_nil:
 
 def guard_nil(p):
   match p:
-    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
       FR.or_true_r(R.RunSt.inbody(S.smd(md)))
 
 law start_go2:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +argv: List<&2, String>
   for +o: B.Opts
@@ -251,13 +262,15 @@ law start_go2:
   for +f1: {Norm.PB{BY.empty(0n)} == P.mkPd(pp) : Norm.Pd}
   for +hp: {P.pd_ok(pp) == True{} : Bool}
   for +f3: {P.pdtext(pp) == "" : String}
-  StartG(fa, argv, o, ref, vcfpath, cs)
+  StartG(dfs, fa, argv, o, ref, vcfpath, cs)
 
-def start_go2(fa, argv, o, ref, vcfpath, cs, rp, pp, ha, hab, e1, hi, e3, f1, hp, f3):
-  +hwf = x8_start(PR.RunInv(rp), P.pd_ok(pp), P.nolf(P.pdtext(pp)), E.all_bytes(S.opts_args(o)), hi, hp, nolf_pp(pp, f3), AB_args(argv, o, ref, vcfpath, ha, hab))
-  (S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}}, (g_st(fa, argv, o, ref, vcfpath, rp, pp, ha, e1, f1), (g_paths(argv, o, ref, vcfpath, ha), (g_more(fa, o, rp, pp, hwf), (g_rep(fa, o, cs, rp, pp, e3, f3), guard_nil(S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}}))))))
+def start_go2(dfs,fa, argv, o, ref, vcfpath, cs, rp, pp, ha, hab, e1, hi, e3, f1, hp, f3):
+  +hwf = x8_start(PR.RunInv(rp), P.pd_ok(pp), P.nolf(P.pdtext(pp)), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), True{}), True{}), hi, hp, nolf_pp(pp, f3),
+    {%Equal.sym(Bool, E.all_bytes(S.opts_args(o)), True{}, AB_args(argv, o, ref, vcfpath, ha, hab)) : {Bool.and(Bool.and(_, True{}), True{}) == True{} : Bool}; {==} : {Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), True{}), True{}) == True{} : Bool}})
+  (S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}}, (g_st(dfs, fa, argv, o, ref, vcfpath, rp, pp, ha, e1, f1), (g_paths(argv, o, ref, vcfpath, ha), (g_more(dfs, fa, o, rp, pp, hwf), (g_rep(dfs, fa, o, cs, rp, pp, e3, f3), guard_nil(S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}}))))))
 
 law start_go:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +argv: List<&2, String>
   for +o: B.Opts
@@ -268,19 +281,20 @@ law start_go:
   for +hab: {E.all_bytes(argv) == True{} : Bool}
   for rs: &p: P.RunP -> ({NR.start() == P.mkRun(p) : NR.Run} & ({PR.RunInv(p) == True{} : Bool} & {P.specRun(p) == R.start_st() : R.RunSt}))
   for pe: &pp: P.PdP -> ({Norm.PB{BY.empty(0n)} == P.mkPd(pp) : Norm.Pd} & ({P.pd_ok(pp) == True{} : Bool} & {P.pdtext(pp) == "" : String}))
-  StartG(fa, argv, o, ref, vcfpath, cs)
+  StartG(dfs, fa, argv, o, ref, vcfpath, cs)
 
-def start_go(fa, argv, o, ref, vcfpath, cs, ha, hab, rs, pe):
+def start_go(dfs,fa, argv, o, ref, vcfpath, cs, ha, hab, rs, pe):
   (+rp, rs1) = rs
   (+e1, rs2) = rs1
   (hi, e3) = rs2
   (+pp, pe1) = pe
   (+f1, pe2) = pe1
   (hp, f3) = pe2
-  start_go2(fa, argv, o, ref, vcfpath, cs, rp, pp, ha, hab, e1, hi, e3, f1, hp, f3)
+  start_go2(dfs, fa, argv, o, ref, vcfpath, cs, rp, pp, ha, hab, e1, hi, e3, f1, hp, f3)
 
 # start_ok with the command line's bytes assumed.
 law start_ok_g:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +argv: List<&2, String>
   for +o: B.Opts
@@ -289,7 +303,63 @@ law start_ok_g:
   for +cs: List<&2, String>
   for +ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>}
   for +hab: {E.all_bytes(argv) == True{} : Bool}
-  StartG(fa, argv, o, ref, vcfpath, cs)
+  StartG(dfs, fa, argv, o, ref, vcfpath, cs)
 
-def start_ok_g(fa, argv, o, ref, vcfpath, cs, ha, hab):
-  start_go(fa, argv, o, ref, vcfpath, cs, ha, hab, PR.run_start(), PL.pd_empty())
+def start_ok_g(dfs,fa, argv, o, ref, vcfpath, cs, ha, hab):
+  start_go(dfs, fa, argv, o, ref, vcfpath, cs, ha, hab, PR.run_start(), PL.pd_empty())
+
+# With -m: the start state's header definitions of the text to come are the
+# file's (the threads machine's invariant starts from them).
+def g_defs(+o: B.Opts, +cs: List<&2, String>, +rp: P.RunP, +pp: P.PdP,
+  +e3: {P.specRun(rp) == R.start_st() : R.RunSt},
+  +f3: {P.pdtext(pp) == "" : String}) ->
+  {S.DEFS(S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}}, cs) == L.defs(String.concat(cs)) : B.Defs}:
+  %Equal.sym(String, P.pdtext(pp), "", f3) :
+    {L.defs.go(B.Text.lines(String.append("", String.append(_, String.concat(cs)))), R.RunSt.inbody(P.specRun(rp)), B.Defs{Nil{}, Nil{}}) == L.defs(String.concat(cs)) : B.Defs}
+  %Equal.sym(R.RunSt, P.specRun(rp), R.start_st(), e3) :
+    {L.defs.go(B.Text.lines(String.concat(cs)), R.RunSt.inbody(_), B.Defs{Nil{}, Nil{}}) == L.defs(String.concat(cs)) : B.Defs}
+  {==}
+
+def StartGD(+dfs: B.Defs, +fa: List<&2, B.Contig>, +argv: List<&2, String>, +o: B.Opts, +ref: String, +vcfpath: String, +cs: List<&2, String>) -> Type:
+  &p: S.StP -> ({DR.start_st(dfs, Norm.start(argv)) == S.mkSt(fa, p) : Norm.St}
+  & ({DR.start_paths(Norm.start(argv)) == Some{DR.Paths{ref, vcfpath}} : Maybe<&2, DR.Paths>}
+  & ({DR.more_ok(fa, p) == True{} : Bool}
+  & ({S.report(fa, cs, "", Nil{}, p) == R.finish(L.run.go(B.Text.lines(String.concat(cs)), fa, L.defs(String.concat(cs)), o, R.start_st())) : R.Report}
+  & ({S.guard("", Nil{}, p) == True{} : Bool} & {S.DEFS(p, cs) == L.defs(String.concat(cs)) : B.Defs})))))
+
+def start_go2d(+dfs: B.Defs, +fa: List<&2, B.Contig>, +argv: List<&2, String>, +o: B.Opts, +ref: String, +vcfpath: String, +cs: List<&2, String>, +rp: P.RunP, +pp: P.PdP,
+  +ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>},
+  +hab: {E.all_bytes(argv) == True{} : Bool},
+  +e1: {NR.start() == P.mkRun(rp) : NR.Run},
+  +hi: {PR.RunInv(rp) == True{} : Bool},
+  +e3: {P.specRun(rp) == R.start_st() : R.RunSt},
+  +f1: {Norm.PB{BY.empty(0n)} == P.mkPd(pp) : Norm.Pd},
+  +hp: {P.pd_ok(pp) == True{} : Bool},
+  +f3: {P.pdtext(pp) == "" : String}) ->
+  StartGD(dfs, fa, argv, o, ref, vcfpath, cs):
+  +hwf = x8_start(PR.RunInv(rp), P.pd_ok(pp), P.nolf(P.pdtext(pp)), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), True{}), True{}), hi, hp, nolf_pp(pp, f3),
+    {%Equal.sym(Bool, E.all_bytes(S.opts_args(o)), True{}, AB_args(argv, o, ref, vcfpath, ha, hab)) : {Bool.and(Bool.and(_, True{}), True{}) == True{} : Bool}; {==} : {Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), True{}), True{}) == True{} : Bool}})
+  (S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}}, (g_st(dfs, fa, argv, o, ref, vcfpath, rp, pp, ha, e1, f1), (g_paths(argv, o, ref, vcfpath, ha), (g_more(dfs, fa, o, rp, pp, hwf), (g_rep(dfs, fa, o, cs, rp, pp, e3, f3), (guard_nil(S.StP{o, S.MBP{rp}, Nil{}, pp, False{}, 0n, PC.WPNone{}, None{}, False{}, B.Defs{Nil{}, Nil{}}}), g_defs(o, cs, rp, pp, e3, f3)))))))
+
+def start_go_d(+dfs: B.Defs, +fa: List<&2, B.Contig>, +argv: List<&2, String>, +o: B.Opts, +ref: String, +vcfpath: String, +cs: List<&2, String>,
+  +ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>},
+  +hab: {E.all_bytes(argv) == True{} : Bool},
+  rs: &p: P.RunP -> ({NR.start() == P.mkRun(p) : NR.Run} & ({PR.RunInv(p) == True{} : Bool} & {P.specRun(p) == R.start_st() : R.RunSt})),
+  pe: &pp: P.PdP -> ({Norm.PB{BY.empty(0n)} == P.mkPd(pp) : Norm.Pd} & ({P.pd_ok(pp) == True{} : Bool} & {P.pdtext(pp) == "" : String}))) ->
+  StartGD(dfs, fa, argv, o, ref, vcfpath, cs):
+  (+rp, rs1) = rs
+  (+e1, rs2) = rs1
+  (+hi, e3x) = rs2
+  (+pp, pe1) = pe
+  (+f1, pe2) = pe1
+  (+hp, f3x) = pe2
+  +e3 = {e3x : {P.specRun(rp) == R.start_st() : R.RunSt}}
+  +f3 = {f3x : {P.pdtext(pp) == "" : String}}
+  start_go2d(dfs, fa, argv, o, ref, vcfpath, cs, rp, pp, ha, hab, e1, hi, e3, f1, hp, f3)
+
+# start_ok_g with the start state's definitions.
+def start_ok_gd(+dfs: B.Defs, +fa: List<&2, B.Contig>, +argv: List<&2, String>, +o: B.Opts, +ref: String, +vcfpath: String, +cs: List<&2, String>,
+  +ha: {B.Args.parse(argv) == Some{B.Cfg{o, ref, vcfpath}} : Maybe<&2, B.Cfg>},
+  +hab: {E.all_bytes(argv) == True{} : Bool}) ->
+  StartGD(dfs, fa, argv, o, ref, vcfpath, cs):
+  start_go_d(dfs, fa, argv, o, ref, vcfpath, cs, ha, hab, PR.run_start(), PL.pd_empty())

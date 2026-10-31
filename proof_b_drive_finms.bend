@@ -9,6 +9,7 @@ import ./bytes_enc.bend as E
 import ./proof_b_defs.bend as P
 import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
+import ./proof_b_rg.bend as RGH
 import ./proof_b_drivedefs.bend as DR
 import ./proof_b_run.bend as PR
 import ./proof_b_enc.bend as ENC
@@ -267,6 +268,7 @@ def pre_with(Q, n, i, h, c, e, l, b, k, o2, ns, x, eo2):
 
 # The String mode's report with no line left, once finish's output is queued.
 law rep_none:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +cs: List<&2, String>
   for +O: String
@@ -295,15 +297,15 @@ law rep_none:
   for +eo2: {o2 == "" : String}
   for +hg: {Bool.or(i, Bool.and(String.is_empty(O), List.is_empty(&2, B.Note, N))) == True{} : Bool}
   for +h5: {Bool.or(i, String.is_empty(Norm.cat(List.reverse(&2, String, qs)))) == True{} : Bool}
-  for +hnl: DF.NoLines(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed})
-  {R.Report{String.append(O, String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))} == S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}) : R.Report}
+  for +hnl: DF.NoLines(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs})
+  {R.Report{String.append(O, String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))} == S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}) : R.Report}
 
-def rep_none(fa, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, eo2, hg, h5, hnl):
+def rep_none(dfs,fa, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, eo2, hg, h5, hnl):
   +X = S.with_out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, Norm.cat(List.reverse(&2, String, qs)))
   +eF = Equal.trans(R.Report, R.finish(X), R.finish(S.pre(Norm.cat(List.reverse(&2, String, qs)), Nil{}, R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), R.Report{String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))},
     Equal.cong(R.RunSt, R.Report, z => R.finish(z), X, S.pre(Norm.cat(List.reverse(&2, String, qs)), Nil{}, R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), pre_with(Norm.cat(List.reverse(&2, String, qs)), n, i, h, c, e, l, b, k, o2, ns, x, eo2)),
     FM.finish_pre(Norm.cat(List.reverse(&2, String, qs)), Nil{}, R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, or_and_t(i, String.is_empty(Norm.cat(List.reverse(&2, String, qs))), h5)))
-  %Equal.sym(R.Report, S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}), R.finish(S.pre(O, N, X)), hnl) :
+  %Equal.sym(R.Report, S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}), R.finish(S.pre(O, N, X)), hnl) :
     {R.Report{String.append(O, String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))} == _ : R.Report}
   %Equal.sym(R.Report, R.finish(S.pre(O, N, X)), R.Report{String.append(O, R.Report.out(R.finish(X))), List.append(&2, B.Note, N, R.Report.notes(R.finish(X))), R.Report.code(R.finish(X))}, FM.finish_pre(O, N, X, hg)) :
     {R.Report{String.append(O, String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))} == _ : R.Report}
@@ -316,6 +318,7 @@ def rep_none(fa, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd
 # ======================================
 
 law fin_fits.k:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -348,20 +351,20 @@ law fin_fits.k:
   for os: &ol: U32 -> &ot: AT.Tree<U32> -> &d: Nat -> ({NR.of_str(Norm.cat(List.reverse(&2, String, qs))) == C.BT(ol, ot) : D.Bytes}
     & ({D.ok(C.BT(ol, ot), d) == True{} : Bool} & {NR.chars(D.view(C.BT(ol, ot))) == Norm.cat(List.reverse(&2, String, qs)) : String}))
   for +ef: Bool
-  DO.StepG2(fa, T, cs, O, N, ef, Norm.out(Norm.St{o, Norm.MS{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed}, Pr.Finish{cc}))
+  DO.StepG2(fa, T, cs, O, N, ef, Norm.out(Norm.St{o, Norm.MS{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs}, Pr.Finish{cc}))
 
-def fin_fits.k(fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, hz, hT, os, ef):
+def fin_fits.k(dfs,fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, hz, hT, os, ef):
   (+ol, os1) = os
   (+ot, os2) = os1
   (+d, os3) = os2
   (+e1, os4) = os3
   (+eok, ech) = os4
   %Equal.sym(List<&1, Norm.Src> & U32, Norm.left(P.mkSrcs(src)), (P.mkSrcs(src), DO.lsum(src)), DO.left_eq(src)) :
-    DO.StepG2(fa, T, cs, O, N, ef, Norm.out.left(o, Norm.MS{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, _, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, Pr.Finish{cc}))
+    DO.StepG2(fa, T, cs, O, N, ef, Norm.out.left(o, Norm.MS{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, _, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs, Pr.Finish{cc}))
   %Equal.sym(Norm.Cut2, Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824), Norm.Cut2{Norm.cat(List.reverse(&2, String, qs)), ""}, LIT.take_w_all(Norm.cat(List.reverse(&2, String, qs)), 1073741824, hz)) :
-    DO.StepG2(fa, T, cs, O, N, ef, Norm.out.k(Norm.ms.take.c(_, R.RunSt{n, i, h, c, e, l, b, k, o2, Nil{}, x}, ns, Some{cc}), o, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, Pr.Finish{cc}))
+    DO.StepG2(fa, T, cs, O, N, ef, Norm.out.k(Norm.ms.take.c(_, R.RunSt{n, i, h, c, e, l, b, k, o2, Nil{}, x}, ns, Some{cc}), o, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs, Pr.Finish{cc}))
   %Equal.sym(D.Bytes, NR.of_str(Norm.cat(List.reverse(&2, String, qs))), C.BT(ol, ot), e1) :
-    DO.StepG2(fa, T, cs, O, N, ef, Norm.out.k(((_, ns), Norm.MS{R.RunSt{n, i, h, c, e, l, b, k, o2, Nil{}, x}, [""], String.length(""), Some{cc}}), o, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, Pr.Finish{cc}))
+    DO.StepG2(fa, T, cs, O, N, ef, Norm.out.k(((_, ns), Norm.MS{R.RunSt{n, i, h, c, e, l, b, k, o2, Nil{}, x}, [""], String.length(""), Some{cc}}), o, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs, Pr.Finish{cc}))
   +eout = Equal.trans(Maybe<&2, String>, E.out(C.BT(ol, ot)), Some{E.chars(D.view(C.BT(ol, ot)))}, Some{Norm.cat(List.reverse(&2, String, qs))},
     ENC.out_ok(ol, ot, d, eok, C.ok_d(ol, ot, d, eok)),
     Equal.cong(String, Maybe<&2, String>, z => Some{z}, E.chars(D.view(C.BT(ol, ot))), Norm.cat(List.reverse(&2, String, qs)),
@@ -369,6 +372,7 @@ def fin_fits.k(fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc
   (Norm.cat(List.reverse(&2, String, qs)), (eout, hT))
 
 law fin_fits:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -400,15 +404,16 @@ law fin_fits:
   for +hbq: {E.is_bytes(Norm.cat(List.reverse(&2, String, qs))) == True{} : Bool}
   for +hT: {R.Report{String.append(O, Norm.cat(List.reverse(&2, String, qs))), List.append(&2, B.Note, N, ns), cc} == T : R.Report}
   for +ef: Bool
-  DO.StepG2(fa, T, cs, O, N, ef, Norm.out(Norm.St{o, Norm.MS{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed}, Pr.Finish{cc}))
+  DO.StepG2(fa, T, cs, O, N, ef, Norm.out(Norm.St{o, Norm.MS{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs}, Pr.Finish{cc}))
 
-def fin_fits(fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, hz, hbq, hT, ef):
-  fin_fits.k(fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, hz, hT, PR.of_str(Norm.cat(List.reverse(&2, String, qs)), hbq, hz), ef)
+def fin_fits(dfs,fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, hz, hbq, hT, ef):
+  fin_fits.k(dfs, fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, hz, hT, PR.of_str(Norm.cat(List.reverse(&2, String, qs)), hbq, hz), ef)
 
 # The code is set: the queue is handed out
 # ========================================
 
 law fms_go:
+  for +dfs: B.Defs
   for +z: Bool
   for +fa: List<&2, B.Contig>
   for +T: R.Report
@@ -438,25 +443,26 @@ law fms_go:
   for +asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
   for +hz: {Norm.len_le(Norm.cat(List.reverse(&2, String, qs)), 1073741824) == z : Bool}
-  for +hw: {S.WF(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed}) == True{} : Bool}
-  for +hr: {S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed}) == T : R.Report}
-  for +hg: {S.guard(O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed}) == True{} : Bool}
+  for +hw: {S.WF(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed, dfs}) == True{} : Bool}
+  for +hr: {S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed, dfs}) == T : R.Report}
+  for +hg: {S.guard(O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed, dfs}) == True{} : Bool}
   for +ha: {asked == None{} : Maybe<&2, List<&2, Pr.Req>>}
   for +ef: Bool
   for +hef: {eof == ef : Bool}
-  DO.StepG2(fa, T, cs, O, N, ef, Norm.fin.ms.go(z, o, R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, cc, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed))
+  DO.StepG2(fa, T, cs, O, N, ef, Norm.fin.ms.go(z, o, R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, cc, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs))
 
-def fms_go(z, fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, hz, hw, hr, hg, ha, ef, hef):
+def fms_go(dfs,z, fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, hz, hw, hr, hg, ha, ef, hef):
   match z:
     case True{}:
-      +hmd = DO.wf_md(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed}, hw)
-      fin_fits(fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, hz, DO.z6_2(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd), hr, ef)
+      +hmd = DO.wf_md(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed, dfs}, hw)
+      fin_fits(dfs, fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, hz, DO.z6_2(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd), hr, ef)
     case False{}:
-      +p = {S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed} : S.StP}
+      +p = {S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed, dfs} : S.StP}
       DO.out_ask(fa, T, cs, O, N, p, Nil{}, Norm.out(S.mkSt(fa, p), Pr.Ask{Nil{}}), DO.out_ok(fa, cs, O, N, p, Pr.Ask{Nil{}}, hw, hg, {==}), hr, {==}, {==},
         DO.mbr_nil(S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}), ha, ef, hef)
 
 law fin_ms_some:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -484,16 +490,16 @@ law fin_ms_some:
   for +wp: PC.WP
   for +asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  for +hw: {S.WF(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed}) == True{} : Bool}
-  for +hr: {S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed}) == T : R.Report}
-  for +hg: {S.guard(O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed}) == True{} : Bool}
+  for +hw: {S.WF(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed, dfs}) == True{} : Bool}
+  for +hr: {S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed, dfs}) == T : R.Report}
+  for +hg: {S.guard(O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed, dfs}) == True{} : Bool}
   for +ha: {asked == None{} : Maybe<&2, List<&2, Pr.Req>>}
   for +ef: Bool
   for +hef: {eof == ef : Bool}
-  DO.StepG2(fa, T, cs, O, N, ef, Norm.finish(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed})))
+  DO.StepG2(fa, T, cs, O, N, ef, Norm.finish(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, Some{cc}}, src, pd, eof, back, wp, asked, fneed, dfs})))
 
-def fin_ms_some(fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, hw, hr, hg, ha, ef, hef):
-  fms_go(Norm.len_le(Norm.cat(List.reverse(&2, String, qs)), 1073741824), fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, {==}, hw, hr, hg, ha, ef, hef)
+def fin_ms_some(dfs,fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, hw, hr, hg, ha, ef, hef):
+  fms_go(dfs, Norm.len_le(Norm.cat(List.reverse(&2, String, qs)), 1073741824), fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, cc, src, pd, eof, back, wp, asked, fneed, {==}, hw, hr, hg, ha, ef, hef)
 
 # No code yet: finish's report is queued first
 # ============================================
@@ -525,6 +531,7 @@ def and_t(a, b, h):
   {==}
 
 law fmn_go:
+  for +dfs: B.Defs
   for +z: Bool
   for +fa: List<&2, B.Contig>
   for +T: R.Report
@@ -553,39 +560,39 @@ law fmn_go:
   for +asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
   for +hz: {Norm.len_le(Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs)), 1073741824) == z : Bool}
-  for +hw: {S.WF(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}) == True{} : Bool}
-  for +hr: {S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}) == T : R.Report}
-  for +hg: {S.guard(O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}) == True{} : Bool}
+  for +hw: {S.WF(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}) == True{} : Bool}
+  for +hr: {S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}) == T : R.Report}
+  for +hg: {S.guard(O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}) == True{} : Bool}
   for +ha: {asked == None{} : Maybe<&2, List<&2, Pr.Req>>}
-  for +hnl: DF.NoLines(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed})
+  for +hnl: DF.NoLines(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs})
   for +ef: Bool
   for +hef: {eof == ef : Bool}
-  DO.StepG2(fa, T, cs, O, N, ef, Norm.fin.ms.go(z, o, R.RunSt{n, i, h, c, e, l, b, k, "", R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), x}, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs, Nat.add(ql, String.length(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed))
+  DO.StepG2(fa, T, cs, O, N, ef, Norm.fin.ms.go(z, o, R.RunSt{n, i, h, c, e, l, b, k, "", R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), x}, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs, Nat.add(ql, String.length(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs))
 
-def fmn_go(z, fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, hz, hw, hr, hg, ha, hnl, ef, hef):
+def fmn_go(dfs,z, fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, hz, hw, hr, hg, ha, hnl, ef, hef):
   match z i:
     case True{} _:
-      +hmd = DO.wf_md(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}, hw)
+      +hmd = DO.wf_md(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}, hw)
       +eo2 = DF.str_empty(o2, DO.z6_4(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd))
       +ecat = cat_rev_cons(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), qs)
       +hT = Equal.trans(R.Report, R.Report{String.append(O, Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs))), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))},
         R.Report{String.append(O, String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))}, T,
         Equal.cong(String, R.Report, zz => R.Report{String.append(O, zz), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))}, Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs)), String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), ecat),
-        Equal.trans(R.Report, R.Report{String.append(O, String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))}, S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}), T,
-          rep_none(fa, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, eo2, hg, DO.z6_5(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd), hnl), hr))
+        Equal.trans(R.Report, R.Report{String.append(O, String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))}, S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}), T,
+          rep_none(dfs, fa, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, eo2, hg, DO.z6_5(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd), hnl), hr))
       +hbq = Equal.trans(Bool, E.is_bytes(Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs))), E.is_bytes(String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), True{},
         Equal.cong(String, Bool, zz => E.is_bytes(zz), Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs)), String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), ecat),
         bytes_app(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), DO.z6_2(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd), fin_out_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, DO.z6_3(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd))))
-      fin_fits(fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, "", R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), x, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs, Nat.add(ql, String.length(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), src, pd, eof, back, wp, asked, fneed, hz, hbq, hT, ef)
+      fin_fits(dfs, fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, "", R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), x, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs, Nat.add(ql, String.length(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), src, pd, eof, back, wp, asked, fneed, hz, hbq, hT, ef)
     case False{} True{}:
-      +hmd = DO.wf_md(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}, hw)
+      +hmd = DO.wf_md(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}, hw)
       +eo2 = DF.str_empty(o2, DO.z6_4(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd))
       +ecat = cat_rev_cons(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), qs)
       +hT = Equal.trans(R.Report, R.Report{String.append(O, Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs))), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))},
         R.Report{String.append(O, String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))}, T,
         Equal.cong(String, R.Report, zz => R.Report{String.append(O, zz), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))}, Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs)), String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), ecat),
-        Equal.trans(R.Report, R.Report{String.append(O, String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))}, S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}), T,
-          rep_none(fa, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, eo2, hg, DO.z6_5(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd), hnl), hr))
+        Equal.trans(R.Report, R.Report{String.append(O, String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), List.append(&2, B.Note, N, R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))}, S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}), T,
+          rep_none(dfs, fa, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, eo2, hg, DO.z6_5(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd), hnl), hr))
       +hbq = Equal.trans(Bool, E.is_bytes(Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs))), E.is_bytes(String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), True{},
         Equal.cong(String, Bool, zz => E.is_bytes(zz), Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs)), String.append(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), ecat),
         bytes_app(Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), DO.z6_2(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd), fin_out_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, DO.z6_3(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd))))
@@ -593,12 +600,13 @@ def fmn_go(z, fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src
       +hmd3 = DO.z6_mk(Nat.is_eq(Nat.add(ql, String.length(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), String.length(Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs))), P.st_bytes(RS3t), String.is_empty(""), True{}, True{},
         c1_q(ql, Norm.cat(List.reverse(&2, String, qs)), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs)), ecat, DO.z6_1(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd)), hbq,
         and_t(Bool.and(E.is_bytes(h), P.items_bytes(b)), E.is_bytes(o2), DO.z6_3(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd)), {==}, {==}, {==})
-      +p3 = {S.StP{o, S.MSP{RS3t, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs, Nat.add(ql, String.length(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), Some{R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))}}, src, pd, eof, back, wp, asked, fneed} : S.StP}
-      +wf3 = DO.wf_set_md(fa, o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, S.MSP{RS3t, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs, Nat.add(ql, String.length(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), Some{R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))}}, src, pd, eof, back, wp, asked, fneed, hw, hmd3, {==})
+      +p3 = {S.StP{o, S.MSP{RS3t, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs, Nat.add(ql, String.length(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), Some{R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))}}, src, pd, eof, back, wp, asked, fneed, dfs} : S.StP}
+      +wf3 = DO.wf_set_md(dfs, fa, o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, S.MSP{RS3t, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs, Nat.add(ql, String.length(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), Some{R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))}}, src, pd, eof, back, wp, asked, fneed, hw, hmd3, {==},
+        DO.rr_body(List.is_empty(&2, P.SrcP, S.recs(src)), i, Nat.is_le(1n, n), DO.wf_rr(dfs, fa, o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, hw)))
       DO.out_ask(fa, T, cs, O, N, p3, Nil{}, Norm.out(S.mkSt(fa, p3), Pr.Ask{Nil{}}), DO.out_ok(fa, cs, O, N, p3, Pr.Ask{Nil{}}, wf3, {==}, {==}), hT, {==}, {==},
         DO.mbr_nil(S.MSP{RS3t, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs, Nat.add(ql, String.length(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), Some{R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))}}), ha, ef, hef)
     case False{} False{}:
-      +hmd = DO.wf_md(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}, hw)
+      +hmd = DO.wf_md(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}, hw)
       +eo2 = DF.str_empty(o2, DO.z6_4(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd))
       +eQ = DF.str_empty(Norm.cat(List.reverse(&2, String, qs)), DO.z6_5(Nat.is_eq(ql, String.length(Norm.cat(List.reverse(&2, String, qs)))), E.is_bytes(Norm.cat(List.reverse(&2, String, qs))), P.st_bytes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(P.RunSt.out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), String.is_empty(Norm.cat(List.reverse(&2, String, qs)))), Bool.or(R.RunSt.inbody(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}), List.is_empty(&2, B.Note, P.RunSt.notes(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), hmd))
       +eA = fin_out_empty(n, h, c, e, l, b, k, o2, ns, x, eo2)
@@ -609,10 +617,11 @@ def fmn_go(z, fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src
           Equal.cong(String, Bool, zz => Norm.len_le(String.append(zz, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}))), 1073741824), Norm.cat(List.reverse(&2, String, qs)), "", eQ),
           Equal.trans(Bool, Norm.len_le(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), 1073741824), Norm.len_le("", 1073741824), True{},
             Equal.cong(String, Bool, zz => Norm.len_le(zz, 1073741824), R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), "", eA), {==})))
-      Empty.absurd(DO.StepG2(fa, T, cs, O, N, ef, Norm.fin.ms.go(False{}, o, R.RunSt{n, i, h, c, e, l, b, k, "", R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), x}, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs, Nat.add(ql, String.length(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed)),
+      Empty.absurd(DO.StepG2(fa, T, cs, O, N, ef, Norm.fin.ms.go(False{}, o, R.RunSt{n, i, h, c, e, l, b, k, "", R.Report.notes(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), x}, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs, Nat.add(ql, String.length(R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})))), R.Report.code(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})), P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs)),
         PB.true_ne_false(Equal.trans(Bool, True{}, Norm.len_le(Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs)), 1073741824), False{}, Equal.sym(Bool, Norm.len_le(Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs)), 1073741824), True{}, htr), hz)))
 
 law fin_ms_none:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -639,24 +648,25 @@ law fin_ms_none:
   for +wp: PC.WP
   for +asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  for +hw: {S.WF(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}) == True{} : Bool}
-  for +hr: {S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}) == T : R.Report}
-  for +hg: {S.guard(O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}) == True{} : Bool}
+  for +hw: {S.WF(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}) == True{} : Bool}
+  for +hr: {S.report(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}) == T : R.Report}
+  for +hg: {S.guard(O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}) == True{} : Bool}
   for +ha: {asked == None{} : Maybe<&2, List<&2, Pr.Req>>}
-  for +hnl: DF.NoLines(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed})
+  for +hnl: DF.NoLines(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs})
   for +ef: Bool
   for +hef: {eof == ef : Bool}
-  DO.StepG2(fa, T, cs, O, N, ef, Norm.finish(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed})))
+  DO.StepG2(fa, T, cs, O, N, ef, Norm.finish(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs})))
 
-def fin_ms_none(fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, hw, hr, hg, ha, hnl, ef, hef):
+def fin_ms_none(dfs,fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, hw, hr, hg, ha, hnl, ef, hef):
   %rep_eta(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) :
-    DO.StepG2(fa, T, cs, O, N, ef, Norm.fin.ms(_, o, R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed))
-  fmn_go(Norm.len_le(Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs)), 1073741824), fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, {==}, hw, hr, hg, ha, hnl, ef, hef)
+    DO.StepG2(fa, T, cs, O, N, ef, Norm.fin.ms(_, o, R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs))
+  fmn_go(dfs, Norm.len_le(Norm.cat(List.reverse(&2, String, R.Report.out(R.finish(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x})) <> qs)), 1073741824), fa, T, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, {==}, hw, hr, hg, ha, hnl, ef, hef)
 
 # No lines left (String mode, no code yet)
 # ========================================
 
 law nl_halt_ms:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +cs: List<&2, String>
   for +O: String
@@ -683,14 +693,19 @@ law nl_halt_ms:
   for +asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
   for +hx: {x == True{} : Bool}
-  DF.NoLines(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed})
+  DF.NoLines(fa, cs, O, N, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs})
 
-def nl_halt_ms(fa, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, hx):
+def nl_halt_ms(dfs,fa, cs, O, N, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, src, pd, eof, back, wp, asked, fneed, hx):
   +st = S.pre(O, N, S.with_out(R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, Norm.cat(List.reverse(&2, String, qs))))
-  +ls = B.Text.lines(S.intext(S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}, cs))
-  Equal.cong(R.RunSt, R.Report, z => R.finish(z), L.run.go(ls, fa, o, st), st, FM.run_halted(ls, fa, o, st, hx))
+  +ls = B.Text.lines(S.intext(S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}, cs))
+  +DF = L.defs.go(ls, i, dfs)
+  %Equal.sym(R.RunSt, S.RG(S.recs(src), fa, DF, o, st), st, RGH.rg_halted(S.recs(src), fa, DF, o, st, hx)) :
+    {R.finish(L.run.go(ls, fa, DF, o, _)) == R.finish(st) : R.Report}
+  Equal.cong(R.RunSt, R.Report, z => R.finish(z), L.run.go(ls, fa, DF, o, st), st, FM.run_halted(DF, ls, fa, o, st, hx))
+
 
 law nl_eof_ms:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +cs: List<&2, String>
   for +O: String
@@ -704,10 +719,11 @@ law nl_eof_ms:
   for +wp: PC.WP
   for +asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  for +hw: {S.WF(fa, S.StP{o, S.MSP{s, qs, ql, None{}}, Nil{}, pd, True{}, back, wp, asked, fneed}) == True{} : Bool}
-  DF.NoLines(fa, cs, O, N, S.StP{o, S.MSP{s, qs, ql, None{}}, Nil{}, pd, True{}, back, wp, asked, fneed})
+  for +hw: {S.WF(fa, S.StP{o, S.MSP{s, qs, ql, None{}}, Nil{}, pd, True{}, back, wp, asked, fneed, dfs}) == True{} : Bool}
+  DF.NoLines(fa, cs, O, N, S.StP{o, S.MSP{s, qs, ql, None{}}, Nil{}, pd, True{}, back, wp, asked, fneed, dfs})
 
-def nl_eof_ms(fa, cs, O, N, o, s, qs, ql, pd, back, wp, asked, fneed, hw):
-  %Equal.sym(String, P.pdtext(pd), "", DF.pd_eof(fa, o, S.MSP{s, qs, ql, None{}}, pd, back, wp, asked, fneed, hw)) :
-    {R.finish(L.run.go(B.Text.lines(String.append("", String.append(_, ""))), fa, o, S.pre(O, N, S.with_out(s, Norm.cat(List.reverse(&2, String, qs)))))) == R.finish(S.pre(O, N, S.with_out(s, Norm.cat(List.reverse(&2, String, qs))))) : R.Report}
+def nl_eof_ms(dfs,fa, cs, O, N, o, s, qs, ql, pd, back, wp, asked, fneed, hw):
+  %Equal.sym(String, P.pdtext(pd), "", DF.pd_eof(dfs, fa, o, S.MSP{s, qs, ql, None{}}, pd, back, wp, asked, fneed, hw)) :
+    {R.finish(L.run.go(B.Text.lines(String.append("", String.append(_, ""))), fa, L.defs.go(B.Text.lines(String.append("", String.append(_, ""))), R.RunSt.inbody(S.with_out(s, Norm.cat(List.reverse(&2, String, qs)))), dfs), o, S.pre(O, N, S.with_out(s, Norm.cat(List.reverse(&2, String, qs)))))) == R.finish(S.pre(O, N, S.with_out(s, Norm.cat(List.reverse(&2, String, qs))))) : R.Report}
   {==}
+

@@ -38,6 +38,7 @@ samtools faidx ref.fa                                    # once: indexes the ref
 | `-f FILE` | the reference genome (FASTA), indexed with `samtools faidx` |
 | `-c e` / `-c w` | on a REF that does not match the reference: stop (default) or warn and pass the record through |
 | `-w N` | how far, in bases, a record may move left (default 1000, as bcftools) |
+| `-m -any` | split records with two or more ALTs into one record per ALT, as bcftools; lines it cannot split safely are refused (see [USAGE](docs/USAGE.md)) |
 | `--threads N` | how much runs in parallel (1 to 128, default 16); trades memory for speed, never changes the output |
 | `-o FILE` | write to a file; a `.vcf.gz` or `.vcf.bgz` name is compressed |
 | `-Oz`, `-Oz0`..`-Oz9`, `-Ov` | compress the output (default level 6, byte for byte as bgzip), or not |
@@ -85,13 +86,15 @@ panel, chr22: 1,066,557 records of about 14 KB each, 14.8 GB uncompressed):
 | 1000 Genomes chr22, `.vcf.gz` (425 MiB) | 69.8 s | 6.9 s |
 | HG002 chr22, `-Oz -W` (with its index) | 0.13–0.14 s | 0.09–0.10 s |
 | HG002 whole genome, `-Oz -W` (with its index) | 6.5–6.6 s | 3.4–3.6 s |
+| HG002 whole genome, `-m -any` (47,781 records split) | 8.1–8.2 s | 2.4–2.5 s |
 
 framebender reads the file in pieces and normalizes 16 at a time in parallel; the proof covers
 the parallel version, which gives byte-for-byte the output of the sequential one. The `-W` rows write a
 compressed file and its CSI index (bcftools with `--threads 16`, both on 16 CPUs; framebender's
 index is byte for byte bcftools index's of the same file, both with libdeflate). A file where
-nearly every record needs rewriting is still slower than bcftools. framebender uses more memory,
-which `--threads` trades against speed (HG002 whole genome; the output is identical at every
+nearly every record needs rewriting is still slower than bcftools, and so is `-m` on files with
+many samples and many ALTs per line, where memory also grows with the records a line makes (see
+[USAGE](docs/USAGE.md)). framebender uses more memory, which `--threads` trades against speed (HG002 whole genome; the output is identical at every
 setting):
 
 | | time | peak memory |

@@ -101,6 +101,11 @@ def srcT(src: List<&1, Norm.Src>) -> String:
       String.append(NR.chars(List.drop(&2, U32, D.view(b), U32.to_nat(at))), srcT(t))
     case Con{Norm.SL{+p}, t}:
       String.append(p ++ "\n", srcT(t))
+    case Con{Norm.SP{b, +at}, t}:
+      srcT(t)
+    case Con{Norm.SR{l}, t}:
+      srcT(t)
+
 
 def pdT(pd: Norm.Pd) -> String:
   match pd:
@@ -175,10 +180,51 @@ def RD(nx: Pr.Next) -> Nat:
     case _:
       0n
 
+# Every line still to come, in the order the machine handles them: the
+# records of a split line in front (-m: SP, a buffer of whole records; SR,
+# one record), then the input's own lines (lines).
+def ALL(src: List<&1, Norm.Src>, pend: Norm.Pd, +eof: Bool, +cs: List<&2, String>) -> List<&2, B.Line>:
+  match src:
+    case Nil{}:
+      lines(Nil{}, pend, eof, cs)
+    case Con{Norm.SB{b, +at}, t}:
+      lines(Con{Norm.SB{b, at}, t}, pend, eof, cs)
+    case Con{Norm.SL{+p}, t}:
+      lines(Con{Norm.SL{p}, t}, pend, eof, cs)
+    case Con{Norm.SP{b, +at}, t}:
+      List.append(&2, B.Line, B.Text.lines(NR.chars(List.drop(&2, U32, D.view(b), U32.to_nat(at)))), ALL(t, pend, eof, cs))
+    case Con{Norm.SR{+l}, t}:
+      l <> ALL(t, pend, eof, cs)
+
+# The number of ALTs of a line (LAWS.bend's n_alts of its body).
+def nalts(+l: B.Line) -> Nat:
+  List.length(&2, String, B.Rec.alts(B.Rec.fields(B.Line.body(l))))
+
+# The line may be split by -m (Rec.parts' test: -m, not malformed, two or
+# more ALTs).
+def cand(+o: B.Opts, +l: B.Line) -> Bool:
+  R.Opts.split(o) && Bool.not(B.Rec.malformed(B.Rec.fields(B.Line.body(l)))) && Nat.is_le(2n, nalts(l))
+
+# A line that may be split holds one more allowance per ALT, for its records
+# (decisions 31 and 34: 1 + k allowances per candidate line).
+def xa(+o: B.Opts, +fa: List<&2, B.Contig>, +l: B.Line) -> Nat:
+  pick(cand(o, l), Nat.mul(nalts(l), LA(fa, l)))
+
+def XA(+o: B.Opts, +fa: List<&2, B.Contig>, ls: List<&2, B.Line>) -> Nat:
+  match ls:
+    case Nil{}:
+      0n
+    case +l <> t:
+      Nat.add(xa(o, fa, l), XA(o, fa, t))
+
+# WA and XA of the lines still to come.
+def WAX(+fa: List<&2, B.Contig>, +o: B.Opts, +fl: Bool, +back: Nat, w: Norm.Win, m: Maybe<&2, List<&2, Pr.Req>>, +ls: List<&2, B.Line>) -> Nat:
+  Nat.add(WA.ls(fa, fl, back, w, m, ls), XA(o, fa, ls))
+
 def WAS(+fa: List<&2, B.Contig>, st: Norm.St, +cs: List<&2, String>) -> Nat:
   match st:
-    case Norm.St{o, md, src, pend, +eof, +back, win, asked, +fneed}:
-      WA.ls(fa, fast_left(md, fneed), back, win, asked, lines(src, pend, eof, cs))
+    case Norm.St{+o, md, src, pend, +eof, +back, win, asked, +fneed, +dfs}:
+      WAX(fa, o, fast_left(md, fneed), back, win, asked, ALL(src, pend, eof, cs))
 
 def needS(+fa: List<&2, B.Contig>, +T: R.Report, st: Norm.St, +cs: List<&2, String>, +eof: Bool, +nx: Pr.Next, +O: String) -> Nat:
   Nat.add(Nat.add(List.length(&2, String, cs), pick(Bool.not(eof), 1n)),
@@ -221,8 +267,8 @@ def bi.ls(+back: Nat, w: Norm.Win, m: Maybe<&2, List<&2, Pr.Req>>, ls: List<&2, 
 
 def biS(st: Norm.St, +cs: List<&2, String>) -> Bool:
   match st:
-    case Norm.St{o, md, src, pend, +eof, +back, win, asked, fneed}:
-      bi.ls(back, win, asked, lines(src, pend, eof, cs))
+    case Norm.St{o, md, src, pend, +eof, +back, win, asked, fneed, +dfs}:
+      bi.ls(back, win, asked, ALL(src, pend, eof, cs))
 
 # The API's need and bi: on the state a picture stands for.
 def need(+fa: List<&2, B.Contig>, +T: R.Report, +p: S.StP, +cs: List<&2, String>, +eof: Bool, +nx: Pr.Next, +O: String) -> Nat:

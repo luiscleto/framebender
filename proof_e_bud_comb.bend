@@ -9,6 +9,7 @@ import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
 import ./proof_b_drivedefs.bend as DR
 import ./proof_b_budget_need.bend as BN
+import ./proof_b_budget_xa.bend as XA
 import ./proof_b_budget_sdefs.bend as BDs
 import ./proof_e_task.bend as PT
 import ./proof_e_wrap_defs.bend as WD
@@ -111,6 +112,7 @@ def bi0w(fa, wp, m, ls):
 # pend ++ a ++ LF ++ after(c, k) ++ rest (PcOK), and the task's lines ls are
 # the front of lines(after ++ rest), the rest being lines(tp ++ rest) (TcOK).
 law wa_merge.k:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +c: String
   for +k: U32
@@ -125,18 +127,18 @@ law wa_merge.k:
   for +pdT: P.PdP
   for +wpT: PC.WP
   for +ls: List<&2, B.Line>
-  for +hw: {S.WF(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}) == True{} : Bool}
+  for +hw: {S.WF(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == True{} : Bool}
   for +hc: {c == String.append(a, String.append("\n", PT.after(c, k))) : String}
   for +hn: {P.nolf(a) == True{} : Bool}
   for +hT: {B.Text.lines(String.append(PT.after(c, k), String.concat(L))) == List.append(&2, B.Line, ls, B.Text.lines(String.append(P.pdtext(pdT), String.concat(L)))) : List<&2, B.Line>}
-  {Nat.is_le(BN.WA.ls(fa, True{}, 0n, PC.mkWin(fa, wpT), None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, L)), BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed})) == True{} : Bool}
+  {Nat.is_le(BN.WAX(fa, o, True{}, 0n, PC.mkWin(fa, wpT), None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, L)), BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs})) == True{} : Bool}
 
-def wa_merge.k(fa, c, k, a, L, o, md, pd, back, wp, fneed, pdT, wpT, ls, hw, hc, hn, hT):
+def wa_merge.k(dfs,fa, c, k, a, L, o, md, pd, back, wp, fneed, pdT, wpT, ls, hw, hc, hn, hT):
   +D = P.pdtext(pd)
   +Y = String.append(PT.after(c, k), String.concat(L))
   +Lt = B.Text.lines(String.append(P.pdtext(pdT), String.concat(L)))
   +fl = BN.fast_left(S.mkMd(md), fneed)
-  +hd = DO.x9_3(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o)), hw)
+  +hd = DO.x9_3(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o)) && True{} && True{}, hw)
   +e1 = Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(String.append(z, String.concat(L))), BN.pdT(P.mkPd(pdT)), P.pdtext(pdT), BL.pdT_pic(pdT))
   +e2 = Equal.trans(List<&2, B.Line>, B.Text.lines(String.append(BN.pdT(P.mkPd(pd)), String.concat(c <> L))), B.Text.lines(String.append(D, String.concat(c <> L))), B.Text.line(String.append(D, a)) <> List.append(&2, B.Line, ls, Lt),
     Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(String.append(z, String.concat(c <> L))), BN.pdT(P.mkPd(pd)), D, BL.pdT_pic(pd)),
@@ -147,16 +149,23 @@ def wa_merge.k(fa, c, k, a, L, o, md, pd, back, wp, fneed, pdT, wpT, ls, hw, hc,
         Equal.cong(List<&2, B.Line>, List<&2, B.Line>, z => B.Text.line(String.append(D, a)) <> z, B.Text.lines(Y), List.append(&2, B.Line, ls, Lt), hT))))
   +l1 = B.Text.line(String.append(D, a))
   +R0 = BN.rem(fa, fl, back, PC.mkWin(fa, wp), None{}, l1)
-  %Equal.sym(List<&2, B.Line>, B.Text.lines(String.append(BN.pdT(P.mkPd(pdT)), String.concat(L))), Lt, e1) :
-    {Nat.is_le(BN.WA.ls(fa, True{}, 0n, PC.mkWin(fa, wpT), None{}, _), BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed})) == True{} : Bool}
-  %Equal.sym(List<&2, B.Line>, B.Text.lines(String.append(BN.pdT(P.mkPd(pd)), String.concat(c <> L))), l1 <> List.append(&2, B.Line, ls, Lt), e2) :
-    {Nat.is_le(BN.WA.ls(fa, True{}, 0n, PC.mkWin(fa, wpT), None{}, Lt), BN.WA.ls(fa, fl, back, PC.mkWin(fa, wp), None{}, _)) == True{} : Bool}
-  %Equal.sym(Nat, BN.LAs(fa, List.append(&2, B.Line, ls, Lt)), Nat.add(BN.LAs(fa, ls), BN.LAs(fa, Lt)), las_app(fa, ls, Lt)) :
-    {Nat.is_le(BN.WA.ls(fa, True{}, 0n, PC.mkWin(fa, wpT), None{}, Lt), Nat.add(R0, _)) == True{} : Bool}
-  N.le_trans(BN.WA.ls(fa, True{}, 0n, PC.mkWin(fa, wpT), None{}, Lt), BN.LAs(fa, Lt), Nat.add(R0, Nat.add(BN.LAs(fa, ls), BN.LAs(fa, Lt))),
+  +R1 = Nat.add(R0, BN.LAs(fa, List.append(&2, B.Line, ls, Lt)))
+  +hA0 = N.le_trans(BN.WA.ls(fa, True{}, 0n, PC.mkWin(fa, wpT), None{}, Lt), BN.LAs(fa, Lt), Nat.add(R0, Nat.add(BN.LAs(fa, ls), BN.LAs(fa, Lt))),
     wa_las(fa, True{}, 0n, wpT, None{}, Lt),
     N.le_trans(BN.LAs(fa, Lt), Nat.add(BN.LAs(fa, ls), BN.LAs(fa, Lt)), Nat.add(R0, Nat.add(BN.LAs(fa, ls), BN.LAs(fa, Lt))),
       N.le_add_l(BN.LAs(fa, Lt), BN.LAs(fa, ls)), N.le_add_l(Nat.add(BN.LAs(fa, ls), BN.LAs(fa, Lt)), R0)))
+  +hA = AB.subst(Nat, z => {Nat.is_le(BN.WA.ls(fa, True{}, 0n, PC.mkWin(fa, wpT), None{}, Lt), Nat.add(R0, z)) == True{} : Bool},
+    Nat.add(BN.LAs(fa, ls), BN.LAs(fa, Lt)), BN.LAs(fa, List.append(&2, B.Line, ls, Lt)), Equal.sym(Nat, BN.LAs(fa, List.append(&2, B.Line, ls, Lt)), Nat.add(BN.LAs(fa, ls), BN.LAs(fa, Lt)), las_app(fa, ls, Lt)), hA0)
+  +XL = BN.XA(o, fa, List.append(&2, B.Line, ls, Lt))
+  +hX1 = AB.subst(Nat, z => {Nat.is_le(BN.XA(o, fa, Lt), z) == True{} : Bool}, Nat.add(BN.XA(o, fa, ls), BN.XA(o, fa, Lt)), XL,
+    Equal.sym(Nat, XL, Nat.add(BN.XA(o, fa, ls), BN.XA(o, fa, Lt)), XA.xa_app(o, fa, ls, Lt)), N.le_add_l(BN.XA(o, fa, Lt), BN.XA(o, fa, ls)))
+  +hX = N.le_trans(BN.XA(o, fa, Lt), XL, Nat.add(BN.xa(o, fa, l1), XL), hX1, N.le_add_l(XL, BN.xa(o, fa, l1)))
+  %Equal.sym(List<&2, B.Line>, B.Text.lines(String.append(BN.pdT(P.mkPd(pdT)), String.concat(L))), Lt, e1) :
+    {Nat.is_le(BN.WAX(fa, o, True{}, 0n, PC.mkWin(fa, wpT), None{}, _), BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs})) == True{} : Bool}
+  %Equal.sym(List<&2, B.Line>, B.Text.lines(String.append(BN.pdT(P.mkPd(pd)), String.concat(c <> L))), l1 <> List.append(&2, B.Line, ls, Lt), e2) :
+    {Nat.is_le(BN.WAX(fa, o, True{}, 0n, PC.mkWin(fa, wpT), None{}, Lt), BN.WAX(fa, o, fl, back, PC.mkWin(fa, wp), None{}, _)) == True{} : Bool}
+  BSt.add2(BN.WA.ls(fa, True{}, 0n, PC.mkWin(fa, wpT), None{}, Lt), R1, BN.XA(o, fa, Lt), Nat.add(BN.xa(o, fa, l1), XL), hA, hX)
+
 
 # The bound of the combine of piece c (the pieces after it L, the driver's cs).
 def VCc(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +p: S.StP, +c: String, +L: List<&2, String>) -> Nat:
@@ -265,21 +274,21 @@ law wa_merge:
   for +hc: {c == String.append(a, String.append("\n", PT.after(c, k))) : String}
   for +hn: {P.nolf(a) == True{} : Bool}
   for +hT: {B.Text.lines(String.append(PT.after(c, k), String.concat(L))) == List.append(&2, B.Line, ls, B.Text.lines(String.append(P.pdtext(pdT), String.concat(L)))) : List<&2, B.Line>}
-  {Nat.is_le(BN.WA.ls(fa, True{}, 0n, PC.mkWin(fa, wpT), None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, L)), BDs.WP(fa, c <> L, p)) == True{} : Bool}
+  {Nat.is_le(BN.WAX(fa, S.StP.o(p), True{}, 0n, PC.mkWin(fa, wpT), None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, L)), BDs.WP(fa, c <> L, p)) == True{} : Bool}
 
 def wa_merge(fa, c, k, a, L, p, pdT, wpT, ls, hm, hc, hn, hT):
   match p:
-    case S.StP{+o, +md, Con{+x, +r}, +pd, +eof, +back, +wp, +asked, +fneed}:
-      Empty.absurd({Nat.is_le(BN.WA.ls(fa, True{}, 0n, PC.mkWin(fa, wpT), None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, L)), BDs.WP(fa, c <> L, S.StP{o, md, Con{x, r}, pd, eof, back, wp, asked, fneed})) == True{} : Bool},
-        PB.false_ne_true(DS.mo_se(S.WF(fa, S.StP{o, md, Con{x, r}, pd, eof, back, wp, asked, fneed}), False{}, Bool.not(eof), Maybe.is_none(&2, List<&2, Pr.Req>, asked), hm)))
-    case S.StP{+o, +md, Nil{}, +pd, True{}, +back, +wp, +asked, +fneed}:
-      Empty.absurd({Nat.is_le(BN.WA.ls(fa, True{}, 0n, PC.mkWin(fa, wpT), None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, L)), BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, True{}, back, wp, asked, fneed})) == True{} : Bool},
-        PB.false_ne_true(DS.mo_ne(S.WF(fa, S.StP{o, md, Nil{}, pd, True{}, back, wp, asked, fneed}), True{}, False{}, Maybe.is_none(&2, List<&2, Pr.Req>, asked), hm)))
-    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, Some{+rs}, +fneed}:
-      Empty.absurd({Nat.is_le(BN.WA.ls(fa, True{}, 0n, PC.mkWin(fa, wpT), None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, L)), BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, Some{rs}, fneed})) == True{} : Bool},
-        PB.false_ne_true(DS.mo_no(S.WF(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, Some{rs}, fneed}), True{}, True{}, False{}, hm)))
-    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, None{}, +fneed}:
-      wa_merge.k(fa, c, k, a, L, o, md, pd, back, wp, fneed, pdT, wpT, ls, DS.mo_w(S.WF(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}), True{}, True{}, True{}, hm), hc, hn, hT)
+    case S.StP{+o, +md, Con{+x, +r}, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      Empty.absurd({Nat.is_le(BN.WAX(fa, o, True{}, 0n, PC.mkWin(fa, wpT), None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, L)), BDs.WP(fa, c <> L, S.StP{o, md, Con{x, r}, pd, eof, back, wp, asked, fneed, dfs})) == True{} : Bool},
+        PB.false_ne_true(DS.mo_se(S.WF(fa, S.StP{o, md, Con{x, r}, pd, eof, back, wp, asked, fneed, dfs}), False{}, Bool.not(eof), Maybe.is_none(&2, List<&2, Pr.Req>, asked), hm)))
+    case S.StP{+o, +md, Nil{}, +pd, True{}, +back, +wp, +asked, +fneed, +dfs}:
+      Empty.absurd({Nat.is_le(BN.WAX(fa, o, True{}, 0n, PC.mkWin(fa, wpT), None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, L)), BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, True{}, back, wp, asked, fneed, dfs})) == True{} : Bool},
+        PB.false_ne_true(DS.mo_ne(S.WF(fa, S.StP{o, md, Nil{}, pd, True{}, back, wp, asked, fneed, dfs}), True{}, False{}, Maybe.is_none(&2, List<&2, Pr.Req>, asked), hm)))
+    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, Some{+rs}, +fneed, +dfs}:
+      Empty.absurd({Nat.is_le(BN.WAX(fa, o, True{}, 0n, PC.mkWin(fa, wpT), None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, L)), BDs.WP(fa, c <> L, S.StP{o, md, Nil{}, pd, False{}, back, wp, Some{rs}, fneed, dfs})) == True{} : Bool},
+        PB.false_ne_true(DS.mo_no(S.WF(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, Some{rs}, fneed, dfs}), True{}, True{}, False{}, hm)))
+    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, None{}, +fneed, +dfs}:
+      wa_merge.k(dfs, fa, c, k, a, L, o, md, pd, back, wp, fneed, pdT, wpT, ls, DS.mo_w(S.WF(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}), True{}, True{}, True{}, hm), hc, hn, hT)
 
 # W.edge.where on a picture (as area E1's where_eq, proof_e_wrap_clean.bend).
 def here_s(+src: List<&2, P.SrcP>, +k: U32, +n: Nat, +n0: Nat) -> Bool:
@@ -291,12 +300,12 @@ def here_s(+src: List<&2, P.SrcP>, +k: U32, +n: Nat, +n0: Nat) -> Bool:
 
 def here_p(+p2: S.StP, +k: U32, +n0: Nat) -> Bool:
   match p2:
-    case S.StP{o, +md, +src, pd, eof, back, wp, asked, fneed}:
+    case S.StP{o, +md, +src, pd, eof, back, wp, asked, fneed, +dfs}:
       here_s(src, k, QB.nbm(md), n0)
 
 def ok_p(+p2: S.StP) -> Bool:
   match p2:
-    case S.StP{o, md, src, pd, +eof, back, wp, +asked, +fneed}:
+    case S.StP{o, md, src, pd, +eof, back, wp, +asked, +fneed, +dfs}:
       Bool.not(eof) && W.is_none(asked) && Bool.not(fneed)
 
 law where_eq:
@@ -313,27 +322,37 @@ law where_eq:
 
 def where_eq(fa, p2, rpT, pdT, wpT, k, c0, l, n0):
   match p2:
-    case S.StP{+o2, S.MBP{P.RunP{+n2, +i2, +h2, +c2, +cbl2, +cbt2, +e2, +l2, +f2, +b2, +bn2, +tl2, +k2, +obl2, +obt2, +ow2, +ns2, +x2}}, Nil{}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2}:
+    case S.StP{+o2, S.MBP{P.RunP{+n2, +i2, +h2, +c2, +cbl2, +cbt2, +e2, +l2, +f2, +b2, +bn2, +tl2, +k2, +obl2, +obt2, +ow2, +ns2, +x2}}, Nil{}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2, +dfs2}:
       {==}
-    case S.StP{+o2, S.MBP{P.RunP{+n2, +i2, +h2, +c2, +cbl2, +cbt2, +e2, +l2, +f2, +b2, +bn2, +tl2, +k2, +obl2, +obt2, +ow2, +ns2, +x2}}, Con{P.SBP{+len2, +t2, +d2, +at2}, Nil{}}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2}:
+    case S.StP{+o2, S.MBP{P.RunP{+n2, +i2, +h2, +c2, +cbl2, +cbt2, +e2, +l2, +f2, +b2, +bn2, +tl2, +k2, +obl2, +obt2, +ow2, +ns2, +x2}}, Con{P.SBP{+len2, +t2, +d2, +at2}, Nil{}}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2, +dfs2}:
       {==}
-    case S.StP{+o2, S.MBP{P.RunP{+n2, +i2, +h2, +c2, +cbl2, +cbt2, +e2, +l2, +f2, +b2, +bn2, +tl2, +k2, +obl2, +obt2, +ow2, +ns2, +x2}}, Con{P.SBP{+len2, +t2, +d2, +at2}, Con{+sh, +st}}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2}:
+    case S.StP{+o2, S.MBP{P.RunP{+n2, +i2, +h2, +c2, +cbl2, +cbt2, +e2, +l2, +f2, +b2, +bn2, +tl2, +k2, +obl2, +obt2, +ow2, +ns2, +x2}}, Con{P.SBP{+len2, +t2, +d2, +at2}, Con{+sh, +st}}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2, +dfs2}:
       {==}
-    case S.StP{+o2, S.MBP{P.RunP{+n2, +i2, +h2, +c2, +cbl2, +cbt2, +e2, +l2, +f2, +b2, +bn2, +tl2, +k2, +obl2, +obt2, +ow2, +ns2, +x2}}, Con{P.SLP{+sp}, +st}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2}:
+    case S.StP{+o2, S.MBP{P.RunP{+n2, +i2, +h2, +c2, +cbl2, +cbt2, +e2, +l2, +f2, +b2, +bn2, +tl2, +k2, +obl2, +obt2, +ow2, +ns2, +x2}}, Con{P.SLP{+sp}, +st}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2, +dfs2}:
       {==}
-    case S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, Nil{}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2}:
+    case S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, Nil{}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2, +dfs2}:
       {==}
-    case S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, Con{P.SBP{+len2, +t2, +d2, +at2}, Nil{}}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2}:
+    case S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, Con{P.SBP{+len2, +t2, +d2, +at2}, Nil{}}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2, +dfs2}:
       {==}
-    case S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, Con{P.SBP{+len2, +t2, +d2, +at2}, Con{+sh, +st}}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2}:
+    case S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, Con{P.SBP{+len2, +t2, +d2, +at2}, Con{+sh, +st}}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2, +dfs2}:
       {==}
-    case S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, Con{P.SLP{+sp}, +st}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2}:
+    case S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, Con{P.SLP{+sp}, +st}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2, +dfs2}:
       {==}
+    case S.StP{+o2, S.MBP{P.RunP{+n2, +i2, +h2, +c2, +cbl2, +cbt2, +e2, +l2, +f2, +b2, +bn2, +tl2, +k2, +obl2, +obt2, +ow2, +ns2, +x2}}, Con{P.SPP{+len2, +t2, +d2, +at2}, +st}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2, +dfs2}:
+      {==}
+    case S.StP{+o2, S.MBP{P.RunP{+n2, +i2, +h2, +c2, +cbl2, +cbt2, +e2, +l2, +f2, +b2, +bn2, +tl2, +k2, +obl2, +obt2, +ow2, +ns2, +x2}}, Con{P.SRP{+lr}, +st}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2, +dfs2}:
+      {==}
+    case S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, Con{P.SPP{+len2, +t2, +d2, +at2}, +st}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2, +dfs2}:
+      {==}
+    case S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, Con{P.SRP{+lr}, +st}, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2, +dfs2}:
+      {==}
+
 
 # The splice: merge.ok holds and the task's run is merged (Q's state is then
 # the merged run, the task's line end and window; Ask{[]} for the next piece),
 # or not and Q goes on.
 law splice_mb:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -367,35 +386,37 @@ law splice_mb:
   for +hn: {P.nolf(a) == True{} : Bool}
   for +hT: {B.Text.lines(String.append(PT.after(c, k), String.concat(List.append(&2, String, PT.texts(pt), cs)))) == List.append(&2, B.Line, ls, B.Text.lines(String.append(P.pdtext(pdT), String.concat(List.append(&2, String, PT.texts(pt), cs))))) : List<&2, B.Line>}
   for +hts: {BD.tots(PT.mkTOuts(fa, pt, xt)) == PT.texts(pt) : List<&2, String>}
-  for +hw2: {S.WF(fa, S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2}) == True{} : Bool}
-  for +hr2: {S.report(fa, List.append(&2, String, PT.texts(pt), cs), O, N, S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2}) == T : R.Report}
-  for +ha2: {S.StP.asked(S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2}) == None{} : Maybe<&2, List<&2, Pr.Req>>}
-  for +hg2: {S.guard(O, N, S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2}) == True{} : Bool}
-  for +hbi2: {BN.biS(S.mkSt(fa, S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2}), List.append(&2, String, PT.texts(pt), cs)) == True{} : Bool}
-  for +hW2: {Nat.is_le(BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2}), BDs.WP(fa, c <> List.append(&2, String, PT.texts(pt), cs), p)) == True{} : Bool}
+  for +hw2: {S.WF(fa, S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2, dfs}) == True{} : Bool}
+  for +hr2: {S.report(fa, List.append(&2, String, PT.texts(pt), cs), O, N, S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2, dfs}) == T : R.Report}
+  for +ha2: {S.StP.asked(S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2, dfs}) == None{} : Maybe<&2, List<&2, Pr.Req>>}
+  for +hg2: {S.guard(O, N, S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2, dfs}) == True{} : Bool}
+  for +hbi2: {BN.biS(S.mkSt(fa, S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2, dfs}), List.append(&2, String, PT.texts(pt), cs)) == True{} : Bool}
+  for +hW2: {Nat.is_le(BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2, dfs}), BDs.WP(fa, c <> List.append(&2, String, PT.texts(pt), cs), p)) == True{} : Bool}
+  for +ho2: {o2 == S.StP.o(p) : B.Opts}
   for +b: Bool
   for +hq: {MC.okP(l, R.Opts.w(o2), c0, rp2, rpT) == b : Bool}
   for he: WD.EofOK(e, ef, cs)
-  ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.comb.splice(S.mkSt(fa, S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2}), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, PT.mkTOuts(fa, pt, xt), e))
+  ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.comb.splice(S.mkSt(fa, S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2, dfs}), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, PT.mkTOuts(fa, pt, xt), e))
 
-def splice_mb(fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, o2, rp2, src2, pd2, back2, wp2, asked2, fneed2, hb, hm, hc, hn, hT, hts, hw2, hr2, ha2, hg2, hbi2, hW2, b, hq, he):
+def splice_mb(dfs,fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, o2, rp2, src2, pd2, back2, wp2, asked2, fneed2, hb, hm, hc, hn, hT, hts, hw2, hr2, ha2, hg2, hbi2, hW2, ho2, b, hq, he):
   match b:
     case False{}:
       %Equal.sym(W.Mg, W.merge(P.mkRun(rp2), P.mkRun(rpT), l, R.Opts.w(o2), c0), W.MNo{P.mkRun(rp2)}, MC.merge_no(l, R.Opts.w(o2), c0, rp2, rpT, hq)) :
-        ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.comb.mg(_, o2, P.mkPd(pdT), PC.mkWin(fa, wpT), P.mkSrcs(src2), P.mkPd(pd2), back2, PC.mkWin(fa, wp2), asked2, fneed2, PT.mkTOuts(fa, pt, xt), e))
-      go_seq(fa, T, cs, O, N, ef, p, c, pt, xt, e, S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2}, hb, hw2, hr2, ha2, hg2, hbi2, hW2, hts, he)
+        ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.comb.mg(_, o2, P.mkPd(pdT), PC.mkWin(fa, wpT), P.mkSrcs(src2), P.mkPd(pd2), back2, PC.mkWin(fa, wp2), asked2, fneed2, PT.mkTOuts(fa, pt, xt), e, dfs))
+      go_seq(fa, T, cs, O, N, ef, p, c, pt, xt, e, S.StP{o2, S.MBP{rp2}, src2, pd2, False{}, back2, wp2, asked2, fneed2, dfs}, hb, hw2, hr2, ha2, hg2, hbi2, hW2, hts, he)
     case True{}:
       +LL = List.append(&2, String, PT.texts(pt), cs)
       +W0 = BDs.WP(fa, c <> LL, p)
       %Equal.sym(W.Mg, W.merge(P.mkRun(rp2), P.mkRun(rpT), l, R.Opts.w(o2), c0), W.MOk{C.BT(P.RunP.obl(rp2), MC.RunP.obt(rp2)), List.reverse(&2, B.Note, MC.RunP.ns(rp2)), P.mkRun(MC.mergeP(c0, rp2, rpT))}, MC.merge_yes(l, R.Opts.w(o2), c0, rp2, rpT, hq)) :
-        ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.comb.mg(_, o2, P.mkPd(pdT), PC.mkWin(fa, wpT), P.mkSrcs(src2), P.mkPd(pd2), back2, PC.mkWin(fa, wp2), asked2, fneed2, PT.mkTOuts(fa, pt, xt), e))
+        ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.comb.mg(_, o2, P.mkPd(pdT), PC.mkWin(fa, wpT), P.mkSrcs(src2), P.mkPd(pd2), back2, PC.mkWin(fa, wp2), asked2, fneed2, PT.mkTOuts(fa, pt, xt), e, dfs))
       hnf => (bi0w(fa, wpT, None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, List.append(&2, String, BD.tots(PT.mkTOuts(fa, pt, xt)), cs))),
         +t => hout => hp => +n => en =>
           %en : {Nat.is_le(_, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs))) == True{} : Bool}
           %Equal.sym(List<&2, String>, BD.tots(PT.mkTOuts(fa, pt, xt)), PT.texts(pt), hts) :
-            {Nat.is_le(Nat.add(Nat.add(BN.needS(fa, T, Norm.St{o2, Norm.MB{P.mkRun(MC.mergeP(c0, rp2, rpT))}, Nil{}, P.mkPd(pdT), False{}, 0n, PC.mkWin(fa, wpT), None{}, False{}}, List.append(&2, String, _, cs), False{}, Pr.Ask{Nil{}}, String.append(O, t)), BN.pick(False{}, 1n)), BD.XK(cs)), VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs))) == True{} : Bool}
-          ar_m(Nat.add(List.length(&2, String, LL), 1n), BN.HO(T, String.append(O, t)), BN.HO(T, O), BN.WA.ls(fa, True{}, 0n, PC.mkWin(fa, wpT), None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, LL)), W0, BD.XK(cs),
-            BS.hoa(T, O, t), wa_merge(fa, c, k, a, LL, p, pdT, wpT, ls, hm, hc, hn, hT)))
+            {Nat.is_le(Nat.add(Nat.add(BN.needS(fa, T, Norm.St{o2, Norm.MB{P.mkRun(MC.mergeP(c0, rp2, rpT))}, Nil{}, P.mkPd(pdT), False{}, 0n, PC.mkWin(fa, wpT), None{}, False{}, dfs}, List.append(&2, String, _, cs), False{}, Pr.Ask{Nil{}}, String.append(O, t)), BN.pick(False{}, 1n)), BD.XK(cs)), VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs))) == True{} : Bool}
+          ar_m(Nat.add(List.length(&2, String, LL), 1n), BN.HO(T, String.append(O, t)), BN.HO(T, O), BN.WAX(fa, o2, True{}, 0n, PC.mkWin(fa, wpT), None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, LL)), W0, BD.XK(cs),
+            BS.hoa(T, O, t), AB.subst(B.Opts, z => {Nat.is_le(BN.WAX(fa, z, True{}, 0n, PC.mkWin(fa, wpT), None{}, BN.lines(Nil{}, P.mkPd(pdT), False{}, LL)), W0) == True{} : Bool},
+              S.StP.o(p), o2, Equal.sym(B.Opts, o2, S.StP.o(p), ho2), wa_merge(fa, c, k, a, LL, p, pdT, wpT, ls, hm, hc, hn, hT))))
 
 law splice_bud:
   for +fa: List<&2, B.Contig>
@@ -430,18 +451,19 @@ law splice_bud:
   for +hg2: {S.guard(O, N, p2) == True{} : Bool}
   for +hbi2: {BN.biS(S.mkSt(fa, p2), List.append(&2, String, PT.texts(pt), cs)) == True{} : Bool}
   for +hW2: {Nat.is_le(BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), p2), BDs.WP(fa, c <> List.append(&2, String, PT.texts(pt), cs), p)) == True{} : Bool}
+  for +ho2: {S.StP.o(p2) == S.StP.o(p) : B.Opts}
   for +hok: {ok_p(p2) == True{} : Bool}
   for he: WD.EofOK(e, ef, cs)
   ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.comb.splice(S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, PT.mkTOuts(fa, pt, xt), e))
 
-def splice_bud(fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, p2, hb, hm, hc, hn, hT, hts, hw2, hr2, ha2, hg2, hbi2, hW2, hok, he):
+def splice_bud(fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, p2, hb, hm, hc, hn, hT, hts, hw2, hr2, ha2, hg2, hbi2, hW2, ho2, hok, he):
   match p2:
-    case S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, +src2, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2}:
-      go_seq(fa, T, cs, O, N, ef, p, c, pt, xt, e, S.StP{o2, S.MSP{s2, qs2, ql2, cd2}, src2, pd2, eof2, back2, wp2, asked2, fneed2}, hb, hw2, hr2, ha2, hg2, hbi2, hW2, hts, he)
-    case S.StP{+o2, S.MBP{+rp2}, +src2, +pd2, True{}, +back2, +wp2, +asked2, +fneed2}:
-      Empty.absurd(ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.comb.splice(S.mkSt(fa, S.StP{o2, S.MBP{rp2}, src2, pd2, True{}, back2, wp2, asked2, fneed2}), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, PT.mkTOuts(fa, pt, xt), e)), PB.false_ne_true(hok))
-    case S.StP{+o2, S.MBP{+rp2}, +src2, +pd2, False{}, +back2, +wp2, +asked2, +fneed2}:
-      splice_mb(fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, o2, rp2, src2, pd2, back2, wp2, asked2, fneed2, hb, hm, hc, hn, hT, hts, hw2, hr2, ha2, hg2, hbi2, hW2, MC.okP(l, R.Opts.w(o2), c0, rp2, rpT), {==}, he)
+    case S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, +src2, +pd2, +eof2, +back2, +wp2, +asked2, +fneed2, +dfs}:
+      go_seq(fa, T, cs, O, N, ef, p, c, pt, xt, e, S.StP{o2, S.MSP{s2, qs2, ql2, cd2}, src2, pd2, eof2, back2, wp2, asked2, fneed2, dfs}, hb, hw2, hr2, ha2, hg2, hbi2, hW2, hts, he)
+    case S.StP{+o2, S.MBP{+rp2}, +src2, +pd2, True{}, +back2, +wp2, +asked2, +fneed2, +dfs}:
+      Empty.absurd(ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.comb.splice(S.mkSt(fa, S.StP{o2, S.MBP{rp2}, src2, pd2, True{}, back2, wp2, asked2, fneed2, dfs}), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, PT.mkTOuts(fa, pt, xt), e)), PB.false_ne_true(hok))
+    case S.StP{+o2, S.MBP{+rp2}, +src2, +pd2, False{}, +back2, +wp2, +asked2, +fneed2, +dfs}:
+      splice_mb(dfs, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, o2, rp2, src2, pd2, back2, wp2, asked2, fneed2, hb, hm, hc, hn, hT, hts, hw2, hr2, ha2, hg2, hbi2, hW2, ho2, MC.okP(l, R.Opts.w(o2), c0, rp2, rpT), {==}, he)
 
 # The edge
 # ========
@@ -450,7 +472,7 @@ def splice_bud(fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt
 def IHE(+g: Nat, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +ef: Bool, +p: S.StP, +c: String, +k: U32, +c0: String, +l: Nat, +rpT: P.RunP, +pdT: P.PdP, +wpT: PC.WP, +pt: List<&2, PT.Pc>, +xt: List<&2, PT.TOutP>, +e: Bool, +n0: Nat) -> Type:
   @q: S.StP -> {S.WF(fa, q) == True{} : Bool} -> {S.report(fa, List.append(&2, String, PT.texts(pt), cs), O, N, q) == T : R.Report} -> {S.guard(O, N, q) == True{} : Bool}
     -> {S.StP.asked(q) == None{} : Maybe<&2, List<&2, Pr.Req>>} -> {BN.biS(S.mkSt(fa, q), List.append(&2, String, PT.texts(pt), cs)) == True{} : Bool}
-    -> {Nat.is_le(BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), q), BDs.WP(fa, c <> List.append(&2, String, PT.texts(pt), cs), p)) == True{} : Bool} -> WD.EofOK(e, ef, cs)
+    -> {Nat.is_le(BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), q), BDs.WP(fa, c <> List.append(&2, String, PT.texts(pt), cs), p)) == True{} : Bool} -> {S.StP.o(q) == S.StP.o(p) : B.Opts} -> WD.EofOK(e, ef, cs)
     -> ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.edge(g, n0, W.edge.of(Norm.advance(S.mkSt(fa, q)), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), PT.mkTOuts(fa, pt, xt), e))
 
 def IHg(+g: Nat, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +ef: Bool, +p: S.StP, +c: String, +k: U32, +c0: String, +l: Nat, +rpT: P.RunP, +pdT: P.PdP, +wpT: PC.WP, +pt: List<&2, PT.Pc>, +xt: List<&2, PT.TOutP>, +e: Bool, +n0: Nat) -> Type:
@@ -499,22 +521,23 @@ law edge_w:
   for +hg2: {S.guard(O, N, p2) == True{} : Bool}
   for +hbi2: {BN.biS(S.mkSt(fa, p2), List.append(&2, String, PT.texts(pt), cs)) == True{} : Bool}
   for +hW2: {Nat.is_le(BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), p2), BDs.WP(fa, c <> List.append(&2, String, PT.texts(pt), cs), p)) == True{} : Bool}
+  for +ho2: {S.StP.o(p2) == S.StP.o(p) : B.Opts}
   for +hh: {here_p(p2, k, n0) == here : Bool}
   for +hk: {ok_p(p2) == ok : Bool}
   for he: WD.EofOK(e, ef, cs)
   for ih: IHg(g, fa, T, cs, O, N, ef, p, c, k, c0, l, rpT, pdT, wpT, pt, xt, e, n0)
   ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.edge(g, n0, W.edge.where.if(here, ok, S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}), PT.mkTOuts(fa, pt, xt), e))
 
-def edge_w(g, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, n0, p2, here, ok, hb, hm, hc, hn, hT, hts, hw2, hr2, ha2, hg2, hbi2, hW2, hh, hk, he, ih):
+def edge_w(g, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, n0, p2, here, ok, hb, hm, hc, hn, hT, hts, hw2, hr2, ha2, hg2, hbi2, hW2, ho2, hh, hk, he, ih):
   match g here ok:
     case _ True{} True{}:
-      splice_bud(fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, p2, hb, hm, hc, hn, hT, hts, hw2, hr2, ha2, hg2, hbi2, hW2, hk, he)
+      splice_bud(fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, p2, hb, hm, hc, hn, hT, hts, hw2, hr2, ha2, hg2, hbi2, hW2, ho2, hk, he)
     case _ True{} False{}:
       go_seq(fa, T, cs, O, N, ef, p, c, pt, xt, e, p2, hb, hw2, hr2, ha2, hg2, hbi2, hW2, hts, he)
     case 0n False{} _:
       go_seq(fa, T, cs, O, N, ef, p, c, pt, xt, e, p2, hb, hw2, hr2, ha2, hg2, hbi2, hW2, hts, he)
     case 1n+h False{} _:
-      ih(p2, hw2, hr2, hg2, ha2, hbi2, hW2, he)
+      ih(p2, hw2, hr2, hg2, ha2, hbi2, hW2, ho2, he)
 
 # The edge from Q's advance av at a good state pa (fuel g).
 law edge_bud:
@@ -553,13 +576,14 @@ law edge_bud:
   for +hga: {S.guard(O, N, pa) == True{} : Bool}
   for +hbia: {BN.biS(S.mkSt(fa, pa), List.append(&2, String, PT.texts(pt), cs)) == True{} : Bool}
   for +hWa: {Nat.is_le(BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), pa), BDs.WP(fa, c <> List.append(&2, String, PT.texts(pt), cs), p)) == True{} : Bool}
+  for +hoa: {S.StP.o(pa) == S.StP.o(p) : B.Opts}
   for ag: S.AdvG(fa, T, List.append(&2, String, PT.texts(pt), cs), O, N, pa, av)
   for ab: BDs.AdvB(fa, List.append(&2, String, PT.texts(pt), cs), pa, av)
   for abi: BDs.AdvBi(List.append(&2, String, PT.texts(pt), cs), av)
   for he: WD.EofOK(e, ef, cs)
   ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.edge(g, n0, W.edge.of(av, W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), PT.mkTOuts(fa, pt, xt), e))
 
-def edge_bud(g, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, n0, pa, av, hb, hm, hc, hn, hT, hts, hwa, hra, haa, hga, hbia, hWa, ag, ab, abi, he):
+def edge_bud(g, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, n0, pa, av, hb, hm, hc, hn, hT, hts, hwa, hra, haa, hga, hbia, hWa, hoa, ag, ab, abi, he):
   match g av:
     case 0n Norm.Went{st}:
       (+p2, a1) = ag
@@ -570,12 +594,13 @@ def edge_bud(g, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, x
       (+eask2, a6) = a5
       (+eeof, a7) = a6
       (+eg2, a8) = a7
+      (+eo2, a9) = a8
       +ab2 = AB.subst(Norm.St, z => {Nat.is_le(BN.WAS(fa, z, List.append(&2, String, PT.texts(pt), cs)), BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), pa)) == True{} : Bool}, st, S.mkSt(fa, p2), est, ab)
       +bi2 = AB.subst(Norm.St, z => {BN.biS(z, List.append(&2, String, PT.texts(pt), cs)) == True{} : Bool}, st, S.mkSt(fa, p2), est, abi)
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.edge(0n, n0, W.edge.where(_, W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), PT.mkTOuts(fa, pt, xt), e))
       %Equal.sym(W.Ew, W.edge.where(S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), W.edge.where.if(here_p(p2, k, n0), ok_p(p2), S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}), where_eq(fa, p2, rpT, pdT, wpT, k, c0, l, n0)) :
         ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.edge(0n, n0, _, PT.mkTOuts(fa, pt, xt), e))
-      edge_w(0n, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, n0, p2, here_p(p2, k, n0), ok_p(p2), hb, hm, hc, hn, hT, hts, wf2, er2, eask2, eg2, bi2, N.le_trans(BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), p2), BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), pa), BDs.WP(fa, c <> List.append(&2, String, PT.texts(pt), cs), p), ab2, hWa), {==}, {==}, he, Unit{})
+      edge_w(0n, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, n0, p2, here_p(p2, k, n0), ok_p(p2), hb, hm, hc, hn, hT, hts, wf2, er2, eask2, eg2, bi2, N.le_trans(BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), p2), BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), pa), BDs.WP(fa, c <> List.append(&2, String, PT.texts(pt), cs), p), ab2, hWa), Equal.trans(B.Opts, S.StP.o(p2), S.StP.o(pa), S.StP.o(p), eo2, hoa), {==}, {==}, he, Unit{})
     case 1n+h Norm.Went{st}:
       (+p2, a1) = ag
       (+est, a2) = a1
@@ -585,14 +610,15 @@ def edge_bud(g, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, x
       (+eask2, a6) = a5
       (+eeof, a7) = a6
       (+eg2, a8) = a7
+      (+eo2, a9) = a8
       +ab2 = AB.subst(Norm.St, z => {Nat.is_le(BN.WAS(fa, z, List.append(&2, String, PT.texts(pt), cs)), BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), pa)) == True{} : Bool}, st, S.mkSt(fa, p2), est, ab)
       +bi2 = AB.subst(Norm.St, z => {BN.biS(z, List.append(&2, String, PT.texts(pt), cs)) == True{} : Bool}, st, S.mkSt(fa, p2), est, abi)
       %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.edge(1n+h, n0, W.edge.where(_, W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), PT.mkTOuts(fa, pt, xt), e))
       %Equal.sym(W.Ew, W.edge.where(S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), W.edge.where.if(here_p(p2, k, n0), ok_p(p2), S.mkSt(fa, p2), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}), where_eq(fa, p2, rpT, pdT, wpT, k, c0, l, n0)) :
         ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.edge(1n+h, n0, _, PT.mkTOuts(fa, pt, xt), e))
-      edge_w(1n+h, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, n0, p2, here_p(p2, k, n0), ok_p(p2), hb, hm, hc, hn, hT, hts, wf2, er2, eask2, eg2, bi2, N.le_trans(BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), p2), BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), pa), BDs.WP(fa, c <> List.append(&2, String, PT.texts(pt), cs), p), ab2, hWa), {==}, {==}, he,
-        +q => +wq => +rq => +gq => +aq => +biq => +hWq => heq =>
-          edge_bud(h, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, n0, q, Norm.advance(S.mkSt(fa, q)), hb, hm, hc, hn, hT, hts, wq, rq, aq, gq, biq, hWq,
+      edge_w(1n+h, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, n0, p2, here_p(p2, k, n0), ok_p(p2), hb, hm, hc, hn, hT, hts, wf2, er2, eask2, eg2, bi2, N.le_trans(BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), p2), BDs.WP(fa, List.append(&2, String, PT.texts(pt), cs), pa), BDs.WP(fa, c <> List.append(&2, String, PT.texts(pt), cs), p), ab2, hWa), Equal.trans(B.Opts, S.StP.o(p2), S.StP.o(pa), S.StP.o(p), eo2, hoa), {==}, {==}, he,
+        +q => +wq => +rq => +gq => +aq => +biq => +hWq => +hoq => heq =>
+          edge_bud(h, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, n0, q, Norm.advance(S.mkSt(fa, q)), hb, hm, hc, hn, hT, hts, wq, rq, aq, gq, biq, hWq, hoq,
             SA.adv_ok(fa, T, List.append(&2, String, PT.texts(pt), cs), O, N, q, hb, wq, rq, gq), BS.adv_bud(fa, T, List.append(&2, String, PT.texts(pt), cs), O, N, q, hb, wq, rq, gq, aq, biq), BS.adv_bi(fa, T, List.append(&2, String, PT.texts(pt), cs), O, N, q, hb, wq, rq, gq, aq, biq), heq))
     case _ Norm.Want{st, +r}:
       (+p2, a1) = ag
@@ -727,7 +753,7 @@ law comb_clean.k:
   for +hts: {BD.tots(PT.mkTOuts(fa, pt, xt)) == PT.texts(pt) : List<&2, String>}
   for he: WD.EofOK(e, ef, cs)
   for fg: BDs.FedG(fa, T, List.append(&2, String, PT.texts(pt), cs), O, N, BDs.WP(fa, c <> List.append(&2, String, PT.texts(pt), cs), p), W.feed_line(S.mkSt(fa, p), C.BT(len, t)))
-  ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.edge(3n, QB.nbm(S.StP.md(p)), W.edge.of(Norm.advance(W.feed_line(S.mkSt(fa, p), C.BT(len, t))), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, QB.nbm(S.StP.md(p))), PT.mkTOuts(fa, pt, xt), e))
+  ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.edge(4096n, QB.nbm(S.StP.md(p)), W.edge.of(Norm.advance(W.feed_line(S.mkSt(fa, p), C.BT(len, t))), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, QB.nbm(S.StP.md(p))), PT.mkTOuts(fa, pt, xt), e))
 
 def comb_clean.k(fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, len, t, hb, hm, hc, hn, hT, hts, he, fg):
   (+p1, f1) = fg
@@ -738,10 +764,11 @@ def comb_clean.k(fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, 
   (+ha1, f6) = f5
   (+hW1, hbi0) = f6
   +hbi1 = Equal.trans(Bool, BN.biS(S.mkSt(fa, p1), List.append(&2, String, PT.texts(pt), cs)), True{}, True{}, hbi0, {==})
+  +hoa = FD.fed_o(fa, p, len, t, p1, hm, e1)
   +n0 = QB.nbm(S.StP.md(p))
   %Equal.sym(Norm.St, W.feed_line(S.mkSt(fa, p), C.BT(len, t)), S.mkSt(fa, p1), e1) :
-    ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.edge(3n, n0, W.edge.of(Norm.advance(_), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), PT.mkTOuts(fa, pt, xt), e))
-  edge_bud(3n, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, n0, p1, Norm.advance(S.mkSt(fa, p1)), hb, hm, hc, hn, hT, hts, hw1, hr1, ha1, hg1, hbi1, hW1,
+    ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.edge(4096n, n0, W.edge.of(Norm.advance(_), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, n0), PT.mkTOuts(fa, pt, xt), e))
+  edge_bud(4096n, fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, n0, p1, Norm.advance(S.mkSt(fa, p1)), hb, hm, hc, hn, hT, hts, hw1, hr1, ha1, hg1, hbi1, hW1, hoa,
     SA.adv_ok(fa, T, List.append(&2, String, PT.texts(pt), cs), O, N, p1, hb, hw1, hr1, hg1), BS.adv_bud(fa, T, List.append(&2, String, PT.texts(pt), cs), O, N, p1, hb, hw1, hr1, hg1, ha1, hbi1), BS.adv_bi(fa, T, List.append(&2, String, PT.texts(pt), cs), O, N, p1, hb, hw1, hr1, hg1, ha1, hbi1), he)
 
 law comb_clean:
@@ -787,7 +814,9 @@ def comb_clean(fa, T, cs, O, N, ef, p, c, rs, k, c0, l, a, rpT, pdT, wpT, ls, pt
   comb_clean.k(fa, T, cs, O, N, ef, p, c, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, len, t, hb, hm, hc, hn, hT, hts, he,
     FD.fedg_line(fa, T, c, List.append(&2, String, PT.texts(pt), cs), O, N, p, len, t, d, hm, hr, hg, hbi, hok, hv))
 
+
 law comb_bud:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -805,12 +834,12 @@ law comb_bud:
   for +hr: {S.report(fa, List.append(&2, String, PT.texts(ps), cs), O, N, p) == T : R.Report}
   for +hby: {E.all_bytes(PT.texts(ps)) && E.pieces_ok(PT.texts(ps)) == True{} : Bool}
   for hps: PT.PcsOK(ps, cs)
-  for hbo: PT.BatchOK(fa, S.StP.o(p), ps, xs, cs)
+  for hbo: PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs)
   for he: WD.EofOK(e, ef, cs)
   for +hbi: {BN.biS(S.mkSt(fa, p), List.append(&2, String, PT.texts(ps), cs)) == True{} : Bool}
   ST.BudW(fa, T, cs, ef, O, Nat.add(ST.VQ(T, List.append(&2, String, PT.texts(ps), cs), False{}, O, BDs.WP(fa, List.append(&2, String, PT.texts(ps), cs), p)), BD.XK(cs)), W.comb.next(PT.mkTOuts(fa, ps, xs), S.mkSt(fa, p), e))
 
-def comb_bud(fa, T, cs, O, N, ef, p, ps, xs, e, hb, hm, hst, hg, hr, hby, hps, hbo, he, hbi):
+def comb_bud(dfs,fa, T, cs, O, N, ef, p, ps, xs, e, hb, hm, hst, hg, hr, hby, hps, hbo, he, hbi):
   match ps xs:
     case Nil{} Nil{}:
       comb_end(fa, T, cs, O, N, ef, p, e, hb, hm, hg, hr, he, hbi)
@@ -820,7 +849,7 @@ def comb_bud(fa, T, cs, O, N, ef, p, ps, xs, e, hb, hm, hst, hg, hr, hby, hps, h
       (h1, h2) = hbo
       (+hok, i1) = h1
       (+hv, i2) = i1
-      comb_dirty(fa, T, cs, O, N, ef, p, c, pt, xt, e, len, t, d, hb, hm, hg, hr, hbi, hok, hv, LI.tots_mk(fa, S.StP.o(p), pt, xt, cs, h2), he)
+      comb_dirty(fa, T, cs, O, N, ef, p, c, pt, xt, e, len, t, d, hb, hm, hg, hr, hbi, hok, hv, LI.tots_mk(dfs, fa, S.StP.o(p), pt, xt, cs, h2), he)
     case Con{PT.Pc{+c, +rs, True{}, +k, +c0, +l}, +pt} Con{PT.TOutP{+len, +t, +d, PT.TCleanP{PT.TcP{+rpT, +pdT, +wpT}}}, +xt}:
       (hp0, hps2) = hps
       (a1, q1) = hp0
@@ -835,7 +864,7 @@ def comb_bud(fa, T, cs, O, N, ef, p, ps, xs, e, hb, hm, hst, hg, hr, hby, hps, h
       (inv, j1) = hres
       (+ls, j2) = j1
       (hT, hset) = j2
-      comb_clean(fa, T, cs, O, N, ef, p, c, rs, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, len, t, d, hb, hm, hg, hr, hbi, hok, hv, hc, hn, hT, LI.tots_mk(fa, S.StP.o(p), pt, xt, cs, h2), he)
+      comb_clean(fa, T, cs, O, N, ef, p, c, rs, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, len, t, d, hb, hm, hg, hr, hbi, hok, hv, hc, hn, hT, LI.tots_mk(dfs, fa, S.StP.o(p), pt, xt, cs, h2), he)
     case Con{PT.Pc{+c, +rs, False{}, +k, +c0, +l}, +pt} Con{PT.TOutP{+len, +t, +d, PT.TCleanP{+x}}, +xt}:
       (h1, h2) = hbo
       (hok, i1) = h1

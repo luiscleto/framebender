@@ -9,6 +9,9 @@
 // its letters, on a helper thread (a batch's reads at once).
 // Io.out_set, Io.out_write, Io.out_close: the output (stdout or the -o file,
 // plain or BGZF), as B.Args.output says.
+// Io.ix_found: what htslib finds at a name when it looks for an index (stat),
+// for the warning about an old index beside a BGZF -o file written without
+// -W.
 //
 // A packed block is an Array<U32> of 2^d words, byte i in byte i & 3 of word
 // i >> 2 (little-endian). The blocks these effects make are exactly
@@ -173,6 +176,27 @@ Term io_threads_run(Env e, Term* f, IoWork* w) {
 }
 static void __attribute__((constructor)) io_threads_use(void) {
   io_eff(CID(Io.threads), io_threads_run);
+}
+#endif
+
+#ifdef CID(Io.ix_found)
+// Io.ix_found(path): 0 when stat finds nothing at path (also for a path with
+// a NUL byte), 1 when it finds something that is not a directory, 2 a
+// directory. htslib 1.24 reads the first index name stat finds
+// (hts_idx_check_local), a directory too, but reading that fails ("could not
+// load index"), so it never answers a query. Only stat: nothing is opened or
+// changed. Used, without -W, to warn about an old index beside a BGZF -o
+// file (main.bend's stale).
+Term io_ix_found_run(Env e, Term* f, IoWork* w) {
+  uint64_t len;
+  char* p = io_cbuf(e, f[0], &len, CID(Con));
+  struct stat st;
+  u32 r = p != NULL && memchr(p, 0, len) == NULL && stat(p, &st) == 0 ? (S_ISDIR(st.st_mode) ? 2 : 1) : 0;
+  free(p);
+  return (Term)r;
+}
+static void __attribute__((constructor)) io_ix_found_use(void) {
+  io_eff(CID(Io.ix_found), io_ix_found_run);
 }
 #endif
 
@@ -1823,14 +1847,20 @@ static int io64_otype(const char* x) {
   return !strcmp(x, "v") || !strcmp(x, "z") || (x[0] == 'z' && x[1] >= '0' && x[1] <= '9' && x[2] == 0);
 }
 
-// B.Args.threads of the program's words w[0 .. n): N, or 0 for none (no
-// --threads, or a line Args.parse refuses).
 // The eight index options (B.Args.wfmt), one word each.
 static int io64_wfmt(const char* x) {
   static const char* const f[8] = {"-W", "--write-index", "-Wcsi", "-W=csi", "--write-index=csi", "-Wtbi", "-W=tbi", "--write-index=tbi"};
   for (int i = 0; i < 8; i += 1) if (!strcmp(x, f[i])) return 1;
   return 0;
 }
+
+// A value of -m: -any, -both or - (B.Args.multi).
+static int io64_multi(const char* x) {
+  return !strcmp(x, "-any") || !strcmp(x, "-both") || !strcmp(x, "-");
+}
+
+// B.Args.threads of the program's words w[0 .. n): N, or 0 for none (no
+// --threads, or a line Args.parse refuses).
 
 static unsigned io64_threads_of(char** w, int n) {
   if (n < 1 || strcmp(w[0], "norm") != 0) return 0;
@@ -1841,6 +1871,8 @@ static unsigned io64_threads_of(char** w, int n) {
     if (pend == 'f') { ok = ok && !ref; ref = 1; pend = 0; }
     else if (pend == 'c') { ok = ok && (!strcmp(x, "e") || !strcmp(x, "w")); pend = 0; }
     else if (pend == 'w') { ok = ok && io64_num(x, &v) && v >= 1; pend = 0; }
+    else if (pend == 'm') { ok = ok && io64_multi(x); pend = 0; }
+    else if (pend == 'v') { ok = ok && (!strcmp(x, "0") || !strcmp(x, ".")); pend = 0; }
     else if (pend == 't') {
       if (io64_num(x, &v)) { thr = v; ok = ok && v >= 1 && v <= 128; } else ok = 0;
       pend = 0;
@@ -1850,6 +1882,9 @@ static unsigned io64_threads_of(char** w, int n) {
     else if (!strcmp(x, "-f")) pend = 'f';
     else if (!strcmp(x, "-c")) pend = 'c';
     else if (!strcmp(x, "-w")) pend = 'w';
+    else if (!strcmp(x, "-m")) pend = 'm';
+    else if (!strcmp(x, "--multi-overlaps")) pend = 'v';
+    else if (!strncmp(x, "-m", 2)) ok = ok && io64_multi(x + 2);
     else if (!strcmp(x, "--threads")) pend = 't';
     else if (!strcmp(x, "-o")) pend = 'o';
     else if (!strcmp(x, "-O")) pend = 'O';

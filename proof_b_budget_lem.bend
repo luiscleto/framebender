@@ -6,24 +6,43 @@ import ./proof_b_defs.bend as P
 import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
 import ./proof_b_budget_need.bend as BN
+import ./proof_b_adv_wf.bend as W
+import ./bytes_enc.bend as E
 
 # Lemmas about the budget's potential (proof_b_budget_need.bend).
 
-def st.k(+sp: P.SrcP, +t: List<&2, P.SrcP>, +ih: {BN.srcT(P.mkSrcs(t)) == P.srcstext(t) : String}) ->
-  {BN.srcT(P.mkSrcs(Con{sp, t})) == P.srcstext(Con{sp, t}) : String}:
-  match sp:
-    case P.SBP{+len, +tr, d, +at}:
-      Equal.cong(String, String, z => String.append(P.srctext(P.SBP{len, tr, d, at}), z), BN.srcT(P.mkSrcs(t)), P.srcstext(t), ih)
-    case P.SLP{+p}:
-      Equal.cong(String, String, z => String.append(p ++ "\n", z), BN.srcT(P.mkSrcs(t)), P.srcstext(t), ih)
-
-# The state's text is the picture's.
-def srcT_pic(sps: List<&2, P.SrcP>) -> {BN.srcT(P.mkSrcs(sps)) == P.srcstext(sps) : String}:
+# With no record source, the state's text is the picture's.
+def srcT_pic(sps: List<&2, P.SrcP>, +hn: {S.no_recs(sps) == True{} : Bool}) -> {BN.srcT(P.mkSrcs(sps)) == P.srcstext(sps) : String}:
   match sps:
     case Nil{}:
       {==}
-    case Con{+sp, +t}:
-      st.k(sp, t, srcT_pic(t))
+    case Con{P.SBP{+len, +tr, +d, +at}, +t}:
+      Equal.cong(String, String, z => String.append(P.srctext(P.SBP{len, tr, d, at}), z), BN.srcT(P.mkSrcs(t)), P.srcstext(t),
+        srcT_pic(t, W.and_r(Bool.not(S.is_rec(P.SBP{len, tr, d, at})), S.no_recs(t), hn)))
+    case Con{P.SLP{+p}, +t}:
+      Equal.cong(String, String, z => String.append(p ++ "\n", z), BN.srcT(P.mkSrcs(t)), P.srcstext(t),
+        srcT_pic(t, W.and_r(Bool.not(S.is_rec(P.SLP{p})), S.no_recs(t), hn)))
+    case Con{P.SPP{+len, +tr, +d, +at}, +t}:
+      Empty.absurd({BN.srcT(P.mkSrcs(Con{P.SPP{len, tr, d, at}, t})) == P.srcstext(Con{P.SPP{len, tr, d, at}, t}) : String},
+        W.ft(W.and_l(Bool.not(S.is_rec(P.SPP{len, tr, d, at})), S.no_recs(t), hn)))
+    case Con{P.SRP{+l}, +t}:
+      Empty.absurd({BN.srcT(P.mkSrcs(Con{P.SRP{l}, t})) == P.srcstext(Con{P.SRP{l}, t}) : String},
+        W.ft(W.and_l(Bool.not(S.is_rec(P.SRP{l})), S.no_recs(t), hn)))
+
+# Records first (WF): the state's text skips them, as the picture's plain
+# sources do.
+def rf_pic(sps: List<&2, P.SrcP>, +hf: {S.recs_first(sps) == True{} : Bool}) -> {BN.srcT(P.mkSrcs(sps)) == P.srcstext(S.plain(sps)) : String}:
+  match sps:
+    case Nil{}:
+      {==}
+    case Con{P.SPP{+len, +tr, +d, +at}, +t}:
+      rf_pic(t, W.and_r(S.rtok(P.srctext(P.SPP{len, tr, d, at})), S.recs_first(t), hf))
+    case Con{P.SRP{+l}, +t}:
+      rf_pic(t, W.and_r(S.one_alt(l), S.recs_first(t), hf))
+    case Con{P.SBP{+len, +tr, +d, +at}, +t}:
+      srcT_pic(Con{P.SBP{len, tr, d, at}, t}, W.and_tt(Bool.not(S.is_rec(P.SBP{len, tr, d, at})), S.no_recs(t), {==}, hf))
+    case Con{P.SLP{+p}, +t}:
+      srcT_pic(Con{P.SLP{p}, t}, W.and_tt(Bool.not(S.is_rec(P.SLP{p})), S.no_recs(t), {==}, hf))
 
 def pdT_pic(+pd: P.PdP) -> {BN.pdT(P.mkPd(pd)) == P.pdtext(pd) : String}:
   match pd:
@@ -34,16 +53,48 @@ def pdT_pic(+pd: P.PdP) -> {BN.pdT(P.mkPd(pd)) == P.pdtext(pd) : String}:
 
 def pdp(p: S.StP) -> P.PdP:
   match p:
-    case S.StP{o, md, src, pd, eof, back, wp, asked, fneed}:
+    case S.StP{o, md, src, pd, eof, back, wp, asked, fneed, +dfs}:
       pd
 
-# The state's text still to come is the picture's (S.intext).
-def text_pic(+p: S.StP, +cs: List<&2, String>) ->
+# The state's text still to come is the picture's (S.intext), records
+# first.
+def text_pic(+p: S.StP, +cs: List<&2, String>, +hf: {S.recs_first(S.StP.src(p)) == True{} : Bool}) ->
   {String.append(BN.srcT(P.mkSrcs(S.StP.src(p))), String.append(BN.pdT(P.mkPd(pdp(p))), S.concat_if(S.StP.eof(p), cs))) == S.intext(p, cs) : String}:
   match p:
-    case S.StP{o, md, +src, +pd, +eof, back, wp, asked, fneed}:
+    case S.StP{o, md, +src, +pd, +eof, back, wp, asked, fneed, +dfs}:
       Equal.trans(String, String.append(BN.srcT(P.mkSrcs(src)), String.append(BN.pdT(P.mkPd(pd)), S.concat_if(eof, cs))),
-        String.append(P.srcstext(src), String.append(BN.pdT(P.mkPd(pd)), S.concat_if(eof, cs))),
-        String.append(P.srcstext(src), String.append(P.pdtext(pd), S.concat_if(eof, cs))),
-        Equal.cong(String, String, z => String.append(z, String.append(BN.pdT(P.mkPd(pd)), S.concat_if(eof, cs))), BN.srcT(P.mkSrcs(src)), P.srcstext(src), srcT_pic(src)),
-        Equal.cong(String, String, z => String.append(P.srcstext(src), String.append(z, S.concat_if(eof, cs))), BN.pdT(P.mkPd(pd)), P.pdtext(pd), pdT_pic(pd)))
+        String.append(P.srcstext(S.plain(src)), String.append(BN.pdT(P.mkPd(pd)), S.concat_if(eof, cs))),
+        String.append(P.srcstext(S.plain(src)), String.append(P.pdtext(pd), S.concat_if(eof, cs))),
+        Equal.cong(String, String, z => String.append(z, String.append(BN.pdT(P.mkPd(pd)), S.concat_if(eof, cs))), BN.srcT(P.mkSrcs(src)), P.srcstext(S.plain(src)), rf_pic(src, hf)),
+        Equal.cong(String, String, z => String.append(P.srcstext(S.plain(src)), String.append(z, S.concat_if(eof, cs))), BN.pdT(P.mkPd(pd)), P.pdtext(pd), pdT_pic(pd)))
+
+# A good state's records come first.
+def w8_of(+fa: List<&2, B.Contig>, +p: S.StP, +hw: {S.WF(fa, p) == True{} : Bool}) -> {W.W8(fa, p) == True{} : Bool}:
+  +C = W.C9(W.W0(fa, p), W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p))
+  W.c9_8(W.W0(fa, p), W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p),
+    Equal.trans(Bool, C, S.WF(fa, p), True{}, Equal.sym(Bool, S.WF(fa, p), C, W.wf_c9(fa, p)), hw))
+
+def rf_w8(+fa: List<&2, B.Contig>, +p: S.StP, +h: {W.W8(fa, p) == True{} : Bool}) -> {S.recs_first(S.StP.src(p)) == True{} : Bool}:
+  match p:
+    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      W.and_r(E.all_bytes(S.opts_args(o)), S.recs_first(src), W.and_l(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(src)), S.recs_run(md, src), h))
+
+def rf_of(+fa: List<&2, B.Contig>, +p: S.StP, +hw: {S.WF(fa, p) == True{} : Bool}) -> {S.recs_first(S.StP.src(p)) == True{} : Bool}:
+  rf_w8(fa, p, w8_of(fa, p, hw))
+
+# No record sources: the lines still to come are the input's own.
+def all_nr(sps: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +cs: List<&2, String>, +hn: {S.no_recs(sps) == True{} : Bool}) ->
+  {BN.ALL(P.mkSrcs(sps), P.mkPd(pd), eof, cs) == BN.lines(P.mkSrcs(sps), P.mkPd(pd), eof, cs) : List<&2, B.Line>}:
+  match sps:
+    case Nil{}:
+      {==}
+    case Con{P.SBP{+len, +tr, +d, +at}, +t}:
+      {==}
+    case Con{P.SLP{+p}, +t}:
+      {==}
+    case Con{P.SPP{+len, +tr, +d, +at}, +t}:
+      Empty.absurd({BN.ALL(P.mkSrcs(Con{P.SPP{len, tr, d, at}, t}), P.mkPd(pd), eof, cs) == BN.lines(P.mkSrcs(Con{P.SPP{len, tr, d, at}, t}), P.mkPd(pd), eof, cs) : List<&2, B.Line>},
+        W.ft(W.and_l(Bool.not(S.is_rec(P.SPP{len, tr, d, at})), S.no_recs(t), hn)))
+    case Con{P.SRP{+l}, +t}:
+      Empty.absurd({BN.ALL(P.mkSrcs(Con{P.SRP{l}, t}), P.mkPd(pd), eof, cs) == BN.lines(P.mkSrcs(Con{P.SRP{l}, t}), P.mkPd(pd), eof, cs) : List<&2, B.Line>},
+        W.ft(W.and_l(Bool.not(S.is_rec(P.SRP{l})), S.no_recs(t), hn)))

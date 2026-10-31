@@ -12,6 +12,7 @@ import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
 import ./proof_b_drivedefs.bend as DR
 import ./proof_e_task.bend as PT
+import ./proof_base.bend as PB
 
 # Phase E, area "wrap": the parallel machine's picture, what a good state is
 # and what it stands for, and what a step must give (notes/parallel_proofs.md,
@@ -104,6 +105,52 @@ def EofOK(e: Bool, +ef: Bool, +cs: List<&2, String>) -> Type:
     case False{}:
       {ef == False{} : Bool}
 
+# Q's header definitions for the text still to come are the batch's (-m;
+# the threads machine gives Q's own to its tasks), until Q has the end of
+# the file (no batch starts after it).
+def EofD(e: Bool, +d: B.Defs, +dfs: B.Defs) -> Type:
+  match e:
+    case True{}:
+      Unit
+    case False{}:
+      {d == dfs : B.Defs}
+
+def eofd_any(+e: Bool, +d: B.Defs, +dfs: B.Defs, +h: {d == dfs : B.Defs}) -> EofD(e, d, dfs):
+  match e:
+    case True{}:
+      Unit{}
+    case False{}:
+      h
+
+def eofd_get(+e: Bool, +d: B.Defs, +dfs: B.Defs, +he: {e == False{} : Bool}, h: EofD(e, d, dfs)) -> {d == dfs : B.Defs}:
+  match e:
+    case True{}:
+      Empty.absurd({d == dfs : B.Defs}, PB.true_ne_false(he))
+    case False{}:
+      h
+
+def eofd_ef2(+ef: Bool, +d: B.Defs, +dfs: B.Defs, h: {ef == False{} : Bool} -> {d == dfs : B.Defs}) -> EofD(ef, d, dfs):
+  match ef:
+    case True{}:
+      Unit{}
+    case False{}:
+      h({==})
+
+# Q's flag is the driver's: the definitions are needed only before its end.
+def eofd_ef(+e: Bool, +ef: Bool, +d: B.Defs, +dfs: B.Defs, +he: {e == ef : Bool}, h: {ef == False{} : Bool} -> {d == dfs : B.Defs}) -> EofD(e, d, dfs):
+  %Equal.sym(Bool, e, ef, he) : EofD(_, d, dfs)
+  eofd_ef2(ef, d, dfs, h)
+
+# A step's state's definitions, unless the step ends the run.
+def dsel(nx: Pr.Next, +d1: B.Defs, +d2: B.Defs) -> B.Defs:
+  match nx:
+    case Pr.More{}:
+      d1
+    case Pr.Ask{rs}:
+      d1
+    case Pr.Finish{c}:
+      d2
+
 def next_is_more(nx: Pr.Next) -> Bool:
   match nx:
     case Pr.More{}:
@@ -113,54 +160,56 @@ def next_is_more(nx: Pr.Next) -> Bool:
 
 # The batch, by phase (nx: what the step asked of the driver). While Q waits
 # quietly (collecting, asking, between pieces), its run has not stopped.
-def PhaseOK(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +p: S.StP, +b: BatP, +nx: Pr.Next, +ef: Bool) -> Type:
+def PhaseOK(+dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>, +p: S.StP, +b: BatP, +nx: Pr.Next, +ef: Bool) -> Type:
   match b:
     case BNoneP{}:
       QNext(fa, p, nx, ef)
     case BColP{+hs, +k}:
-      {nx == Pr.More{} : Pr.Next} & ({DR.more_ok(fa, p) == True{} : Bool} & ({S.stopped(S.StP.md(p)) == False{} : Bool} & ({ef == False{} : Bool} & {Nat.is_eq(k, List.length(&2, String, hs)) == True{} : Bool})))
+      {S.StP.dfs(p) == dfs : B.Defs} & ({nx == Pr.More{} : Pr.Next} & ({DR.more_ok(fa, p) == True{} : Bool} & ({S.stopped(S.StP.md(p)) == False{} : Bool} & ({ef == False{} : Bool} & {Nat.is_eq(k, List.length(&2, String, hs)) == True{} : Bool}))))
     case BAskP{+ps, +e}:
-      {nx == Pr.Ask{PT.reqs_of(ps)} : Pr.Next} & ({DR.more_ok(fa, p) == True{} : Bool} & ({S.stopped(S.StP.md(p)) == False{} : Bool} & ({E.reqs_ok(PT.reqs_of(ps)) == True{} : Bool}
-        & (PT.PcsOK(ps, cs) & EofOK(e, ef, cs)))))
+      {S.StP.dfs(p) == dfs : B.Defs} & ({nx == Pr.Ask{PT.reqs_of(ps)} : Pr.Next} & ({DR.more_ok(fa, p) == True{} : Bool} & ({S.stopped(S.StP.md(p)) == False{} : Bool} & ({E.reqs_ok(PT.reqs_of(ps)) == True{} : Bool}
+        & (PT.PcsOK(ps, cs) & EofOK(e, ef, cs))))))
     case BCombP{+ps, +xs, +e, False{}}:
       {nx == Pr.Ask{Nil{}} : Pr.Next} & ({DR.more_ok(fa, p) == True{} : Bool} & ({S.stopped(S.StP.md(p)) == False{} : Bool}
-        & (PT.PcsOK(ps, cs) & (PT.BatchOK(fa, S.StP.o(p), ps, xs, cs) & EofOK(e, ef, cs)))))
+        & (PT.PcsOK(ps, cs) & (PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs) & EofOK(e, ef, cs)))))
     case BCombP{+ps, +xs, +e, True{}}:
       QNext(fa, p, nx, False{}) & ({next_is_more(nx) == False{} : Bool}
-        & (PT.PcsOK(ps, cs) & (PT.BatchOK(fa, S.StP.o(p), ps, xs, cs) & EofOK(e, ef, cs))))
+        & (PT.PcsOK(ps, cs) & (PT.BatchOK(dfs, fa, S.StP.o(p), ps, xs, cs) & EofOK(e, ef, cs))))
 
 # A good wrapper state before next nx, standing for report T with O and N
 # collected by the driver and cs the pieces not given yet (ef: the driver's
-# end-of-file flag): the held pieces are bytes, each at most 2^31; Q's
-# guard; the report; the phase.
-def InvW(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +x: WPic, +nx: Pr.Next, +ef: Bool) -> Type:
+# end-of-file flag): Q's definitions are the batch's (EofD); the held
+# pieces are bytes, each at most 2^31; Q's guard; the report; the phase
+# (collecting or asking: Q's definitions field is the batch's).
+def InvW(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +x: WPic, +nx: Pr.Next, +ef: Bool) -> Type:
   match x:
     case WPic{+p, +b}:
-      {E.all_bytes(held(b)) && E.pieces_ok(held(b)) == True{} : Bool}
+      EofD(S.StP.eof(p), S.DEFS(p, List.append(&2, String, held(b), cs)), dfs)
+        & ({E.all_bytes(held(b)) && E.pieces_ok(held(b)) == True{} : Bool}
         & ({S.guard(O, N, p) == True{} : Bool} & ({wreport(fa, cs, O, N, WPic{p, b}) == T : R.Report}
-        & PhaseOK(fa, cs, p, b, nx, ef)))
+        & PhaseOK(dfs, fa, cs, p, b, nx, ef))))
 
 # What a step ends with, for a good state standing for T: the step's buffer
 # reads as text t, and a good state before the step's next (or, at Finish,
 # the report).
-def StepGW(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +ef: Bool, st: W.Step) -> Type:
+def StepGW(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +ef: Bool, st: W.Step) -> Type:
   match st:
     case W.Step{s, b, ns, Pr.More{}}:
       &t: String -> &x2: WPic -> ({E.out(b) == Some{t} : Maybe<&2, String>} & ({s == mkWSt(fa, x2) : W.St}
-        & InvW(fa, T, cs, String.append(O, t), List.append(&2, B.Note, N, ns), x2, Pr.More{}, ef)))
+        & InvW(dfs, fa, T, cs, String.append(O, t), List.append(&2, B.Note, N, ns), x2, Pr.More{}, ef)))
     case W.Step{s, b, ns, Pr.Ask{rs}}:
       &t: String -> &x2: WPic -> ({E.out(b) == Some{t} : Maybe<&2, String>} & ({s == mkWSt(fa, x2) : W.St}
-        & InvW(fa, T, cs, String.append(O, t), List.append(&2, B.Note, N, ns), x2, Pr.Ask{rs}, ef)))
+        & InvW(dfs, fa, T, cs, String.append(O, t), List.append(&2, B.Note, N, ns), x2, Pr.Ask{rs}, ef)))
     case W.Step{s, b, ns, Pr.Finish{c}}:
       &t: String -> ({E.out(b) == Some{t} : Maybe<&2, String>} & {R.Report{String.append(O, t), List.append(&2, B.Note, N, ns), c} == T : R.Report})
 
 # The program's first state and paths (MACHINE.bend's launch reads them).
-def wstart_st(b: W.Begin) -> W.St:
+def wstart_st(+dfs: B.Defs, b: W.Begin) -> W.St:
   match b:
     case W.Begin{st, r, v}:
       st
     case W.Usage{}:
-      W.St{DR.start_st(Norm.Usage{}), W.BNone{}}
+      W.St{DR.start_st(dfs, Norm.Usage{}), W.BNone{}}
 
 def wstart_paths(b: W.Begin) -> Maybe<&2, DR.Paths>:
   match b:

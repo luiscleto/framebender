@@ -29,6 +29,7 @@ def more_ask(rs, e):
   PB.true_ne_false(Equal.cong(Pr.Next, Bool, z => WD.next_is_more(z), Pr.More{}, Pr.Ask{rs}, e))
 
 law inv_more_ef:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -36,40 +37,47 @@ law inv_more_ef:
   for +N: List<&2, B.Note>
   for +x: WD.WPic
   for +ef: Bool
-  for hi: WD.InvW(fa, T, cs, O, N, x, Pr.More{}, ef)
+  for hi: WD.InvW(dfs, fa, T, cs, O, N, x, Pr.More{}, ef)
   {ef == False{} : Bool}
 
-def inv_more_ef(fa, T, cs, O, N, x, ef, hi):
+def inv_more_ef(dfs,fa, T, cs, O, N, x, ef, hi):
   match x:
     case WD.WPic{+p, WD.BNoneP{}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
       (h4, h5) = i3
       h5
     case WD.WPic{+p, WD.BColP{+hs, +k}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
-      (h4, j1) = i3
+      (_f0, i3_0) = i3
+      (h4, j1) = i3_0
       (h5, j2) = j1
       (h6, j3) = j2
       (h7, h8) = j3
       h7
     case WD.WPic{+p, WD.BAskP{+ps, +e}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
-      (h4, j1) = i3
+      (_f0, i3_0) = i3
+      (h4, j1) = i3_0
       Empty.absurd({ef == False{} : Bool}, more_ask(PT.reqs_of(ps), h4))
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, False{}}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
       (h4, j1) = i3
       Empty.absurd({ef == False{} : Bool}, more_ask(Nil{}, h4))
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, True{}}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
       (h4, j1) = i3
@@ -77,6 +85,7 @@ def inv_more_ef(fa, T, cs, O, N, x, ef, hi):
       Empty.absurd({ef == False{} : Bool}, PB.true_ne_false(h5))
 
 law inv_ask_reqs:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +T: R.Report
   for +cs: List<&2, String>
@@ -85,43 +94,50 @@ law inv_ask_reqs:
   for +x: WD.WPic
   for +rs: List<&2, Pr.Req>
   for +ef: Bool
-  for hi: WD.InvW(fa, T, cs, O, N, x, Pr.Ask{rs}, ef)
+  for hi: WD.InvW(dfs, fa, T, cs, O, N, x, Pr.Ask{rs}, ef)
   {E.reqs_ok(rs) == True{} : Bool}
 
-def inv_ask_reqs(fa, T, cs, O, N, x, rs, ef, hi):
+def inv_ask_reqs(dfs,fa, T, cs, O, N, x, rs, ef, hi):
   match x:
     case WD.WPic{+p, WD.BNoneP{}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
       (h4, j1) = i3
       (h5, j2) = j1
       h5
     case WD.WPic{+p, WD.BColP{+hs, +k}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
-      (h4, j1) = i3
+      (_f0, i3_0) = i3
+      (h4, j1) = i3_0
       Empty.absurd({E.reqs_ok(rs) == True{} : Bool}, more_ask(rs, Equal.sym(Pr.Next, Pr.Ask{rs}, Pr.More{}, h4)))
     case WD.WPic{+p, WD.BAskP{+ps, +e}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
-      (h4, j1) = i3
+      (_f0, i3_0) = i3
+      (h4, j1) = i3_0
       (h5, j2) = j1
       (h6, j3) = j2
       (h7, j4) = j3
       +er = Equal.cong(Pr.Next, List<&2, Pr.Req>, z => askrs(z), Pr.Ask{rs}, Pr.Ask{PT.reqs_of(ps)}, h4)
       AB.subst(List<&2, Pr.Req>, z => {E.reqs_ok(z) == True{} : Bool}, PT.reqs_of(ps), rs, Equal.sym(List<&2, Pr.Req>, rs, PT.reqs_of(ps), er), h7)
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, False{}}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
       (h4, j1) = i3
       +er = Equal.cong(Pr.Next, List<&2, Pr.Req>, z => askrs(z), Pr.Ask{rs}, Pr.Ask{Nil{}}, h4)
       AB.subst(List<&2, Pr.Req>, z => {E.reqs_ok(z) == True{} : Bool}, Nil{}, rs, Equal.sym(List<&2, Pr.Req>, rs, Nil{}, er), {==})
     case WD.WPic{+p, WD.BCombP{+ps, +xs, +e, True{}}}:
-      (h1, i1) = hi
+      (_e0, hi_0) = hi
+      (h1, i1) = hi_0
       (h2, i2) = i1
       (h3, i3) = i2
       (h4, j1) = i3

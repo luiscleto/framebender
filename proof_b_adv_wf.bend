@@ -7,6 +7,8 @@ import ./proof_b_defs.bend as P
 import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
 import ./bytes_enc.bend as E
+import ./LAWS.bend as L
+import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Tools for adv_ok (proof_b_adv.bend): a good state (S.WF) taken apart and
 # put together. WF is a chain of 9 tests joined by && (left to right).
@@ -114,48 +116,62 @@ def lt_add1(x):
 # The 9 tests of a good state.
 def W0(+fa: List<&2, B.Contig>, +p: S.StP) -> Bool:
   match p:
-    case S.StP{o, +md, src, pd, eof, back, wp, asked, fneed}:
+    case S.StP{o, +md, src, pd, eof, back, wp, asked, fneed, +dfs}:
       S.md_ok(md)
 
 def W1(+fa: List<&2, B.Contig>, +p: S.StP) -> Bool:
   match p:
-    case S.StP{o, md, +src, pd, eof, back, wp, asked, fneed}:
+    case S.StP{o, md, +src, pd, eof, back, wp, asked, fneed, +dfs}:
       S.srcs_ok(src)
 
 def W2(+fa: List<&2, B.Contig>, +p: S.StP) -> Bool:
   match p:
-    case S.StP{o, md, src, +pd, eof, back, wp, asked, fneed}:
+    case S.StP{o, md, src, +pd, eof, back, wp, asked, fneed, +dfs}:
       P.pd_ok(pd)
 
 def W3(+fa: List<&2, B.Contig>, +p: S.StP) -> Bool:
   match p:
-    case S.StP{o, md, src, +pd, eof, back, wp, asked, fneed}:
+    case S.StP{o, md, src, +pd, eof, back, wp, asked, fneed, +dfs}:
       P.nolf(P.pdtext(pd))
 
 def W4(+fa: List<&2, B.Contig>, +p: S.StP) -> Bool:
   match p:
-    case S.StP{o, md, +src, +pd, eof, back, wp, asked, fneed}:
+    case S.StP{o, md, +src, +pd, eof, back, wp, asked, fneed, +dfs}:
       S.src_empty(src) || String.is_empty(P.pdtext(pd))
 
 def W5(+fa: List<&2, B.Contig>, +p: S.StP) -> Bool:
   match p:
-    case S.StP{o, md, +src, +pd, +eof, back, wp, asked, fneed}:
+    case S.StP{o, md, +src, +pd, +eof, back, wp, asked, fneed, +dfs}:
       Bool.not(eof) || (String.is_empty(P.pdtext(pd)) && S.ends_lf(P.srcstext(src)))
 
 def W6(+fa: List<&2, B.Contig>, +p: S.StP) -> Bool:
   match p:
-    case S.StP{o, md, src, pd, eof, back, +wp, asked, fneed}:
+    case S.StP{o, md, src, pd, eof, back, +wp, asked, fneed, +dfs}:
       PC.wp_ok(fa, wp)
 
 def W7(+fa: List<&2, B.Contig>, +p: S.StP) -> Bool:
   match p:
-    case S.StP{o, +md, src, pd, eof, back, +wp, asked, fneed}:
+    case S.StP{o, +md, src, pd, eof, back, +wp, asked, fneed, +dfs}:
       S.mb_win(md, wp)
 
+# The options' arguments are bytes; record sources (-m) come first, while
+# the run has counted their line.
 def W8(+fa: List<&2, B.Contig>, +p: S.StP) -> Bool:
   match p:
-    case S.StP{o, md, src, pd, eof, back, wp, asked, fneed}:
-      E.all_bytes(S.opts_args(o))
+    case S.StP{o, +md, +src, pd, eof, back, wp, asked, fneed, +dfs}:
+      E.all_bytes(S.opts_args(o)) && S.recs_first(src) && S.recs_run(md, src)
+
+# The options' arguments are bytes (the first part of the 9th test).
+law W8_args:
+  for +fa: List<&2, B.Contig>
+  for +p: S.StP
+  for +h: {W8(fa, p) == True{} : Bool}
+  {E.all_bytes(S.opts_args(S.StP.o(p))) == True{} : Bool}
+
+def W8_args(fa, p, h):
+  match p:
+    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      and_l(E.all_bytes(S.opts_args(o)), S.recs_first(src), and_l(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(src)), S.recs_run(md, src), h))
 
 law wf_c9:
   for +fa: List<&2, B.Contig>
@@ -164,7 +180,7 @@ law wf_c9:
 
 def wf_c9(fa, p):
   match p:
-    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
       {==}
 
 # Each test of a chain that holds.
@@ -373,24 +389,255 @@ def c9_m(m, m2, a1, a2, a3, a4, a5, a6, a7, b7, a8, h, hm, h7):
     c9_3(m, a1, a2, a3, a4, a5, a6, a7, a8, h), c9_4(m, a1, a2, a3, a4, a5, a6, a7, a8, h), c9_5(m, a1, a2, a3, a4, a5, a6, a7, a8, h),
     c9_6(m, a1, a2, a3, a4, a5, a6, a7, a8, h), h7, c9_8(m, a1, a2, a3, a4, a5, a6, a7, a8, h))
 
+# The same, with the 9th test replaced too (it reads the run: recs_run).
+law c9_m8:
+  for +m: Bool
+  for +m2: Bool
+  for +a1: Bool
+  for +a2: Bool
+  for +a3: Bool
+  for +a4: Bool
+  for +a5: Bool
+  for +a6: Bool
+  for +a7: Bool
+  for +b7: Bool
+  for +a8: Bool
+  for +b8: Bool
+  for +h: {C9(m, a1, a2, a3, a4, a5, a6, a7, a8) == True{} : Bool}
+  for +hm: {m2 == True{} : Bool}
+  for +h7: {b7 == True{} : Bool}
+  for +h8: {b8 == True{} : Bool}
+  {C9(m2, a1, a2, a3, a4, a5, a6, b7, b8) == True{} : Bool}
+
+def c9_m8(m, m2, a1, a2, a3, a4, a5, a6, a7, b7, a8, b8, h, hm, h7, h8):
+  c9_mk(m2, a1, a2, a3, a4, a5, a6, b7, b8, hm, c9_1(m, a1, a2, a3, a4, a5, a6, a7, a8, h), c9_2(m, a1, a2, a3, a4, a5, a6, a7, a8, h),
+    c9_3(m, a1, a2, a3, a4, a5, a6, a7, a8, h), c9_4(m, a1, a2, a3, a4, a5, a6, a7, a8, h), c9_5(m, a1, a2, a3, a4, a5, a6, a7, a8, h),
+    c9_6(m, a1, a2, a3, a4, a5, a6, a7, a8, h), h7, h8)
+
+# Less of the input's own text left is less work left (S.less).
+law less_lt:
+  for +p2: S.StP
+  for +p: S.StP
+  for +h: {Nat.is_lt(S.measure(p2), S.measure(p)) == True{} : Bool}
+  {S.less(p2, p) == True{} : Bool}
+
+def less_lt(p2, p, h):
+  %Equal.sym(Bool, Nat.is_lt(S.measure(p2), S.measure(p)), True{}, h) :
+    {Bool.or(_, Bool.and(Nat.is_eq(S.measure(p2), S.measure(p)), Nat.is_lt(S.mrec(S.StP.src(p2)), S.mrec(S.StP.src(p))))) == True{} : Bool}
+  {==}
+
+# No record source among sps (-m): its text is all plain, and none waits.
+law plain_nr:
+  for +sps: List<&2, P.SrcP>
+  for +h: {S.no_recs(sps) == True{} : Bool}
+  {S.plain(sps) == sps : List<&2, P.SrcP>}
+
+def plain_nr(sps, h):
+  match sps:
+    case Nil{}:
+      {==}
+    case Con{P.SBP{+len, +t, +d, +at}, +r}:
+      {==}
+    case Con{P.SLP{+q}, +r}:
+      {==}
+    case Con{P.SPP{+len, +t, +d, +at}, +r}:
+      Empty.absurd({S.plain(Con{P.SPP{len, t, d, at}, r}) == Con{P.SPP{len, t, d, at}, r} : List<&2, P.SrcP>}, ft(h))
+    case Con{P.SRP{+l}, +r}:
+      Empty.absurd({S.plain(Con{P.SRP{l}, r}) == Con{P.SRP{l}, r} : List<&2, P.SrcP>}, ft(h))
+
+law recs_nr:
+  for +sps: List<&2, P.SrcP>
+  for +h: {S.no_recs(sps) == True{} : Bool}
+  {S.recs(sps) == Nil{} : List<&2, P.SrcP>}
+
+def recs_nr(sps, h):
+  match sps:
+    case Nil{}:
+      {==}
+    case Con{P.SBP{+len, +t, +d, +at}, +r}:
+      {==}
+    case Con{P.SLP{+q}, +r}:
+      {==}
+    case Con{P.SPP{+len, +t, +d, +at}, +r}:
+      Empty.absurd({S.recs(Con{P.SPP{len, t, d, at}, r}) == Nil{} : List<&2, P.SrcP>}, ft(h))
+    case Con{P.SRP{+l}, +r}:
+      Empty.absurd({S.recs(Con{P.SRP{l}, r}) == Nil{} : List<&2, P.SrcP>}, ft(h))
+
+# After a plain byte source, no record source (the 9th test).
+law W8_nr:
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +md: S.MdP
+  for +len: U32
+  for +t: AT.Tree<U32>
+  for +d: Nat
+  for +at: U32
+  for +rest: List<&2, P.SrcP>
+  for +pd: P.PdP
+  for +eof: Bool
+  for +back: Nat
+  for +wp: PC.WP
+  for +asked: Maybe<&2, List<&2, Pr.Req>>
+  for +fneed: Bool
+  for +dfs: B.Defs
+  for +h: {W8(fa, S.StP{o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed, dfs}) == True{} : Bool}
+  {S.no_recs(rest) == True{} : Bool}
+
+def W8_nr(fa, o, md, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, dfs, h):
+  and_r(E.all_bytes(S.opts_args(o)), S.no_recs(rest), and_l(Bool.and(E.all_bytes(S.opts_args(o)), S.no_recs(rest)), S.recs_run(md, Con{P.SBP{len, t, d, at}, rest}), h))
+
+law nr_first:
+  for +sps: List<&2, P.SrcP>
+  for +h: {S.no_recs(sps) == True{} : Bool}
+  {S.recs_first(sps) == True{} : Bool}
+
+def nr_first(sps, h):
+  match sps:
+    case Nil{}:
+      {==}
+    case Con{P.SBP{+len, +t, +d, +at}, +r}:
+      h
+    case Con{P.SLP{+q}, +r}:
+      h
+    case Con{P.SPP{+len, +t, +d, +at}, +r}:
+      Empty.absurd({S.recs_first(Con{P.SPP{len, t, d, at}, r}) == True{} : Bool}, ft(h))
+    case Con{P.SRP{+l}, +r}:
+      Empty.absurd({S.recs_first(Con{P.SRP{l}, r}) == True{} : Bool}, ft(h))
+
+law recs_run_nr:
+  for +md: S.MdP
+  for +sps: List<&2, P.SrcP>
+  for +h: {S.no_recs(sps) == True{} : Bool}
+  {S.recs_run(md, sps) == True{} : Bool}
+
+def recs_run_nr(md, sps, h):
+  %Equal.sym(List<&2, P.SrcP>, S.recs(sps), Nil{}, recs_nr(sps, h)) :
+    {Bool.or(List.is_empty(&2, P.SrcP, _), Bool.and(R.RunSt.inbody(S.smd(md)), Nat.is_le(1n, R.RunSt.n(S.smd(md))))) == True{} : Bool}
+  {==}
+
+# The 9th test after the first source (a plain byte source) is dropped, in
+# any mode.
+law W8_tl:
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +md: S.MdP
+  for +md2: S.MdP
+  for +len: U32
+  for +t: AT.Tree<U32>
+  for +d: Nat
+  for +at: U32
+  for +rest: List<&2, P.SrcP>
+  for +pd: P.PdP
+  for +pd2: P.PdP
+  for +eof: Bool
+  for +eof2: Bool
+  for +back: Nat
+  for +back2: Nat
+  for +wp: PC.WP
+  for +wp2: PC.WP
+  for +asked: Maybe<&2, List<&2, Pr.Req>>
+  for +asked2: Maybe<&2, List<&2, Pr.Req>>
+  for +fneed: Bool
+  for +fneed2: Bool
+  for +dfs: B.Defs
+  for +dfs2: B.Defs
+  for +h: {W8(fa, S.StP{o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed, dfs}) == True{} : Bool}
+  {W8(fa, S.StP{o, md2, rest, pd2, eof2, back2, wp2, asked2, fneed2, dfs2}) == True{} : Bool}
+
+def W8_tl(fa, o, md, md2, len, t, d, at, rest, pd, pd2, eof, eof2, back, back2, wp, wp2, asked, asked2, fneed, fneed2, dfs, dfs2, h):
+  +nr = W8_nr(fa, o, md, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, dfs, h)
+  and_tt(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(rest)), S.recs_run(md2, rest),
+    and_tt(E.all_bytes(S.opts_args(o)), S.recs_first(rest), W8_args(fa, S.StP{o, md, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed, dfs}, h), nr_first(rest, nr)),
+    recs_run_nr(md2, rest, nr))
+
+# A byte-mode state with the same run, definitions, text still to come and
+# records waiting stands for the same report.
+law rep_keep_mb:
+  for +fa: List<&2, B.Contig>
+  for +cs: List<&2, String>
+  for +O: String
+  for +N: List<&2, B.Note>
+  for +o: B.Opts
+  for +rp: P.RunP
+  for +dfs: B.Defs
+  for +q: S.StP
+  for +p: S.StP
+  for +eq: {S.StP.md(q) == S.MBP{rp} : S.MdP}
+  for +ep: {S.StP.md(p) == S.MBP{rp} : S.MdP}
+  for +eo: {S.StP.o(q) == S.StP.o(p) : B.Opts}
+  for +ed: {S.StP.dfs(q) == S.StP.dfs(p) : B.Defs}
+  for +eqi: {S.intext(q, cs) == S.intext(p, cs) : String}
+  for +eqr: {S.recs(S.StP.src(q)) == S.recs(S.StP.src(p)) : List<&2, P.SrcP>}
+  {S.report(fa, cs, O, N, q) == S.report(fa, cs, O, N, p) : R.Report}
+
+def rep_keep_mb(fa, cs, O, N, o, rp, dfs, q, p, eq, ep, eo, ed, eqi, eqr):
+  %Equal.sym(S.MdP, S.StP.md(q), S.MBP{rp}, eq) : {S.report.md(_, fa, cs, O, N, q) == S.report(fa, cs, O, N, p) : R.Report}
+  %Equal.sym(S.MdP, S.StP.md(p), S.MBP{rp}, ep) : {S.report.md(S.MBP{rp}, fa, cs, O, N, q) == S.report.md(_, fa, cs, O, N, p) : R.Report}
+  +Lq = B.Text.lines(S.intext(q, cs))
+  %Equal.sym(String, S.intext(q, cs), S.intext(p, cs), eqi) :
+    {R.finish(L.run.go(B.Text.lines(_), fa, L.defs.go(B.Text.lines(_), R.RunSt.inbody(S.smd(S.StP.md(q))), S.StP.dfs(q)), S.StP.o(q),
+      S.RG(S.recs(S.StP.src(q)), fa, L.defs.go(B.Text.lines(_), R.RunSt.inbody(S.smd(S.StP.md(q))), S.StP.dfs(q)), S.StP.o(q), S.pre(O, N, S.smd(S.StP.md(q))))))
+     == S.report.md(S.MBP{rp}, fa, cs, O, N, p) : R.Report}
+  %Equal.sym(S.MdP, S.StP.md(q), S.MBP{rp}, eq) :
+    {R.finish(L.run.go(B.Text.lines(S.intext(p, cs)), fa, L.defs.go(B.Text.lines(S.intext(p, cs)), R.RunSt.inbody(S.smd(_)), S.StP.dfs(q)), S.StP.o(q),
+      S.RG(S.recs(S.StP.src(q)), fa, L.defs.go(B.Text.lines(S.intext(p, cs)), R.RunSt.inbody(S.smd(_)), S.StP.dfs(q)), S.StP.o(q), S.pre(O, N, S.smd(_)))))
+     == S.report.md(S.MBP{rp}, fa, cs, O, N, p) : R.Report}
+  %Equal.sym(B.Opts, S.StP.o(q), S.StP.o(p), eo) :
+    {R.finish(L.run.go(B.Text.lines(S.intext(p, cs)), fa, L.defs.go(B.Text.lines(S.intext(p, cs)), R.RunSt.inbody(P.specRun(rp)), S.StP.dfs(q)), _,
+      S.RG(S.recs(S.StP.src(q)), fa, L.defs.go(B.Text.lines(S.intext(p, cs)), R.RunSt.inbody(P.specRun(rp)), S.StP.dfs(q)), _, S.pre(O, N, P.specRun(rp)))))
+     == S.report.md(S.MBP{rp}, fa, cs, O, N, p) : R.Report}
+  %Equal.sym(B.Defs, S.StP.dfs(q), S.StP.dfs(p), ed) :
+    {R.finish(L.run.go(B.Text.lines(S.intext(p, cs)), fa, L.defs.go(B.Text.lines(S.intext(p, cs)), R.RunSt.inbody(P.specRun(rp)), _), S.StP.o(p),
+      S.RG(S.recs(S.StP.src(q)), fa, L.defs.go(B.Text.lines(S.intext(p, cs)), R.RunSt.inbody(P.specRun(rp)), _), S.StP.o(p), S.pre(O, N, P.specRun(rp)))))
+     == S.report.md(S.MBP{rp}, fa, cs, O, N, p) : R.Report}
+  %Equal.sym(List<&2, P.SrcP>, S.recs(S.StP.src(q)), S.recs(S.StP.src(p)), eqr) :
+    {R.finish(L.run.go(B.Text.lines(S.intext(p, cs)), fa, L.defs.go(B.Text.lines(S.intext(p, cs)), R.RunSt.inbody(P.specRun(rp)), S.StP.dfs(p)), S.StP.o(p),
+      S.RG(_, fa, L.defs.go(B.Text.lines(S.intext(p, cs)), R.RunSt.inbody(P.specRun(rp)), S.StP.dfs(p)), S.StP.o(p), S.pre(O, N, P.specRun(rp)))))
+     == S.report.md(S.MBP{rp}, fa, cs, O, N, p) : R.Report}
+  %ep :
+    {R.finish(L.run.go(B.Text.lines(S.intext(p, cs)), fa, L.defs.go(B.Text.lines(S.intext(p, cs)), R.RunSt.inbody(S.smd(_)), S.StP.dfs(p)), S.StP.o(p),
+      S.RG(S.recs(S.StP.src(p)), fa, L.defs.go(B.Text.lines(S.intext(p, cs)), R.RunSt.inbody(S.smd(_)), S.StP.dfs(p)), S.StP.o(p), S.pre(O, N, S.smd(_)))))
+     == S.report.md(S.MBP{rp}, fa, cs, O, N, p) : R.Report}
+  {==}
+
 # S.Moved
 # =======
 
 # A step that keeps the run and the text still to come (up to eqi) moved
 # no line.
-def moved_keep(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +rp: P.RunP, +p: S.StP, +q: S.StP,
-  +eqi: {S.intext(q, cs) == S.intext(p, cs) : String}) ->
-  S.Moved.md(S.MBP{rp}, S.MBP{rp}, fa, cs, p, q):
-  (Nil{}, (Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), S.intext(p, cs), S.intext(q, cs), Equal.sym(String, S.intext(q, cs), S.intext(p, cs), eqi)), {==}))
+# The definitions of the text still to come (S.DEFS) are the same for two
+# states with the same text, mode and definitions read.
+def defs_keep(+p: S.StP, +q: S.StP, +cs: List<&2, String>,
+  +eqi: {S.intext(q, cs) == S.intext(p, cs) : String},
+  +emd: {S.StP.md(q) == S.StP.md(p) : S.MdP},
+  +edf: {S.StP.dfs(q) == S.StP.dfs(p) : B.Defs}) ->
+  {S.DEFS(q, cs) == S.DEFS(p, cs) : B.Defs}:
+  %Equal.sym(String, S.intext(q, cs), S.intext(p, cs), eqi) : {L.defs.go(B.Text.lines(_), R.RunSt.inbody(S.smd(S.StP.md(q))), S.StP.dfs(q)) == S.DEFS(p, cs) : B.Defs}
+  %Equal.sym(S.MdP, S.StP.md(q), S.StP.md(p), emd) : {L.defs.go(B.Text.lines(S.intext(p, cs)), R.RunSt.inbody(S.smd(_)), S.StP.dfs(q)) == S.DEFS(p, cs) : B.Defs}
+  %Equal.sym(B.Defs, S.StP.dfs(q), S.StP.dfs(p), edf) : {L.defs.go(B.Text.lines(S.intext(p, cs)), R.RunSt.inbody(S.smd(S.StP.md(p))), _) == S.DEFS(p, cs) : B.Defs}
+  {==}
 
-# A step from the String mode claims nothing.
-def moved_ms(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +s: R.RunSt, +qs: List<&2, String>, +ql: Nat, +code: Maybe<&2, Nat>, m2: S.MdP, +p: S.StP, +q: S.StP) ->
+def moved_keep(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +rp: P.RunP, +p: S.StP, +q: S.StP,
+  +eqi: {S.intext(q, cs) == S.intext(p, cs) : String},
+  +eqr: {S.recs(S.StP.src(q)) == S.recs(S.StP.src(p)) : List<&2, P.SrcP>},
+  +emd: {S.StP.md(q) == S.StP.md(p) : S.MdP},
+  +edf: {S.StP.dfs(q) == S.StP.dfs(p) : B.Defs}) ->
+  S.Moved.md(S.MBP{rp}, S.MBP{rp}, fa, cs, p, q):
+  +D = S.DEFS(p, cs)
+  (Nil{}, (Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), S.intext(p, cs), S.intext(q, cs), Equal.sym(String, S.intext(q, cs), S.intext(p, cs), eqi)),
+    ({%Equal.sym(List<&2, P.SrcP>, S.recs(S.StP.src(q)), S.recs(S.StP.src(p)), eqr) : {P.settle(S.RG(_, fa, D, S.StP.o(p), P.specRun(rp))) == P.settle(S.RG(S.recs(S.StP.src(p)), fa, D, S.StP.o(p), P.specRun(rp))) : R.RunSt}
+    {==} : {P.settle(S.RG(S.recs(S.StP.src(q)), fa, D, S.StP.o(p), P.specRun(rp))) == P.settle(S.RG(S.recs(S.StP.src(p)), fa, D, S.StP.o(p), P.specRun(rp))) : R.RunSt}},
+    defs_keep(p, q, cs, eqi, emd, edf))))
+
+# A step from the String mode claims only that the definitions are kept.
+def moved_ms(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +s: R.RunSt, +qs: List<&2, String>, +ql: Nat, +code: Maybe<&2, Nat>, m2: S.MdP, +p: S.StP, +q: S.StP,
+  +hd: {S.DEFS(q, cs) == S.DEFS(p, cs) : B.Defs}) ->
   S.Moved.md(S.MSP{s, qs, ql, code}, m2, fa, cs, p, q):
   match m2:
     case S.MBP{rp}:
-      Unit{}
+      hd
     case S.MSP{s2, qs2, ql2, code2}:
-      Unit{}
+      hd
 
 # S.Kept
 # ======
@@ -404,6 +651,10 @@ def kept_same(+src: List<&2, P.SrcP>) -> S.Kept.s(src, src):
       h => (at, {==})
     case Con{P.SLP{+q}, +rest}:
       Unit{}
+    case Con{P.SPP{+len, +t, +d, +at}, +rest}:
+      {==}
+    case Con{P.SRP{+l}, +rest}:
+      {==}
 
 # The same for a state p whose sources are those of q (in either mode).
 def kept_md(+m: S.MdP, +src: List<&2, P.SrcP>) -> S.Kept.md(m, src, src):

@@ -46,13 +46,14 @@ def smd_msO0(st):
     case R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, +x}:
       {==}
 
-def StM(+o: B.Opts, +md: S.MdP, +src: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool) -> S.StP:
-  S.StP{o, md, src, pd, eof, back, wp, asked, fneed}
+def StM(+dfs: B.Defs, +o: B.Opts, +md: S.MdP, +src: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool) -> S.StP:
+  S.StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs}
 
 def ITX(+src: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +cs: Strs()) -> String:
-  String.append(P.srcstext(src), String.append(P.pdtext(pd), S.concat_if(eof, cs)))
+  String.append(P.srcstext(S.plain(src)), String.append(P.pdtext(pd), S.concat_if(eof, cs)))
 
 law rep_msO:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +cs: Strs()
   for +O: String
@@ -68,14 +69,16 @@ law rep_msO:
   for +wp: PC.WP
   for +asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  {R.finish(L.run.go(B.Text.lines(ITX(src, pd, eof, cs)), fa, o, S.pre(O, N, S.smd(msO(st, qs, ql))))) == S.report(fa, cs, O, N, StM(o, msO(st, qs, ql), src, pd, eof, back, wp, asked, fneed)) : R.Report}
+  {R.finish(L.run.go(B.Text.lines(S.intext(StM(dfs, o, msO(st, qs, ql), src, pd, eof, back, wp, asked, fneed), cs)), fa, S.DEFS(StM(dfs, o, msO(st, qs, ql), src, pd, eof, back, wp, asked, fneed), cs), o,
+    S.RG(S.recs(src), fa, S.DEFS(StM(dfs, o, msO(st, qs, ql), src, pd, eof, back, wp, asked, fneed), cs), o, S.pre(O, N, S.smd(msO(st, qs, ql)))))) == S.report(fa, cs, O, N, StM(dfs, o, msO(st, qs, ql), src, pd, eof, back, wp, asked, fneed)) : R.Report}
 
-def rep_msO(fa, cs, O, N, o, st, qs, ql, src, pd, eof, back, wp, asked, fneed):
+def rep_msO(dfs,fa, cs, O, N, o, st, qs, ql, src, pd, eof, back, wp, asked, fneed):
   match st:
     case R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +so, +ns, +x}:
       {==}
 
 law meas_msO:
+  for +dfs: B.Defs
   for +o: B.Opts
   for +st: R.RunSt
   for +qs: Strs()
@@ -87,14 +90,15 @@ law meas_msO:
   for +wp: PC.WP
   for +asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  {S.msrc(src) == S.measure(StM(o, msO(st, qs, ql), src, pd, eof, back, wp, asked, fneed)) : Nat}
+  {S.msrc(src) == S.measure(StM(dfs, o, msO(st, qs, ql), src, pd, eof, back, wp, asked, fneed)) : Nat}
 
-def meas_msO(o, st, qs, ql, src, pd, eof, back, wp, asked, fneed):
+def meas_msO(dfs,o, st, qs, ql, src, pd, eof, back, wp, asked, fneed):
   match st:
     case R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +so, +ns, +x}:
       {==}
 
 law asked_msO:
+  for +dfs: B.Defs
   for +o: B.Opts
   for +st: R.RunSt
   for +qs: Strs()
@@ -106,9 +110,9 @@ law asked_msO:
   for +wp: PC.WP
   for +asked: Maybe<&2, List<&2, Pr.Req>>
   for +fneed: Bool
-  {S.StP.asked(StM(o, msO(st, qs, ql), src, pd, eof, back, wp, asked, fneed)) == asked : Maybe<&2, List<&2, Pr.Req>>}
+  {S.StP.asked(StM(dfs, o, msO(st, qs, ql), src, pd, eof, back, wp, asked, fneed)) == asked : Maybe<&2, List<&2, Pr.Req>>}
 
-def asked_msO(o, st, qs, ql, src, pd, eof, back, wp, asked, fneed):
+def asked_msO(dfs,o, st, qs, ql, src, pd, eof, back, wp, asked, fneed):
   {==}
 
 # The String mode a byte run switches to is good: its texts are bytes, and
@@ -152,10 +156,12 @@ def mbw_msO(st, qs, ql, wp):
     case R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, +x}:
       {==}
 
-# A step into the String mode claims nothing (S.Moved).
-def moved_msO(+fa: List<&2, B.Contig>, +cs: Strs(), m: S.MdP, +p: S.StP, +p2: S.StP, st: R.RunSt, +qs: Strs(), +ql: Nat) -> S.Moved.md(m, msO(st, qs, ql), fa, cs, p, p2):
+# A step into the String mode claims only that the definitions are kept
+# (S.Moved).
+def moved_msO(+fa: List<&2, B.Contig>, +cs: Strs(), m: S.MdP, +p: S.StP, +p2: S.StP, st: R.RunSt, +qs: Strs(), +ql: Nat,
+  +hd: {S.DEFS(p2, cs) == S.DEFS(p, cs) : B.Defs}) -> S.Moved.md(m, msO(st, qs, ql), fa, cs, p, p2):
   match m st:
     case S.MBP{rp} R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, +x}:
-      Unit{}
+      hd
     case S.MSP{s, qs2, ql2, code} R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, +x}:
-      Unit{}
+      hd

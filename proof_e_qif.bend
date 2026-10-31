@@ -25,7 +25,7 @@ import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 def StP.pd(p: S.StP) -> P.PdP:
   match p:
-    case S.StP{o, md, src, pd, eof, back, wp, asked, fneed}:
+    case S.StP{o, md, src, pd, eof, back, wp, asked, fneed, +dfs}:
       pd
 
 # ---------------------------------------------------------------------------
@@ -58,7 +58,8 @@ def feed_line_ok(+fa: List<&2, B.Contig>, +c: String, +p: S.StP, +len: U32, +t: 
   &p1: S.StP -> ({W.feed_line(S.mkSt(fa, p), C.BT(len, t)) == S.mkSt(fa, p1) : Norm.St}
     & ({S.WF(fa, p1) == True{} : Bool} & ({S.StP.md(p1) == S.StP.md(p) : S.MdP} & ({S.StP.o(p1) == S.StP.o(p) : B.Opts}
     & ({S.StP.asked(p1) == None{} : Maybe<&2, List<&2, Pr.Req>>} & ({S.StP.eof(p1) == False{} : Bool}
-    & (@cs: List<&2, String> -> {S.intext(p1, cs) == S.intext(p, c <> cs) : String}))))))):
+    & ({S.StP.dfs(p1) == S.StP.dfs(p) : B.Defs} & ({S.recs(S.StP.src(p1)) == S.recs(S.StP.src(p)) : List<&2, P.SrcP>}
+    & (@cs: List<&2, String> -> {S.intext(p1, cs) == S.intext(p, c <> cs) : String}))))))))):
   QS.feed_line_h(fa, c, p, len, t, d, hm, hok, hv)
 
 # Q.set_win with the truthful answers to what a good state asked: a good
@@ -75,10 +76,10 @@ def set_win_ok(+fa: List<&2, B.Contig>, +p: S.StP, +rs: List<&2, Pr.Req>,
     & ({S.StP.src(p2) == S.StP.src(p) : List<&2, P.SrcP>} & ({StP.pd(p2) == StP.pd(p) : P.PdP} & ({S.StP.eof(p2) == S.StP.eof(p) : Bool}
     & {S.StP.asked(p2) == None{} : Maybe<&2, List<&2, Pr.Req>>}))))))):
   match p rs:
-    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed} Nil{}:
-      (S.StP{o, md, src, pd, eof, back, wp, None{}, fneed}, (QS.sw_nil(fa, o, md, src, pd, eof, back, wp, asked, fneed, ha),
+    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs} Nil{}:
+      (S.StP{o, md, src, pd, eof, back, wp, None{}, fneed, dfs}, (QS.sw_nil(dfs, fa, o, md, src, pd, eof, back, wp, asked, fneed, ha),
         (hw, ({==}, ({==}, ({==}, ({==}, ({==}, {==}))))))))
-    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed} Con{Pr.Req{+c, +a, +b}, +t}:
+    case S.StP{+o, +md, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs} Con{Pr.Req{+c, +a, +b}, +t}:
       +hb2 = hb
-      (S.StP{o, md, src, pd, eof, back, PC.wpOf(fa, c, a, Norm.last_b(t, b)), None{}, fneed}, (QS.sw_eq(fa, o, md, src, pd, eof, back, wp, asked, fneed, c, a, b, t, hb2, ha, hp),
-        (QS.sw_wf(fa, o, md, src, pd, eof, back, wp, asked, fneed, c, a, b, t, hb2, hw, hmr), ({==}, ({==}, ({==}, ({==}, ({==}, {==}))))))))
+      (S.StP{o, md, src, pd, eof, back, PC.wpOf(fa, c, a, Norm.last_b(t, b)), None{}, fneed, dfs}, (QS.sw_eq(dfs, fa, o, md, src, pd, eof, back, wp, asked, fneed, c, a, b, t, hb2, ha, hp),
+        (QS.sw_wf(dfs, fa, o, md, src, pd, eof, back, wp, asked, fneed, c, a, b, t, hb2, hw, hmr), ({==}, ({==}, ({==}, ({==}, ({==}, {==}))))))))

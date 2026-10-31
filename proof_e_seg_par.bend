@@ -441,12 +441,12 @@ def bl2.r(+d: Nat, +sh: String, +z: List<&2, String>, +p: String, +sk: R.Cnt, +s
       Empty.absurd({R.body_line(B.Res{B.NoContig{}, k1, t, s}, R.RunSt{1n+Nat.add(n, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, op, li, B.At{1n+Nat.add(n, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, R.body_line(B.Res{B.NoContig{}, k1, t, s}, R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{1n+n, f0, f1}, pos)) : R.RunSt} & {G.inv2(q, R.body_line(B.Res{B.NoContig{}, k1, t, s}, R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{1n+n, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(hg))
     case B.Res{B.Problem{+cd}, k1, t, s}:
       match op:
-        case B.Opts{+st, +w, +a}:
+        case B.Opts{+st, +w, +om_m, +om_z, +a}:
           match st:
             case True{}:
-              Empty.absurd({R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+Nat.add(n, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, B.Opts{True{}, w, a}, li, B.At{1n+Nat.add(n, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, B.Opts{True{}, w, a}, li, B.At{1n+n, f0, f1}, pos)) : R.RunSt} & {G.inv2(q, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, B.Opts{True{}, w, a}, li, B.At{1n+n, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(hg))
+              Empty.absurd({R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+Nat.add(n, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, B.Opts{True{}, w, om_m, om_z, a}, li, B.At{1n+Nat.add(n, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, B.Opts{True{}, w, om_m, om_z, a}, li, B.At{1n+n, f0, f1}, pos)) : R.RunSt} & {G.inv2(q, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, B.Opts{True{}, w, om_m, om_z, a}, li, B.At{1n+n, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(hg))
             case False{}:
-              Empty.absurd({R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+Nat.add(n, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, B.Opts{False{}, w, a}, li, B.At{1n+Nat.add(n, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, B.Opts{False{}, w, a}, li, B.At{1n+n, f0, f1}, pos)) : R.RunSt} & {G.inv2(q, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, B.Opts{False{}, w, a}, li, B.At{1n+n, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(EM.keyed_m(c0, se, sc, 1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}, w, R.Item{pos, pos, B.At{1n+n, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{1n+n, f0, f1}}], R.bump(k, False{}, False{}, True{}), P.and_true_r(Bool.not(G.halt(R.keyed(R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, w, R.Item{pos, pos, B.At{1n+n, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{1n+n, f0, f1}}], R.bump(k, False{}, False{}, True{})))), G.M(c0, se, sc, R.keyed(R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, w, R.Item{pos, pos, B.At{1n+n, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{1n+n, f0, f1}}], R.bump(k, False{}, False{}, True{}))), hg))))
+              Empty.absurd({R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+Nat.add(n, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, B.Opts{False{}, w, om_m, om_z, a}, li, B.At{1n+Nat.add(n, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, B.Opts{False{}, w, om_m, om_z, a}, li, B.At{1n+n, f0, f1}, pos)) : R.RunSt} & {G.inv2(q, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, B.Opts{False{}, w, om_m, om_z, a}, li, B.At{1n+n, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(EM.keyed_m(c0, se, sc, 1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}, w, R.Item{pos, pos, B.At{1n+n, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{1n+n, f0, f1}}], R.bump(k, False{}, False{}, True{}), P.and_true_r(Bool.not(G.halt(R.keyed(R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, w, R.Item{pos, pos, B.At{1n+n, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{1n+n, f0, f1}}], R.bump(k, False{}, False{}, True{})))), G.M(c0, se, sc, R.keyed(R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, w, R.Item{pos, pos, B.At{1n+n, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{1n+n, f0, f1}}], R.bump(k, False{}, False{}, True{}))), hg))))
     case B.Res{B.Skipped{}, k1, t, s}:
       %EL.cnt_bump(sk, k, False{}, True{}, False{}) : {R.keyed(R.RunSt{1n+Nat.add(n, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, R.Opts.w(op), R.Item{pos, pos, B.At{1n+Nat.add(n, d), f0, f1}, B.Line.text(li)}, Nil{}, _) == G.lift(d, sh, z, p, sk, sns, q, R.keyed(R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, R.Opts.w(op), R.Item{pos, pos, B.At{1n+n, f0, f1}, B.Line.text(li)}, Nil{}, R.bump(k, False{}, True{}, False{}))) : R.RunSt} & {G.inv2(q, R.keyed(R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, R.Opts.w(op), R.Item{pos, pos, B.At{1n+n, f0, f1}, B.Line.text(li)}, Nil{}, R.bump(k, False{}, True{}, False{}))) == True{} : Bool}
       kd2(d, sh, z, p, sk, sns, q, c0, se, sc, 1n+n, h, c, e, ly, b, k, o, R.Opts.w(op), pos, pos, 1n+n, f0, f1, B.Line.text(li), R.bump(k, False{}, True{}, False{}), same, ez, h1, h2, hb, hq, {==}, hg)
@@ -458,8 +458,112 @@ def bl2.r(+d: Nat, +sh: String, +z: List<&2, String>, +p: String, +sk: R.Cnt, +s
           %EL.cnt_bump(sk, k, Bool.not(String.eq(t, B.Line.body(li))), False{}, False{}) : {R.keyed(R.RunSt{1n+Nat.add(n, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, R.Opts.w(op), R.Item{k1, pos, B.At{1n+Nat.add(n, d), f0, f1}, String.append(t, B.Line.term(li))}, Nil{}, _) == G.lift(d, sh, z, p, sk, sns, q, R.keyed(R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, R.Opts.w(op), R.Item{k1, pos, B.At{1n+n, f0, f1}, String.append(t, B.Line.term(li))}, Nil{}, R.bump(k, Bool.not(String.eq(t, B.Line.body(li))), False{}, False{}))) : R.RunSt} & {G.inv2(q, R.keyed(R.RunSt{1n+n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, R.Opts.w(op), R.Item{k1, pos, B.At{1n+n, f0, f1}, String.append(t, B.Line.term(li))}, Nil{}, R.bump(k, Bool.not(String.eq(t, B.Line.body(li))), False{}, False{}))) == True{} : Bool}
           kd2(d, sh, z, p, sk, sns, q, c0, se, sc, 1n+n, h, c, e, ly, b, k, o, R.Opts.w(op), k1, pos, 1n+n, f0, f1, String.append(t, B.Line.term(li)), R.bump(k, Bool.not(String.eq(t, B.Line.body(li))), False{}, False{}), same, ez, h1, h2, hb, hq, {==}, hg)
 
+def bl2.rg(+d: Nat, +sh: String, +z: List<&2, String>, +p: String, +sk: R.Cnt, +sns: List<&2, B.Note>, +q: Maybe<&2, R.Item>, +c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +m: Nat, +an: Nat, +han: {Nat.is_eq(an, 0n) == False{} : Bool}, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +ly: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o: String,
+  r: B.Res, +op: B.Opts, +li: B.Line, +f0: String, +f1: String, +pos: Nat, +same: Bool, +ez: {Bool.pick(List<&2, String>, same, se, R.push_cur(sc, se)) == z : List<&2, String>}, +h1: {R.has(c0, se) == False{} : Bool}, +h2: {R.is_cur(sc, c0) == same : Bool},
+  +hb: {G.allreal(b) == True{} : Bool}, +hq: {G.qok(q, ly) == True{} : Bool},
+  hg: {G.Good(c0, se, sc, R.body_line(r, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{an, f0, f1}, pos)) == True{} : Bool}) ->
+  {R.body_line(r, R.RunSt{Nat.add(m, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, op, li, B.At{Nat.add(an, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, R.body_line(r, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{an, f0, f1}, pos)) : R.RunSt} & {G.inv2(q, R.body_line(r, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{an, f0, f1}, pos)) == True{} : Bool}:
+  match r:
+    case B.Res{B.Broken{}, k1, t, s}:
+      Empty.absurd({R.body_line(B.Res{B.Broken{}, k1, t, s}, R.RunSt{Nat.add(m, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, op, li, B.At{Nat.add(an, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, R.body_line(B.Res{B.Broken{}, k1, t, s}, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{an, f0, f1}, pos)) : R.RunSt} & {G.inv2(q, R.body_line(B.Res{B.Broken{}, k1, t, s}, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{an, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(hg))
+    case B.Res{B.NoContig{}, k1, t, s}:
+      Empty.absurd({R.body_line(B.Res{B.NoContig{}, k1, t, s}, R.RunSt{Nat.add(m, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, op, li, B.At{Nat.add(an, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, R.body_line(B.Res{B.NoContig{}, k1, t, s}, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{an, f0, f1}, pos)) : R.RunSt} & {G.inv2(q, R.body_line(B.Res{B.NoContig{}, k1, t, s}, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{an, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(hg))
+    case B.Res{B.Problem{+cd}, k1, t, s}:
+      match op:
+        case B.Opts{+st, +w, +om_m, +om_z, +a}:
+          match st:
+            case True{}:
+              Empty.absurd({R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{Nat.add(m, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, B.Opts{True{}, w, om_m, om_z, a}, li, B.At{Nat.add(an, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, B.Opts{True{}, w, om_m, om_z, a}, li, B.At{an, f0, f1}, pos)) : R.RunSt} & {G.inv2(q, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, B.Opts{True{}, w, om_m, om_z, a}, li, B.At{an, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(hg))
+            case False{}:
+              Empty.absurd({R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{Nat.add(m, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, B.Opts{False{}, w, om_m, om_z, a}, li, B.At{Nat.add(an, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, B.Opts{False{}, w, om_m, om_z, a}, li, B.At{an, f0, f1}, pos)) : R.RunSt} & {G.inv2(q, R.body_line(B.Res{B.Problem{cd}, k1, t, s}, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, B.Opts{False{}, w, om_m, om_z, a}, li, B.At{an, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(EM.keyed_m(c0, se, sc, m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}, w, R.Item{pos, pos, B.At{an, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{an, f0, f1}}], R.bump(k, False{}, False{}, True{}), P.and_true_r(Bool.not(G.halt(R.keyed(R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, w, R.Item{pos, pos, B.At{an, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{an, f0, f1}}], R.bump(k, False{}, False{}, True{})))), G.M(c0, se, sc, R.keyed(R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, w, R.Item{pos, pos, B.At{an, f0, f1}, B.Line.text(li)}, [B.Warning{cd, B.At{an, f0, f1}}], R.bump(k, False{}, False{}, True{}))), hg))))
+    case B.Res{B.Skipped{}, k1, t, s}:
+      %EL.cnt_bump(sk, k, False{}, True{}, False{}) : {R.keyed(R.RunSt{Nat.add(m, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, R.Opts.w(op), R.Item{pos, pos, B.At{Nat.add(an, d), f0, f1}, B.Line.text(li)}, Nil{}, _) == G.lift(d, sh, z, p, sk, sns, q, R.keyed(R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, R.Opts.w(op), R.Item{pos, pos, B.At{an, f0, f1}, B.Line.text(li)}, Nil{}, R.bump(k, False{}, True{}, False{}))) : R.RunSt} & {G.inv2(q, R.keyed(R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, R.Opts.w(op), R.Item{pos, pos, B.At{an, f0, f1}, B.Line.text(li)}, Nil{}, R.bump(k, False{}, True{}, False{}))) == True{} : Bool}
+      kd2(d, sh, z, p, sk, sns, q, c0, se, sc, m, h, c, e, ly, b, k, o, R.Opts.w(op), pos, pos, an, f0, f1, B.Line.text(li), R.bump(k, False{}, True{}, False{}), same, ez, h1, h2, hb, hq, han, hg)
+    case B.Res{B.Normalized{}, +k1, +t, +s}:
+      match s:
+        case True{}:
+          Empty.absurd({R.body_line(B.Res{B.Normalized{}, k1, t, True{}}, R.RunSt{Nat.add(m, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, op, li, B.At{Nat.add(an, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, R.body_line(B.Res{B.Normalized{}, k1, t, True{}}, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{an, f0, f1}, pos)) : R.RunSt} & {G.inv2(q, R.body_line(B.Res{B.Normalized{}, k1, t, True{}}, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{an, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(EM.keyed_m(c0, se, sc, m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}, R.Opts.w(op), R.Item{k1, pos, B.At{an, f0, f1}, String.append(t, B.Line.term(li))}, [B.Warning{B.Stale{}, B.At{an, f0, f1}}], R.bump(k, Bool.not(String.eq(t, B.Line.body(li))), False{}, False{}), P.and_true_r(Bool.not(G.halt(R.keyed(R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, R.Opts.w(op), R.Item{k1, pos, B.At{an, f0, f1}, String.append(t, B.Line.term(li))}, [B.Warning{B.Stale{}, B.At{an, f0, f1}}], R.bump(k, Bool.not(String.eq(t, B.Line.body(li))), False{}, False{})))), G.M(c0, se, sc, R.keyed(R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, R.Opts.w(op), R.Item{k1, pos, B.At{an, f0, f1}, String.append(t, B.Line.term(li))}, [B.Warning{B.Stale{}, B.At{an, f0, f1}}], R.bump(k, Bool.not(String.eq(t, B.Line.body(li))), False{}, False{}))), hg))))
+        case False{}:
+          %EL.cnt_bump(sk, k, Bool.not(String.eq(t, B.Line.body(li))), False{}, False{}) : {R.keyed(R.RunSt{Nat.add(m, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, R.Opts.w(op), R.Item{k1, pos, B.At{Nat.add(an, d), f0, f1}, String.append(t, B.Line.term(li))}, Nil{}, _) == G.lift(d, sh, z, p, sk, sns, q, R.keyed(R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, R.Opts.w(op), R.Item{k1, pos, B.At{an, f0, f1}, String.append(t, B.Line.term(li))}, Nil{}, R.bump(k, Bool.not(String.eq(t, B.Line.body(li))), False{}, False{}))) : R.RunSt} & {G.inv2(q, R.keyed(R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, R.Opts.w(op), R.Item{k1, pos, B.At{an, f0, f1}, String.append(t, B.Line.term(li))}, Nil{}, R.bump(k, Bool.not(String.eq(t, B.Line.body(li))), False{}, False{}))) == True{} : Bool}
+          kd2(d, sh, z, p, sk, sns, q, c0, se, sc, m, h, c, e, ly, b, k, o, R.Opts.w(op), k1, pos, an, f0, f1, String.append(t, B.Line.term(li)), R.bump(k, Bool.not(String.eq(t, B.Line.body(li))), False{}, False{}), same, ez, h1, h2, hb, hq, han, hg)
+
+def bl2_un(+bb: Bool, +cd: B.Code, +d: Nat, +sh: String, +z: List<&2, String>, +p: String, +sk: R.Cnt, +sns: List<&2, B.Note>, +q: Maybe<&2, R.Item>, +c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +m: Nat, +an: Nat, +han: {Nat.is_eq(an, 0n) == False{} : Bool}, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +ly: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o: String, +fa: List<&2, B.Contig>, +op: B.Opts, +li: B.Line, +f0: String, +f1: String, +pos: Nat,
+  +same: Bool, +ez: {Bool.pick(List<&2, String>, same, se, R.push_cur(sc, se)) == z : List<&2, String>}, +h1: {R.has(c0, se) == False{} : Bool}, +h2: {R.is_cur(sc, c0) == same : Bool},
+  +hb: {G.allreal(b) == True{} : Bool}, +hq: {G.qok(q, ly) == True{} : Bool},
+  +hg: {G.Good(c0, se, sc, Bool.pick(R.RunSt, bb, R.body_line(L.judge(fa, B.Line.body(li)), R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{an, f0, f1}, pos), R.problem_line(R.Opts.strict(op), R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, R.Opts.w(op), cd, li, B.At{an, f0, f1}, pos))) == True{} : Bool}) ->
+  {Bool.pick(R.RunSt, bb, R.body_line(L.judge(fa, B.Line.body(li)), R.RunSt{Nat.add(m, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, op, li, B.At{Nat.add(an, d), f0, f1}, pos), R.problem_line(R.Opts.strict(op), R.RunSt{Nat.add(m, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, R.Opts.w(op), cd, li, B.At{Nat.add(an, d), f0, f1}, pos))
+     == G.lift(d, sh, z, p, sk, sns, q, Bool.pick(R.RunSt, bb, R.body_line(L.judge(fa, B.Line.body(li)), R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{an, f0, f1}, pos), R.problem_line(R.Opts.strict(op), R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, R.Opts.w(op), cd, li, B.At{an, f0, f1}, pos))) : R.RunSt}
+    & {G.inv2(q, Bool.pick(R.RunSt, bb, R.body_line(L.judge(fa, B.Line.body(li)), R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, li, B.At{an, f0, f1}, pos), R.problem_line(R.Opts.strict(op), R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, R.Opts.w(op), cd, li, B.At{an, f0, f1}, pos))) == True{} : Bool}:
+  match bb:
+    case True{}:
+      bl2.rg(d, sh, z, p, sk, sns, q, c0, se, sc, m, an, han, h, c, e, ly, b, k, o, L.judge(fa, B.Line.body(li)), op, li, f0, f1, pos, same, ez, h1, h2, hb, hq, hg)
+    case False{}:
+      bl2.rg(d, sh, z, p, sk, sns, q, c0, se, sc, m, an, han, h, c, e, ly, b, k, o, B.Res{B.Problem{cd}, 0n, "", False{}}, op, li, f0, f1, pos, same, ez, h1, h2, hb, hq, hg)
+
+# With -m: Good at the end of a split line's records is Good before them.
+def good_pin(+ps: List<&2, String>, +fa: List<&2, B.Contig>, +op: B.Opts, +st: R.RunSt, +term: String, +at: B.At, +pos: Nat, +c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>,
+  +hg: {G.Good(c0, se, sc, L.pieces_in(ps, fa, op, st, term, at, pos)) == True{} : Bool}) ->
+  {G.Good(c0, se, sc, st) == True{} : Bool}:
+  match st:
+    case R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, True{}}:
+      %EM.pin_halted(ps, fa, op, n, i, h, c, e, l, b, k, o, ns, term, at, pos) : {G.Good(c0, se, sc, _) == True{} : Bool}
+      hg
+    case R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, False{}}:
+      EM.pieces_m(c0, se, sc, fa, op, ps, R.RunSt{n, i, h, c, e, l, b, k, o, ns, False{}}, term, at, pos,
+        P.and_true_r(Bool.not(G.halt(L.pieces_in(ps, fa, op, R.RunSt{n, i, h, c, e, l, b, k, o, ns, False{}}, term, at, pos))), G.M(c0, se, sc, L.pieces_in(ps, fa, op, R.RunSt{n, i, h, c, e, l, b, k, o, ns, False{}}, term, at, pos)), hg))
+
+# A split line's records keep X = lift(Y), record by record.
+def pieces_lift(+ps: List<&2, String>, +d: Nat, +sh: String, +z: List<&2, String>, +p: String, +sk: R.Cnt, +sns: List<&2, B.Note>, +q: Maybe<&2, R.Item>, +c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +st: R.RunSt, +fa: List<&2, B.Contig>, +op: B.Opts, +term: String, +an: Nat, +han: {Nat.is_eq(an, 0n) == False{} : Bool}, +f0: String, +f1: String, +pos: Nat,
+  +same: Bool, +ez: {Bool.pick(List<&2, String>, same, se, R.push_cur(sc, se)) == z : List<&2, String>}, +h1: {R.has(c0, se) == False{} : Bool}, +h2: {R.is_cur(sc, c0) == same : Bool},
+  +hi: {G.inv2(q, st) == True{} : Bool},
+  +hg: {G.Good(c0, se, sc, L.pieces_in(ps, fa, op, st, term, B.At{an, f0, f1}, pos)) == True{} : Bool}) ->
+  {L.pieces_in(ps, fa, op, G.lift(d, sh, z, p, sk, sns, q, st), term, B.At{Nat.add(an, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, L.pieces_in(ps, fa, op, st, term, B.At{an, f0, f1}, pos)) : R.RunSt}
+    & {G.inv2(q, L.pieces_in(ps, fa, op, st, term, B.At{an, f0, f1}, pos)) == True{} : Bool}:
+  match ps:
+    case Nil{}:
+      ({==}, hi)
+    case Con{+px, +ps2}:
+      match st:
+        case R.RunSt{+m, False{}, +h, +c, +e, +ly, +b, +k, +o, +ns, +x}:
+          Empty.absurd({L.pieces_in(Con{px, ps2}, fa, op, G.lift(d, sh, z, p, sk, sns, q, R.RunSt{m, False{}, h, c, e, ly, b, k, o, ns, x}), term, B.At{Nat.add(an, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, L.pieces_in(Con{px, ps2}, fa, op, R.RunSt{m, False{}, h, c, e, ly, b, k, o, ns, x}, term, B.At{an, f0, f1}, pos)) : R.RunSt}
+            & {G.inv2(q, L.pieces_in(Con{px, ps2}, fa, op, R.RunSt{m, False{}, h, c, e, ly, b, k, o, ns, x}, term, B.At{an, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(hi))
+        case R.RunSt{+m, True{}, +h, +c, +e, +ly, +b, +k, +o, +ns, True{}}:
+          Empty.absurd({L.pieces_in(Con{px, ps2}, fa, op, G.lift(d, sh, z, p, sk, sns, q, R.RunSt{m, True{}, h, c, e, ly, b, k, o, ns, True{}}), term, B.At{Nat.add(an, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, L.pieces_in(Con{px, ps2}, fa, op, R.RunSt{m, True{}, h, c, e, ly, b, k, o, ns, True{}}, term, B.At{an, f0, f1}, pos)) : R.RunSt}
+            & {G.inv2(q, L.pieces_in(Con{px, ps2}, fa, op, R.RunSt{m, True{}, h, c, e, ly, b, k, o, ns, True{}}, term, B.At{an, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(hi))
+        case R.RunSt{+m, True{}, +h, +c, +e, +ly, +b, +k, +o, Con{+y, +ys}, False{}}:
+          Empty.absurd({L.pieces_in(Con{px, ps2}, fa, op, G.lift(d, sh, z, p, sk, sns, q, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Con{y, ys}, False{}}), term, B.At{Nat.add(an, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, L.pieces_in(Con{px, ps2}, fa, op, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Con{y, ys}, False{}}, term, B.At{an, f0, f1}, pos)) : R.RunSt}
+            & {G.inv2(q, L.pieces_in(Con{px, ps2}, fa, op, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Con{y, ys}, False{}}, term, B.At{an, f0, f1}, pos)) == True{} : Bool}, P.false_ne_true(hi))
+        case R.RunSt{+m, True{}, +h, +c, +e, +ly, +b, +k, +o, Nil{}, False{}}:
+          +s1 = R.body_line(L.judge(fa, px), R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, op, B.Line{px, term}, B.At{an, f0, f1}, pos)
+          +s1l = R.body_line(L.judge(fa, px), R.RunSt{Nat.add(m, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, op, B.Line{px, term}, B.At{Nat.add(an, d), f0, f1}, pos)
+          +hb = P.and_true_l(G.allreal(b), G.qok(q, ly), hi)
+          +hq = P.and_true_r(G.allreal(b), G.qok(q, ly), hi)
+          +g1 = good_pin(ps2, fa, op, s1, term, B.At{an, f0, f1}, pos, c0, se, sc, hg)
+          +eq1 = Pair.fst({s1l == G.lift(d, sh, z, p, sk, sns, q, s1) : R.RunSt}, {G.inv2(q, s1) == True{} : Bool}, bl2.rg(d, sh, z, p, sk, sns, q, c0, se, sc, m, an, han, h, c, e, ly, b, k, o, L.judge(fa, px), op, B.Line{px, term}, f0, f1, pos, same, ez, h1, h2, hb, hq, g1))
+          +iv1 = Pair.snd({s1l == G.lift(d, sh, z, p, sk, sns, q, s1) : R.RunSt}, {G.inv2(q, s1) == True{} : Bool}, bl2.rg(d, sh, z, p, sk, sns, q, c0, se, sc, m, an, han, h, c, e, ly, b, k, o, L.judge(fa, px), op, B.Line{px, term}, f0, f1, pos, same, ez, h1, h2, hb, hq, g1))
+          (Equal.trans(R.RunSt, L.pieces_in(ps2, fa, op, s1l, term, B.At{Nat.add(an, d), f0, f1}, pos), L.pieces_in(ps2, fa, op, G.lift(d, sh, z, p, sk, sns, q, s1), term, B.At{Nat.add(an, d), f0, f1}, pos), G.lift(d, sh, z, p, sk, sns, q, L.pieces_in(ps2, fa, op, s1, term, B.At{an, f0, f1}, pos)),
+            Equal.cong(R.RunSt, R.RunSt, zz => L.pieces_in(ps2, fa, op, zz, term, B.At{Nat.add(an, d), f0, f1}, pos), s1l, G.lift(d, sh, z, p, sk, sns, q, s1), eq1),
+            Pair.fst({L.pieces_in(ps2, fa, op, G.lift(d, sh, z, p, sk, sns, q, s1), term, B.At{Nat.add(an, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, L.pieces_in(ps2, fa, op, s1, term, B.At{an, f0, f1}, pos)) : R.RunSt}, {G.inv2(q, L.pieces_in(ps2, fa, op, s1, term, B.At{an, f0, f1}, pos)) == True{} : Bool}, pieces_lift(ps2, d, sh, z, p, sk, sns, q, c0, se, sc, s1, fa, op, term, an, han, f0, f1, pos, same, ez, h1, h2, iv1, hg))),
+           Pair.snd({L.pieces_in(ps2, fa, op, G.lift(d, sh, z, p, sk, sns, q, s1), term, B.At{Nat.add(an, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, L.pieces_in(ps2, fa, op, s1, term, B.At{an, f0, f1}, pos)) : R.RunSt}, {G.inv2(q, L.pieces_in(ps2, fa, op, s1, term, B.At{an, f0, f1}, pos)) == True{} : Bool}, pieces_lift(ps2, d, sh, z, p, sk, sns, q, c0, se, sc, s1, fa, op, term, an, han, f0, f1, pos, same, ez, h1, h2, iv1, hg)))
+
+# What -m does with a line keeps X = lift(Y).
+def bl2_body(+pt: B.Parts, +d: Nat, +sh: String, +z: List<&2, String>, +p: String, +sk: R.Cnt, +sns: List<&2, B.Note>, +q: Maybe<&2, R.Item>, +c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +m: Nat, +an: Nat, +han: {Nat.is_eq(an, 0n) == False{} : Bool}, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +ly: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o: String, +fa: List<&2, B.Contig>, +op: B.Opts, +li: B.Line, +f0: String, +f1: String, +pos: Nat,
+  +same: Bool, +ez: {Bool.pick(List<&2, String>, same, se, R.push_cur(sc, se)) == z : List<&2, String>}, +h1: {R.has(c0, se) == False{} : Bool}, +h2: {R.is_cur(sc, c0) == same : Bool},
+  +hb: {G.allreal(b) == True{} : Bool}, +hq: {G.qok(q, ly) == True{} : Bool},
+  +hg: {G.Good(c0, se, sc, L.body_in(pt, fa, op, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li, B.At{an, f0, f1}, pos)) == True{} : Bool}) ->
+  {L.body_in(pt, fa, op, R.RunSt{Nat.add(m, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, li, B.At{Nat.add(an, d), f0, f1}, pos) == G.lift(d, sh, z, p, sk, sns, q, L.body_in(pt, fa, op, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li, B.At{an, f0, f1}, pos)) : R.RunSt}
+    & {G.inv2(q, L.body_in(pt, fa, op, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li, B.At{an, f0, f1}, pos)) == True{} : Bool}:
+  match pt:
+    case B.Whole{}:
+      bl2.rg(d, sh, z, p, sk, sns, q, c0, se, sc, m, an, han, h, c, e, ly, b, k, o, L.judge(fa, B.Line.body(li)), op, li, f0, f1, pos, same, ez, h1, h2, hb, hq, hg)
+    case B.Pieces{+ps}:
+      pieces_lift(ps, d, sh, z, p, sk, sns, q, c0, se, sc, R.RunSt{m, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, fa, op, B.Line.term(li), an, han, f0, f1, pos, same, ez, h1, h2, S.and_intro(G.allreal(b), G.qok(q, ly), hb, hq), hg)
+    case B.Unsplit{+cd}:
+      bl2_un(L.stops(L.judge(fa, B.Line.body(li)), R.Opts.strict(op)), cd, d, sh, z, p, sk, sns, q, c0, se, sc, m, an, han, h, c, e, ly, b, k, o, fa, op, li, f0, f1, pos, same, ez, h1, h2, hb, hq, hg)
+
 # One body line keeps X = lift(Y).
 law bl2:
+  for +dfs: B.Defs
   for +d: Nat
   for +sh: String
   for +z: List<&2, String>
@@ -487,46 +591,48 @@ law bl2:
   for +h2: {R.is_cur(sc, c0) == same : Bool}
   for +hb: {G.allreal(b) == True{} : Bool}
   for +hq: {G.qok(q, ly) == True{} : Bool}
-  for hg: {G.Good(c0, se, sc, L.line_step(fa, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li)) == True{} : Bool}
-  {L.line_step(fa, op, R.RunSt{Nat.add(n, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, li) == G.lift(d, sh, z, p, sk, sns, q, L.line_step(fa, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li)) : R.RunSt} & {G.inv2(q, L.line_step(fa, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li)) == True{} : Bool}
+  for hg: {G.Good(c0, se, sc, L.line_step(fa, dfs, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li)) == True{} : Bool}
+  {L.line_step(fa, dfs, op, R.RunSt{Nat.add(n, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, li) == G.lift(d, sh, z, p, sk, sns, q, L.line_step(fa, dfs, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li)) : R.RunSt} & {G.inv2(q, L.line_step(fa, dfs, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li)) == True{} : Bool}
 
-def bl2(d, sh, z, p, sk, sns, q, c0, se, sc, n, h, c, e, ly, b, k, o, fa, op, li, same, ez, h1, h2, hb, hq, hg):
+def bl2(dfs,d, sh, z, p, sk, sns, q, c0, se, sc, n, h, c, e, ly, b, k, o, fa, op, li, same, ez, h1, h2, hb, hq, hg):
   +fs = B.Rec.fields(B.Line.body(li))
-  bl2.r(d, sh, z, p, sk, sns, q, c0, se, sc, n, h, c, e, ly, b, k, o, L.judge(fa, B.Line.body(li)), op, li, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n), B.Rec.pos(fs), same, ez, h1, h2, hb, hq, hg)
+  bl2_body(B.Rec.parts(dfs, op, B.Line.body(li)), d, sh, z, p, sk, sns, q, c0, se, sc, 1n+n, 1n+n, {==}, h, c, e, ly, b, k, o, fa, op, li, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n), B.Rec.pos(fs), same, ez, h1, h2, hb, hq, hg)
 
-def par.k(+d: Nat, +sh: String, +z: List<&2, String>, +p: String, +sk: R.Cnt, +sns: List<&2, B.Note>, +q: Maybe<&2, R.Item>, +c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +n: Nat, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +ly: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o: String,
+
+def par.k(+dfs: B.Defs, +d: Nat, +sh: String, +z: List<&2, String>, +p: String, +sk: R.Cnt, +sns: List<&2, B.Note>, +q: Maybe<&2, R.Item>, +c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +n: Nat, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +ly: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o: String,
   +t: List<&2, B.Line>, +fa: List<&2, B.Contig>, +op: B.Opts, +li: B.Line,
-  hg: {G.Good(c0, se, sc, L.run.go(t, fa, op, L.line_step(fa, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li))) == True{} : Bool},
-  ih: @st2: R.RunSt -> {G.inv2(q, st2) == True{} : Bool} -> {G.Good(c0, se, sc, L.run.go(t, fa, op, st2)) == True{} : Bool} -> {L.run.go(t, fa, op, G.lift(d, sh, z, p, sk, sns, q, st2)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, op, st2)) : R.RunSt},
-  pr: {L.line_step(fa, op, R.RunSt{Nat.add(n, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, li) == G.lift(d, sh, z, p, sk, sns, q, L.line_step(fa, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li)) : R.RunSt} & {G.inv2(q, L.line_step(fa, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li)) == True{} : Bool}) ->
-  {L.run.go(t, fa, op, L.line_step(fa, op, G.lift(d, sh, z, p, sk, sns, q, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}), li)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, op, L.line_step(fa, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li))) : R.RunSt}:
+  hg: {G.Good(c0, se, sc, L.run.go(t, fa, dfs, op, L.line_step(fa, dfs, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li))) == True{} : Bool},
+  ih: @st2: R.RunSt -> {G.inv2(q, st2) == True{} : Bool} -> {G.Good(c0, se, sc, L.run.go(t, fa, dfs, op, st2)) == True{} : Bool} -> {L.run.go(t, fa, dfs, op, G.lift(d, sh, z, p, sk, sns, q, st2)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, dfs, op, st2)) : R.RunSt},
+  pr: {L.line_step(fa, dfs, op, R.RunSt{Nat.add(n, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, li) == G.lift(d, sh, z, p, sk, sns, q, L.line_step(fa, dfs, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li)) : R.RunSt} & {G.inv2(q, L.line_step(fa, dfs, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li)) == True{} : Bool}) ->
+  {L.run.go(t, fa, dfs, op, L.line_step(fa, dfs, op, G.lift(d, sh, z, p, sk, sns, q, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}), li)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, dfs, op, L.line_step(fa, dfs, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li))) : R.RunSt}:
   match pr:
     case (es, iv):
-      %Equal.sym(R.RunSt, L.line_step(fa, op, R.RunSt{Nat.add(n, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, li), G.lift(d, sh, z, p, sk, sns, q, L.line_step(fa, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li)), es) :
-        {L.run.go(t, fa, op, _) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, op, L.line_step(fa, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li))) : R.RunSt}
-      ih(L.line_step(fa, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li), iv, hg)
+      %Equal.sym(R.RunSt, L.line_step(fa, dfs, op, R.RunSt{Nat.add(n, d), True{}, sh, c, List.append(&2, String, e, z), G.img(q, ly, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, False{}}, li), G.lift(d, sh, z, p, sk, sns, q, L.line_step(fa, dfs, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li)), es) :
+        {L.run.go(t, fa, dfs, op, _) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, dfs, op, L.line_step(fa, dfs, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li))) : R.RunSt}
+      ih(L.line_step(fa, dfs, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li), iv, hg)
 
-def par.go(+d: Nat, +sh: String, +z: List<&2, String>, +p: String, +sk: R.Cnt, +sns: List<&2, B.Note>, +q: Maybe<&2, R.Item>, +c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +n: Nat, +i: Bool, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +ly: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o: String,
+def par.go(+dfs: B.Defs, +d: Nat, +sh: String, +z: List<&2, String>, +p: String, +sk: R.Cnt, +sns: List<&2, B.Note>, +q: Maybe<&2, R.Item>, +c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +n: Nat, +i: Bool, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +ly: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o: String,
   +ns: List<&2, B.Note>, +x: Bool, +t: List<&2, B.Line>, +fa: List<&2, B.Contig>, +op: B.Opts, +li: B.Line, +same: Bool, +ez: {Bool.pick(List<&2, String>, same, se, R.push_cur(sc, se)) == z : List<&2, String>}, +h1: {R.has(c0, se) == False{} : Bool}, +h2: {R.is_cur(sc, c0) == same : Bool},
   +hi: {G.inv2(q, R.RunSt{n, i, h, c, e, ly, b, k, o, ns, x}) == True{} : Bool},
-  +hg: {G.Good(c0, se, sc, L.run.go(t, fa, op, L.line_step(fa, op, R.RunSt{n, i, h, c, e, ly, b, k, o, ns, x}, li))) == True{} : Bool},
-  ih: @st2: R.RunSt -> {G.inv2(q, st2) == True{} : Bool} -> {G.Good(c0, se, sc, L.run.go(t, fa, op, st2)) == True{} : Bool} -> {L.run.go(t, fa, op, G.lift(d, sh, z, p, sk, sns, q, st2)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, op, st2)) : R.RunSt}) ->
-  {L.run.go(t, fa, op, L.line_step(fa, op, G.lift(d, sh, z, p, sk, sns, q, R.RunSt{n, i, h, c, e, ly, b, k, o, ns, x}), li)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, op, L.line_step(fa, op, R.RunSt{n, i, h, c, e, ly, b, k, o, ns, x}, li))) : R.RunSt}:
+  +hg: {G.Good(c0, se, sc, L.run.go(t, fa, dfs, op, L.line_step(fa, dfs, op, R.RunSt{n, i, h, c, e, ly, b, k, o, ns, x}, li))) == True{} : Bool},
+  ih: @st2: R.RunSt -> {G.inv2(q, st2) == True{} : Bool} -> {G.Good(c0, se, sc, L.run.go(t, fa, dfs, op, st2)) == True{} : Bool} -> {L.run.go(t, fa, dfs, op, G.lift(d, sh, z, p, sk, sns, q, st2)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, dfs, op, st2)) : R.RunSt}) ->
+  {L.run.go(t, fa, dfs, op, L.line_step(fa, dfs, op, G.lift(d, sh, z, p, sk, sns, q, R.RunSt{n, i, h, c, e, ly, b, k, o, ns, x}), li)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, dfs, op, L.line_step(fa, dfs, op, R.RunSt{n, i, h, c, e, ly, b, k, o, ns, x}, li))) : R.RunSt}:
   match i ns x:
     case False{} _ _:
-      Empty.absurd({L.run.go(t, fa, op, L.line_step(fa, op, G.lift(d, sh, z, p, sk, sns, q, R.RunSt{n, False{}, h, c, e, ly, b, k, o, ns, x}), li)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, op, L.line_step(fa, op, R.RunSt{n, False{}, h, c, e, ly, b, k, o, ns, x}, li))) : R.RunSt}, P.false_ne_true(hi))
+      Empty.absurd({L.run.go(t, fa, dfs, op, L.line_step(fa, dfs, op, G.lift(d, sh, z, p, sk, sns, q, R.RunSt{n, False{}, h, c, e, ly, b, k, o, ns, x}), li)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, dfs, op, L.line_step(fa, dfs, op, R.RunSt{n, False{}, h, c, e, ly, b, k, o, ns, x}, li))) : R.RunSt}, P.false_ne_true(hi))
     case True{} _ True{}:
-      Empty.absurd({L.run.go(t, fa, op, L.line_step(fa, op, G.lift(d, sh, z, p, sk, sns, q, R.RunSt{n, True{}, h, c, e, ly, b, k, o, ns, True{}}), li)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, op, L.line_step(fa, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, ns, True{}}, li))) : R.RunSt}, P.false_ne_true(hi))
+      Empty.absurd({L.run.go(t, fa, dfs, op, L.line_step(fa, dfs, op, G.lift(d, sh, z, p, sk, sns, q, R.RunSt{n, True{}, h, c, e, ly, b, k, o, ns, True{}}), li)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, dfs, op, L.line_step(fa, dfs, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, ns, True{}}, li))) : R.RunSt}, P.false_ne_true(hi))
     case True{} y <> ys False{}:
-      Empty.absurd({L.run.go(t, fa, op, L.line_step(fa, op, G.lift(d, sh, z, p, sk, sns, q, R.RunSt{n, True{}, h, c, e, ly, b, k, o, y <> ys, False{}}), li)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, op, L.line_step(fa, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, y <> ys, False{}}, li))) : R.RunSt}, P.false_ne_true(hi))
+      Empty.absurd({L.run.go(t, fa, dfs, op, L.line_step(fa, dfs, op, G.lift(d, sh, z, p, sk, sns, q, R.RunSt{n, True{}, h, c, e, ly, b, k, o, y <> ys, False{}}), li)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(t, fa, dfs, op, L.line_step(fa, dfs, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, y <> ys, False{}}, li))) : R.RunSt}, P.false_ne_true(hi))
     case True{} Nil{} False{}:
       +hb = P.and_true_l(G.allreal(b), G.qok(q, ly), hi)
       +hq = P.and_true_r(G.allreal(b), G.qok(q, ly), hi)
-      +hg1 = EM.good_back(c0, se, sc, t, fa, op, L.line_step(fa, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li), hg)
-      par.k(d, sh, z, p, sk, sns, q, c0, se, sc, n, h, c, e, ly, b, k, o, t, fa, op, li, hg, ih, bl2(d, sh, z, p, sk, sns, q, c0, se, sc, n, h, c, e, ly, b, k, o, fa, op, li, same, ez, h1, h2, hb, hq, hg1))
+      +hg1 = EM.good_back(dfs, c0, se, sc, t, fa, op, L.line_step(fa, dfs, op, R.RunSt{n, True{}, h, c, e, ly, b, k, o, Nil{}, False{}}, li), hg)
+      par.k(dfs, d, sh, z, p, sk, sns, q, c0, se, sc, n, h, c, e, ly, b, k, o, t, fa, op, li, hg, ih, bl2(dfs, d, sh, z, p, sk, sns, q, c0, se, sc, n, h, c, e, ly, b, k, o, fa, op, li, same, ez, h1, h2, hb, hq, hg1))
 
 # Phase 2: along the rest of the lines, the true run is lift of T's.
 law par:
+  for +dfs: B.Defs
   for +d: Nat
   for +sh: String
   for +z: List<&2, String>
@@ -546,15 +652,15 @@ law par:
   for +h2: {R.is_cur(sc, c0) == same : Bool}
   for +st: R.RunSt
   for +hi: {G.inv2(q, st) == True{} : Bool}
-  for hg: {G.Good(c0, se, sc, L.run.go(ls, fa, op, st)) == True{} : Bool}
-  {L.run.go(ls, fa, op, G.lift(d, sh, z, p, sk, sns, q, st)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(ls, fa, op, st)) : R.RunSt}
+  for hg: {G.Good(c0, se, sc, L.run.go(ls, fa, dfs, op, st)) == True{} : Bool}
+  {L.run.go(ls, fa, dfs, op, G.lift(d, sh, z, p, sk, sns, q, st)) == G.lift(d, sh, z, p, sk, sns, q, L.run.go(ls, fa, dfs, op, st)) : R.RunSt}
 
-def par(d, sh, z, p, sk, sns, q, c0, se, sc, ls, fa, op, same, ez, h1, h2, st, hi, hg):
+def par(dfs,d, sh, z, p, sk, sns, q, c0, se, sc, ls, fa, op, same, ez, h1, h2, st, hi, hg):
   match ls:
     case Nil{}:
       {==}
     case +li <> +t:
       match st:
         case R.RunSt{+n, +i, +h, +c, +e, +ly, +b, +k, +o, +ns, +x}:
-          par.go(d, sh, z, p, sk, sns, q, c0, se, sc, n, i, h, c, e, ly, b, k, o, ns, x, t, fa, op, li, same, ez, h1, h2, hi, hg,
-            st2 => hi2 => hg2 => par(d, sh, z, p, sk, sns, q, c0, se, sc, t, fa, op, same, ez, h1, h2, st2, hi2, hg2))
+          par.go(dfs, d, sh, z, p, sk, sns, q, c0, se, sc, n, i, h, c, e, ly, b, k, o, ns, x, t, fa, op, li, same, ez, h1, h2, hi, hg,
+            st2 => hi2 => hg2 => par(dfs, d, sh, z, p, sk, sns, q, c0, se, sc, t, fa, op, same, ez, h1, h2, st2, hi2, hg2))

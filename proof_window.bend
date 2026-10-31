@@ -637,6 +637,16 @@ def en.noans.code(+k: B.Code, +fs: List<&2, String>, +body: String, +p: Nat, +rl
       P.false_ne_true(he)
     case B.Stale{}:
       P.false_ne_true(he)
+    case B.UndefinedTag{tag}:
+      P.false_ne_true(he)
+    case B.BadCount{}:
+      P.false_ne_true(he)
+    case B.BadGt{}:
+      P.false_ne_true(he)
+    case B.DupAlts{}:
+      P.false_ne_true(he)
+    case B.BadCr{}:
+      P.false_ne_true(he)
 
 def en.noans.problem(+c: Maybe<&2, B.Code>, +fs: List<&2, String>, +body: String, +p: Nat, +rlen: Nat, +seq: List<&2, B.Base>, +v: B.Var,
   +he: {WS.enough.go(L.problem(c, fs, body, seq, v), p, rlen, None{}) == True{} : Bool}) -> Empty:

@@ -62,7 +62,7 @@ def wfmt_none(x, h1, h2, h3, h4, h5, h6, h7, h8):
 # One index option where no option waits for its value: the step only sets
 # the index format (b1 ... b8: whether x is each of the eight words).
 law idx_step:
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -170,6 +170,10 @@ def idx_un(st, x, he, hx):
           Empty.absurd({A.unthr(B.Args.step(B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}, x)) == A.unthr(B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
         case B.PType{}:
           Empty.absurd({A.unthr(B.Args.step(B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}, x)) == A.unthr(B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
+        case B.PMulti{}:
+          Empty.absurd({A.unthr(B.Args.step(B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, k}, x)) == A.unthr(B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
+        case B.POver{}:
+          Empty.absurd({A.unthr(B.Args.step(B.ArgSt{B.POver{}, s, w, t, r, v, ok, k}, x)) == A.unthr(B.ArgSt{B.POver{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
 
 # The parser fact behind law index.
 law parse_idx:
@@ -241,7 +245,7 @@ def pick_ui(b, a1, a2, c1, c2, ha, hc):
 
 law typ_ui:
   for +m: Maybe<&2, B.OType>
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t0: Maybe<&2, Nat>
   for +o0: Maybe<&2, String>
@@ -265,7 +269,7 @@ def typ_ui(m, s, w, t0, o0, z0, l0, i0, r, v, ok, k):
 
 law win_ui:
   for +m: Maybe<&2, Nat>
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t0: Maybe<&2, Nat>
   for +o0: Maybe<&2, String>
@@ -287,7 +291,7 @@ def win_ui(m, s, w, t0, o0, z0, l0, i0, r, v, ok, k):
 
 law thrs_ui:
   for +m: Maybe<&2, Nat>
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t0: Maybe<&2, Nat>
   for +o0: Maybe<&2, String>
@@ -322,13 +326,16 @@ def ui_step(st, x):
             case B.Drv{t0, o0, z0, l0, i0}:
               pick_ui(String.eq(x, "-f"), B.ArgSt{B.PRef{}, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, A.kx(k, x)}, B.ArgSt{B.PRef{}, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, A.kx(k, x)}, A.w2(x, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k), A.w2(x, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k), {==},
                 pick_ui(String.eq(x, "-c"), B.ArgSt{B.PCheck{}, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, A.kx(k, x)}, B.ArgSt{B.PCheck{}, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, A.kx(k, x)}, A.w3(x, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k), A.w3(x, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k), {==},
-                pick_ui(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, A.kx(k, x)}, B.ArgSt{B.PWin{}, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, A.kx(k, x)}, A.w4(x, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k), A.w4(x, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k), {==},
+                pick_ui(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, A.kx(k, x)}, B.ArgSt{B.PWin{}, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, A.kx(k, x)}, A.w3m(x, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k), A.w3m(x, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k), {==},
+                pick_ui(String.eq(x, "-m"), B.ArgSt{B.PMulti{}, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, A.kx(k, x)}, B.ArgSt{B.PMulti{}, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, A.kx(k, x)}, A.w3o(x, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k), A.w3o(x, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k), {==},
+                pick_ui(String.eq(x, "--multi-overlaps"), B.ArgSt{B.POver{}, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, A.kx(k, x)}, B.ArgSt{B.POver{}, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, A.kx(k, x)}, A.w3g(x, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k), A.w3g(x, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k), {==},
+                pick_ui(String.starts_with(x, "-m"), B.ArgSt{B.PNone{}, B.Sci.multi(s), w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok && B.Args.multi(String.drop(x, 2n)), A.kx(k, x)}, B.ArgSt{B.PNone{}, B.Sci.multi(s), w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok && B.Args.multi(String.drop(x, 2n)), A.kx(k, x)}, A.w4(x, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k), A.w4(x, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k), {==},
                 pick_ui(String.eq(x, "--threads"), B.ArgSt{B.PThr{}, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k}, B.ArgSt{B.PThr{}, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k}, A.w5(x, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k), A.w5(x, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k), {==},
                 pick_ui(String.eq(x, "-o"), B.ArgSt{B.POut{}, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k}, B.ArgSt{B.POut{}, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k}, A.w6(x, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k), A.w6(x, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k), {==},
                 pick_ui(String.eq(x, "-O"), B.ArgSt{B.PType{}, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k}, B.ArgSt{B.PType{}, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k}, A.w7(x, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k), A.w7(x, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k), {==},
                 pick_ui(String.starts_with(x, "-O"), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k}), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k}), A.w8(x, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k), A.w8(x, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k), typ_ui(B.Args.otype(String.drop(x, 2n)), s, w, t0, o0, z0, l0, i0, r, v, ok, k),
                 pick_ui(Maybe.is_some(&2, B.IFmt, B.Args.wfmt(x)), B.ArgSt{B.PNone{}, s, w, B.Drv.set_idx(B.Args.wfmt(x), B.Drv{t0, o0, z0, l0, i0}), r, v, ok, k}, B.ArgSt{B.PNone{}, s, w, B.Drv.set_idx(B.Args.wfmt(x), B.Drv{t0, o0, z0, l0, None{}}), r, v, ok, k}, A.w9(x, s, w, B.Drv{t0, o0, z0, l0, i0}, r, v, ok, k), A.w9(x, s, w, B.Drv{t0, o0, z0, l0, None{}}, r, v, ok, k), {==},
-                {==}))))))))
+                {==})))))))))))
         case B.PRef{}:
           match t:
             case B.Drv{t0, o0, z0, l0, i0}:
@@ -353,6 +360,14 @@ def ui_step(st, x):
           match t:
             case B.Drv{t0, o0, z0, l0, i0}:
               typ_ui(B.Args.otype(x), s, w, t0, o0, z0, l0, i0, r, v, ok, k)
+        case B.PMulti{}:
+          match t:
+            case B.Drv{t0, o0, z0, l0, i0}:
+              {==}
+        case B.POver{}:
+          match t:
+            case B.Drv{t0, o0, z0, l0, i0}:
+              {==}
 
 law ui_ui:
   for +st: B.ArgSt
@@ -409,6 +424,10 @@ def sink_ui(st):
                         case False{}:
                           {==}
         case B.PRef{}:
+          {==}
+        case B.PMulti{}:
+          {==}
+        case B.POver{}:
           {==}
         case B.PCheck{}:
           {==}
@@ -469,6 +488,10 @@ def thr_ui(st):
                           {==}
         case B.PRef{}:
           {==}
+        case B.PMulti{}:
+          {==}
+        case B.POver{}:
+          {==}
         case B.PCheck{}:
           {==}
         case B.PWin{}:
@@ -504,7 +527,7 @@ def thr_same(post, s1, s2, h):
 # Where no option waits for its value, an index option leaves the state as
 # it was but for the index format.
 law idx_ui0:
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +m: Maybe<&2, B.IFmt>
   for +t: B.Drv
@@ -536,6 +559,10 @@ def idx_ui(st, x, he, hx):
           idx_ui0(s, w, B.Args.wfmt(x), t, r, v, ok, k)
         case B.PRef{}:
           Empty.absurd({unidx(B.Args.step(B.ArgSt{B.PRef{}, s, w, t, r, v, ok, k}, x)) == unidx(B.ArgSt{B.PRef{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
+        case B.PMulti{}:
+          Empty.absurd({unidx(B.Args.step(B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, k}, x)) == unidx(B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
+        case B.POver{}:
+          Empty.absurd({unidx(B.Args.step(B.ArgSt{B.POver{}, s, w, t, r, v, ok, k}, x)) == unidx(B.ArgSt{B.POver{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
         case B.PCheck{}:
           Empty.absurd({unidx(B.Args.step(B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, k}, x)) == unidx(B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
         case B.PWin{}:
@@ -585,20 +612,26 @@ def index_done_ok(st):
     case B.ArgSt{p, s, w, t, r, v, ok, k}:
       match p:
         case B.PNone{}:
-          match r:
-            case None{}:
-              {==}
-            case Some{r1}:
-              match v:
+          match s:
+            case B.Sci{sc, sm, sz}:
+              match r:
                 case None{}:
                   {==}
-                case Some{v1}:
-                  match ok:
-                    case True{}:
+                case Some{r1}:
+                  match v:
+                    case None{}:
                       {==}
-                    case False{}:
-                      {==}
+                    case Some{v1}:
+                      match ok:
+                        case True{}:
+                          {==}
+                        case False{}:
+                          {==}
         case B.PRef{}:
+          {==}
+        case B.PMulti{}:
+          {==}
+        case B.POver{}:
           {==}
         case B.PCheck{}:
           {==}

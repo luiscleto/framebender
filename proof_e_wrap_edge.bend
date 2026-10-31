@@ -12,9 +12,11 @@ import ./proof_b_drive_out.bend as DO
 import ./proof_b_lines_str.bend as LS
 import ./proof_base.bend as PB
 import ./proof_e_task.bend as PT
+import ./proof_e_task_run.bend as RN
 import ./proof_e_wrap_base.bend as WB
 import ./proof_e_wrap_ms.bend as WM
 import ./proof_e_wrap_spec.bend as SP
+import ./proof_e_wrap_qd.bend as QD
 
 # Helpers for proof_e_wrap.bend (area E1): the line across a boundary. Q's
 # advances at the edge chain their Moved facts (Ch); the edge's check (Q's
@@ -30,11 +32,11 @@ import ./proof_e_wrap_spec.bend as SP
 def Ch.md(+m1: S.MdP, +mc: S.MdP, +fa: List<&2, B.Contig>, +cs: List<&2, String>, +p1: S.StP, +pc: S.StP) -> Type:
   match m1 mc:
     case S.MSP{s, qs, ql, code} _:
-      {WM.is_msp(S.StP.md(pc)) == True{} : Bool}
+      {WM.is_msp(S.StP.md(pc)) == True{} : Bool} & {S.DEFS(pc, cs) == S.DEFS(p1, cs) : B.Defs}
     case S.MBP{+rp1} S.MBP{+rpc}:
       S.Moved(fa, cs, p1, pc)
     case S.MBP{rp1} S.MSP{s, qs, ql, code}:
-      Unit
+      {S.DEFS(pc, cs) == S.DEFS(p1, cs) : B.Defs}
 
 def Ch(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +p1: S.StP, +pc: S.StP) -> Type:
   Ch.md(S.StP.md(p1), S.StP.md(pc), fa, cs, p1, pc)
@@ -47,12 +49,13 @@ law ch_refl:
 
 def ch_refl(fa, cs, p1):
   match p1:
-    case S.StP{+o, S.MBP{+rp}, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
-      (Nil{}, ({==}, {==}))
-    case S.StP{+o, S.MSP{+s, +qs, +ql, +code}, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
-      {==}
+    case S.StP{+o, S.MBP{+rp}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      (Nil{}, ({==}, ({==}, {==})))
+    case S.StP{+o, S.MSP{+s, +qs, +ql, +code}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      ({==}, {==})
 
 law moved_comp:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +cs: List<&2, String>
   for +p1: S.StP
@@ -66,27 +69,38 @@ law moved_comp:
   for +eo: {S.StP.o(pc) == S.StP.o(p1) : B.Opts}
   S.Moved.md(S.MBP{rp1}, S.MBP{rp2}, fa, cs, p1, p2)
 
-def moved_comp(fa, cs, p1, pc, p2, rp1, rpc, rp2, hch, hmv, eo):
+def moved_comp(dfs,fa, cs, p1, pc, p2, rp1, rpc, rp2, hch, hmv, eo):
   (+ls1, h1) = hch
-  (+e1, s1) = h1
+  (+e1, h1b) = h1
+  (s1x, d1x) = h1b
   (+ls2, h2) = hmv
-  (+e2, s2) = h2
+  (+e2, h2b) = h2
+  (s2x, d2x) = h2b
   +o1 = S.StP.o(p1)
+  +D1 = S.DEFS(p1, cs)
   +L1 = B.Text.lines(S.intext(p1, cs))
   +Lc = B.Text.lines(S.intext(pc, cs))
   +L2 = B.Text.lines(S.intext(p2, cs))
+  +R1 = S.RG(S.recs(S.StP.src(p1)), fa, D1, o1, P.specRun(rp1))
+  +Rc = S.RG(S.recs(S.StP.src(pc)), fa, D1, o1, P.specRun(rpc))
+  +R2 = S.RG(S.recs(S.StP.src(p2)), fa, D1, o1, P.specRun(rp2))
+  +s1 = {s1x : {P.settle(Rc) == P.settle(L.run.go(ls1, fa, D1, o1, R1)) : R.RunSt}}
+  +d1 = {d1x : {S.DEFS(pc, cs) == D1 : B.Defs}}
+  +s2 = {s2x : {P.settle(S.RG(S.recs(S.StP.src(p2)), fa, S.DEFS(pc, cs), S.StP.o(pc), P.specRun(rp2))) == P.settle(L.run.go(ls2, fa, S.DEFS(pc, cs), S.StP.o(pc), S.RG(S.recs(S.StP.src(pc)), fa, S.DEFS(pc, cs), S.StP.o(pc), P.specRun(rpc)))) : R.RunSt}}
+  +d2 = {d2x : {S.DEFS(p2, cs) == S.DEFS(pc, cs) : B.Defs}}
+  +s2b = {%d1 :
+      {P.settle(S.RG(S.recs(S.StP.src(p2)), fa, _, o1, P.specRun(rp2))) == P.settle(L.run.go(ls2, fa, _, o1, S.RG(S.recs(S.StP.src(pc)), fa, _, o1, P.specRun(rpc)))) : R.RunSt};
+    %eo :
+      {P.settle(S.RG(S.recs(S.StP.src(p2)), fa, S.DEFS(pc, cs), _, P.specRun(rp2))) == P.settle(L.run.go(ls2, fa, S.DEFS(pc, cs), _, S.RG(S.recs(S.StP.src(pc)), fa, S.DEFS(pc, cs), _, P.specRun(rpc)))) : R.RunSt};
+    s2 : {P.settle(R2) == P.settle(L.run.go(ls2, fa, D1, o1, Rc)) : R.RunSt}}
   (List.append(&2, B.Line, ls1, ls2),
     (Equal.trans(List<&2, B.Line>, L1, List.append(&2, B.Line, ls1, Lc), List.append(&2, B.Line, List.append(&2, B.Line, ls1, ls2), L2), e1,
       Equal.trans(List<&2, B.Line>, List.append(&2, B.Line, ls1, Lc), List.append(&2, B.Line, ls1, List.append(&2, B.Line, ls2, L2)), List.append(&2, B.Line, List.append(&2, B.Line, ls1, ls2), L2),
         Equal.cong(List<&2, B.Line>, List<&2, B.Line>, z => List.append(&2, B.Line, ls1, z), Lc, List.append(&2, B.Line, ls2, L2), e2),
         Equal.sym(List<&2, B.Line>, List.append(&2, B.Line, List.append(&2, B.Line, ls1, ls2), L2), List.append(&2, B.Line, ls1, List.append(&2, B.Line, ls2, L2)), PB.append_assoc(B.Line, ls1, ls2, L2)))),
-    Equal.trans(R.RunSt, P.settle(P.specRun(rp2)), P.settle(L.run.go(ls2, fa, S.StP.o(pc), P.specRun(rpc))), P.settle(L.run.go(List.append(&2, B.Line, ls1, ls2), fa, o1, P.specRun(rp1))), s2,
-      Equal.trans(R.RunSt, P.settle(L.run.go(ls2, fa, S.StP.o(pc), P.specRun(rpc))), P.settle(L.run.go(ls2, fa, o1, P.specRun(rpc))), P.settle(L.run.go(List.append(&2, B.Line, ls1, ls2), fa, o1, P.specRun(rp1))),
-        Equal.cong(B.Opts, R.RunSt, z => P.settle(L.run.go(ls2, fa, z, P.specRun(rpc))), S.StP.o(pc), o1, eo),
-        Equal.trans(R.RunSt, P.settle(L.run.go(ls2, fa, o1, P.specRun(rpc))), P.settle(L.run.go(ls2, fa, o1, L.run.go(ls1, fa, o1, P.specRun(rp1)))), P.settle(L.run.go(List.append(&2, B.Line, ls1, ls2), fa, o1, P.specRun(rp1))),
-          SP.go_settle(ls2, fa, o1, P.specRun(rpc), L.run.go(ls1, fa, o1, P.specRun(rp1)), s1),
-          Equal.cong(R.RunSt, R.RunSt, z => P.settle(z), L.run.go(ls2, fa, o1, L.run.go(ls1, fa, o1, P.specRun(rp1))), L.run.go(List.append(&2, B.Line, ls1, ls2), fa, o1, P.specRun(rp1)),
-            Equal.sym(R.RunSt, L.run.go(List.append(&2, B.Line, ls1, ls2), fa, o1, P.specRun(rp1)), L.run.go(ls2, fa, o1, L.run.go(ls1, fa, o1, P.specRun(rp1))), SP.go_app(ls1, ls2, fa, o1, P.specRun(rp1)))))))))
+    (RN.go_step(D1, ls1, ls2, fa, o1, R1, Rc, R2, s1, s2b),
+      Equal.trans(B.Defs, S.DEFS(p2, cs), S.DEFS(pc, cs), D1, d2, d1))))
+
 
 # One more advance (its Moved fact, the options kept, and the String mode
 # kept) extends the chain.
@@ -104,18 +118,35 @@ law ch_step:
 
 def ch_step(fa, cs, p1, pc, p2, hch, hmv, eo, hk):
   match p1 pc p2:
-    case S.StP{+o1, S.MSP{+s1, +qs1, +ql1, +cd1}, +sr1, +pd1, +ef1, +bk1, +wp1, +as1, +fn1} S.StP{+oc, S.MSP{+sc, +qsc, +qlc, +cdc}, +src, +pdc, +efc, +bkc, +wpc, +asc, +fnc} +q2:
-      hk
-    case S.StP{+o1, S.MSP{+s1, +qs1, +ql1, +cd1}, +sr1, +pd1, +ef1, +bk1, +wp1, +as1, +fn1} S.StP{+oc, S.MBP{+rpc}, +src, +pdc, +efc, +bkc, +wpc, +asc, +fnc} +q2:
-      Empty.absurd(Ch(fa, cs, S.StP{o1, S.MSP{s1, qs1, ql1, cd1}, sr1, pd1, ef1, bk1, wp1, as1, fn1}, q2), PB.false_ne_true(hch))
-    case S.StP{+o1, S.MBP{+rp1}, +sr1, +pd1, +ef1, +bk1, +wp1, +as1, +fn1} S.StP{+oc, S.MBP{+rpc}, +src, +pdc, +efc, +bkc, +wpc, +asc, +fnc} S.StP{+o2, S.MBP{+rp2}, +sr2, +pd2, +ef2, +bk2, +wp2, +as2, +fn2}:
-      moved_comp(fa, cs, S.StP{o1, S.MBP{rp1}, sr1, pd1, ef1, bk1, wp1, as1, fn1}, S.StP{oc, S.MBP{rpc}, src, pdc, efc, bkc, wpc, asc, fnc}, S.StP{o2, S.MBP{rp2}, sr2, pd2, ef2, bk2, wp2, as2, fn2}, rp1, rpc, rp2, hch, hmv, eo)
-    case S.StP{+o1, S.MBP{+rp1}, +sr1, +pd1, +ef1, +bk1, +wp1, +as1, +fn1} S.StP{+oc, S.MBP{+rpc}, +src, +pdc, +efc, +bkc, +wpc, +asc, +fnc} S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, +sr2, +pd2, +ef2, +bk2, +wp2, +as2, +fn2}:
-      Unit{}
-    case S.StP{+o1, S.MBP{+rp1}, +sr1, +pd1, +ef1, +bk1, +wp1, +as1, +fn1} S.StP{+oc, S.MSP{+sc, +qsc, +qlc, +cdc}, +src, +pdc, +efc, +bkc, +wpc, +asc, +fnc} S.StP{+o2, S.MBP{+rp2}, +sr2, +pd2, +ef2, +bk2, +wp2, +as2, +fn2}:
-      Empty.absurd(Ch(fa, cs, S.StP{o1, S.MBP{rp1}, sr1, pd1, ef1, bk1, wp1, as1, fn1}, S.StP{o2, S.MBP{rp2}, sr2, pd2, ef2, bk2, wp2, as2, fn2}), PB.false_ne_true(hk))
-    case S.StP{+o1, S.MBP{+rp1}, +sr1, +pd1, +ef1, +bk1, +wp1, +as1, +fn1} S.StP{+oc, S.MSP{+sc, +qsc, +qlc, +cdc}, +src, +pdc, +efc, +bkc, +wpc, +asc, +fnc} S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, +sr2, +pd2, +ef2, +bk2, +wp2, +as2, +fn2}:
-      Unit{}
+    case S.StP{+o1, S.MSP{+s1, +qs1, +ql1, +cd1}, +sr1, +pd1, +ef1, +bk1, +wp1, +as1, +fn1, +df1} S.StP{+oc, S.MSP{+sc, +qsc, +qlc, +cdc}, +src, +pdc, +efc, +bkc, +wpc, +asc, +fnc, +dfc} +q2:
+      (+hms, hd1) = hch
+      (hk, Equal.trans(B.Defs, S.DEFS(q2, cs), S.DEFS(S.StP{oc, S.MSP{sc, qsc, qlc, cdc}, src, pdc, efc, bkc, wpc, asc, fnc, dfc}, cs), S.DEFS(S.StP{o1, S.MSP{s1, qs1, ql1, cd1}, sr1, pd1, ef1, bk1, wp1, as1, fn1, df1}, cs), hmv, hd1))
+    case S.StP{+o1, S.MSP{+s1, +qs1, +ql1, +cd1}, +sr1, +pd1, +ef1, +bk1, +wp1, +as1, +fn1, +df1} S.StP{+oc, S.MBP{+rpc}, +src, +pdc, +efc, +bkc, +wpc, +asc, +fnc, +dfc} +q2:
+      (hms, hd1) = hch
+      Empty.absurd(Ch(fa, cs, S.StP{o1, S.MSP{s1, qs1, ql1, cd1}, sr1, pd1, ef1, bk1, wp1, as1, fn1, df1}, q2), PB.false_ne_true(hms))
+    case S.StP{+o1, S.MBP{+rp1}, +sr1, +pd1, +ef1, +bk1, +wp1, +as1, +fn1, +df1} S.StP{+oc, S.MBP{+rpc}, +src, +pdc, +efc, +bkc, +wpc, +asc, +fnc, +dfc} S.StP{+o2, S.MBP{+rp2}, +sr2, +pd2, +ef2, +bk2, +wp2, +as2, +fn2, +df2}:
+      moved_comp(df1, fa, cs, S.StP{o1, S.MBP{rp1}, sr1, pd1, ef1, bk1, wp1, as1, fn1, df1}, S.StP{oc, S.MBP{rpc}, src, pdc, efc, bkc, wpc, asc, fnc, dfc}, S.StP{o2, S.MBP{rp2}, sr2, pd2, ef2, bk2, wp2, as2, fn2, df2}, rp1, rpc, rp2, hch, hmv, eo)
+    case S.StP{+o1, S.MBP{+rp1}, +sr1, +pd1, +ef1, +bk1, +wp1, +as1, +fn1, +df1} S.StP{+oc, S.MBP{+rpc}, +src, +pdc, +efc, +bkc, +wpc, +asc, +fnc, +dfc} S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, +sr2, +pd2, +ef2, +bk2, +wp2, +as2, +fn2, +df2}:
+      Equal.trans(B.Defs, S.DEFS(S.StP{o2, S.MSP{s2, qs2, ql2, cd2}, sr2, pd2, ef2, bk2, wp2, as2, fn2, df2}, cs), S.DEFS(S.StP{oc, S.MBP{rpc}, src, pdc, efc, bkc, wpc, asc, fnc, dfc}, cs), S.DEFS(S.StP{o1, S.MBP{rp1}, sr1, pd1, ef1, bk1, wp1, as1, fn1, df1}, cs), hmv,
+        QD.moved_defs(fa, cs, S.StP{o1, S.MBP{rp1}, sr1, pd1, ef1, bk1, wp1, as1, fn1, df1}, S.StP{oc, S.MBP{rpc}, src, pdc, efc, bkc, wpc, asc, fnc, dfc}, hch))
+    case S.StP{+o1, S.MBP{+rp1}, +sr1, +pd1, +ef1, +bk1, +wp1, +as1, +fn1, +df1} S.StP{+oc, S.MSP{+sc, +qsc, +qlc, +cdc}, +src, +pdc, +efc, +bkc, +wpc, +asc, +fnc, +dfc} S.StP{+o2, S.MBP{+rp2}, +sr2, +pd2, +ef2, +bk2, +wp2, +as2, +fn2, +df2}:
+      Empty.absurd(Ch(fa, cs, S.StP{o1, S.MBP{rp1}, sr1, pd1, ef1, bk1, wp1, as1, fn1, df1}, S.StP{o2, S.MBP{rp2}, sr2, pd2, ef2, bk2, wp2, as2, fn2, df2}), PB.false_ne_true(hk))
+    case S.StP{+o1, S.MBP{+rp1}, +sr1, +pd1, +ef1, +bk1, +wp1, +as1, +fn1, +df1} S.StP{+oc, S.MSP{+sc, +qsc, +qlc, +cdc}, +src, +pdc, +efc, +bkc, +wpc, +asc, +fnc, +dfc} S.StP{+o2, S.MSP{+s2, +qs2, +ql2, +cd2}, +sr2, +pd2, +ef2, +bk2, +wp2, +as2, +fn2, +df2}:
+      Equal.trans(B.Defs, S.DEFS(S.StP{o2, S.MSP{s2, qs2, ql2, cd2}, sr2, pd2, ef2, bk2, wp2, as2, fn2, df2}, cs), S.DEFS(S.StP{oc, S.MSP{sc, qsc, qlc, cdc}, src, pdc, efc, bkc, wpc, asc, fnc, dfc}, cs), S.DEFS(S.StP{o1, S.MBP{rp1}, sr1, pd1, ef1, bk1, wp1, as1, fn1, df1}, cs), hmv, hch)
+
+def ch_defs_md(+m1: S.MdP, +mc: S.MdP, +fa: List<&2, B.Contig>, +cs: List<&2, String>, +p1: S.StP, +pc: S.StP, hch: Ch.md(m1, mc, fa, cs, p1, pc)) -> {S.DEFS(pc, cs) == S.DEFS(p1, cs) : B.Defs}:
+  match m1 mc:
+    case S.MSP{+s, +qs, +ql, +code} +m:
+      (hms, hd) = hch
+      hd
+    case S.MBP{+rp1} S.MBP{+rpc}:
+      QD.moved_defs(fa, cs, p1, pc, hch)
+    case S.MBP{+rp1} S.MSP{+s, +qs, +ql, +code}:
+      hch
+
+# The chain keeps the definitions.
+def ch_defs(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +p1: S.StP, +pc: S.StP, hch: Ch(fa, cs, p1, pc)) -> {S.DEFS(pc, cs) == S.DEFS(p1, cs) : B.Defs}:
+  ch_defs_md(S.StP.md(p1), S.StP.md(pc), fa, cs, p1, pc, hch)
 
 # The edge's check
 # ================
@@ -136,18 +167,19 @@ def add_cancel(a, b, h):
 # The run went from rp1 to rp2 (up to settle) over ls1, its count up by one
 # and not stopped: ls1 is one line.
 law one_line:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +ls1: List<&2, B.Line>
   for +rp1: P.RunP
   for +rp2: P.RunP
-  for +hs: {P.settle(P.specRun(rp2)) == P.settle(L.run.go(ls1, fa, o, P.specRun(rp1))) : R.RunSt}
+  for +hs: {P.settle(P.specRun(rp2)) == P.settle(L.run.go(ls1, fa, dfs, o, P.specRun(rp1))) : R.RunSt}
   for +hn: {P.RunP.n(rp2) == 1n+P.RunP.n(rp1) : Nat}
   for +hx: {P.RunP.x(rp2) == False{} : Bool}
   {List.length(&2, B.Line, ls1) == 1n : Nat}
 
-def one_line(fa, o, ls1, rp1, rp2, hs, hn, hx):
-  +G = L.run.go(ls1, fa, o, P.specRun(rp1))
+def one_line(dfs,fa, o, ls1, rp1, rp2, hs, hn, hx):
+  +G = L.run.go(ls1, fa, dfs, o, P.specRun(rp1))
   +hg = Equal.trans(Bool, R.RunSt.halt(G), R.RunSt.halt(P.settle(G)), False{}, Equal.sym(Bool, R.RunSt.halt(P.settle(G)), R.RunSt.halt(G), SP.settle_halt(G)),
     Equal.trans(Bool, R.RunSt.halt(P.settle(G)), R.RunSt.halt(P.settle(P.specRun(rp2))), False{},
       Equal.cong(R.RunSt, Bool, z => R.RunSt.halt(z), P.settle(G), P.settle(P.specRun(rp2)), Equal.sym(R.RunSt, P.settle(P.specRun(rp2)), P.settle(G), hs)),
@@ -161,7 +193,7 @@ def one_line(fa, o, ls1, rp1, rp2, hs, hn, hx):
   +h1 = Equal.trans(Nat, Nat.add(P.RunP.n(rp1), List.length(&2, B.Line, ls1)), Nat.add(R.RunSt.n(P.specRun(rp1)), List.length(&2, B.Line, ls1)), 1n+P.RunP.n(rp1),
     Equal.cong(Nat, Nat, z => Nat.add(z, List.length(&2, B.Line, ls1)), P.RunP.n(rp1), R.RunSt.n(P.specRun(rp1)), Equal.sym(Nat, R.RunSt.n(P.specRun(rp1)), P.RunP.n(rp1), SP.spec_n(rp1))),
     Equal.trans(Nat, Nat.add(R.RunSt.n(P.specRun(rp1)), List.length(&2, B.Line, ls1)), R.RunSt.n(G), 1n+P.RunP.n(rp1),
-      Equal.sym(Nat, R.RunSt.n(G), Nat.add(R.RunSt.n(P.specRun(rp1)), List.length(&2, B.Line, ls1)), SP.go_n(ls1, fa, o, P.specRun(rp1), hg)), hnG))
+      Equal.sym(Nat, R.RunSt.n(G), Nat.add(R.RunSt.n(P.specRun(rp1)), List.length(&2, B.Line, ls1)), SP.go_n(dfs, ls1, fa, o, P.specRun(rp1), hg)), hnG))
   add_cancel(P.RunP.n(rp1), List.length(&2, B.Line, ls1), h1)
 
 def tail_l(xs: List<&2, B.Line>) -> List<&2, B.Line>:
@@ -222,6 +254,7 @@ def split_first(D, c, a, aft, X, hc):
         Equal.sym(String, String.append(String.append(D, a), String.append("\n", String.append(aft, cX))), String.append(D, String.append(a, String.append("\n", String.append(aft, cX)))), LS.sassoc(D, a, String.append("\n", String.append(aft, cX)))))))
 
 law edge_lines_k:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +c: String
   for +k: U32
@@ -235,17 +268,17 @@ law edge_lines_k:
   for +p3: S.StP
   for +ls1: List<&2, B.Line>
   for +a: String
-  for +hw: {S.WF(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}) == True{} : Bool}
+  for +hw: {S.WF(fa, S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}) == True{} : Bool}
   for +hc: {c == String.append(a, String.append("\n", PT.after(c, k))) : String}
   for +hn: {P.nolf(a) == True{} : Bool}
-  for +hmv: {B.Text.lines(S.intext(S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed}, c <> X)) == List.append(&2, B.Line, ls1, B.Text.lines(S.intext(p3, X))) : List<&2, B.Line>}
+  for +hmv: {B.Text.lines(S.intext(S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs}, c <> X)) == List.append(&2, B.Line, ls1, B.Text.lines(S.intext(p3, X))) : List<&2, B.Line>}
   for +hone: {List.length(&2, B.Line, ls1) == 1n : Nat}
   {B.Text.lines(S.intext(p3, X)) == B.Text.lines(String.append(PT.after(c, k), String.concat(X))) : List<&2, B.Line>}
 
-def edge_lines_k(fa, c, k, X, o, md, pd, back, wp, fneed, p3, ls1, a, hw, hc, hn, hmv, hone):
+def edge_lines_k(dfs,fa, c, k, X, o, md, pd, back, wp, fneed, p3, ls1, a, hw, hc, hn, hmv, hone):
   +D = P.pdtext(pd)
   +Y = String.append(PT.after(c, k), String.concat(X))
-  +hd = DO.x9_3(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), E.all_bytes(S.opts_args(o)), hw)
+  +hd = DO.x9_3(S.md_ok(md), S.srcs_ok(Nil{}), P.pd_ok(pd), P.nolf(P.pdtext(pd)), Bool.or(S.src_empty(Nil{}), String.is_empty(P.pdtext(pd))), Bool.or(Bool.not(False{}), Bool.and(String.is_empty(P.pdtext(pd)), S.ends_lf(P.srcstext(Nil{})))), PC.wp_ok(fa, wp), S.mb_win(md, wp), Bool.and(Bool.and(E.all_bytes(S.opts_args(o)), S.recs_first(Nil{})), S.recs_run(md, Nil{})), hw)
   +el = Equal.trans(List<&2, B.Line>, B.Text.lines(String.append(D, String.concat(c <> X))), B.Text.lines(String.append(String.append(D, a), String.append("\n", Y))), B.Text.line(String.append(D, a)) <> B.Text.lines(Y),
     Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), String.append(D, String.concat(c <> X)), String.append(String.append(D, a), String.append("\n", Y)), split_first(D, c, a, PT.after(c, k), X, hc)),
     LS.lines_cons(String.append(D, a), Y, LS.nolf_app(D, a, hd, hn)))
@@ -275,18 +308,18 @@ law edge_lines:
 
 def edge_lines(fa, c, k, X, p, p3, ls1, a, hm, hc, hn, hmv, hone):
   match p:
-    case S.StP{+o, +md, Con{+x, +r}, +pd, +eof, +back, +wp, +asked, +fneed}:
-      +q = {S.StP{o, md, Con{x, r}, pd, eof, back, wp, asked, fneed} : S.StP}
+    case S.StP{+o, +md, Con{+x, +r}, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      +q = {S.StP{o, md, Con{x, r}, pd, eof, back, wp, asked, fneed, dfs} : S.StP}
       Empty.absurd({B.Text.lines(S.intext(p3, X)) == B.Text.lines(String.append(PT.after(c, k), String.concat(X))) : List<&2, B.Line>},
         PB.false_ne_true(WB.mo_se(S.WF(fa, q), False{}, Bool.not(eof), Maybe.is_none(&2, List<&2, Pr.Req>, asked), hm)))
-    case S.StP{+o, +md, Nil{}, +pd, True{}, +back, +wp, +asked, +fneed}:
-      +q = {S.StP{o, md, Nil{}, pd, True{}, back, wp, asked, fneed} : S.StP}
+    case S.StP{+o, +md, Nil{}, +pd, True{}, +back, +wp, +asked, +fneed, +dfs}:
+      +q = {S.StP{o, md, Nil{}, pd, True{}, back, wp, asked, fneed, dfs} : S.StP}
       Empty.absurd({B.Text.lines(S.intext(p3, X)) == B.Text.lines(String.append(PT.after(c, k), String.concat(X))) : List<&2, B.Line>},
         PB.false_ne_true(WB.mo_ne(S.WF(fa, q), True{}, False{}, Maybe.is_none(&2, List<&2, Pr.Req>, asked), hm)))
-    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, Some{+rs}, +fneed}:
-      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, Some{rs}, fneed} : S.StP}
+    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, Some{+rs}, +fneed, +dfs}:
+      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, Some{rs}, fneed, dfs} : S.StP}
       Empty.absurd({B.Text.lines(S.intext(p3, X)) == B.Text.lines(String.append(PT.after(c, k), String.concat(X))) : List<&2, B.Line>},
         PB.false_ne_true(WB.mo_no(S.WF(fa, q), True{}, True{}, False{}, hm)))
-    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, None{}, +fneed}:
-      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed} : S.StP}
-      edge_lines_k(fa, c, k, X, o, md, pd, back, wp, fneed, p3, ls1, a, WB.mo_w(S.WF(fa, q), True{}, True{}, True{}, hm), hc, hn, hmv, hone)
+    case S.StP{+o, +md, Nil{}, +pd, False{}, +back, +wp, None{}, +fneed, +dfs}:
+      +q = {S.StP{o, md, Nil{}, pd, False{}, back, wp, None{}, fneed, dfs} : S.StP}
+      edge_lines_k(dfs, fa, c, k, X, o, md, pd, back, wp, fneed, p3, ls1, a, WB.mo_w(S.WF(fa, q), True{}, True{}, True{}, hm), hc, hn, hmv, hone)

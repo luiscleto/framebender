@@ -29,6 +29,7 @@ import lawful-bytes@0.1.0.0/proof_list.bend as BL
 import ./proof_b_run.bend as PR
 import ./proof_b_adv_ib.bend as IB
 import ./proof_b_adv_line.bend as LI
+import ./proof_b_adv_sp.bend as HX
 import lawful-bytes@0.1.0.0/defs.bend as D
 import lawful-bytes@0.1.0.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
@@ -268,7 +269,7 @@ def fc_reqof(+c: String, +a: Nat, +a3: Nat, +e: Nat, +ha: {Nat.is_le(a, a3) == T
 def RQF(+len: U32, +t: AT.Tree<U32>, +at: U32, +pos: U32, +e0: U32, +e2: U32, +e3: U32) -> List<&2, Pr.Req>:
   Norm.Req.of(P.btext(len, t, at, (e0 - at : U32)), Nat.sub(n(pos), 1n), Nat.add(Nat.sub(n(pos), 1n), n((e3 - e2 - 1 : U32))))
 
-def wc.k(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool,
+def wc.k(+hold: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool,
   +back: Nat, +wp: CD.WP,
   +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32,
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
@@ -276,14 +277,18 @@ def wc.k(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP
   +hp: FH.PASS(len, t, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf),
   +hse: {U32.is_lt(at, e0) == True{} : Bool},
   +hb0: {Nat.is_eq(back, 0n) == True{} : Bool},
-  sl: LI.SPLIT(len, t, d, at, lf) & ({P.nolf(FH.AofL(len, t, at, lf)) == True{} : Bool} & ({U32.is_le((lf + 1 : U32), len) == True{} : Bool} & {E.is_bytes(FH.AofL(len, t, at, lf)) == True{} : Bool}))) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, wp, None{}, False{}),
-    Norm.Want{Norm.St{o, Norm.MB{P.mkRun(rp)}, Con{Norm.SB{C.BT(len, t), at}, P.mkSrcs(rest)}, P.mkPd(pd), eof, back, CD.mkWin(fa, wp), Some{RQF(len, t, at, pos, e0, e2, e3)}, True{}},
+  sl: LI.SPLIT(len, t, d, at, lf) & ({P.nolf(FH.AofL(len, t, at, lf)) == True{} : Bool} & ({U32.is_le((lf + 1 : U32), len) == True{} : Bool} & {E.is_bytes(FH.AofL(len, t, at, lf)) == True{} : Bool})),
+  +hnr: LI.HNE(hold, len, at)) ->
+  BD.AdvC(fa, cs, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, None{}, False{}),
+    Norm.Want{Norm.St{o, Norm.MB{Norm.retick(hold, P.mkRun(rp))}, Con{Norm.Src.of(hold, C.BT(len, t), at), P.mkSrcs(rest)}, P.mkPd(pd), eof, back, CD.mkWin(fa, wp), Some{RQF(len, t, at, pos, e0, e2, e3)}, True{}, dfs},
       RQF(len, t, at, pos, e0, e2, e3)}):
   match sl:
     case (+hsp, q):
       match q:
         case (+hn, q2):
+          %Equal.sym(Norm.Src, Norm.Src.of(hold, C.BT(len, t), at), P.mkSrc(LI.SXP(hold, len, t, d, at)), HX.so_eq(hold, len, t, d, at)) :
+            BD.AdvC(fa, cs, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, None{}, False{}),
+              Norm.Want{Norm.St{o, Norm.MB{Norm.retick(hold, P.mkRun(rp))}, Con{_, P.mkSrcs(rest)}, P.mkPd(pd), eof, back, CD.mkWin(fa, wp), Some{RQF(len, t, at, pos, e0, e2, e3)}, True{}, dfs}, RQF(len, t, at, pos, e0, e2, e3)})
           +chrom = P.btext(len, t, at, (e0 - at : U32))
           +p1 = Nat.sub(n(pos), 1n)
           +rl = n((e3 - e2 - 1 : U32))
@@ -291,12 +296,12 @@ def wc.k(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP
           +RQ = RQF(len, t, at, pos, e0, e2, e3)
           +L = L1(len, t, at, lf)
           +K = {1n+List.length(&2, Pr.Req, RQ) : Nat}
-          +post = BD.StM(o, S.MBP{rp}, Con{P.SBP{len, t, d, (lf + 1 : U32)}, rest}, pd, eof, back, wp, None{}, False{})
-          +RR = BN.LAs(fa, B.Text.lines(MB.TP(post, cs)))
+          +post = BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, (lf + 1 : U32)}, rest}, pd, eof, back, wp, None{}, False{})
+          +RR = BN.LAs(fa, MB.AP(hold, len, t, d, (lf + 1 : U32), rest, pd, eof, cs))
           +remB = BN.rem(fa, True{}, back, CD.mkWin(fa, wp), None{}, L)
           +remA = BN.rem(fa, False{}, back, CD.mkWin(fa, wp), Some{RQ}, L)
-          +eB = MB.wa_split(fa, cs, o, S.MBP{rp}, len, t, d, at, lf, rest, pd, eof, back, wp, None{}, False{}, hsp, hn)
-          +eA = MB.wa_split(fa, cs, o, S.MBP{rp}, len, t, d, at, lf, rest, pd, eof, back, wp, Some{RQ}, True{}, hsp, hn)
+          +eB = MB.wa_split_h(hold, dfs, fa, cs, o, rp, len, t, d, at, lf, rest, pd, eof, back, wp, None{}, False{}, hsp, hn)
+          +eA = MB.wa_split_h(hold, dfs, fa, cs, o, rp, len, t, d, at, lf, rest, pd, eof, back, wp, Some{RQ}, True{}, hsp, hn)
           +eR = Equal.sym(Nat, BN.lref(L), rl, lid_ref(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
           +ePos = lid_pos(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)
           +eP = Equal.cong(Nat, Nat, z => Nat.sub(z, 1n), BN.lpos(L), n(pos), ePos)
@@ -312,29 +317,27 @@ def wc.k(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP
           +kR = MB.want_rem(fa, back, wp, RQ, L, lid_gate(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp, hse), hc, hk0)
           +h1 = AB.subst(Nat, z => {Nat.is_le(z, Nat.add(remB, RR)) == True{} : Bool}, Nat.add(Nat.add(K, remA), RR), Nat.add(K, Nat.add(remA, RR)),
             N.add_assoc(K, remA, RR), N.le_add_mono_r(RR, Nat.add(K, remA), remB, kR))
-          +h2 = AB.subst(Nat, z => {Nat.is_le(Nat.add(K, z), Nat.add(remB, RR)) == True{} : Bool}, Nat.add(remA, RR),
-            BN.WAS(fa, S.mkSt(fa, BD.StM(o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, Some{RQ}, True{})), cs),
-            Equal.sym(Nat, BN.WAS(fa, S.mkSt(fa, BD.StM(o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, Some{RQ}, True{})), cs), Nat.add(remA, RR), eA), h1)
-          (AB.subst(Nat, z => {Nat.is_le(Nat.add(K, BN.WAS(fa, S.mkSt(fa, BD.StM(o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, Some{RQ}, True{})), cs)), z) == True{} : Bool},
-             Nat.add(remB, RR), BN.WAS(fa, S.mkSt(fa, BD.StM(o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, False{})), cs),
-             Equal.sym(Nat, BN.WAS(fa, S.mkSt(fa, BD.StM(o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, False{})), cs), Nat.add(remB, RR), eB), h2),
-           MB.bi_b0(fa, back, wp, Some{RQ}, BN.lines(P.mkSrcs(Con{P.SBP{len, t, d, at}, rest}), P.mkPd(pd), eof, cs), hb0))
+          +hx = MB.wax_want(fa, o, K, False{}, back, wp, Some{RQ}, True{}, back, wp, None{}, L <> MB.AP(hold, len, t, d, (lf + 1 : U32), rest, pd, eof, cs), h1)
+          +h2 = AB.subst(Nat, z => {Nat.is_le(Nat.add(K, z), BN.WAX(fa, o, True{}, back, CD.mkWin(fa, wp), None{}, L <> MB.AP(hold, len, t, d, (lf + 1 : U32), rest, pd, eof, cs))) == True{} : Bool}, BN.WAX(fa, o, False{}, back, CD.mkWin(fa, wp), Some{RQ}, L <> MB.AP(hold, len, t, d, (lf + 1 : U32), rest, pd, eof, cs)), BN.WAS(fa, S.mkSt(fa, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, Some{RQ}, True{})), cs), Equal.sym(Nat, BN.WAS(fa, S.mkSt(fa, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, Some{RQ}, True{})), cs), BN.WAX(fa, o, False{}, back, CD.mkWin(fa, wp), Some{RQ}, L <> MB.AP(hold, len, t, d, (lf + 1 : U32), rest, pd, eof, cs)), eA), hx)
+          (AB.subst(Nat, z => {Nat.is_le(Nat.add(K, BN.WAS(fa, S.mkSt(fa, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, Some{RQ}, True{})), cs)), z) == True{} : Bool}, BN.WAX(fa, o, True{}, back, CD.mkWin(fa, wp), None{}, L <> MB.AP(hold, len, t, d, (lf + 1 : U32), rest, pd, eof, cs)), BN.WAS(fa, S.mkSt(fa, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, None{}, False{})), cs), Equal.sym(Nat, BN.WAS(fa, S.mkSt(fa, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, None{}, False{})), cs), BN.WAX(fa, o, True{}, back, CD.mkWin(fa, wp), None{}, L <> MB.AP(hold, len, t, d, (lf + 1 : U32), rest, pd, eof, cs)), eB), h2),
+           MB.bi_b0(fa, back, wp, Some{RQ}, MB.AP(hold, len, t, d, at, rest, pd, eof, cs), hb0))
 
 # The fast path's Want (fast.need with fneed False and back 0).
-def want_c(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool,
+def want_c(+hold: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool,
   +back: Nat, +wp: CD.WP,
   +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32,
   +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
   +hs: {U32.is_le(at, len) == True{} : Bool},
   +hp: FH.PASS(len, t, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf),
   +hse: {U32.is_lt(at, e0) == True{} : Bool},
-  +hb0: {Nat.is_eq(back, 0n) == True{} : Bool}) ->
-  BD.AdvC(fa, cs, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, wp, None{}, False{}),
-    Norm.Want{Norm.St{o, Norm.MB{P.mkRun(rp)}, Con{Norm.SB{C.BT(len, t), at}, P.mkSrcs(rest)}, P.mkPd(pd), eof, back, CD.mkWin(fa, wp), Some{RQF(len, t, at, pos, e0, e2, e3)}, True{}},
+  +hb0: {Nat.is_eq(back, 0n) == True{} : Bool},
+  +hnr: LI.HNE(hold, len, at)) ->
+  BD.AdvC(fa, cs, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, None{}, False{}),
+    Norm.Want{Norm.St{o, Norm.MB{Norm.retick(hold, P.mkRun(rp))}, Con{Norm.Src.of(hold, C.BT(len, t), at), P.mkSrcs(rest)}, P.mkPd(pd), eof, back, CD.mkWin(fa, wp), Some{RQF(len, t, at, pos, e0, e2, e3)}, True{}, dfs},
       RQF(len, t, at, pos, e0, e2, e3)}):
   +hfl = PJ.lf_first(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, LFT0(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
   +hlt = PJ.lf_lt(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, LFT0(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
-  wc.k(fa, cs, o, rp, len, t, d, at, rest, pd, eof, back, wp, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp, hse, hb0, LN.src_line(len, t, d, at, lf, hok, hs, hfl, hlt))
+  wc.k(hold, dfs, fa, cs, o, rp, len, t, d, at, rest, pd, eof, back, wp, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp, hse, hb0, LN.src_line(len, t, d, at, lf, hok, hs, hfl, hlt), hnr)
 
 def kb.k(z: Bool, +back: Nat, +ez: {Nat.is_eq(back, 0n) == z : Bool}, y: Bool, +h: {Bool.or(z, y) == True{} : Bool}, hy: {y == True{} : Bool} -> Empty) ->
   {Nat.is_eq(back, 0n) == True{} : Bool}:
@@ -344,7 +347,7 @@ def kb.k(z: Bool, +back: Nat, +ez: {Nat.is_eq(back, 0n) == z : Bool}, y: Bool, +
     case False{}:
       Empty.absurd({Nat.is_eq(back, 0n) == True{} : Bool}, hy(h))
 
-def kb.s(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool,
+def kb.s(+hold: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool,
   +back: Nat, +c: String, +a: Nat, +b: Nat, +fneed: Bool,
   +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
@@ -355,8 +358,9 @@ def kb.s(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP
   +hp: FH.PASS(len, t, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf),
   +hse: {U32.is_lt(at, e0) == True{} : Bool},
   +eqw: {Norm.against(CD.mkWin(fa, CD.WPKnown{c, a, b}), C.BT(len, t), at, e0, pos, (e2 + 1 : U32), (e3 - e2 - 1 : U32)) == Norm.Wo{CD.mkWin(fa, CD.WPKnown{c, a, b}), C.BT(len, t), Norm.WNeed{}} : Norm.Wo},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
-  sl: LI.SPLIT(len, t, d, at, lf) & ({P.nolf(FH.AofL(len, t, at, lf)) == True{} : Bool} & ({U32.is_le((lf + 1 : U32), len) == True{} : Bool} & {E.is_bytes(FH.AofL(len, t, at, lf)) == True{} : Bool}))) ->
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  sl: LI.SPLIT(len, t, d, at, lf) & ({P.nolf(FH.AofL(len, t, at, lf)) == True{} : Bool} & ({U32.is_le((lf + 1 : U32), len) == True{} : Bool} & {E.is_bytes(FH.AofL(len, t, at, lf)) == True{} : Bool})),
+  +hnr: LI.HNE(hold, len, at)) ->
   {Nat.is_eq(back, 0n) == True{} : Bool}:
   match sl:
     case (+hsp, q):
@@ -368,11 +372,11 @@ def kb.s(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP
           +p1 = Nat.sub(n(pos), 1n)
           +rl = n((e3 - e2 - 1 : U32))
           +e = Nat.add(p1, rl)
-          +pre = BD.StM(o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed)
-          +post = BD.StM(o, S.MBP{rp}, Con{P.SBP{len, t, d, (lf + 1 : U32)}, rest}, pd, eof, back, wp, None{}, fneed)
-          +RL = B.Text.lines(MB.TP(post, cs))
-          +elh = MB.lines_head(cs, o, S.MBP{rp}, S.MBP{rp}, len, t, d, at, lf, rest, pd, eof, back, back, wp, wp, None{}, None{}, fneed, fneed, hsp, hn)
-          +h2 = AB.subst(List<&2, B.Line>, z => {BN.bi.ls(back, CD.mkWin(fa, wp), None{}, z) == True{} : Bool}, B.Text.lines(MB.TP(pre, cs)), L <> RL, elh, hbi)
+          +pre = LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, None{}, fneed)
+          +post = BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, (lf + 1 : U32)}, rest}, pd, eof, back, wp, None{}, fneed)
+          +RL = MB.AP(hold, len, t, d, (lf + 1 : U32), rest, pd, eof, cs)
+          +elh = MB.allx(hold, len, t, d, at, lf, rest, pd, eof, cs, hsp, hn)
+          +h2 = AB.subst(List<&2, B.Line>, z => {BN.bi.ls(back, CD.mkWin(fa, wp), None{}, z) == True{} : Bool}, MB.AP(hold, len, t, d, at, rest, pd, eof, cs), L <> RL, elh, hbi)
           +ePos = lid_pos(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)
           +eP = Equal.cong(Nat, Nat, z => Nat.sub(z, 1n), BN.lpos(L), n(pos), ePos)
           +eR = lid_ref(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)
@@ -389,7 +393,7 @@ def kb.s(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP
 
 # The fast path asks (against said WNeed with the window known) only when back
 # is 0: else bi's zero window is held and fits, and against covers (Z4).
-def kw_b0(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool,
+def kw_b0(+hold: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool,
   +back: Nat, +c: String, +a: Nat, +b: Nat, +fneed: Bool,
   +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32,
   +hb: {CD.fa_bytes(fa) == True{} : Bool},
@@ -400,9 +404,10 @@ def kw_b0(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +o: B.Opts, +rp: P.Run
   +hp: FH.PASS(len, t, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf),
   +hse: {U32.is_lt(at, e0) == True{} : Bool},
   +eqw: {Norm.against(CD.mkWin(fa, CD.WPKnown{c, a, b}), C.BT(len, t), at, e0, pos, (e2 + 1 : U32), (e3 - e2 - 1 : U32)) == Norm.Wo{CD.mkWin(fa, CD.WPKnown{c, a, b}), C.BT(len, t), Norm.WNeed{}} : Norm.Wo},
-  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool}) ->
+  +hbi: {BN.biS(S.mkSt(fa, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, CD.WPKnown{c, a, b}, None{}, fneed)), cs) == True{} : Bool},
+  +hnr: LI.HNE(hold, len, at)) ->
   {Nat.is_eq(back, 0n) == True{} : Bool}:
   +hfl = PJ.lf_first(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, LFT0(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
   +hlt = PJ.lf_lt(len, t, at, e0, e1, e2, e3, e4, e5, e6, e7, lf, LFT0(len, t, d, at, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
-  kb.s(fa, cs, o, rp, len, t, d, at, rest, pd, eof, back, c, a, b, fneed, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hb, hwp, hcl, hok, hs, hp, hse, eqw, hbi,
-    LN.src_line(len, t, d, at, lf, hok, hs, hfl, hlt))
+  kb.s(hold, dfs, fa, cs, o, rp, len, t, d, at, rest, pd, eof, back, c, a, b, fneed, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hb, hwp, hcl, hok, hs, hp, hse, eqw, hbi,
+    LN.src_line(len, t, d, at, lf, hok, hs, hfl, hlt), hnr)

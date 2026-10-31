@@ -11,7 +11,7 @@ import ./proof_run_rec.bend as C
 import ./proof_run_sorted.bend as PS
 import ./proof_run_grouped.bend as PG
 import ./proof_run_line.bend as N
-import ./proof_run_two.bend as W
+import ./proof_run_tail.bend as U
 
 # The header of a VCF text for twice_run: the lines before the first #CHROM
 # line, that line, and the rest; how a run, its items, its header and body()
@@ -93,19 +93,19 @@ def hst(+n: Nat, +h: String, +k: R.Cnt, +out: String, +ns: List<&2, B.Note>) -> 
 def bst(+n: Nat, +k: R.Cnt, +out: String, +ns: List<&2, B.Note>) -> R.RunSt:
   R.RunSt{n, True{}, "", None{}, Nil{}, None{}, Nil{}, k, out, ns, False{}}
 
-def hr.go(+fa: List<&2, B.Contig>, +o: B.Opts, b: Bool, +l: B.Line, +t: List<&2, B.Line>, +n: Nat, +h: String, +k: R.Cnt, +out: String, +ns: List<&2, B.Note>,
+def hr.go(+fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts, b: Bool, +l: B.Line, +t: List<&2, B.Line>, +n: Nat, +h: String, +k: R.Cnt, +out: String, +ns: List<&2, B.Note>,
   +eb: {isc(l) == b : Bool}, hc: {Bool.or(b, has_c(t)) == True{} : Bool},
   ih: @h2: String -> {has_c(t) == True{} : Bool} ->
-    {L.run.go(t, fa, o, hst(1n+n, h2, k, out, ns)) == L.run.go(post_c(t), fa, o, bst(idx_c(t, 1n+n), k, L.head.go(t, o, False{}, h2), ns)) : R.RunSt}) ->
-  {L.run.go(t, fa, o, R.head_line(b, hst(1n+n, h, k, out, ns), o, l)) ==
-    L.run.go(post_c.go(b, t, post_c(t)), fa, o, bst(idx_c.go(b, 1n+n, idx_c(t, 1n+n)), k,
+    {L.run.go(t, fa, defs, o, hst(1n+n, h2, k, out, ns)) == L.run.go(post_c(t), fa, defs, o, bst(idx_c(t, 1n+n), k, L.head.go(t, o, False{}, h2), ns)) : R.RunSt}) ->
+  {L.run.go(t, fa, defs, o, R.head_line(b, hst(1n+n, h, k, out, ns), o, l)) ==
+    L.run.go(post_c.go(b, t, post_c(t)), fa, defs, o, bst(idx_c.go(b, 1n+n, idx_c(t, 1n+n)), k,
       L.head.go(t, o, b, Bool.pick(String, b, h ++ R.added(o, B.Line.term(l)) ++ B.Line.text(l), h ++ B.Line.text(l))), ns)) : R.RunSt}:
   match b:
     case True{}:
       match l:
         case B.Line{+bd, +term}:
           +hd = h ++ R.added(o, term) ++ bd ++ term
-          %PS.head_done(t, o, hd) : {L.run.go(t, fa, o, bst(1n+n, k, _, ns)) == L.run.go(t, fa, o, bst(1n+n, k, L.head.go(t, o, True{}, hd), ns)) : R.RunSt}
+          %PS.head_done(t, o, hd) : {L.run.go(t, fa, defs, o, bst(1n+n, k, _, ns)) == L.run.go(t, fa, defs, o, bst(1n+n, k, L.head.go(t, o, True{}, hd), ns)) : R.RunSt}
           {==}
     case False{}:
       ih(h ++ B.Line.text(l), hc)
@@ -114,6 +114,7 @@ def hr.go(+fa: List<&2, B.Contig>, +o: B.Opts, b: Bool, +l: B.Line, +t: List<&2,
 law hdr_run:
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
+  for +defs: B.Defs
   for +o: B.Opts
   for +n: Nat
   for +h: String
@@ -121,14 +122,14 @@ law hdr_run:
   for +out: String
   for +ns: List<&2, B.Note>
   for +hc: {has_c(ls) == True{} : Bool}
-  {L.run.go(ls, fa, o, hst(n, h, k, out, ns)) == L.run.go(post_c(ls), fa, o, bst(idx_c(ls, n), k, L.head.go(ls, o, False{}, h), ns)) : R.RunSt}
+  {L.run.go(ls, fa, defs, o, hst(n, h, k, out, ns)) == L.run.go(post_c(ls), fa, defs, o, bst(idx_c(ls, n), k, L.head.go(ls, o, False{}, h), ns)) : R.RunSt}
 
-def hdr_run(ls, fa, o, n, h, k, out, ns, hc):
+def hdr_run(ls, fa, defs, o, n, h, k, out, ns, hc):
   match ls:
     case Nil{}:
-      Empty.absurd({L.run.go(Nil{}, fa, o, hst(n, h, k, out, ns)) == L.run.go(Nil{}, fa, o, bst(n, k, h, ns)) : R.RunSt}, P.false_ne_true(hc))
+      Empty.absurd({L.run.go(Nil{}, fa, defs, o, hst(n, h, k, out, ns)) == L.run.go(Nil{}, fa, defs, o, bst(n, k, h, ns)) : R.RunSt}, P.false_ne_true(hc))
     case +l <> +t:
-      hr.go(fa, o, isc(l), l, t, n, h, k, out, ns, {==}, hc, h2 => hc2 => hdr_run(t, fa, o, 1n+n, h2, k, out, ns, hc2))
+      hr.go(fa, defs, o, isc(l), l, t, n, h, k, out, ns, {==}, hc, h2 => hc2 => hdr_run(t, fa, defs, o, 1n+n, h2, k, out, ns, hc2))
 
 def hi.go(+fa: List<&2, B.Contig>, b: Bool, +t: List<&2, B.Line>, +n: Nat, hc: {Bool.or(b, has_c(t)) == True{} : Bool},
   ih: {has_c(t) == True{} : Bool} -> {L.ItSt.acc(L.items.go(t, fa, L.ItSt{False{}, 1n+n, Nil{}})) == T.nitems(post_c(t), fa, idx_c(t, 1n+n)) : List<&2, R.Item>}) ->
@@ -154,12 +155,39 @@ def hdr_items(ls, fa, n, hc):
     case +l <> +t:
       hi.go(fa, isc(l), t, n, hc, h2 => hdr_items(t, fa, 1n+n, h2))
 
+def hm.go(+fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts, b: Bool, +t: List<&2, B.Line>, +n: Nat, hc: {Bool.or(b, has_c(t)) == True{} : Bool},
+  ih: {has_c(t) == True{} : Bool} -> {L.ItSt.acc(L.out_items.go(t, fa, defs, o, L.ItSt{False{}, 1n+n, Nil{}})) == U.mitems(post_c(t), fa, defs, o, idx_c(t, 1n+n)) : List<&2, R.Item>}) ->
+  {L.ItSt.acc(L.out_items.go(t, fa, defs, o, L.ItSt{b, 1n+n, Nil{}})) == U.mitems(post_c.go(b, t, post_c(t)), fa, defs, o, idx_c.go(b, 1n+n, idx_c(t, 1n+n))) : List<&2, R.Item>}:
+  match b:
+    case True{}:
+      {==}
+    case False{}:
+      ih(hc)
+
+# The records a run writes, for a text with a #CHROM line: those of the lines
+# after it.
+law hdr_mitems:
+  for +ls: List<&2, B.Line>
+  for +fa: List<&2, B.Contig>
+  for +defs: B.Defs
+  for +o: B.Opts
+  for +n: Nat
+  for +hc: {has_c(ls) == True{} : Bool}
+  {L.ItSt.acc(L.out_items.go(ls, fa, defs, o, L.ItSt{False{}, n, Nil{}})) == U.mitems(post_c(ls), fa, defs, o, idx_c(ls, n)) : List<&2, R.Item>}
+
+def hdr_mitems(ls, fa, defs, o, n, hc):
+  match ls:
+    case Nil{}:
+      Empty.absurd({Nil{} == U.mitems(Nil{}, fa, defs, o, n) : List<&2, R.Item>}, P.false_ne_true(hc))
+    case +l <> +t:
+      hm.go(fa, defs, o, isc(l), t, n, hc, h2 => hdr_mitems(t, fa, defs, o, 1n+n, h2))
+
 def al1(+t: String) -> B.Line:
   B.Line{"##framebender_normVersion=" ++ R.version(), t}
 
 def al2(o: B.Opts, +t: String) -> B.Line:
   match o:
-    case B.Opts{s, w, args}:
+    case B.Opts{s, w, om_m, om_z, args}:
       B.Line{"##framebender_normCommand=norm" ++ R.args_text(args), t}
 
 law added_eq:
@@ -169,7 +197,7 @@ law added_eq:
 
 def added_eq(o, t):
   match o:
-    case B.Opts{+s, +w, +args}:
+    case B.Opts{+s, +w, +om_m, +om_z, +args}:
       {==}
 
 # The header lines as written: those before #CHROM, the two added lines, #CHROM.
@@ -224,7 +252,7 @@ def BLK(-M: R.RunSt -> Type, r: B.Res, +st: R.RunSt, +o: B.Opts, +l: B.Line, +at
       hstop(B.UnknownChrom{})
     case B.Res{B.Problem{+c}, k, t, s}:
       match o:
-        case B.Opts{+sx, +w, +a}:
+        case B.Opts{+sx, +w, +om_m, +om_z, +a}:
           match sx:
             case True{}:
               hstop(c)
@@ -237,36 +265,181 @@ def BLK(-M: R.RunSt -> Type, r: B.Res, +st: R.RunSt, +o: B.Opts, +l: B.Line, +at
         case B.Line{+bd, +term}:
           hkey({==}, R.stale_note(s, at), R.bump(R.RunSt.cnt(st), Bool.not(String.eq(t, bd)), False{}, False{}))
 
-def IHB(+fa: List<&2, B.Contig>, +o: B.Opts, +t: List<&2, B.Line>, +n: Nat, +h: String, +k: R.Cnt, +ns: List<&2, B.Note>) -> Type:
-  @c2: Maybe<&2, String> -> @e2: List<&2, String> -> @last2: Maybe<&2, R.Item> -> @buf2: List<&2, R.Item> -> @out2: String ->
-    PG.GM(fa, o, t, W.all_go(fa, o, t), R.RunSt{n, True{}, h, c2, e2, last2, buf2, k, out2, ns, False{}})
+# What a body line needs for the run to go on, by what -m does with it: its
+# outcome (Whole), each record's (Pieces), or, unsplit, its outcome and -c w.
+def pgo(ps: List<&2, String>, +fa: List<&2, B.Contig>, +o: B.Opts) -> Bool:
+  match ps:
+    case Nil{}:
+      True{}
+    case +p <> t:
+      N.go_on(o, L.judge(fa, p)) && pgo(t, fa, o)
 
-def bg.key(+fa: List<&2, B.Contig>, +o: B.Opts, +t: List<&2, B.Line>, +n: Nat, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>,
+def lgo.go(pt: B.Parts, +fa: List<&2, B.Contig>, +o: B.Opts, +l: B.Line) -> Bool:
+  match pt:
+    case B.Whole{}:
+      N.go_on(o, L.judge(fa, B.Line.body(l)))
+    case B.Pieces{ps}:
+      pgo(ps, fa, o)
+    case B.Unsplit{c}:
+      N.go_on(o, L.judge(fa, B.Line.body(l))) && Bool.not(R.Opts.strict(o))
+
+def lgo(+fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts, +l: B.Line) -> Bool:
+  lgo.go(B.Rec.parts(defs, o, B.Line.body(l)), fa, o, l)
+
+def all_lgo(ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts) -> Bool:
+  match ls:
+    case Nil{}:
+      True{}
+    case +l <> t:
+      lgo(fa, defs, o, l) && all_lgo(t, fa, defs, o)
+
+# An outcome goes on exactly when it does not stop the run.
+law go_stop:
+  for +o: B.Opts
+  for +r: B.Res
+  {Bool.not(L.stops(r, R.Opts.strict(o))) == N.go_on(o, r) : Bool}
+
+def go_stop(o, r):
+  match r:
+    case B.Res{B.Broken{}, +k, +t, +s}:
+      {==}
+    case B.Res{B.NoContig{}, +k, +t, +s}:
+      {==}
+    case B.Res{B.Problem{+c}, +k, +t, +s}:
+      {==}
+    case B.Res{B.Skipped{}, +k, +t, +s}:
+      {==}
+    case B.Res{B.Normalized{}, +k, +t, +s}:
+      {==}
+
+def ug.s(-M: R.RunSt -> Type, s: Bool, +r: B.Res, +c: B.Code, +st: R.RunSt, +o: B.Opts, +l: B.Line, +at: B.At, +inpos: Nat,
+  +hs: {L.stops(r, R.Opts.strict(o)) == s : Bool},
+  hstop: @cd: B.Code -> M(R.stop(st, "", B.Stop{cd, Some{at}, None{}})),
+  hkey: {Bool.and(N.go_on(o, r), Bool.not(R.Opts.strict(o))) == True{} : Bool} -> @nts: List<&2, B.Note> -> @k2: R.Cnt ->
+    M(R.keyed(st, R.Opts.w(o), R.Item{inpos, inpos, at, B.Line.text(l)}, nts, k2))) ->
+  M(Bool.pick(R.RunSt, s, R.body_line(r, st, o, l, at, inpos), R.problem_line(R.Opts.strict(o), st, R.Opts.w(o), c, l, at, inpos))):
+  match s:
+    case True{}:
+      BLK(M, r, st, o, l, at, inpos, hstop,
+        hg => +nts => +k2 => Empty.absurd(M(R.keyed(st, R.Opts.w(o), L.item_of(r, l, at, inpos), nts, k2)),
+          P.false_ne_true(Equal.trans(Bool, False{}, N.go_on(o, r), True{},
+            {(%hs : {Bool.not(_) == N.go_on(o, r) : Bool}; go_stop(o, r)) : {False{} == N.go_on(o, r) : Bool}}, hg))))
+    case False{}:
+      match o:
+        case B.Opts{+sx, +w, +om_m, +om_z, +a}:
+          match sx:
+            case True{}:
+              hstop(c)
+            case False{}:
+              +o2 = {B.Opts{False{}, w, om_m, om_z, a} : B.Opts}
+              +hg = {(%go_stop(o2, r) : {_ == True{} : Bool}; %Equal.sym(Bool, L.stops(r, False{}), False{}, hs) : {Bool.not(_) == True{} : Bool}; {==}) :
+                {N.go_on(o2, r) == True{} : Bool}}
+              hkey({(%Equal.sym(Bool, N.go_on(o2, r), True{}, hg) : {Bool.and(_, True{}) == True{} : Bool}; {==}) : {Bool.and(N.go_on(o2, r), True{}) == True{} : Bool}}, [B.Warning{c, at}], R.bump(R.RunSt.cnt(st), False{}, False{}, True{}))
+
+# A line -m cannot split (code c): it stops the run, or goes on (then its
+# outcome goes on and the run is under -c w) as the line as it came.
+def UG(-M: R.RunSt -> Type, +r: B.Res, +c: B.Code, +st: R.RunSt, +o: B.Opts, +l: B.Line, +at: B.At, +inpos: Nat,
+  hstop: @cd: B.Code -> M(R.stop(st, "", B.Stop{cd, Some{at}, None{}})),
+  hkey: {Bool.and(N.go_on(o, r), Bool.not(R.Opts.strict(o))) == True{} : Bool} -> @nts: List<&2, B.Note> -> @k2: R.Cnt ->
+    M(R.keyed(st, R.Opts.w(o), R.Item{inpos, inpos, at, B.Line.text(l)}, nts, k2))) ->
+  M(L.unsplit_in(r, c, o, st, l, at, inpos)):
+  ug.s(M, L.stops(r, R.Opts.strict(o)), r, c, st, o, l, at, inpos, {==}, hstop, hkey)
+
+def IHB(+fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts, +tl: U.Tl, +g: Bool, +n: Nat, +h: String, +k: R.Cnt, +ns: List<&2, B.Note>) -> Type:
+  @c2: Maybe<&2, String> -> @e2: List<&2, String> -> @last2: Maybe<&2, R.Item> -> @buf2: List<&2, R.Item> -> @out2: String ->
+    PG.GM(fa, defs, o, tl, g, R.RunSt{n, True{}, h, c2, e2, last2, buf2, k, out2, ns, False{}})
+
+def bg.key(+fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts, +tl: U.Tl, +g: Bool, +n: Nat, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>,
   +last: Maybe<&2, R.Item>, +buf: List<&2, R.Item>, +k: R.Cnt, +out: String, +ns: List<&2, B.Note>, +it: R.Item, b: Bool,
-  ih: IHB(fa, o, t, n, h, k, ns)) ->
-  PG.GM(fa, o, t, W.all_go(fa, o, t), R.keyed.go(b, R.RunSt{n, True{}, h, c, e, last, buf, k, out, ns, False{}}, R.Opts.w(o), R.Item.chrom(it), it)):
+  ih: IHB(fa, defs, o, tl, g, n, h, k, ns)) ->
+  PG.GM(fa, defs, o, tl, g, R.keyed.go(b, R.RunSt{n, True{}, h, c, e, last, buf, k, out, ns, False{}}, R.Opts.w(o), R.Item.chrom(it), it)):
   match b:
     case True{}:
-      +g = W.all_go(fa, o, t)
       +w = R.Opts.w(o)
-      PG.gm_same(fa, o, t, g, n, h, c, e, last, buf, k, out, ns, w, it, last2 => buf2 => out2 => ih(c, e, last2, buf2, out2))
+      PG.gm_same(fa, defs, o, tl, g, n, h, c, e, last, buf, k, out, ns, w, it, last2 => buf2 => out2 => ih(c, e, last2, buf2, out2))
     case False{}:
-      +g = W.all_go(fa, o, t)
       +w = R.Opts.w(o)
       +ch = R.Item.chrom(it)
-      T.NR(st2 => PG.GM(fa, o, t, g, st2), n, True{}, h, c, e, last, buf, k, out, ns, False{}, w, ch, it,
-        +o3 => +bad => +prev => ef => PG.halted_gm(fa, o, t, g, n, True{}, h, c, e, last, buf, k, out ++ o3,
+      T.NR(st2 => PG.GM(fa, defs, o, tl, g, st2), n, True{}, h, c, e, last, buf, k, out, ns, False{}, w, ch, it,
+        +o3 => +bad => +prev => ef => PG.halted_gm(fa, defs, o, tl, g, n, True{}, h, c, e, last, buf, k, out ++ o3,
           List.append(&2, B.Note, ns, [B.Stop{B.Unsorted{}, Some{bad}, prev}])),
-        +o2 => +l2 => ef => eh => PG.halted_gm(fa, o, t, g, n, True{}, h, c, e, last, buf, k, out ++ o2,
+        +o2 => +l2 => ef => eh => PG.halted_gm(fa, defs, o, tl, g, n, True{}, h, c, e, last, buf, k, out ++ o2,
           List.append(&2, B.Note, ns, [B.Stop{B.Unsorted{}, Some{R.Item.at(it)}, None{}}])),
         +o2 => +l2 => ef => eh =>
-          PG.gm_same(fa, o, t, g, n, h, Some{ch}, R.push_cur(c, e), None{}, Nil{}, k, out ++ o2, ns, w, it,
+          PG.gm_same(fa, defs, o, tl, g, n, h, Some{ch}, R.push_cur(c, e), None{}, Nil{}, k, out ++ o2, ns, w, it,
             last2 => buf2 => out2 => ih(Some{ch}, R.push_cur(c, e), last2, buf2, out2)))
+
+# The rest of the lines from any state in the body (the run's line number n).
+def KB(+fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts, +t: List<&2, B.Line>, +n: Nat, +h: String) -> Type:
+  @c: Maybe<&2, String> -> @e: List<&2, String> -> @last: Maybe<&2, R.Item> -> @buf: List<&2, R.Item> -> @k: R.Cnt -> @out: String -> @ns: List<&2, B.Note> ->
+    PG.GM(fa, defs, o, U.TLs(t), all_lgo(t, fa, defs, o), R.RunSt{n, True{}, h, c, e, last, buf, k, out, ns, False{}})
+
+# The records of a split line, then the rest of the lines.
+def bg.ps(ps: List<&2, String>, +fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts, +term: String, +at: B.At, +inpos: Nat, +t: List<&2, B.Line>,
+  +n: Nat, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +last: Maybe<&2, R.Item>, +buf: List<&2, R.Item>, +k: R.Cnt, +out: String,
+  +ns: List<&2, B.Note>, kb: KB(fa, defs, o, t, n, h)) ->
+  PG.GM(fa, defs, o, U.Tl{ps, term, at, inpos, t}, Bool.and(pgo(ps, fa, o), all_lgo(t, fa, defs, o)), R.RunSt{n, True{}, h, c, e, last, buf, k, out, ns, False{}}):
+  match ps:
+    case Nil{}:
+      kb(c, e, last, buf, k, out, ns)
+    case Con{+p, +pt}:
+      +st = {R.RunSt{n, True{}, h, c, e, last, buf, k, out, ns, False{}} : R.RunSt}
+      +LN = {B.Line{p, term} : B.Line}
+      +r = L.judge(fa, p)
+      +g = Bool.and(pgo(pt, fa, o), all_lgo(t, fa, defs, o))
+      +tl = {U.Tl{pt, term, at, inpos, t} : U.Tl}
+      BLK(st2 => PG.GM(fa, defs, o, tl, Bool.and(Bool.and(N.go_on(o, r), pgo(pt, fa, o)), all_lgo(t, fa, defs, o)), st2), r, st, o, LN, at, inpos,
+        +cd => PG.halted_gm(fa, defs, o, tl, Bool.and(Bool.and(N.go_on(o, r), pgo(pt, fa, o)), all_lgo(t, fa, defs, o)), n, True{}, h, c, e, last, buf, k, out ++ "",
+          List.append(&2, B.Note, ns, [B.Stop{cd, Some{at}, None{}}])),
+        hg => +nts => +k2 =>
+          +it = L.item_of(r, LN, at, inpos)
+          %Equal.sym(Bool, N.go_on(o, r), True{}, hg) :
+            PG.GM(fa, defs, o, tl, Bool.and(Bool.and(_, pgo(pt, fa, o)), all_lgo(t, fa, defs, o)), R.keyed(st, R.Opts.w(o), it, nts, k2))
+          bg.key(fa, defs, o, tl, g, n, h, c, e, last, buf, k2, out, List.append(&2, B.Note, ns, nts), it, R.is_cur(c, R.Item.chrom(it)),
+            c2 => e2 => last2 => buf2 => out2 => bg.ps(pt, fa, defs, o, term, at, inpos, t, n, h, c2, e2, last2, buf2, k2, out2, List.append(&2, B.Note, ns, nts), kb)))
+
+# One body line, by what -m does with it.
+def bg.line(pt: B.Parts, +fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts, +l: B.Line, +t: List<&2, B.Line>, +at: B.At, +inpos: Nat,
+  +n: Nat, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +last: Maybe<&2, R.Item>, +buf: List<&2, R.Item>, +k: R.Cnt, +out: String,
+  +ns: List<&2, B.Note>, kb: KB(fa, defs, o, t, n, h)) ->
+  PG.GM(fa, defs, o, U.TLs(t), Bool.and(lgo.go(pt, fa, o, l), all_lgo(t, fa, defs, o)),
+    L.body_in(pt, fa, o, R.RunSt{n, True{}, h, c, e, last, buf, k, out, ns, False{}}, l, at, inpos)):
+  match pt:
+    case B.Whole{}:
+      +st = {R.RunSt{n, True{}, h, c, e, last, buf, k, out, ns, False{}} : R.RunSt}
+      +G = all_lgo(t, fa, defs, o)
+      +r = L.judge(fa, B.Line.body(l))
+      BLK(st2 => PG.GM(fa, defs, o, U.TLs(t), Bool.and(N.go_on(o, r), G), st2), r, st, o, l, at, inpos,
+        +cd => PG.halted_gm(fa, defs, o, U.TLs(t), Bool.and(N.go_on(o, r), G), n, True{}, h, c, e, last, buf, k, out ++ "",
+          List.append(&2, B.Note, ns, [B.Stop{cd, Some{at}, None{}}])),
+        hg => +nts => +k2 =>
+          +it = L.item_of(r, l, at, inpos)
+          %Equal.sym(Bool, N.go_on(o, r), True{}, hg) :
+            PG.GM(fa, defs, o, U.TLs(t), Bool.and(_, G), R.keyed(st, R.Opts.w(o), it, nts, k2))
+          bg.key(fa, defs, o, U.TLs(t), G, n, h, c, e, last, buf, k2, out, List.append(&2, B.Note, ns, nts), it, R.is_cur(c, R.Item.chrom(it)),
+            c2 => e2 => last2 => buf2 => out2 => kb(c2, e2, last2, buf2, k2, out2, List.append(&2, B.Note, ns, nts))))
+    case B.Pieces{+ps}:
+      bg.ps(ps, fa, defs, o, B.Line.term(l), at, inpos, t, n, h, c, e, last, buf, k, out, ns, kb)
+    case B.Unsplit{+cu}:
+      +st = {R.RunSt{n, True{}, h, c, e, last, buf, k, out, ns, False{}} : R.RunSt}
+      +G = all_lgo(t, fa, defs, o)
+      +r = L.judge(fa, B.Line.body(l))
+      +q = Bool.and(N.go_on(o, r), Bool.not(R.Opts.strict(o)))
+      UG(st2 => PG.GM(fa, defs, o, U.TLs(t), Bool.and(q, G), st2), r, cu, st, o, l, at, inpos,
+        +cd => PG.halted_gm(fa, defs, o, U.TLs(t), Bool.and(q, G), n, True{}, h, c, e, last, buf, k, out ++ "",
+          List.append(&2, B.Note, ns, [B.Stop{cd, Some{at}, None{}}])),
+        hq => +nts => +k2 =>
+          +it = {R.Item{inpos, inpos, at, B.Line.text(l)} : R.Item}
+          %Equal.sym(Bool, q, True{}, hq) :
+            PG.GM(fa, defs, o, U.TLs(t), Bool.and(_, G), R.keyed(st, R.Opts.w(o), it, nts, k2))
+          bg.key(fa, defs, o, U.TLs(t), G, n, h, c, e, last, buf, k2, out, List.append(&2, B.Note, ns, nts), it, R.is_cur(c, R.Item.chrom(it)),
+            c2 => e2 => last2 => buf2 => out2 => kb(c2, e2, last2, buf2, k2, out2, List.append(&2, B.Note, ns, nts))))
 
 # A run that succeeds lets every body line go on.
 law body_go:
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
+  for +defs: B.Defs
   for +o: B.Opts
   for +n: Nat
   for +h: String
@@ -277,30 +450,21 @@ law body_go:
   for +k: R.Cnt
   for +out: String
   for +ns: List<&2, B.Note>
-  PG.GM(fa, o, ls, W.all_go(fa, o, ls), R.RunSt{n, True{}, h, c, e, last, buf, k, out, ns, False{}})
+  PG.GM(fa, defs, o, U.TLs(ls), all_lgo(ls, fa, defs, o), R.RunSt{n, True{}, h, c, e, last, buf, k, out, ns, False{}})
 
-def body_go(ls, fa, o, n, h, c, e, last, buf, k, out, ns):
+def body_go(ls, fa, defs, o, n, h, c, e, last, buf, k, out, ns):
   match ls:
     case Nil{}:
       hc => {==}
     case +l <> +t:
-      +st1 = {R.RunSt{1n+n, True{}, h, c, e, last, buf, k, out, ns, False{}} : R.RunSt}
       +fs = B.Rec.fields(B.Line.body(l))
       +at = {B.At{1n+n, B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
-      +r = L.judge(fa, B.Line.body(l))
-      +g = W.all_go(fa, o, l <> t)
-      BLK(st2 => PG.GM(fa, o, t, g, st2), r, st1, o, l, at, B.Rec.pos(fs),
-        +cd => PG.halted_gm(fa, o, t, g, 1n+n, True{}, h, c, e, last, buf, k, out ++ "", List.append(&2, B.Note, ns, [B.Stop{cd, Some{at}, None{}}])),
-        hg => +nts => +k2 =>
-          +it = L.item_of(r, l, at, B.Rec.pos(fs))
-          %Equal.sym(Bool, N.go_on(o, r), True{}, hg) :
-            PG.GM(fa, o, t, Bool.and(_, W.all_go(fa, o, t)), R.keyed(st1, R.Opts.w(o), it, nts, k2))
-          bg.key(fa, o, t, 1n+n, h, c, e, last, buf, k2, out, List.append(&2, B.Note, ns, nts), it, R.is_cur(c, R.Item.chrom(it)),
-            c2 => e2 => last2 => buf2 => out2 => body_go(t, fa, o, 1n+n, h, c2, e2, last2, buf2, k2, out2, List.append(&2, B.Note, ns, nts))))
+      bg.line(B.Rec.parts(defs, o, B.Line.body(l)), fa, defs, o, l, t, at, B.Rec.pos(fs), 1n+n, h, c, e, last, buf, k, out, ns,
+        c2 => e2 => last2 => buf2 => k2 => out2 => ns2 => body_go(t, fa, defs, o, 1n+n, h, c2, e2, last2, buf2, k2, out2, ns2))
 
-def hh_has.go(+fa: List<&2, B.Contig>, +o: B.Opts, b: Bool, +l: B.Line, +t: List<&2, B.Line>, +n: Nat, +h: String, +k: R.Cnt, +out: String, +ns: List<&2, B.Note>,
-  ih: @h2: String -> PG.GM(fa, o, t, has_c(t), hst(1n+n, h2, k, out, ns))) ->
-  PG.GM(fa, o, t, Bool.or(b, has_c(t)), R.head_line(b, hst(1n+n, h, k, out, ns), o, l)):
+def hh_has.go(+fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts, b: Bool, +l: B.Line, +t: List<&2, B.Line>, +n: Nat, +h: String, +k: R.Cnt, +out: String, +ns: List<&2, B.Note>,
+  ih: @h2: String -> PG.GM(fa, defs, o, U.TLs(t), has_c(t), hst(1n+n, h2, k, out, ns))) ->
+  PG.GM(fa, defs, o, U.TLs(t), Bool.or(b, has_c(t)), R.head_line(b, hst(1n+n, h, k, out, ns), o, l)):
   match b:
     case True{}:
       hc => {==}
@@ -311,20 +475,21 @@ def hh_has.go(+fa: List<&2, B.Contig>, +o: B.Opts, b: Bool, +l: B.Line, +t: List
 law hdr_has:
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
+  for +defs: B.Defs
   for +o: B.Opts
   for +n: Nat
   for +h: String
   for +k: R.Cnt
   for +out: String
   for +ns: List<&2, B.Note>
-  PG.GM(fa, o, ls, has_c(ls), hst(n, h, k, out, ns))
+  PG.GM(fa, defs, o, U.TLs(ls), has_c(ls), hst(n, h, k, out, ns))
 
-def hdr_has(ls, fa, o, n, h, k, out, ns):
+def hdr_has(ls, fa, defs, o, n, h, k, out, ns):
   match ls:
     case Nil{}:
       hc => Empty.absurd({False{} == True{} : Bool}, PS.code_10(1n, hc, {==}))
     case +l <> +t:
-      hh_has.go(fa, o, isc(l), l, t, n, h, k, out, ns, h2 => hdr_has(t, fa, o, 1n+n, h2, k, out, ns))
+      hh_has.go(fa, defs, o, isc(l), l, t, n, h, k, out, ns, h2 => hdr_has(t, fa, defs, o, 1n+n, h2, k, out, ns))
 
 # Splitting at the first #CHROM line
 # ==================================
@@ -659,7 +824,7 @@ law al2_good:
 
 def al2_good(o, bd, t, h):
   match o:
-    case B.Opts{+s, +w, +args}:
+    case B.Opts{+s, +w, +om_m, +om_z, +args}:
       +b = "##framebender_normCommand=norm" ++ R.args_text(args)
       +ncr = {args_noc(args, '\r', {==}, {==}) : {X.no_c(b, '\r') == True{} : Bool}}
       %Equal.sym(Bool, C.ecr(b), False{}, C.noc_ecr(b, ncr)) :
@@ -725,7 +890,7 @@ law isc_al2:
 
 def isc_al2(o, t):
   match o:
-    case B.Opts{+s, +w, +args}:
+    case B.Opts{+s, +w, +om_m, +om_z, +args}:
       isc_hash2("framebender_normCommand=norm" ++ R.args_text(args), t)
 
 law hl_good:

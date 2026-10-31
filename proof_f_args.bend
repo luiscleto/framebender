@@ -37,28 +37,37 @@ def unthr(st: B.ArgSt) -> B.ArgSt:
       B.ArgSt{p, s, w, B.Drv.none(), r, v, ok, k}
 
 # Args.word's branches, from the last one up (Args.word(x, st) unfolds to w1).
-def w9(+x: String, s: Bool, w: Maybe<&2, Nat>, t: B.Drv, r: Maybe<&2, String>, +v: Maybe<&2, String>, ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+def w9(+x: String, s: B.Sci, w: Maybe<&2, Nat>, t: B.Drv, r: Maybe<&2, String>, +v: Maybe<&2, String>, ok: Bool, +k: List<&2, String>) -> B.ArgSt:
   B.ArgSt{B.PNone{}, s, w, t, r, Some{x}, ok && Bool.not(String.starts_with(x, "-") && Nat.is_lt(1n, String.length(x))) && Maybe.is_none(&2, String, v), kx(k, x)}
 
-def w8(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+def w8(+x: String, +s: B.Sci, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
   Bool.pick(B.ArgSt, Maybe.is_some(&2, B.IFmt, B.Args.wfmt(x)), B.ArgSt{B.PNone{}, s, w, B.Drv.set_idx(B.Args.wfmt(x), t), r, v, ok, k}, w9(x, s, w, t, r, v, ok, k))
 
-def w7(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+def w7(+x: String, +s: B.Sci, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
   Bool.pick(B.ArgSt, String.starts_with(x, "-O"), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}), w8(x, s, w, t, r, v, ok, k))
 
-def w6(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+def w6(+x: String, +s: B.Sci, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
   Bool.pick(B.ArgSt, String.eq(x, "-O"), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}, w7(x, s, w, t, r, v, ok, k))
 
-def w5(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+def w5(+x: String, +s: B.Sci, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
   Bool.pick(B.ArgSt, String.eq(x, "-o"), B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}, w6(x, s, w, t, r, v, ok, k))
 
-def w4(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+def w4(+x: String, +s: B.Sci, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
   Bool.pick(B.ArgSt, String.eq(x, "--threads"), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k}, w5(x, s, w, t, r, v, ok, k))
 
-def w3(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
-  Bool.pick(B.ArgSt, String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, w4(x, s, w, t, r, v, ok, k))
+def w3g(+x: String, +s: B.Sci, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+  Bool.pick(B.ArgSt, String.starts_with(x, "-m"), B.ArgSt{B.PNone{}, B.Sci.multi(s), w, t, r, v, ok && B.Args.multi(String.drop(x, 2n)), kx(k, x)}, w4(x, s, w, t, r, v, ok, k))
 
-def w2(+x: String, +s: Bool, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+def w3o(+x: String, +s: B.Sci, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+  Bool.pick(B.ArgSt, String.eq(x, "--multi-overlaps"), B.ArgSt{B.POver{}, s, w, t, r, v, ok, kx(k, x)}, w3g(x, s, w, t, r, v, ok, k))
+
+def w3m(+x: String, +s: B.Sci, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+  Bool.pick(B.ArgSt, String.eq(x, "-m"), B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, kx(k, x)}, w3o(x, s, w, t, r, v, ok, k))
+
+def w3(+x: String, +s: B.Sci, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
+  Bool.pick(B.ArgSt, String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, w3m(x, s, w, t, r, v, ok, k))
+
+def w2(+x: String, +s: B.Sci, +w: Maybe<&2, Nat>, +t: B.Drv, +r: Maybe<&2, String>, +v: Maybe<&2, String>, +ok: Bool, +k: List<&2, String>) -> B.ArgSt:
   Bool.pick(B.ArgSt, String.eq(x, "-c"), B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, kx(k, x)}, w3(x, s, w, t, r, v, ok, k))
 
 # ---------------------------------------------------------------------------
@@ -277,7 +286,7 @@ def thr_keep(m, st):
 # at the driver options (except to set them).
 law typ_kl:
   for +m: Maybe<&2, B.OType>
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -296,7 +305,7 @@ def typ_kl(m, s, w, t, r, v, ok, k, n):
 
 law typ_ab:
   for +m: Maybe<&2, B.OType>
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -315,7 +324,7 @@ def typ_ab(m, s, w, t, r, v, ok, k, hk):
 
 law typ_inv:
   for +m: Maybe<&2, B.OType>
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -336,7 +345,7 @@ def typ_inv(m, s, w, t, r, v, ok, k, h):
 
 law out_inv:
   for +x: String
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -354,7 +363,7 @@ def out_inv(x, s, w, t, r, v, ok, k, h):
 # -W keeps the invariant: it sets only the index format.
 law idx_inv:
   for +m: Maybe<&2, B.IFmt>
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -371,7 +380,7 @@ def idx_inv(m, s, w, t, r, v, ok, k, h):
 
 law typ_un:
   for +m: Maybe<&2, B.OType>
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -399,16 +408,23 @@ def kl_step(st, x):
         case B.PNone{}:
           pick_kl(String.eq(x, "-f"), B.ArgSt{B.PRef{}, s, w, t, r, v, ok, kx(k, x)}, w2(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), snoc_le(k, x),
           pick_kl(String.eq(x, "-c"), B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, kx(k, x)}, w3(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), snoc_le(k, x),
-          pick_kl(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, w4(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), snoc_le(k, x),
+          pick_kl(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, w3m(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), snoc_le(k, x),
+          pick_kl(String.eq(x, "-m"), B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, kx(k, x)}, w3o(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), snoc_le(k, x),
+          pick_kl(String.eq(x, "--multi-overlaps"), B.ArgSt{B.POver{}, s, w, t, r, v, ok, kx(k, x)}, w3g(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), snoc_le(k, x),
+          pick_kl(String.starts_with(x, "-m"), B.ArgSt{B.PNone{}, B.Sci.multi(s), w, t, r, v, ok && B.Args.multi(String.drop(x, 2n)), kx(k, x)}, w4(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), snoc_le(k, x),
           pick_kl(String.eq(x, "--threads"), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k}, w5(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), N.le_add_r(M.args_len(k), Nat.add(String.length(x), 1n)),
           pick_kl(String.eq(x, "-o"), B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}, w6(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), N.le_add_r(M.args_len(k), Nat.add(String.length(x), 1n)),
           pick_kl(String.eq(x, "-O"), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}, w7(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), N.le_add_r(M.args_len(k), Nat.add(String.length(x), 1n)),
           pick_kl(String.starts_with(x, "-O"), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}), w8(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), typ_kl(B.Args.otype(String.drop(x, 2n)), s, w, t, r, v, ok, k, Nat.add(String.length(x), 1n)),
           pick_kl(Maybe.is_some(&2, B.IFmt, B.Args.wfmt(x)), B.ArgSt{B.PNone{}, s, w, B.Drv.set_idx(B.Args.wfmt(x), t), r, v, ok, k}, w9(x, s, w, t, r, v, ok, k), Nat.add(M.args_len(k), Nat.add(String.length(x), 1n)), N.le_add_r(M.args_len(k), Nat.add(String.length(x), 1n)),
-          snoc_le(k, x)))))))))
+          snoc_le(k, x))))))))))))
         case B.PRef{}:
           snoc_le(k, x)
         case B.PCheck{}:
+          snoc_le(k, x)
+        case B.PMulti{}:
+          snoc_le(k, x)
+        case B.POver{}:
           snoc_le(k, x)
         case B.PWin{}:
           %Equal.sym(List<&2, String>, keep(B.Args.win(B.Pos.read(x), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)})), kx(k, x), win_keep(B.Pos.read(x), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)})) :
@@ -437,16 +453,23 @@ def ab_step(st, x, hk, hx):
         case B.PNone{}:
           pick_ab(String.eq(x, "-f"), B.ArgSt{B.PRef{}, s, w, t, r, v, ok, kx(k, x)}, w2(x, s, w, t, r, v, ok, k), ab_snoc(k, x, hk, hx),
           pick_ab(String.eq(x, "-c"), B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, kx(k, x)}, w3(x, s, w, t, r, v, ok, k), ab_snoc(k, x, hk, hx),
-          pick_ab(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, w4(x, s, w, t, r, v, ok, k), ab_snoc(k, x, hk, hx),
+          pick_ab(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, w3m(x, s, w, t, r, v, ok, k), ab_snoc(k, x, hk, hx),
+          pick_ab(String.eq(x, "-m"), B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, kx(k, x)}, w3o(x, s, w, t, r, v, ok, k), ab_snoc(k, x, hk, hx),
+          pick_ab(String.eq(x, "--multi-overlaps"), B.ArgSt{B.POver{}, s, w, t, r, v, ok, kx(k, x)}, w3g(x, s, w, t, r, v, ok, k), ab_snoc(k, x, hk, hx),
+          pick_ab(String.starts_with(x, "-m"), B.ArgSt{B.PNone{}, B.Sci.multi(s), w, t, r, v, ok && B.Args.multi(String.drop(x, 2n)), kx(k, x)}, w4(x, s, w, t, r, v, ok, k), ab_snoc(k, x, hk, hx),
           pick_ab(String.eq(x, "--threads"), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k}, w5(x, s, w, t, r, v, ok, k), hk,
           pick_ab(String.eq(x, "-o"), B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}, w6(x, s, w, t, r, v, ok, k), hk,
           pick_ab(String.eq(x, "-O"), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}, w7(x, s, w, t, r, v, ok, k), hk,
           pick_ab(String.starts_with(x, "-O"), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}), w8(x, s, w, t, r, v, ok, k), typ_ab(B.Args.otype(String.drop(x, 2n)), s, w, t, r, v, ok, k, hk),
           pick_ab(Maybe.is_some(&2, B.IFmt, B.Args.wfmt(x)), B.ArgSt{B.PNone{}, s, w, B.Drv.set_idx(B.Args.wfmt(x), t), r, v, ok, k}, w9(x, s, w, t, r, v, ok, k), hk,
-          ab_snoc(k, x, hk, hx)))))))))
+          ab_snoc(k, x, hk, hx))))))))))))
         case B.PRef{}:
           ab_snoc(k, x, hk, hx)
         case B.PCheck{}:
+          ab_snoc(k, x, hk, hx)
+        case B.PMulti{}:
+          ab_snoc(k, x, hk, hx)
+        case B.POver{}:
           ab_snoc(k, x, hk, hx)
         case B.PWin{}:
           %Equal.sym(List<&2, String>, keep(B.Args.win(B.Pos.read(x), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)})), kx(k, x), win_keep(B.Pos.read(x), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)})) :
@@ -463,7 +486,7 @@ def ab_step(st, x, hk, hx):
 
 law win_inv:
   for +m: Maybe<&2, Nat>
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -482,7 +505,7 @@ def win_inv(m, s, w, t, r, v, ok, k, h):
 
 law thr_inv:
   for +m: Maybe<&2, Nat>
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -513,18 +536,25 @@ def inv_step(st, x, h):
         case B.PNone{}:
           pick_inv(String.eq(x, "-f"), B.ArgSt{B.PRef{}, s, w, t, r, v, ok, kx(k, x)}, w2(x, s, w, t, r, v, ok, k), h,
           pick_inv(String.eq(x, "-c"), B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, kx(k, x)}, w3(x, s, w, t, r, v, ok, k), h,
-          pick_inv(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, w4(x, s, w, t, r, v, ok, k), h,
+          pick_inv(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, w3m(x, s, w, t, r, v, ok, k), h,
+          pick_inv(String.eq(x, "-m"), B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, kx(k, x)}, w3o(x, s, w, t, r, v, ok, k), h,
+          pick_inv(String.eq(x, "--multi-overlaps"), B.ArgSt{B.POver{}, s, w, t, r, v, ok, kx(k, x)}, w3g(x, s, w, t, r, v, ok, k), h,
+          pick_inv(String.starts_with(x, "-m"), B.ArgSt{B.PNone{}, B.Sci.multi(s), w, t, r, v, ok && B.Args.multi(String.drop(x, 2n)), kx(k, x)}, w4(x, s, w, t, r, v, ok, k), tok_and(ok, B.Args.multi(String.drop(x, 2n)), B.Drv.thr(t), h),
           pick_inv(String.eq(x, "--threads"), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k}, w5(x, s, w, t, r, v, ok, k), h,
           pick_inv(String.eq(x, "-o"), B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}, w6(x, s, w, t, r, v, ok, k), h,
           pick_inv(String.eq(x, "-O"), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}, w7(x, s, w, t, r, v, ok, k), h,
           pick_inv(String.starts_with(x, "-O"), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}), w8(x, s, w, t, r, v, ok, k), typ_inv(B.Args.otype(String.drop(x, 2n)), s, w, t, r, v, ok, k, h),
           pick_inv(Maybe.is_some(&2, B.IFmt, B.Args.wfmt(x)), B.ArgSt{B.PNone{}, s, w, B.Drv.set_idx(B.Args.wfmt(x), t), r, v, ok, k}, w9(x, s, w, t, r, v, ok, k), idx_inv(B.Args.wfmt(x), s, w, t, r, v, ok, k, h),
           tok_and(ok && Bool.not(String.starts_with(x, "-") && Nat.is_lt(1n, String.length(x))), Maybe.is_none(&2, String, v), B.Drv.thr(t),
-            tok_and(ok, Bool.not(String.starts_with(x, "-") && Nat.is_lt(1n, String.length(x))), B.Drv.thr(t), h))))))))))
+            tok_and(ok, Bool.not(String.starts_with(x, "-") && Nat.is_lt(1n, String.length(x))), B.Drv.thr(t), h)))))))))))))
         case B.PRef{}:
           tok_and(ok, Maybe.is_none(&2, String, r), B.Drv.thr(t), h)
         case B.PCheck{}:
           tok_and(ok, String.eq(x, "e") || String.eq(x, "w"), B.Drv.thr(t), h)
+        case B.PMulti{}:
+          tok_and(ok, B.Args.multi(x), B.Drv.thr(t), h)
+        case B.POver{}:
+          tok_and(ok, String.eq(x, "0") || String.eq(x, "."), B.Drv.thr(t), h)
         case B.PWin{}:
           win_inv(B.Pos.read(x), s, w, t, r, v, ok, kx(k, x), h)
         case B.PThr{}:
@@ -536,7 +566,7 @@ def inv_step(st, x, h):
 
 law win_un:
   for +m: Maybe<&2, Nat>
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -554,7 +584,7 @@ def win_un(m, s, w, t, r, v, ok, k):
 
 law thr_un:
   for +m: Maybe<&2, Nat>
-  for +s: Bool
+  for +s: B.Sci
   for +w: Maybe<&2, Nat>
   for +t: B.Drv
   for +r: Maybe<&2, String>
@@ -583,15 +613,22 @@ def un_step(st, x):
         case B.PNone{}:
           pick_un(String.eq(x, "-f"), B.ArgSt{B.PRef{}, s, w, t, r, v, ok, kx(k, x)}, B.ArgSt{B.PRef{}, s, w, B.Drv.none(), r, v, ok, kx(k, x)}, w2(x, s, w, t, r, v, ok, k), w2(x, s, w, B.Drv.none(), r, v, ok, k), {==},
           pick_un(String.eq(x, "-c"), B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, kx(k, x)}, B.ArgSt{B.PCheck{}, s, w, B.Drv.none(), r, v, ok, kx(k, x)}, w3(x, s, w, t, r, v, ok, k), w3(x, s, w, B.Drv.none(), r, v, ok, k), {==},
-          pick_un(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, B.ArgSt{B.PWin{}, s, w, B.Drv.none(), r, v, ok, kx(k, x)}, w4(x, s, w, t, r, v, ok, k), w4(x, s, w, B.Drv.none(), r, v, ok, k), {==},
+          pick_un(String.eq(x, "-w"), B.ArgSt{B.PWin{}, s, w, t, r, v, ok, kx(k, x)}, B.ArgSt{B.PWin{}, s, w, B.Drv.none(), r, v, ok, kx(k, x)}, w3m(x, s, w, t, r, v, ok, k), w3m(x, s, w, B.Drv.none(), r, v, ok, k), {==},
+          pick_un(String.eq(x, "-m"), B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, kx(k, x)}, B.ArgSt{B.PMulti{}, s, w, B.Drv.none(), r, v, ok, kx(k, x)}, w3o(x, s, w, t, r, v, ok, k), w3o(x, s, w, B.Drv.none(), r, v, ok, k), {==},
+          pick_un(String.eq(x, "--multi-overlaps"), B.ArgSt{B.POver{}, s, w, t, r, v, ok, kx(k, x)}, B.ArgSt{B.POver{}, s, w, B.Drv.none(), r, v, ok, kx(k, x)}, w3g(x, s, w, t, r, v, ok, k), w3g(x, s, w, B.Drv.none(), r, v, ok, k), {==},
+          pick_un(String.starts_with(x, "-m"), B.ArgSt{B.PNone{}, B.Sci.multi(s), w, t, r, v, ok && B.Args.multi(String.drop(x, 2n)), kx(k, x)}, B.ArgSt{B.PNone{}, B.Sci.multi(s), w, B.Drv.none(), r, v, ok && B.Args.multi(String.drop(x, 2n)), kx(k, x)}, w4(x, s, w, t, r, v, ok, k), w4(x, s, w, B.Drv.none(), r, v, ok, k), {==},
           pick_un(String.eq(x, "--threads"), B.ArgSt{B.PThr{}, s, w, t, r, v, ok, k}, B.ArgSt{B.PThr{}, s, w, B.Drv.none(), r, v, ok, k}, w5(x, s, w, t, r, v, ok, k), w5(x, s, w, B.Drv.none(), r, v, ok, k), {==},
           pick_un(String.eq(x, "-o"), B.ArgSt{B.POut{}, s, w, t, r, v, ok, k}, B.ArgSt{B.POut{}, s, w, B.Drv.none(), r, v, ok, k}, w6(x, s, w, t, r, v, ok, k), w6(x, s, w, B.Drv.none(), r, v, ok, k), {==},
           pick_un(String.eq(x, "-O"), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}, B.ArgSt{B.PType{}, s, w, B.Drv.none(), r, v, ok, k}, w7(x, s, w, t, r, v, ok, k), w7(x, s, w, B.Drv.none(), r, v, ok, k), {==},
           pick_un(String.starts_with(x, "-O"), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, t, r, v, ok, k}), B.Args.typ(B.Args.otype(String.drop(x, 2n)), B.ArgSt{B.PType{}, s, w, B.Drv.none(), r, v, ok, k}), w8(x, s, w, t, r, v, ok, k), w8(x, s, w, B.Drv.none(), r, v, ok, k), typ_un(B.Args.otype(String.drop(x, 2n)), s, w, t, r, v, ok, k),
-          pick_un(Maybe.is_some(&2, B.IFmt, B.Args.wfmt(x)), B.ArgSt{B.PNone{}, s, w, B.Drv.set_idx(B.Args.wfmt(x), t), r, v, ok, k}, B.ArgSt{B.PNone{}, s, w, B.Drv.set_idx(B.Args.wfmt(x), B.Drv.none()), r, v, ok, k}, w9(x, s, w, t, r, v, ok, k), w9(x, s, w, B.Drv.none(), r, v, ok, k), {==}, {==}))))))))
+          pick_un(Maybe.is_some(&2, B.IFmt, B.Args.wfmt(x)), B.ArgSt{B.PNone{}, s, w, B.Drv.set_idx(B.Args.wfmt(x), t), r, v, ok, k}, B.ArgSt{B.PNone{}, s, w, B.Drv.set_idx(B.Args.wfmt(x), B.Drv.none()), r, v, ok, k}, w9(x, s, w, t, r, v, ok, k), w9(x, s, w, B.Drv.none(), r, v, ok, k), {==}, {==})))))))))))
         case B.PRef{}:
           {==}
         case B.PCheck{}:
+          {==}
+        case B.PMulti{}:
+          {==}
+        case B.POver{}:
           {==}
         case B.PWin{}:
           win_un(B.Pos.read(x), s, w, t, r, v, ok, kx(k, x))
@@ -711,22 +748,28 @@ def done_un(st):
     case B.ArgSt{p, s, w, t, r, v, ok, k}:
       match p:
         case B.PNone{}:
-          match r:
-            case None{}:
-              {==}
-            case Some{r1}:
-              match v:
+          match s:
+            case B.Sci{+c, +m, +z}:
+              match r:
                 case None{}:
                   {==}
-                case Some{v1}:
-                  match ok:
-                    case True{}:
+                case Some{r1}:
+                  match v:
+                    case None{}:
                       {==}
-                    case False{}:
-                      {==}
+                    case Some{v1}:
+                      match ok:
+                        case True{}:
+                          {==}
+                        case False{}:
+                          {==}
         case B.PRef{}:
           {==}
         case B.PCheck{}:
+          {==}
+        case B.PMulti{}:
+          {==}
+        case B.POver{}:
           {==}
         case B.PWin{}:
           {==}
@@ -794,6 +837,10 @@ def two_words(st, x, n, he, hx, hn):
           Empty.absurd({unthr(B.Args.step(B.Args.step(B.ArgSt{B.PRef{}, s, w, t, r, v, ok, k}, "--threads"), x)) == unthr(B.ArgSt{B.PRef{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
         case B.PCheck{}:
           Empty.absurd({unthr(B.Args.step(B.Args.step(B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, k}, "--threads"), x)) == unthr(B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
+        case B.PMulti{}:
+          Empty.absurd({unthr(B.Args.step(B.Args.step(B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, k}, "--threads"), x)) == unthr(B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
+        case B.POver{}:
+          Empty.absurd({unthr(B.Args.step(B.Args.step(B.ArgSt{B.POver{}, s, w, t, r, v, ok, k}, "--threads"), x)) == unthr(B.ArgSt{B.POver{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
         case B.PWin{}:
           Empty.absurd({unthr(B.Args.step(B.Args.step(B.ArgSt{B.PWin{}, s, w, t, r, v, ok, k}, "--threads"), x)) == unthr(B.ArgSt{B.PWin{}, s, w, t, r, v, ok, k}) : B.ArgSt}, PB.false_ne_true(he))
         case B.PThr{}:
@@ -838,23 +885,29 @@ def done_some(st, n, h):
     case B.ArgSt{p, s, w, t, r, v, ok, k}:
       match p:
         case B.PNone{}:
-          match r:
-            case None{}:
-              Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.PNone{}, s, w, t, None{}, v, ok, k})) == False{} : Bool}, none_ne_some(n, h))
-            case Some{r1}:
-              match v:
+          match s:
+            case B.Sci{+c, +m, +z}:
+              match r:
                 case None{}:
-                  Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.PNone{}, s, w, t, Some{r1}, None{}, ok, k})) == False{} : Bool}, none_ne_some(n, h))
-                case Some{v1}:
-                  match ok:
-                    case True{}:
-                      {==}
-                    case False{}:
-                      Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.PNone{}, s, w, t, Some{r1}, Some{v1}, False{}, k})) == False{} : Bool}, none_ne_some(n, h))
+                  Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.PNone{}, B.Sci{c, m, z}, w, t, None{}, v, ok, k})) == False{} : Bool}, none_ne_some(n, h))
+                case Some{r1}:
+                  match v:
+                    case None{}:
+                      Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.PNone{}, B.Sci{c, m, z}, w, t, Some{r1}, None{}, ok, k})) == False{} : Bool}, none_ne_some(n, h))
+                    case Some{v1}:
+                      match ok:
+                        case True{}:
+                          {==}
+                        case False{}:
+                          Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.PNone{}, B.Sci{c, m, z}, w, t, Some{r1}, Some{v1}, False{}, k})) == False{} : Bool}, none_ne_some(n, h))
         case B.PRef{}:
           Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.PRef{}, s, w, t, r, v, ok, k})) == False{} : Bool}, none_ne_some(n, h))
         case B.PCheck{}:
           Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.PCheck{}, s, w, t, r, v, ok, k})) == False{} : Bool}, none_ne_some(n, h))
+        case B.PMulti{}:
+          Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.PMulti{}, s, w, t, r, v, ok, k})) == False{} : Bool}, none_ne_some(n, h))
+        case B.POver{}:
+          Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.POver{}, s, w, t, r, v, ok, k})) == False{} : Bool}, none_ne_some(n, h))
         case B.PWin{}:
           Empty.absurd({Maybe.is_none(&2, B.Cfg, B.Args.done(B.ArgSt{B.PWin{}, s, w, t, r, v, ok, k})) == False{} : Bool}, none_ne_some(n, h))
         case B.PThr{}:
@@ -893,6 +946,10 @@ def done_range(st, n, hi, h):
         case B.PRef{}:
           Empty.absurd({(Nat.is_le(1n, n) && Nat.is_le(n, B.Args.max_threads())) == True{} : Bool}, none_ne_some(n, h))
         case B.PCheck{}:
+          Empty.absurd({(Nat.is_le(1n, n) && Nat.is_le(n, B.Args.max_threads())) == True{} : Bool}, none_ne_some(n, h))
+        case B.PMulti{}:
+          Empty.absurd({(Nat.is_le(1n, n) && Nat.is_le(n, B.Args.max_threads())) == True{} : Bool}, none_ne_some(n, h))
+        case B.POver{}:
           Empty.absurd({(Nat.is_le(1n, n) && Nat.is_le(n, B.Args.max_threads())) == True{} : Bool}, none_ne_some(n, h))
         case B.PWin{}:
           Empty.absurd({(Nat.is_le(1n, n) && Nat.is_le(n, B.Args.max_threads())) == True{} : Bool}, none_ne_some(n, h))

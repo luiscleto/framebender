@@ -39,12 +39,13 @@ def StepG(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: Stri
 def more_ok(+fa: List<&2, B.Contig>, +p: S.StP) -> Bool:
   S.WF(fa, p) && S.src_empty(S.StP.src(p)) && Bool.not(S.StP.eof(p)) && Maybe.is_none(&2, List<&2, Pr.Req>, S.StP.asked(p))
 
-def start_st(b: Norm.Begin) -> Norm.St:
+def start_st(+dfs: B.Defs, b: Norm.Begin) -> Norm.St:
   match b:
     case Norm.Begin{st, r, v}:
       st
     case Norm.Usage{}:
-      Norm.St{B.Opts{True{}, 1n, Nil{}}, Norm.MS{R.start_st(), Nil{}, 0n, None{}}, Nil{}, Norm.PS{""}, False{}, 0n, Norm.WNone{}, None{}, False{}}
+      Norm.St{B.Opts{True{}, 1n, False{}, False{}, Nil{}}, Norm.MS{R.start_st(), Nil{}, 0n, None{}}, Nil{}, Norm.PS{""}, False{}, 0n, Norm.WNone{}, None{}, False{}, dfs}
+
 
 type Paths is Data:
   Paths{ref: String, vcf: String}

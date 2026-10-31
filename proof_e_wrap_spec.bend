@@ -165,48 +165,127 @@ def head_n(isc, st, o, l):
     case False{} R.RunSt{+n, +i, +h, +c, +e, +la, +b, +k, +out, +ns, +x} +ln:
       {==}
 
+# With -m: each record of a split line, and a line not split, keep the count.
+law piece_n:
+  for +halted: Bool
+  for +p: String
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +st: R.RunSt
+  for +term: String
+  for +at: B.At
+  for +inpos: Nat
+  {R.RunSt.n(L.piece_in(halted, p, fa, o, st, term, at, inpos)) == R.RunSt.n(st) : Nat}
+
+def piece_n(halted, p, fa, o, st, term, at, inpos):
+  match halted:
+    case True{}:
+      {==}
+    case False{}:
+      body_n(L.judge(fa, p), st, o, B.Line{p, term}, at, inpos)
+
+law pieces_n:
+  for +ps: List<&2, String>
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +st: R.RunSt
+  for +term: String
+  for +at: B.At
+  for +inpos: Nat
+  {R.RunSt.n(L.pieces_in(ps, fa, o, st, term, at, inpos)) == R.RunSt.n(st) : Nat}
+
+def pieces_n(ps, fa, o, st, term, at, inpos):
+  match ps:
+    case Nil{}:
+      {==}
+    case Con{+p, +t}:
+      +st2 = L.piece_in(R.RunSt.halt(st), p, fa, o, st, term, at, inpos)
+      Equal.trans(Nat, R.RunSt.n(L.pieces_in(t, fa, o, st2, term, at, inpos)), R.RunSt.n(st2), R.RunSt.n(st),
+        pieces_n(t, fa, o, st2, term, at, inpos), piece_n(R.RunSt.halt(st), p, fa, o, st, term, at, inpos))
+
+law unsplit_k:
+  for +b: Bool
+  for +r: B.Res
+  for +c: B.Code
+  for +o: B.Opts
+  for +st: R.RunSt
+  for +l: B.Line
+  for +at: B.At
+  for +inpos: Nat
+  {R.RunSt.n(Bool.pick(R.RunSt, b, R.body_line(r, st, o, l, at, inpos), R.problem_line(R.Opts.strict(o), st, R.Opts.w(o), c, l, at, inpos))) == R.RunSt.n(st) : Nat}
+
+def unsplit_k(b, r, c, o, st, l, at, inpos):
+  match b:
+    case True{}:
+      body_n(r, st, o, l, at, inpos)
+    case False{}:
+      problem_n(R.Opts.strict(o), st, R.Opts.w(o), c, l, at, inpos)
+
+law bodyin_n:
+  for +pt: B.Parts
+  for +fa: List<&2, B.Contig>
+  for +o: B.Opts
+  for +st: R.RunSt
+  for +l: B.Line
+  for +at: B.At
+  for +inpos: Nat
+  {R.RunSt.n(L.body_in(pt, fa, o, st, l, at, inpos)) == R.RunSt.n(st) : Nat}
+
+def bodyin_n(pt, fa, o, st, l, at, inpos):
+  match pt:
+    case B.Whole{}:
+      body_n(L.judge(fa, B.Line.body(l)), st, o, l, at, inpos)
+    case B.Pieces{+ps}:
+      pieces_n(ps, fa, o, st, B.Line.term(l), at, inpos)
+    case B.Unsplit{+c}:
+      unsplit_k(L.stops(L.judge(fa, B.Line.body(l)), R.Opts.strict(o)), L.judge(fa, B.Line.body(l)), c, o, st, l, at, inpos)
+
 law line_in_n:
+  for +dfs: B.Defs
   for +phase: Bool
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +st: R.RunSt
   for +l: B.Line
-  {R.RunSt.n(L.line_in(phase, fa, o, st, l)) == R.RunSt.n(st) : Nat}
+  {R.RunSt.n(L.line_in(phase, fa, dfs, o, st, l)) == R.RunSt.n(st) : Nat}
 
-def line_in_n(phase, fa, o, st, l):
+def line_in_n(dfs,phase, fa, o, st, l):
   match phase:
     case False{}:
       head_n(R.is_chrom_line(B.Line.body(l)), st, o, l)
     case True{}:
       +fs = B.Rec.fields(B.Line.body(l))
-      body_n(L.judge(fa, B.Line.body(l)), st, o, l, B.At{R.RunSt.n(st), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))
+      bodyin_n(B.Rec.parts(dfs, o, B.Line.body(l)), fa, o, st, l, B.At{R.RunSt.n(st), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)}, B.Rec.pos(fs))
+
 
 # A line from a state that has not stopped adds one.
 law step_n:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +st: R.RunSt
   for +l: B.Line
   for +hx: {R.RunSt.halt(st) == False{} : Bool}
-  {R.RunSt.n(L.line_step(fa, o, st, l)) == 1n+R.RunSt.n(st) : Nat}
+  {R.RunSt.n(L.line_step(fa, dfs, o, st, l)) == 1n+R.RunSt.n(st) : Nat}
 
-def step_n(fa, o, st, l, hx):
+def step_n(dfs,fa, o, st, l, hx):
   match st:
     case R.RunSt{+n, +i, +h, +c, +e, +la, +b, +k, +out, +ns, +x}:
-      %Equal.sym(Bool, x, False{}, hx) : {R.RunSt.n(L.line_step.go(_, fa, o, R.RunSt{n, i, h, c, e, la, b, k, out, ns, x}, l)) == 1n+n : Nat}
-      line_in_n(i, fa, o, R.RunSt{1n+n, i, h, c, e, la, b, k, out, ns, x}, l)
+      %Equal.sym(Bool, x, False{}, hx) : {R.RunSt.n(L.line_step.go(_, fa, dfs, o, R.RunSt{n, i, h, c, e, la, b, k, out, ns, x}, l)) == 1n+n : Nat}
+      line_in_n(dfs, i, fa, o, R.RunSt{1n+n, i, h, c, e, la, b, k, out, ns, x}, l)
 
 # A state from which a line leads to a run that has not stopped had not
 # stopped.
 law step_live:
+  for +dfs: B.Defs
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +st: R.RunSt
   for +l: B.Line
-  for +hx: {R.RunSt.halt(L.line_step(fa, o, st, l)) == False{} : Bool}
+  for +hx: {R.RunSt.halt(L.line_step(fa, dfs, o, st, l)) == False{} : Bool}
   {R.RunSt.halt(st) == False{} : Bool}
 
-def step_live(fa, o, st, l, hx):
+def step_live(dfs,fa, o, st, l, hx):
   match st:
     case R.RunSt{+n, +i, +h, +c, +e, +la, +b, +k, +out, +ns, True{}}:
       hx
@@ -214,19 +293,20 @@ def step_live(fa, o, st, l, hx):
       {==}
 
 law go_live:
+  for +dfs: B.Defs
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +st: R.RunSt
-  for +hx: {R.RunSt.halt(L.run.go(ls, fa, o, st)) == False{} : Bool}
+  for +hx: {R.RunSt.halt(L.run.go(ls, fa, dfs, o, st)) == False{} : Bool}
   {R.RunSt.halt(st) == False{} : Bool}
 
-def go_live(ls, fa, o, st, hx):
+def go_live(dfs,ls, fa, o, st, hx):
   match st:
     case R.RunSt{+n, +i, +h, +c, +e, +la, +b, +k, +out, +ns, True{}}:
       +s = {R.RunSt{n, i, h, c, e, la, b, k, out, ns, True{}} : R.RunSt}
-      Equal.trans(Bool, R.RunSt.halt(s), R.RunSt.halt(L.run.go(ls, fa, o, s)), False{},
-        Equal.cong(R.RunSt, Bool, z => R.RunSt.halt(z), s, L.run.go(ls, fa, o, s), Equal.sym(R.RunSt, L.run.go(ls, fa, o, s), s, FRM.run_halted(ls, fa, o, s, {==}))), hx)
+      Equal.trans(Bool, R.RunSt.halt(s), R.RunSt.halt(L.run.go(ls, fa, dfs, o, s)), False{},
+        Equal.cong(R.RunSt, Bool, z => R.RunSt.halt(z), s, L.run.go(ls, fa, dfs, o, s), Equal.sym(R.RunSt, L.run.go(ls, fa, dfs, o, s), s, FRM.run_halted(dfs, ls, fa, o, s, {==}))), hx)
     case R.RunSt{+n, +i, +h, +c, +e, +la, +b, +k, +out, +ns, False{}}:
       {==}
 
@@ -245,23 +325,24 @@ def plus_one(a, b):
 
 # The run over lines ls ends not stopped: its count went up by |ls|.
 law go_n:
+  for +dfs: B.Defs
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +st: R.RunSt
-  for +hx: {R.RunSt.halt(L.run.go(ls, fa, o, st)) == False{} : Bool}
-  {R.RunSt.n(L.run.go(ls, fa, o, st)) == Nat.add(R.RunSt.n(st), List.length(&2, B.Line, ls)) : Nat}
+  for +hx: {R.RunSt.halt(L.run.go(ls, fa, dfs, o, st)) == False{} : Bool}
+  {R.RunSt.n(L.run.go(ls, fa, dfs, o, st)) == Nat.add(R.RunSt.n(st), List.length(&2, B.Line, ls)) : Nat}
 
-def go_n(ls, fa, o, st, hx):
+def go_n(dfs,ls, fa, o, st, hx):
   match ls:
     case Nil{}:
       Equal.sym(Nat, Nat.add(R.RunSt.n(st), 0n), R.RunSt.n(st), PB.add_zero(R.RunSt.n(st)))
     case Con{+l, +t}:
-      +s1 = L.line_step(fa, o, st, l)
-      +h1 = go_live(t, fa, o, s1, hx)
-      +e1 = step_n(fa, o, st, l, step_live(fa, o, st, l, h1))
-      Equal.trans(Nat, R.RunSt.n(L.run.go(t, fa, o, s1)), Nat.add(R.RunSt.n(s1), List.length(&2, B.Line, t)), Nat.add(R.RunSt.n(st), 1n+List.length(&2, B.Line, t)),
-        go_n(t, fa, o, s1, hx),
+      +s1 = L.line_step(fa, dfs, o, st, l)
+      +h1 = go_live(dfs, t, fa, o, s1, hx)
+      +e1 = step_n(dfs, fa, o, st, l, step_live(dfs, fa, o, st, l, h1))
+      Equal.trans(Nat, R.RunSt.n(L.run.go(t, fa, dfs, o, s1)), Nat.add(R.RunSt.n(s1), List.length(&2, B.Line, t)), Nat.add(R.RunSt.n(st), 1n+List.length(&2, B.Line, t)),
+        go_n(dfs, t, fa, o, s1, hx),
         Equal.trans(Nat, Nat.add(R.RunSt.n(s1), List.length(&2, B.Line, t)), Nat.add(1n+R.RunSt.n(st), List.length(&2, B.Line, t)), Nat.add(R.RunSt.n(st), 1n+List.length(&2, B.Line, t)),
           Equal.cong(Nat, Nat, z => Nat.add(z, List.length(&2, B.Line, t)), R.RunSt.n(s1), 1n+R.RunSt.n(st), e1),
           Equal.sym(Nat, Nat.add(R.RunSt.n(st), 1n+List.length(&2, B.Line, t)), Nat.add(1n+R.RunSt.n(st), List.length(&2, B.Line, t)), plus_one(R.RunSt.n(st), List.length(&2, B.Line, t)))))
@@ -270,36 +351,38 @@ def go_n(ls, fa, o, st, hx):
 # ===========================
 
 law go_app:
+  for +dfs: B.Defs
   for +a: List<&2, B.Line>
   for +b: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +st: R.RunSt
-  {L.run.go(List.append(&2, B.Line, a, b), fa, o, st) == L.run.go(b, fa, o, L.run.go(a, fa, o, st)) : R.RunSt}
+  {L.run.go(List.append(&2, B.Line, a, b), fa, dfs, o, st) == L.run.go(b, fa, dfs, o, L.run.go(a, fa, dfs, o, st)) : R.RunSt}
 
-def go_app(a, b, fa, o, st):
+def go_app(dfs,a, b, fa, o, st):
   match a:
     case Nil{}:
       {==}
     case Con{+l, +t}:
-      go_app(t, b, fa, o, L.line_step(fa, o, st, l))
+      go_app(dfs, t, b, fa, o, L.line_step(fa, dfs, o, st, l))
 
 # Two states equal up to settle lead to the same report.
 law fin_settle:
+  for +dfs: B.Defs
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +x: R.RunSt
   for +y: R.RunSt
   for +h: {P.settle(x) == P.settle(y) : R.RunSt}
-  {R.finish(L.run.go(ls, fa, o, x)) == R.finish(L.run.go(ls, fa, o, y)) : R.Report}
+  {R.finish(L.run.go(ls, fa, dfs, o, x)) == R.finish(L.run.go(ls, fa, dfs, o, y)) : R.Report}
 
-def fin_settle(ls, fa, o, x, y, h):
-  Equal.trans(R.Report, R.finish(L.run.go(ls, fa, o, x)), R.finish(L.run.go(ls, fa, o, P.settle(x))), R.finish(L.run.go(ls, fa, o, y)),
-    Equal.sym(R.Report, R.finish(L.run.go(ls, fa, o, P.settle(x))), R.finish(L.run.go(ls, fa, o, x)), FRM.settle_inv(ls, fa, o, x)),
-    Equal.trans(R.Report, R.finish(L.run.go(ls, fa, o, P.settle(x))), R.finish(L.run.go(ls, fa, o, P.settle(y))), R.finish(L.run.go(ls, fa, o, y)),
-      Equal.cong(R.RunSt, R.Report, z => R.finish(L.run.go(ls, fa, o, z)), P.settle(x), P.settle(y), h),
-      FRM.settle_inv(ls, fa, o, y)))
+def fin_settle(dfs,ls, fa, o, x, y, h):
+  Equal.trans(R.Report, R.finish(L.run.go(ls, fa, dfs, o, x)), R.finish(L.run.go(ls, fa, dfs, o, P.settle(x))), R.finish(L.run.go(ls, fa, dfs, o, y)),
+    Equal.sym(R.Report, R.finish(L.run.go(ls, fa, dfs, o, P.settle(x))), R.finish(L.run.go(ls, fa, dfs, o, x)), FRM.settle_inv(dfs, ls, fa, o, x)),
+    Equal.trans(R.Report, R.finish(L.run.go(ls, fa, dfs, o, P.settle(x))), R.finish(L.run.go(ls, fa, dfs, o, P.settle(y))), R.finish(L.run.go(ls, fa, dfs, o, y)),
+      Equal.cong(R.RunSt, R.Report, z => R.finish(L.run.go(ls, fa, dfs, o, z)), P.settle(x), P.settle(y), h),
+      FRM.settle_inv(dfs, ls, fa, o, y)))
 
 # settle, pre, shiftS, segok
 # ==========================
@@ -469,49 +552,51 @@ def settle_bl(st):
       {==}
 
 law go_bl:
+  for +dfs: B.Defs
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +y: R.RunSt
   for +z: R.RunSt
   for +h: {P.blank_st(y) == P.blank_st(z) : R.RunSt}
-  {P.settle(L.run.go(ls, fa, o, y)) == P.settle(L.run.go(ls, fa, o, z)) : R.RunSt}
+  {P.settle(L.run.go(ls, fa, dfs, o, y)) == P.settle(L.run.go(ls, fa, dfs, o, z)) : R.RunSt}
 
-def go_bl(ls, fa, o, y, z, h):
+def go_bl(dfs,ls, fa, o, y, z, h):
   match ls:
     case Nil{}:
       Equal.trans(R.RunSt, P.settle(y), P.settle(P.blank_st(y)), P.settle(z), Equal.sym(R.RunSt, P.settle(P.blank_st(y)), P.settle(y), settle_bl(y)),
         Equal.trans(R.RunSt, P.settle(P.blank_st(y)), P.settle(P.blank_st(z)), P.settle(z), Equal.cong(R.RunSt, R.RunSt, q => P.settle(q), P.blank_st(y), P.blank_st(z), h), settle_bl(z)))
     case Con{+l, +t}:
-      +Y = L.line_step(fa, o, y, l)
-      +Z = L.line_step(fa, o, z, l)
-      go_bl(t, fa, o, Y, Z,
-        Equal.trans(R.RunSt, P.blank_st(Y), P.blank_st(L.line_step(fa, o, P.blank_st(y), l)), P.blank_st(Z), Equal.sym(R.RunSt, P.blank_st(L.line_step(fa, o, P.blank_st(y), l)), P.blank_st(Y), BL.step_bl(fa, o, y, l)),
-          Equal.trans(R.RunSt, P.blank_st(L.line_step(fa, o, P.blank_st(y), l)), P.blank_st(L.line_step(fa, o, P.blank_st(z), l)), P.blank_st(Z),
-            Equal.cong(R.RunSt, R.RunSt, q => P.blank_st(L.line_step(fa, o, q, l)), P.blank_st(y), P.blank_st(z), h), BL.step_bl(fa, o, z, l))))
+      +Y = L.line_step(fa, dfs, o, y, l)
+      +Z = L.line_step(fa, dfs, o, z, l)
+      go_bl(dfs, t, fa, o, Y, Z,
+        Equal.trans(R.RunSt, P.blank_st(Y), P.blank_st(L.line_step(fa, dfs, o, P.blank_st(y), l)), P.blank_st(Z), Equal.sym(R.RunSt, P.blank_st(L.line_step(fa, dfs, o, P.blank_st(y), l)), P.blank_st(Y), BL.step_bl(dfs, fa, o, y, l)),
+          Equal.trans(R.RunSt, P.blank_st(L.line_step(fa, dfs, o, P.blank_st(y), l)), P.blank_st(L.line_step(fa, dfs, o, P.blank_st(z), l)), P.blank_st(Z),
+            Equal.cong(R.RunSt, R.RunSt, q => P.blank_st(L.line_step(fa, dfs, o, q, l)), P.blank_st(y), P.blank_st(z), h), BL.step_bl(dfs, fa, o, z, l))))
 
 law go_settle:
+  for +dfs: B.Defs
   for +ls: List<&2, B.Line>
   for +fa: List<&2, B.Contig>
   for +o: B.Opts
   for +y: R.RunSt
   for +z: R.RunSt
   for +h: {P.settle(y) == P.settle(z) : R.RunSt}
-  {P.settle(L.run.go(ls, fa, o, y)) == P.settle(L.run.go(ls, fa, o, z)) : R.RunSt}
+  {P.settle(L.run.go(ls, fa, dfs, o, y)) == P.settle(L.run.go(ls, fa, dfs, o, z)) : R.RunSt}
 
-def go_settle(ls, fa, o, y, z, h):
+def go_settle(dfs,ls, fa, o, y, z, h):
   match y z:
     case R.RunSt{+n, +i, +hh, +c, +e, +l, +b, +k, +ot, +ns, False{}} R.RunSt{+n2, +i2, +hh2, +c2, +e2, +l2, +b2, +k2, +ot2, +ns2, False{}}:
-      go_bl(ls, fa, o, R.RunSt{n, i, hh, c, e, l, b, k, ot, ns, False{}}, R.RunSt{n2, i2, hh2, c2, e2, l2, b2, k2, ot2, ns2, False{}}, h)
+      go_bl(dfs, ls, fa, o, R.RunSt{n, i, hh, c, e, l, b, k, ot, ns, False{}}, R.RunSt{n2, i2, hh2, c2, e2, l2, b2, k2, ot2, ns2, False{}}, h)
     case R.RunSt{+n, +i, +hh, +c, +e, +l, +b, +k, +ot, +ns, True{}} R.RunSt{+n2, +i2, +hh2, +c2, +e2, +l2, +b2, +k2, +ot2, +ns2, True{}}:
       +Y = {R.RunSt{n, i, hh, c, e, l, b, k, ot, ns, True{}} : R.RunSt}
       +Z = {R.RunSt{n2, i2, hh2, c2, e2, l2, b2, k2, ot2, ns2, True{}} : R.RunSt}
-      %Equal.sym(R.RunSt, L.run.go(ls, fa, o, Y), Y, FRM.run_halted(ls, fa, o, Y, {==})) : {P.settle(_) == P.settle(L.run.go(ls, fa, o, Z)) : R.RunSt}
-      %Equal.sym(R.RunSt, L.run.go(ls, fa, o, Z), Z, FRM.run_halted(ls, fa, o, Z, {==})) : {P.settle(Y) == P.settle(_) : R.RunSt}
+      %Equal.sym(R.RunSt, L.run.go(ls, fa, dfs, o, Y), Y, FRM.run_halted(dfs, ls, fa, o, Y, {==})) : {P.settle(_) == P.settle(L.run.go(ls, fa, dfs, o, Z)) : R.RunSt}
+      %Equal.sym(R.RunSt, L.run.go(ls, fa, dfs, o, Z), Z, FRM.run_halted(dfs, ls, fa, o, Z, {==})) : {P.settle(Y) == P.settle(_) : R.RunSt}
       h
     case R.RunSt{+n, +i, +hh, +c, +e, +l, +b, +k, +ot, +ns, True{}} R.RunSt{+n2, +i2, +hh2, +c2, +e2, +l2, +b2, +k2, +ot2, +ns2, False{}}:
-      Empty.absurd({P.settle(L.run.go(ls, fa, o, R.RunSt{n, i, hh, c, e, l, b, k, ot, ns, True{}})) == P.settle(L.run.go(ls, fa, o, R.RunSt{n2, i2, hh2, c2, e2, l2, b2, k2, ot2, ns2, False{}})) : R.RunSt},
+      Empty.absurd({P.settle(L.run.go(ls, fa, dfs, o, R.RunSt{n, i, hh, c, e, l, b, k, ot, ns, True{}})) == P.settle(L.run.go(ls, fa, dfs, o, R.RunSt{n2, i2, hh2, c2, e2, l2, b2, k2, ot2, ns2, False{}})) : R.RunSt},
         PB.true_ne_false(Equal.cong(R.RunSt, Bool, q => R.RunSt.halt(q), P.settle(R.RunSt{n, i, hh, c, e, l, b, k, ot, ns, True{}}), P.settle(R.RunSt{n2, i2, hh2, c2, e2, l2, b2, k2, ot2, ns2, False{}}), h)))
     case R.RunSt{+n, +i, +hh, +c, +e, +l, +b, +k, +ot, +ns, False{}} R.RunSt{+n2, +i2, +hh2, +c2, +e2, +l2, +b2, +k2, +ot2, +ns2, True{}}:
-      Empty.absurd({P.settle(L.run.go(ls, fa, o, R.RunSt{n, i, hh, c, e, l, b, k, ot, ns, False{}})) == P.settle(L.run.go(ls, fa, o, R.RunSt{n2, i2, hh2, c2, e2, l2, b2, k2, ot2, ns2, True{}})) : R.RunSt},
+      Empty.absurd({P.settle(L.run.go(ls, fa, dfs, o, R.RunSt{n, i, hh, c, e, l, b, k, ot, ns, False{}})) == P.settle(L.run.go(ls, fa, dfs, o, R.RunSt{n2, i2, hh2, c2, e2, l2, b2, k2, ot2, ns2, True{}})) : R.RunSt},
         PB.false_ne_true(Equal.cong(R.RunSt, Bool, q => R.RunSt.halt(q), P.settle(R.RunSt{n, i, hh, c, e, l, b, k, ot, ns, False{}}), P.settle(R.RunSt{n2, i2, hh2, c2, e2, l2, b2, k2, ot2, ns2, True{}}), h)))

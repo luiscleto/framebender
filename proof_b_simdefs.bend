@@ -27,9 +27,10 @@ type MdP is Data:
   MSP{s: R.RunSt, qs: List<&2, String>, ql: Nat, code: Maybe<&2, Nat>}
 
 # The machine's state: every field as is, the run, sources and line end as
-# pictures, the window as its picture (built truthfully from fa).
+# pictures, the window as its picture (built truthfully from fa), the
+# header's definitions read so far (-m).
 type StP is Data:
-  StP{o: B.Opts, md: MdP, src: List<&2, P.SrcP>, pd: P.PdP, eof: Bool, back: Nat, wp: PC.WP, asked: Maybe<&2, List<&2, Pr.Req>>, fneed: Bool}
+  StP{o: B.Opts, md: MdP, src: List<&2, P.SrcP>, pd: P.PdP, eof: Bool, back: Nat, wp: PC.WP, asked: Maybe<&2, List<&2, Pr.Req>>, fneed: Bool, dfs: B.Defs}
 
 def mkMd(+m: MdP) -> Norm.Md:
   match m:
@@ -40,8 +41,8 @@ def mkMd(+m: MdP) -> Norm.Md:
 
 def mkSt(+fa: List<&2, B.Contig>, +p: StP) -> Norm.St:
   match p:
-    case StP{o, +md, +src, +pd, eof, back, +wp, asked, fneed}:
-      Norm.St{o, mkMd(md), P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed}
+    case StP{o, +md, +src, +pd, eof, back, +wp, asked, fneed, dfs}:
+      Norm.St{o, mkMd(md), P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs}
 
 # ---------------------------------------------------------------------------
 # What a state stands for
@@ -74,22 +75,107 @@ def concat_if(e: Bool, +cs: List<&2, String>) -> String:
     case False{}:
       String.concat(cs)
 
-# The text still to come: the sources', the line end's, then (before the end
-# of the file) the pieces not given yet.
+# A record source (-m): the records of a split line.
+def is_rec(+sp: P.SrcP) -> Bool:
+  match sp:
+    case P.SPP{len, t, d, at}:
+      True{}
+    case P.SRP{l}:
+      True{}
+    case _:
+      False{}
+
+# The sources after the records of a split line (the input's own lines), and
+# those records (they come first: norm_seq.bend puts them before the rest).
+def plain(+sps: List<&2, P.SrcP>) -> List<&2, P.SrcP>:
+  match sps:
+    case Nil{}:
+      Nil{}
+    case Con{P.SPP{len, t, d, at}, +r}:
+      plain(r)
+    case Con{P.SRP{l}, +r}:
+      plain(r)
+    case Con{P.SBP{+len, +t, +d, +at}, +r}:
+      Con{P.SBP{len, t, d, at}, r}
+    case Con{P.SLP{+q}, +r}:
+      Con{P.SLP{q}, r}
+
+def recs(+sps: List<&2, P.SrcP>) -> List<&2, P.SrcP>:
+  match sps:
+    case Nil{}:
+      Nil{}
+    case Con{P.SPP{+len, +t, +d, +at}, +r}:
+      Con{P.SPP{len, t, d, at}, recs(r)}
+    case Con{P.SRP{+l}, +r}:
+      Con{P.SRP{l}, recs(r)}
+    case Con{P.SBP{len, t, d, at}, r}:
+      Nil{}
+    case Con{P.SLP{q}, r}:
+      Nil{}
+
+# The text still to come: the sources' (after any records), the line end's,
+# then (before the end of the file) the pieces not given yet.
 def intext(+p: StP, +cs: List<&2, String>) -> String:
   match p:
-    case StP{o, md, +src, +pd, +eof, back, wp, asked, fneed}:
-      String.append(P.srcstext(src), String.append(P.pdtext(pd), concat_if(eof, cs)))
+    case StP{o, md, +src, +pd, +eof, back, wp, asked, fneed, dfs}:
+      String.append(P.srcstext(plain(src)), String.append(P.pdtext(pd), concat_if(eof, cs)))
 
 def StP.o(p: StP) -> B.Opts:
   match p:
-    case StP{o, md, src, pd, eof, back, wp, asked, fneed}:
+    case StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs}:
       o
 
 def StP.md(p: StP) -> MdP:
   match p:
-    case StP{o, md, src, pd, eof, back, wp, asked, fneed}:
+    case StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs}:
       md
+
+def StP.src(p: StP) -> List<&2, P.SrcP>:
+  match p:
+    case StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs}:
+      src
+
+def StP.dfs(p: StP) -> B.Defs:
+  match p:
+    case StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs}:
+      dfs
+
+# A record of a split line, from the run as it is: handled as a line with the
+# run unticked (its line was counted once, when it was split), or nothing
+# once the run has stopped (norm_seq.bend: sp.b, sp.s, the SR source).
+def rstep.if(halt: Bool, +fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts, st: R.RunSt, +l: B.Line) -> R.RunSt:
+  match halt:
+    case True{}:
+      st
+    case False{}:
+      L.line_step(fa, defs, o, Norm.rs_untick(st), l)
+
+def rstep(+fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts, +st: R.RunSt, +l: B.Line) -> R.RunSt:
+  rstep.if(R.RunSt.halt(st), fa, defs, o, st, l)
+
+def rgo(ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts, st: R.RunSt) -> R.RunSt:
+  match ls:
+    case Nil{}:
+      st
+    case +l <> t:
+      rgo(t, fa, defs, o, rstep(fa, defs, o, st, l))
+
+# The records waiting (record sources, in order), each a step rstep.
+def RG(rs: List<&2, P.SrcP>, +fa: List<&2, B.Contig>, +defs: B.Defs, +o: B.Opts, st: R.RunSt) -> R.RunSt:
+  match rs:
+    case Nil{}:
+      st
+    case Con{P.SPP{+len, +t, +d, +at}, r}:
+      RG(r, fa, defs, o, rgo(B.Text.lines(P.srctext(P.SPP{len, t, d, at})), fa, defs, o, st))
+    case Con{P.SRP{+l}, r}:
+      RG(r, fa, defs, o, rstep(fa, defs, o, st, l))
+    case Con{sp, r}:
+      st
+
+# The header's definitions run reads (L.defs): those read so far, then
+# those of the lines still to come before the #CHROM line.
+def DEFS(+p: StP, +cs: List<&2, String>) -> B.Defs:
+  L.defs.go(B.Text.lines(intext(p, cs)), R.RunSt.inbody(smd(StP.md(p))), StP.dfs(p))
 
 # The report a state leads to, with O and N collected by the driver and cs
 # the pieces not given yet: the spec's run over the lines still to come, from
@@ -99,7 +185,7 @@ def report.md(m: MdP, +fa: List<&2, B.Contig>, +cs: List<&2, String>, +O: String
     case MSP{s, +qs, ql, Some{+c}}:
       R.Report{String.append(O, Norm.cat(List.reverse(&2, String, qs))), List.append(&2, B.Note, N, P.RunSt.notes(s)), c}
     case m:
-      R.finish(L.run.go(B.Text.lines(intext(p, cs)), fa, StP.o(p), pre(O, N, smd(StP.md(p)))))
+      R.finish(L.run.go(B.Text.lines(intext(p, cs)), fa, DEFS(p, cs), StP.o(p), RG(recs(StP.src(p)), fa, DEFS(p, cs), StP.o(p), pre(O, N, smd(StP.md(p))))))
 
 def report(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +p: StP) -> R.Report:
   report.md(StP.md(p), fa, cs, O, N, p)
@@ -123,7 +209,7 @@ def srcs_ok(+sps: List<&2, P.SrcP>) -> Bool:
 
 def opts_args(o: B.Opts) -> List<&2, String>:
   match o:
-    case B.Opts{s, w, a}:
+    case B.Opts{s, w, m, z, a}:
       a
 
 def md_ok(+m: MdP) -> Bool:
@@ -163,14 +249,54 @@ def mb_win(+md: MdP, +wp: PC.WP) -> Bool:
     case MSP{s, qs, ql, code}:
       True{}
 
+# A record of a split line has one ALT (fewer than two), so it is not split
+# again.
+def one_alt(+l: B.Line) -> Bool:
+  Nat.is_lt(L.n_alts(B.Line.body(l)), 2n)
+
+def all_one(ls: List<&2, B.Line>) -> Bool:
+  match ls:
+    case Nil{}:
+      True{}
+    case +l <> t:
+      one_alt(l) && all_one(t)
+
+# A record buffer's text: whole lines, each a record (one ALT).
+def rtok(+s: String) -> Bool:
+  ends_lf(s) && all_one(B.Text.lines(s))
+
+# Record sources (-m) come first, each holding whole lines of one ALT each;
+# while any waits, the run is in the body and has counted their line
+# (n >= 1).
+def no_recs(+sps: List<&2, P.SrcP>) -> Bool:
+  match sps:
+    case Nil{}:
+      True{}
+    case Con{+sp, +t}:
+      Bool.not(is_rec(sp)) && no_recs(t)
+
+def recs_first(+sps: List<&2, P.SrcP>) -> Bool:
+  match sps:
+    case Nil{}:
+      True{}
+    case Con{P.SPP{+len, +t, +d, +at}, +r}:
+      rtok(P.srctext(P.SPP{len, t, d, at})) && recs_first(r)
+    case Con{P.SRP{+l}, +r}:
+      one_alt(l) && recs_first(r)
+    case Con{+sp, +r}:
+      no_recs(r)
+
+def recs_run(+md: MdP, +sps: List<&2, P.SrcP>) -> Bool:
+  List.is_empty(&2, P.SrcP, recs(sps)) || (R.RunSt.inbody(smd(md)) && Nat.is_le(1n, R.RunSt.n(smd(md))))
+
 def WF(+fa: List<&2, B.Contig>, +p: StP) -> Bool:
   match p:
-    case StP{o, +md, +src, +pd, +eof, back, +wp, asked, fneed}:
+    case StP{o, +md, +src, +pd, +eof, back, +wp, asked, fneed, dfs}:
       md_ok(md) && srcs_ok(src) && P.pd_ok(pd) && P.nolf(P.pdtext(pd))
         && (src_empty(src) || String.is_empty(P.pdtext(pd)))
         && (Bool.not(eof) || (String.is_empty(P.pdtext(pd)) && ends_lf(P.srcstext(src))))
         && PC.wp_ok(fa, wp) && mb_win(md, wp)
-        && E.all_bytes(opts_args(o))
+        && (E.all_bytes(opts_args(o)) && recs_first(src) && recs_run(md, src))
 
 # A measure of the work left in a state's input, as the pump's fuel counts
 # it (norm.bend, fuel.src): a byte source's bytes left plus 2, a text line 2,
@@ -182,6 +308,28 @@ def msrc1(+sp: P.SrcP) -> Nat:
       Nat.add(U32.to_nat((len - at : U32)), 2n)
     case P.SLP{p}:
       2n
+    case P.SPP{len, t, d, at}:
+      0n
+    case P.SRP{l}:
+      0n
+
+# The same for the records of split lines (they are not the input's own
+# text: a split line may make more record bytes than it had).
+def mrec1(+sp: P.SrcP) -> Nat:
+  match sp:
+    case P.SPP{+len, t, d, +at}:
+      Nat.add(U32.to_nat((len - at : U32)), 2n)
+    case P.SRP{l}:
+      2n
+    case _:
+      0n
+
+def mrec(+sps: List<&2, P.SrcP>) -> Nat:
+  match sps:
+    case Nil{}:
+      0n
+    case Con{+sp, t}:
+      Nat.add(mrec1(sp), mrec(t))
 
 def msrc(+sps: List<&2, P.SrcP>) -> Nat:
   match sps:
@@ -192,19 +340,19 @@ def msrc(+sps: List<&2, P.SrcP>) -> Nat:
 
 def measure(+p: StP) -> Nat:
   match p:
-    case StP{o, MBP{rp}, +src, pd, eof, back, wp, asked, fneed}:
+    case StP{o, MBP{rp}, +src, pd, eof, back, wp, asked, fneed, dfs}:
       Nat.add(msrc(src), 1n)
-    case StP{o, MSP{s, qs, ql, c}, +src, pd, eof, back, wp, asked, fneed}:
+    case StP{o, MSP{s, qs, ql, c}, +src, pd, eof, back, wp, asked, fneed, dfs}:
       msrc(src)
 
 def StP.eof(p: StP) -> Bool:
   match p:
-    case StP{o, md, src, pd, eof, back, wp, asked, fneed}:
+    case StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs}:
       eof
 
 def StP.asked(p: StP) -> Maybe<&2, List<&2, Pr.Req>>:
   match p:
-    case StP{o, md, src, pd, eof, back, wp, asked, fneed}:
+    case StP{o, md, src, pd, eof, back, wp, asked, fneed, dfs}:
       asked
 
 # The reads of one window, from the first read's contig and start to the
@@ -241,10 +389,10 @@ def asked_of(rs: List<&2, Pr.Req>) -> Maybe<&2, List<&2, Pr.Req>>:
     case r <> t:
       Some{r <> t}
 
-def StP.src(p: StP) -> List<&2, P.SrcP>:
-  match p:
-    case StP{o, md, src, pd, eof, back, wp, asked, fneed}:
-      src
+# Less work left: less of the input's own text, or as much and fewer records
+# (a split line leaves its records, which may be longer than it was).
+def less(+p2: StP, +p: StP) -> Bool:
+  Nat.is_lt(measure(p2), measure(p)) || (Nat.is_eq(measure(p2), measure(p)) && Nat.is_lt(mrec(StP.src(p2)), mrec(StP.src(p))))
 
 # ---------------------------------------------------------------------------
 # One line
@@ -265,29 +413,37 @@ def guard(+O: String, +N: List<&2, B.Note>, +p: StP) -> Bool:
 
 # What advance did in the byte mode (byte mode before and after): the
 # lines it handled, taken from the front of the text still to come, moved
-# into the run. In any other case nothing is claimed.
+# into the run. In every case the definitions of the text still to come
+# are kept (S.DEFS; the threads machine gives Q's to its tasks).
 # (m and m2 are p's and p2's runs: a match needs them as parameters.)
 def Moved.md(+m: MdP, +m2: MdP, +fa: List<&2, B.Contig>, +cs: List<&2, String>, +p: StP, +p2: StP) -> Type:
   match m m2:
     case MBP{+rp} MBP{+rp2}:
       &ls: List<&2, B.Line> -> ({B.Text.lines(intext(p, cs)) == List.append(&2, B.Line, ls, B.Text.lines(intext(p2, cs))) : List<&2, B.Line>}
-        & {P.settle(P.specRun(rp2)) == P.settle(L.run.go(ls, fa, StP.o(p), P.specRun(rp))) : R.RunSt})
+        & ({P.settle(RG(recs(StP.src(p2)), fa, DEFS(p, cs), StP.o(p), P.specRun(rp2))) == P.settle(L.run.go(ls, fa, DEFS(p, cs), StP.o(p), RG(recs(StP.src(p)), fa, DEFS(p, cs), StP.o(p), P.specRun(rp)))) : R.RunSt}
+        & {DEFS(p2, cs) == DEFS(p, cs) : B.Defs}))
     case _ _:
-      Unit
+      {DEFS(p2, cs) == DEFS(p, cs) : B.Defs}
 
 def Moved(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +p: StP, +p2: StP) -> Type:
   Moved.md(StP.md(p), StP.md(p2), fa, cs, p, p2)
 
 # What advance did to the input (from the byte mode): unless the rest of the
 # first source (a buffer) holds no LF, that source is the same buffer, from
-# some point on, before the same later sources. In any other case nothing is
+# some point on, before the same later sources (after the records of a line
+# split on its bytes, if any: plain drops them); when the first source holds
+# records, the plain sources are those after it. In any other case nothing is
 # claimed. (Phase F: a task takes its piece back from Q's input.)
 def Kept.sp(+sp: P.SrcP, +rest: List<&2, P.SrcP>, +s2: List<&2, P.SrcP>) -> Type:
   match sp:
     case P.SBP{+len, +t, +d, +at}:
-      {P.nolf(P.srctext(P.SBP{len, t, d, at})) == False{} : Bool} -> (&at2: U32 -> {s2 == Con{P.SBP{len, t, d, at2}, rest} : List<&2, P.SrcP>})
+      {P.nolf(P.srctext(P.SBP{len, t, d, at})) == False{} : Bool} -> (&at2: U32 -> {plain(s2) == Con{P.SBP{len, t, d, at2}, rest} : List<&2, P.SrcP>})
     case P.SLP{+q}:
       Unit
+    case P.SPP{+len, +t, +d, +at}:
+      {plain(s2) == plain(rest) : List<&2, P.SrcP>}
+    case P.SRP{+l}:
+      {plain(s2) == plain(rest) : List<&2, P.SrcP>}
 
 def Kept.s(+s1: List<&2, P.SrcP>, +s2: List<&2, P.SrcP>) -> Type:
   match s1:
@@ -315,7 +471,7 @@ def AdvG(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: Strin
   match a:
     case Norm.Went{st}:
       &p2: StP -> ({st == mkSt(fa, p2) : Norm.St} & ({WF(fa, p2) == True{} : Bool} & ({report(fa, cs, O, N, p2) == T : R.Report}
-        & ({Nat.is_lt(measure(p2), measure(p)) == True{} : Bool} & ({StP.asked(p2) == None{} : Maybe<&2, List<&2, Pr.Req>>} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & (Moved(fa, cs, p, p2) & Kept(p, p2))))))))))
+        & ({less(p2, p) == True{} : Bool} & ({StP.asked(p2) == None{} : Maybe<&2, List<&2, Pr.Req>>} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & (Moved(fa, cs, p, p2) & Kept(p, p2))))))))))
     case Norm.Want{st, reqs}:
       &p2: StP -> ({st == mkSt(fa, p2) : Norm.St} & ({WF(fa, p2) == True{} : Bool} & ({report(fa, cs, O, N, p2) == T : R.Report}
         & ({E.reqs_ok(reqs) == True{} : Bool} & ({reqs == rq(reqs) : List<&2, Pr.Req>} & ({StP.asked(p2) == asked_of(reqs) : Maybe<&2, List<&2, Pr.Req>>} & ({stopped(StP.md(p2)) == False{} : Bool} & ({mb_reqs(StP.md(p2), reqs) == True{} : Bool} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & (Moved(fa, cs, p, p2) & Kept(p, p2)))))))))))))
@@ -324,7 +480,7 @@ def AdvG(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: Strin
         & ({src_empty(StP.src(p2)) == True{} : Bool} & ({StP.asked(p2) == StP.asked(p) : Maybe<&2, List<&2, Pr.Req>>} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({stopped(StP.md(p2)) == False{} : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & (Moved(fa, cs, p, p2) & Kept(p, p2)))))))))))
     case Norm.Ended{st}:
       &p2: StP -> ({st == mkSt(fa, p2) : Norm.St} & ({WF(fa, p2) == True{} : Bool} & ({report(fa, cs, O, N, p2) == T : R.Report}
-        & ({StP.asked(p2) == StP.asked(p) : Maybe<&2, List<&2, Pr.Req>>} & ({stopped(StP.md(p2)) == True{} : Bool} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & Kept(p, p2)))))))))
+        & ({StP.asked(p2) == StP.asked(p) : Maybe<&2, List<&2, Pr.Req>>} & ({stopped(StP.md(p2)) == True{} : Bool} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & ({DEFS(p2, cs) == DEFS(p, cs) : B.Defs} & Kept(p, p2))))))))))
     case Norm.Yield{st}:
       &p2: StP -> ({st == mkSt(fa, p2) : Norm.St} & ({WF(fa, p2) == True{} : Bool} & ({report(fa, cs, O, N, p2) == T : R.Report}
-        & ({StP.asked(p2) == StP.asked(p) : Maybe<&2, List<&2, Pr.Req>>} & ({stopped(StP.md(p2)) == False{} : Bool} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & Kept(p, p2)))))))))
+        & ({StP.asked(p2) == StP.asked(p) : Maybe<&2, List<&2, Pr.Req>>} & ({stopped(StP.md(p2)) == False{} : Bool} & ({StP.eof(p2) == StP.eof(p) : Bool} & ({guard(O, N, p2) == True{} : Bool} & ({StP.o(p2) == StP.o(p) : B.Opts} & ({DEFS(p2, cs) == DEFS(p, cs) : B.Defs} & Kept(p, p2))))))))))

@@ -199,9 +199,46 @@ def body_q(+r: B.Res, +st: R.RunSt, +o: B.Opts, +l: B.Line, +at: B.At, +inpos: N
     case B.Res{B.Normalized{}, +k, +t, +s}:
       keyed_q(st, R.Opts.w(o), R.Item{k, inpos, at, String.append(t, B.Line.term(l))}, R.stale_note(s, at), R.bump(R.RunSt.cnt(st), Bool.not(String.eq(t, B.Line.body(l))), False{}, False{}))
 
+# A split line's records, each as a body line (LAWS.bend's pieces_in).
+def pin_q(halted: Bool, +p: String, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +term: String, +at: B.At, +inpos: Nat) ->
+  {Q2(st, L.piece_in(halted, p, fa, o, st, term, at, inpos)) == True{} : Bool}:
+  match halted:
+    case True{}:
+      q2_refl(st)
+    case False{}:
+      body_q(L.judge(fa, p), st, o, B.Line{p, term}, at, inpos)
+
+def pins_q(ps: List<&2, String>, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +term: String, +at: B.At, +inpos: Nat) ->
+  {Q2(st, L.pieces_in(ps, fa, o, st, term, at, inpos)) == True{} : Bool}:
+  match ps:
+    case Nil{}:
+      q2_refl(st)
+    case +p <> +t:
+      +st1 = L.piece_in(R.RunSt.halt(st), p, fa, o, st, term, at, inpos)
+      q2_trans(st, st1, L.pieces_in(t, fa, o, st1, term, at, inpos), pin_q(R.RunSt.halt(st), p, fa, o, st, term, at, inpos), pins_q(t, fa, o, st1, term, at, inpos))
+
+def uns_q(b: Bool, +r: B.Res, +c: B.Code, +o: B.Opts, +st: R.RunSt, +l: B.Line, +at: B.At, +inpos: Nat) ->
+  {Q2(st, Bool.pick(R.RunSt, b, R.body_line(r, st, o, l, at, inpos), R.problem_line(R.Opts.strict(o), st, R.Opts.w(o), c, l, at, inpos))) == True{} : Bool}:
+  match b:
+    case True{}:
+      body_q(r, st, o, l, at, inpos)
+    case False{}:
+      prob_q(R.Opts.strict(o), st, R.Opts.w(o), c, l, at, inpos)
+
+# A body line by what -m does with it (LAWS.bend's body_in).
+def bin_q(pt: B.Parts, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +l: B.Line, +at: B.At, +inpos: Nat) ->
+  {Q2(st, L.body_in(pt, fa, o, st, l, at, inpos)) == True{} : Bool}:
+  match pt:
+    case B.Whole{}:
+      body_q(L.judge(fa, B.Line.body(l)), st, o, l, at, inpos)
+    case B.Pieces{ps}:
+      pins_q(ps, fa, o, st, B.Line.term(l), at, inpos)
+    case B.Unsplit{+c}:
+      uns_q(L.stops(L.judge(fa, B.Line.body(l)), R.Opts.strict(o)), L.judge(fa, B.Line.body(l)), c, o, st, l, at, inpos)
+
 # One line, in the body.
-def step_q(+fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +l: B.Line, +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
-  {Q2(st, L.line_step(fa, o, st, l)) == True{} : Bool}:
+def step_q(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +l: B.Line, +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
+  {Q2(st, L.line_step(fa, dfs, o, st, l)) == True{} : Bool}:
   match st:
     case R.RunSt{+n, +i, +h, +c, +e, +la, +b, +k, +ou, +ns, True{}}:
       q2_refl(R.RunSt{n, i, h, c, e, la, b, k, ou, ns, True{}})
@@ -210,23 +247,24 @@ def step_q(+fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +l: B.Line, +hin: 
       +st1 = R.tick(st0)
       +fs = B.Rec.fields(B.Line.body(l))
       +at = {B.At{R.RunSt.n(st1), B.Rec.field(fs, 0n), B.Rec.field(fs, 1n)} : B.At}
-      q2_trans(st0, st1, R.body_line(L.judge(fa, B.Line.body(l)), st1, o, l, at, B.Rec.pos(fs)),
+      q2_trans(st0, st1, L.body_in(B.Rec.parts(dfs, o, B.Line.body(l)), fa, o, st1, l, at, B.Rec.pos(fs)),
         q2_ext(st0, st1, "", Equal.sym(String, String.append(ou, ""), ou, PN.str_nil(ou)), {==}),
-        body_q(L.judge(fa, B.Line.body(l)), st1, o, l, at, B.Rec.pos(fs)))
+        bin_q(B.Rec.parts(dfs, o, B.Line.body(l)), fa, o, st1, l, at, B.Rec.pos(fs)))
     case R.RunSt{+n, False{}, +h, +c, +e, +la, +b, +k, +ou, +ns, False{}}:
-      Empty.absurd({Q2(R.RunSt{n, False{}, h, c, e, la, b, k, ou, ns, False{}}, L.line_step(fa, o, R.RunSt{n, False{}, h, c, e, la, b, k, ou, ns, False{}}, l)) == True{} : Bool},
+      Empty.absurd({Q2(R.RunSt{n, False{}, h, c, e, la, b, k, ou, ns, False{}}, L.line_step(fa, dfs, o, R.RunSt{n, False{}, h, c, e, la, b, k, ou, ns, False{}}, l)) == True{} : Bool},
         AB.false_ne_true(hin))
 
-def run_q(+ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
-  {Q2(st, L.run.go(ls, fa, o, st)) == True{} : Bool}:
+
+def run_q(+dfs: B.Defs, +ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, +st: R.RunSt, +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
+  {Q2(st, L.run.go(ls, fa, dfs, o, st)) == True{} : Bool}:
   match ls:
     case Nil{}:
       q2_refl(st)
     case +l <> +t:
-      +st1 = L.line_step(fa, o, st, l)
-      +h1 = step_q(fa, o, st, l, hin)
-      q2_trans(st, st1, L.run.go(t, fa, o, st1), h1,
-        run_q(t, fa, o, st1, beq_true(R.RunSt.inbody(st), R.RunSt.inbody(st1), q2_ib(st, st1, h1), hin)))
+      +st1 = L.line_step(fa, dfs, o, st, l)
+      +h1 = step_q(dfs, fa, o, st, l, hin)
+      q2_trans(st, st1, L.run.go(t, fa, dfs, o, st1), h1,
+        run_q(dfs, t, fa, o, st1, beq_true(R.RunSt.inbody(st), R.RunSt.inbody(st1), q2_ib(st, st1, h1), hin)))
 
 # The end, in the body.
 def ffl_q(+f: R.Flush, +o: String, +ns: List<&2, B.Note>, +k: R.Cnt) ->
@@ -259,16 +297,76 @@ def pre_out(+O: String, +N: List<&2, B.Note>, +st: R.RunSt) -> {Nat.is_le(String
     case R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, +x}:
       len_app(O, o)
 
-def run_out(+ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, +O: String, +N: List<&2, B.Note>, +st: R.RunSt,
+def run_out(+dfs: B.Defs, +ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, +O: String, +N: List<&2, B.Note>, +st: R.RunSt,
   +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
-  {Nat.is_le(String.length(O), String.length(R.Report.out(R.finish(L.run.go(ls, fa, o, S.pre(O, N, st)))))) == True{} : Bool}:
+  {Nat.is_le(String.length(O), String.length(R.Report.out(R.finish(L.run.go(ls, fa, dfs, o, S.pre(O, N, st)))))) == True{} : Bool}:
   +s0 = S.pre(O, N, st)
   +hin0 = Equal.trans(Bool, R.RunSt.inbody(s0), R.RunSt.inbody(st), True{}, pre_ib(O, N, st), hin)
-  +h1 = run_q(ls, fa, o, s0, hin0)
-  +sF = L.run.go(ls, fa, o, s0)
+  +h1 = run_q(dfs, ls, fa, o, s0, hin0)
+  +sF = L.run.go(ls, fa, dfs, o, s0)
   N.le_trans(String.length(O), String.length(P.RunSt.out(s0)), String.length(R.Report.out(R.finish(sF))), pre_out(O, N, st),
     N.le_trans(String.length(P.RunSt.out(s0)), String.length(P.RunSt.out(sF)), String.length(R.Report.out(R.finish(sF))), q2_le(s0, sF, h1),
       fin_q(sF, beq_true(R.RunSt.inbody(s0), R.RunSt.inbody(sF), q2_ib(s0, sF, h1), hin0))))
+
+# The records still waiting (S.RG): each a step from the unticked run.
+def ut_q(+st: R.RunSt) -> {Q2(st, Norm.rs_untick(st)) == True{} : Bool}:
+  match st:
+    case R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o, +ns, +x}:
+      q2_ext(R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}, Norm.rs_untick(R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}), "", Equal.sym(String, String.append(o, ""), o, PN.str_nil(o)), {==})
+
+def rsi_q(halt: Bool, +fa: List<&2, B.Contig>, +dfs: B.Defs, +o: B.Opts, +st: R.RunSt, +l: B.Line, +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
+  {Q2(st, S.rstep.if(halt, fa, dfs, o, st, l)) == True{} : Bool}:
+  match halt:
+    case True{}:
+      q2_refl(st)
+    case False{}:
+      +u = Norm.rs_untick(st)
+      +hu = ut_q(st)
+      q2_trans(st, u, L.line_step(fa, dfs, o, u, l), hu, step_q(dfs, fa, o, u, l, beq_true(R.RunSt.inbody(st), R.RunSt.inbody(u), q2_ib(st, u, hu), hin)))
+
+def rgo_q(ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +dfs: B.Defs, +o: B.Opts, +st: R.RunSt, +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
+  {Q2(st, S.rgo(ls, fa, dfs, o, st)) == True{} : Bool}:
+  match ls:
+    case Nil{}:
+      q2_refl(st)
+    case +l <> +t:
+      +st1 = S.rstep(fa, dfs, o, st, l)
+      +h1 = rsi_q(R.RunSt.halt(st), fa, dfs, o, st, l, hin)
+      q2_trans(st, st1, S.rgo(t, fa, dfs, o, st1), h1, rgo_q(t, fa, dfs, o, st1, beq_true(R.RunSt.inbody(st), R.RunSt.inbody(st1), q2_ib(st, st1, h1), hin)))
+
+def rg_q(rs: List<&2, P.SrcP>, +fa: List<&2, B.Contig>, +dfs: B.Defs, +o: B.Opts, +st: R.RunSt, +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
+  {Q2(st, S.RG(rs, fa, dfs, o, st)) == True{} : Bool}:
+  match rs:
+    case Nil{}:
+      q2_refl(st)
+    case Con{P.SPP{+len, +t, +d, +at}, +r}:
+      +st1 = S.rgo(B.Text.lines(P.srctext(P.SPP{len, t, d, at})), fa, dfs, o, st)
+      +h1 = rgo_q(B.Text.lines(P.srctext(P.SPP{len, t, d, at})), fa, dfs, o, st, hin)
+      q2_trans(st, st1, S.RG(r, fa, dfs, o, st1), h1, rg_q(r, fa, dfs, o, st1, beq_true(R.RunSt.inbody(st), R.RunSt.inbody(st1), q2_ib(st, st1, h1), hin)))
+    case Con{P.SRP{+l}, +r}:
+      +st1 = S.rstep(fa, dfs, o, st, l)
+      +h1 = rsi_q(R.RunSt.halt(st), fa, dfs, o, st, l, hin)
+      q2_trans(st, st1, S.RG(r, fa, dfs, o, st1), h1, rg_q(r, fa, dfs, o, st1, beq_true(R.RunSt.inbody(st), R.RunSt.inbody(st1), q2_ib(st, st1, h1), hin)))
+    case Con{P.SBP{+len, +t, +d, +at}, +r}:
+      q2_refl(st)
+    case Con{P.SLP{+q}, +r}:
+      q2_refl(st)
+
+# The same with the records first.
+def run_out2(+dfs: B.Defs, +rs: List<&2, P.SrcP>, +ls: List<&2, B.Line>, +fa: List<&2, B.Contig>, +o: B.Opts, +O: String, +N: List<&2, B.Note>, +st: R.RunSt,
+  +hin: {R.RunSt.inbody(st) == True{} : Bool}) ->
+  {Nat.is_le(String.length(O), String.length(R.Report.out(R.finish(L.run.go(ls, fa, dfs, o, S.RG(rs, fa, dfs, o, S.pre(O, N, st))))))) == True{} : Bool}:
+  +s0 = S.pre(O, N, st)
+  +hin0 = Equal.trans(Bool, R.RunSt.inbody(s0), R.RunSt.inbody(st), True{}, pre_ib(O, N, st), hin)
+  +s1 = S.RG(rs, fa, dfs, o, s0)
+  +h0 = rg_q(rs, fa, dfs, o, s0, hin0)
+  +hin1 = beq_true(R.RunSt.inbody(s0), R.RunSt.inbody(s1), q2_ib(s0, s1, h0), hin0)
+  +h1 = run_q(dfs, ls, fa, o, s1, hin1)
+  +sF = L.run.go(ls, fa, dfs, o, s1)
+  N.le_trans(String.length(O), String.length(P.RunSt.out(s0)), String.length(R.Report.out(R.finish(sF))), pre_out(O, N, st),
+    N.le_trans(String.length(P.RunSt.out(s0)), String.length(P.RunSt.out(s1)), String.length(R.Report.out(R.finish(sF))), q2_le(s0, s1, h0),
+      N.le_trans(String.length(P.RunSt.out(s1)), String.length(P.RunSt.out(sF)), String.length(R.Report.out(R.finish(sF))), q2_le(s1, sF, h1),
+        fin_q(sF, beq_true(R.RunSt.inbody(s1), R.RunSt.inbody(sF), q2_ib(s1, sF, h1), hin1)))))
 
 # The guard's two cases.
 def len0(+s: String, +h: {String.is_empty(s) == True{} : Bool}, +m: Nat) -> {Nat.is_le(String.length(s), m) == True{} : Bool}:
@@ -292,18 +390,19 @@ def hop_k(+fa: List<&2, B.Contig>, +cs: List<&2, String>, +O: String, +N: List<&
   +hg: {S.guard(O, N, p) == True{} : Bool}) ->
   {Nat.is_le(String.length(O), String.length(R.Report.out(S.report(fa, cs, O, N, p)))) == True{} : Bool}:
   match p:
-    case S.StP{+o, S.MSP{+s, +qs, +ql, Some{+c}}, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+    case S.StP{+o, S.MSP{+s, +qs, +ql, Some{+c}}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
       len_app(O, Norm.cat(List.reverse(&2, String, qs)))
-    case S.StP{+o, S.MSP{+s, +qs, +ql, None{}}, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+    case S.StP{+o, S.MSP{+s, +qs, +ql, None{}}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
       +st = S.smd(S.MSP{s, qs, ql, None{}})
-      +ls = B.Text.lines(S.intext(S.StP{o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed}, cs))
-      gcase(R.RunSt.inbody(st), O, N, String.length(R.Report.out(R.finish(L.run.go(ls, fa, o, S.pre(O, N, st))))), hg,
-        hib => run_out(ls, fa, o, O, N, st, hib))
-    case S.StP{+o, S.MBP{+rp}, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
+      +ls = B.Text.lines(S.intext(S.StP{o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}, cs))
+      gcase(R.RunSt.inbody(st), O, N, String.length(R.Report.out(R.finish(L.run.go(ls, fa, S.DEFS(S.StP{o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}, cs), o, S.RG(S.recs(src), fa, S.DEFS(S.StP{o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}, cs), o, S.pre(O, N, st)))))), hg,
+        hib => run_out2(S.DEFS(S.StP{o, S.MSP{s, qs, ql, None{}}, src, pd, eof, back, wp, asked, fneed, dfs}, cs), S.recs(src), ls, fa, o, O, N, st, hib))
+    case S.StP{+o, S.MBP{+rp}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
       +st = S.smd(S.MBP{rp})
-      +ls = B.Text.lines(S.intext(S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}, cs))
-      gcase(R.RunSt.inbody(st), O, N, String.length(R.Report.out(R.finish(L.run.go(ls, fa, o, S.pre(O, N, st))))), hg,
-        hib => run_out(ls, fa, o, O, N, st, hib))
+      +ls = B.Text.lines(S.intext(S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}, cs))
+      gcase(R.RunSt.inbody(st), O, N, String.length(R.Report.out(R.finish(L.run.go(ls, fa, S.DEFS(S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}, cs), o, S.RG(S.recs(src), fa, S.DEFS(S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}, cs), o, S.pre(O, N, st)))))), hg,
+        hib => run_out2(S.DEFS(S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}, cs), S.recs(src), ls, fa, o, O, N, st, hib))
+
 
 # R1.
 def hop(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +p: S.StP,
@@ -347,10 +446,10 @@ def spec_out_len(+rp: P.RunP, +hi: {RD.RunInv(rp) == True{} : Bool}, +hy: {U32.i
         Equal.trans(Bool, Nat.is_le(U32.to_nat(1073741824), W), U32.is_le(1073741824, ow), True{}, Equal.sym(Bool, U32.is_le(1073741824, ow), Nat.is_le(U32.to_nat(1073741824), W), U.is_le_to_nat(1073741824, ow)), hy))
       AB.subst(Nat, z => {Nat.is_le(256n, z) == True{} : Bool}, W, String.length(String.take(X, W)), Equal.sym(Nat, String.length(String.take(X, W)), W, RI.s_len_take(X, W, hkX)), h256)
 
-def yo_mb(+fa: List<&2, B.Contig>, +o: B.Opts, +rp: P.RunP, +src: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool, +t: String,
+def yo_mb(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +rp: P.RunP, +src: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool, +t: String,
   +hi: {RD.RunInv(rp) == True{} : Bool},
   +hy: {U32.is_le(1073741824, P.RunP.ow(rp)) == True{} : Bool},
-  +ht: {BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}), Pr.Ask{Nil{}})) == Some{t} : Maybe<&2, String>},
+  +ht: {BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}), Pr.Ask{Nil{}})) == Some{t} : Maybe<&2, String>},
   tk: DO.TakeR(rp, DO.lsum(src))) ->
   {Nat.is_le(256n, String.length(t)) == True{} : Bool}:
   (+ol, tk1) = tk
@@ -371,12 +470,12 @@ def yo_mb(+fa: List<&2, B.Contig>, +o: B.Opts, +rp: P.RunP, +src: List<&2, P.Src
       Equal.trans(String, E.chars(D.view(C.BT(ol, ot))), NR.chars(D.view(C.BT(ol, ot))), t2, DO.chars_nr(D.view(C.BT(ol, ot))), ech)))
   +hs = {
     %Equal.sym(List<&1, Norm.Src> & U32, Norm.left(P.mkSrcs(src)), (P.mkSrcs(src), DO.lsum(src)), DO.left_eq(src)) :
-      {BN.sout(Norm.out.left(o, Norm.MB{P.mkRun(rp)}, _, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, Pr.Ask{Nil{}})) == Some{t2} : Maybe<&2, String>}
+      {BN.sout(Norm.out.left(o, Norm.MB{P.mkRun(rp)}, _, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs, Pr.Ask{Nil{}})) == Some{t2} : Maybe<&2, String>}
     %Equal.sym((D.Bytes & List<&2, B.Note>) & NR.Run, NR.take(P.mkRun(rp), DO.lsum(src)), ((C.BT(ol, ot), ns), P.mkRun(rp2)), e1) :
-      {BN.sout(Norm.out.k(Norm.md.take.k(_), o, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, Pr.Ask{Nil{}})) == Some{t2} : Maybe<&2, String>}
-    eout : {BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}), Pr.Ask{Nil{}})) == Some{t2} : Maybe<&2, String>}}
-  +tt = some_inj(t, t2, Equal.trans(Maybe<&2, String>, Some{t}, BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}), Pr.Ask{Nil{}})), Some{t2},
-    Equal.sym(Maybe<&2, String>, BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}), Pr.Ask{Nil{}})), Some{t}, ht), hs))
+      {BN.sout(Norm.out.k(Norm.md.take.k(_), o, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs, Pr.Ask{Nil{}})) == Some{t2} : Maybe<&2, String>}
+    eout : {BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}), Pr.Ask{Nil{}})) == Some{t2} : Maybe<&2, String>}}
+  +tt = some_inj(t, t2, Equal.trans(Maybe<&2, String>, Some{t}, BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}), Pr.Ask{Nil{}})), Some{t2},
+    Equal.sym(Maybe<&2, String>, BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}), Pr.Ask{Nil{}})), Some{t}, ht), hs))
   AB.subst(String, z => {Nat.is_le(256n, String.length(z)) == True{} : Bool}, t2, t, Equal.sym(String, t, t2, tt), spec_out_len(rp, hi, hy))
 
 # The String mode: take_w's first part has min(|s|, w) characters at least.
@@ -417,10 +516,10 @@ def tg(+s: String, +z: Bool, +w: U32, +ez: {U32.is_zero(w) == z : Bool}, +q: Nat
         {Nat.is_le(1n+q2, String.length(Norm.Cut2.now(Norm.take_w.cons(a, _)))) == True{} : Bool}
       ih
 
-def yo_ms2(+fa: List<&2, B.Contig>, +o: B.Opts, +n: Nat, +i: Bool, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +l: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o2: String, +ns: List<&2, B.Note>, +x: Bool,
+def yo_ms2(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +n: Nat, +i: Bool, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +l: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o2: String, +ns: List<&2, B.Note>, +x: Bool,
   +qs: List<&2, String>, +ql: Nat, +code: Maybe<&2, Nat>, +src: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool, +t: String,
   +h256: {Nat.is_le(256n, String.length(Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)))) == True{} : Bool},
-  +ht: {BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, src, pd, eof, back, wp, asked, fneed}), Pr.Ask{Nil{}})) == Some{t} : Maybe<&2, String>},
+  +ht: {BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, src, pd, eof, back, wp, asked, fneed, dfs}), Pr.Ask{Nil{}})) == Some{t} : Maybe<&2, String>},
   os: &ol: U32 -> &ot: AT.Tree<U32> -> &d: Nat -> ({NR.of_str(Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))) == C.BT(ol, ot) : D.Bytes}
     & ({D.ok(C.BT(ol, ot), d) == True{} : Bool} & {NR.chars(D.view(C.BT(ol, ot))) == Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)) : String}))) ->
   {Nat.is_le(256n, String.length(t)) == True{} : Bool}:
@@ -435,21 +534,21 @@ def yo_ms2(+fa: List<&2, B.Contig>, +o: B.Opts, +n: Nat, +i: Bool, +h: String, +
       Equal.trans(String, E.chars(D.view(C.BT(ol, ot))), NR.chars(D.view(C.BT(ol, ot))), Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), DO.chars_nr(D.view(C.BT(ol, ot))), ech)))
   +hs = {
     %Equal.sym(List<&1, Norm.Src> & U32, Norm.left(P.mkSrcs(src)), (P.mkSrcs(src), DO.lsum(src)), DO.left_eq(src)) :
-      {BN.sout(Norm.out.left(o, Norm.MS{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, _, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, Pr.Ask{Nil{}})) == Some{Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))} : Maybe<&2, String>}
+      {BN.sout(Norm.out.left(o, Norm.MS{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, _, P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs, Pr.Ask{Nil{}})) == Some{Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))} : Maybe<&2, String>}
     %Equal.sym(Norm.Cut2, Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824), Norm.Cut2{Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), Norm.Cut2.later(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))}, DO.cut_eta(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))) :
-      {BN.sout(Norm.out.k(Norm.ms.take.c(_, R.RunSt{n, i, h, c, e, l, b, k, o2, Nil{}, x}, ns, code), o, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, Pr.Ask{Nil{}})) == Some{Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))} : Maybe<&2, String>}
+      {BN.sout(Norm.out.k(Norm.ms.take.c(_, R.RunSt{n, i, h, c, e, l, b, k, o2, Nil{}, x}, ns, code), o, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs, Pr.Ask{Nil{}})) == Some{Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))} : Maybe<&2, String>}
     %Equal.sym(D.Bytes, NR.of_str(Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))), C.BT(ol, ot), e1) :
-      {BN.sout(Norm.out.k(((_, ns), Norm.MS{R.RunSt{n, i, h, c, e, l, b, k, o2, Nil{}, x}, [Norm.Cut2.later(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))], String.length(Norm.Cut2.later(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))), code}), o, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, Pr.Ask{Nil{}})) == Some{Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))} : Maybe<&2, String>}
-    eout : {BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, src, pd, eof, back, wp, asked, fneed}), Pr.Ask{Nil{}})) == Some{Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))} : Maybe<&2, String>}}
-  +tt = some_inj(t, Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), Equal.trans(Maybe<&2, String>, Some{t}, BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, src, pd, eof, back, wp, asked, fneed}), Pr.Ask{Nil{}})), Some{Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))},
-    Equal.sym(Maybe<&2, String>, BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, src, pd, eof, back, wp, asked, fneed}), Pr.Ask{Nil{}})), Some{t}, ht), hs))
+      {BN.sout(Norm.out.k(((_, ns), Norm.MS{R.RunSt{n, i, h, c, e, l, b, k, o2, Nil{}, x}, [Norm.Cut2.later(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))], String.length(Norm.Cut2.later(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))), code}), o, P.mkSrcs(src), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), asked, fneed, dfs, Pr.Ask{Nil{}})) == Some{Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))} : Maybe<&2, String>}
+    eout : {BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, src, pd, eof, back, wp, asked, fneed, dfs}), Pr.Ask{Nil{}})) == Some{Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))} : Maybe<&2, String>}}
+  +tt = some_inj(t, Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), Equal.trans(Maybe<&2, String>, Some{t}, BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, src, pd, eof, back, wp, asked, fneed, dfs}), Pr.Ask{Nil{}})), Some{Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))},
+    Equal.sym(Maybe<&2, String>, BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, src, pd, eof, back, wp, asked, fneed, dfs}), Pr.Ask{Nil{}})), Some{t}, ht), hs))
   AB.subst(String, z => {Nat.is_le(256n, String.length(z)) == True{} : Bool}, Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), t, Equal.sym(String, t, Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), tt), h256)
 
-def yo_ms1(+fa: List<&2, B.Contig>, +o: B.Opts, +n: Nat, +i: Bool, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +l: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o2: String, +ns: List<&2, B.Note>, +x: Bool,
+def yo_ms1(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +n: Nat, +i: Bool, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>, +l: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +o2: String, +ns: List<&2, B.Note>, +x: Bool,
   +qs: List<&2, String>, +ql: Nat, +code: Maybe<&2, Nat>, +src: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +asked: Maybe<&2, List<&2, Pr.Req>>, +fneed: Bool, +t: String,
   +hmd: {S.md_ok(S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}) == True{} : Bool},
   +hy: {Nat.is_le(Norm.lim(), ql) == True{} : Bool},
-  +ht: {BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, src, pd, eof, back, wp, asked, fneed}), Pr.Ask{Nil{}})) == Some{t} : Maybe<&2, String>},
+  +ht: {BN.sout(Norm.out(S.mkSt(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, src, pd, eof, back, wp, asked, fneed, dfs}), Pr.Ask{Nil{}})) == Some{t} : Maybe<&2, String>},
   tw: {String.append(Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), Norm.Cut2.later(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))) == Norm.cat(List.reverse(&2, String, qs)) : String} & {Norm.len_le(Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), 1073741824) == True{} : Bool}) ->
   {Nat.is_le(256n, String.length(t)) == True{} : Bool}:
   (+hcat, hlen) = tw
@@ -458,16 +557,16 @@ def yo_ms1(+fa: List<&2, B.Contig>, +o: B.Opts, +n: Nat, +i: Bool, +h: String, +
   +hbn = DO.bytes_l(Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), Norm.Cut2.later(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), AB.subst(String, z => {E.is_bytes(z) == True{} : Bool}, Norm.cat(List.reverse(&2, String, qs)), String.append(Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), Norm.Cut2.later(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))), Equal.sym(String, String.append(Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), Norm.Cut2.later(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824))), Norm.cat(List.reverse(&2, String, qs)), hcat), hbc))
   +hq = AB.subst(Nat, v => {Nat.is_le(256n, v) == True{} : Bool}, ql, String.length(Norm.cat(List.reverse(&2, String, qs))), hql, N.le_trans(256n, Norm.lim(), ql, {==}, hy))
   +h256 = tg(Norm.cat(List.reverse(&2, String, qs)), U32.is_zero(1073741824), 1073741824, {==}, 256n, hq, c256())
-  yo_ms2(fa, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, code, src, pd, eof, back, wp, asked, fneed, t, h256, ht, RN.of_str(Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), hbn, hlen))
+  yo_ms2(dfs, fa, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, code, src, pd, eof, back, wp, asked, fneed, t, h256, ht, RN.of_str(Norm.Cut2.now(Norm.take_w(Norm.cat(List.reverse(&2, String, qs)), 1073741824)), hbn, hlen))
 
 # R2.
 def yield_out(+fa: List<&2, B.Contig>, +p: S.StP, +hw: {S.WF(fa, p) == True{} : Bool}, +hy: {BD.yc(p) == True{} : Bool}, +t: String,
   +ht: {BN.sout(Norm.out(S.mkSt(fa, p), Pr.Ask{Nil{}})) == Some{t} : Maybe<&2, String>}) ->
   {Nat.is_le(256n, String.length(t)) == True{} : Bool}:
   match p:
-    case S.StP{+o, S.MBP{+rp}, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
-      +hi = DO.wf_md(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed}, hw)
-      yo_mb(fa, o, rp, src, pd, eof, back, wp, asked, fneed, t, hi, hy, ht, RN.run_take(rp, DO.lsum(src), hi))
-    case S.StP{+o, S.MSP{R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o2, +ns, +x}, +qs, +ql, +code}, +src, +pd, +eof, +back, +wp, +asked, +fneed}:
-      yo_ms1(fa, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, code, src, pd, eof, back, wp, asked, fneed, t,
-        DO.wf_md(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, src, pd, eof, back, wp, asked, fneed}, hw), hy, ht, LIT.take_w_ok(Norm.cat(List.reverse(&2, String, qs)), 1073741824))
+    case S.StP{+o, S.MBP{+rp}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      +hi = DO.wf_md(fa, S.StP{o, S.MBP{rp}, src, pd, eof, back, wp, asked, fneed, dfs}, hw)
+      yo_mb(dfs, fa, o, rp, src, pd, eof, back, wp, asked, fneed, t, hi, hy, ht, RN.run_take(rp, DO.lsum(src), hi))
+    case S.StP{+o, S.MSP{R.RunSt{+n, +i, +h, +c, +e, +l, +b, +k, +o2, +ns, +x}, +qs, +ql, +code}, +src, +pd, +eof, +back, +wp, +asked, +fneed, +dfs}:
+      yo_ms1(dfs, fa, o, n, i, h, c, e, l, b, k, o2, ns, x, qs, ql, code, src, pd, eof, back, wp, asked, fneed, t,
+        DO.wf_md(fa, S.StP{o, S.MSP{R.RunSt{n, i, h, c, e, l, b, k, o2, ns, x}, qs, ql, code}, src, pd, eof, back, wp, asked, fneed, dfs}, hw), hy, ht, LIT.take_w_ok(Norm.cat(List.reverse(&2, String, qs)), 1073741824))

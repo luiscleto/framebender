@@ -137,10 +137,22 @@ def res_text(r: B.Res) -> String:
 # ---------------------------------------------------------------------------
 
 # A source: bytes from at on of a mirrored buffer (with the depth d of its
-# block), or one line's text.
+# block), or one line's text; or (-m) the records of a split line: their
+# bytes from at on (SPP, Norm.SP), or one record as its exact line (SRP,
+# Norm.SR).
 type SrcP is Data:
   SBP{len: U32, t: AT.Tree<U32>, d: Nat, at: U32}
   SLP{p: String}
+  SPP{len: U32, t: AT.Tree<U32>, d: Nat, at: U32}
+  SRP{l: B.Line}
+
+# A byte source: plain lines, or the records of a split line (hold).
+def SXP(+hold: Bool, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32) -> SrcP:
+  match hold:
+    case True{}:
+      SPP{len, t, d, at}
+    case False{}:
+      SBP{len, t, d, at}
 
 # The end of a line not complete yet: bytes (block depth d), or text.
 type PdP is Data:
@@ -153,6 +165,10 @@ def mkSrc(+sp: SrcP) -> Norm.Src:
       Norm.SB{C.BT(len, t), at}
     case SLP{p}:
       Norm.SL{p}
+    case SPP{+len, +t, d, at}:
+      Norm.SP{C.BT(len, t), at}
+    case SRP{l}:
+      Norm.SR{l}
 
 def mkSrcs(+sps: List<&2, SrcP>) -> List<&1, Norm.Src>:
   match sps:
@@ -175,6 +191,10 @@ def srctext(+sp: SrcP) -> String:
       NR.chars(List.drop(&2, U32, D.view(C.BT(len, t)), U32.to_nat(at)))
     case SLP{+p}:
       p ++ "\n"
+    case SPP{+len, +t, d, +at}:
+      NR.chars(List.drop(&2, U32, D.view(C.BT(len, t)), U32.to_nat(at)))
+    case SRP{+l}:
+      B.Line.text(l)
 
 def srcstext(+sps: List<&2, SrcP>) -> String:
   match sps:
@@ -206,6 +226,10 @@ def src_ok(+sp: SrcP) -> Bool:
       D.ok(C.BT(len, t), d) && U32.is_le(at, len)
     case SLP{+p}:
       E.is_bytes(p) && nolf(p)
+    case SPP{+len, +t, +d, +at}:
+      D.ok(C.BT(len, t), d) && U32.is_le(at, len)
+    case SRP{+l}:
+      E.is_bytes(B.Line.text(l))
 
 # A line end the machine can have: a well-formed buffer of at most 2^28
 # bytes, or a text of bytes.

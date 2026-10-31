@@ -65,6 +65,8 @@ law same_change:
    - BAD_POS: POS 0;
    - ALT_DUP: a duplicate ALT;
    - REF_MISMATCH: REF does not match the reference.
+   With `-m`, a line that cannot be split is refused here too (BAD_CR, ALT_DUP, UNDEFINED_TAG,
+   BAD_COUNT, BAD_GT; see below).
 5. Normalized: the record is rewritten as `Tan.normal` says.
 
 `normalized_valid`: a record that gets the outcome "normalized" really is a valid variant, so the
@@ -86,6 +88,52 @@ lines) and then the records through a sorting buffer.
 | `grouped_in` | A successful run had each chromosome's records together in the input. |
 | `no_unsorted` | Sorted input, where no record moves left by `-w` bases or more, never stops with UNSORTED. |
 | `twice_run` | Running the tool on its own output succeeds and gives the same records. |
+
+## Splitting multiallelic records (`-m`)
+
+With `-m -any` (or `-both`, `-`), a body line with two or more ALTs is cut into one record per
+ALT (`B.Rec.parts`), and each record then goes through `judge` as a line of its own. ALTs are
+numbered from 1; a record's ALT is "ALT a".
+
+| law | in plain terms |
+|---|---|
+| `whole_without_m` | Without `-m`, every line is handled as one record, as before `-m` existed. |
+| `items_without_m` | Without `-m`, the records written are the body lines, exactly as before (so `sorted`, `grouped_in` and `no_unsorted` say, without `-m`, what they said before). |
+| `whole_biallelic` | With `-m`, a record with one ALT is handled as without `-m`. |
+| `whole_malformed` | With `-m`, a MALFORMED line is handled as without `-m` (it stops the run). |
+| `biallelic_run` | On a file with no multiallelic record, `-m` changes nothing: same output, messages and exit code, apart from the recorded command line. |
+| `split_when` | With `-m`, a well-formed line with two or more ALTs is split exactly when none of these holds: a carriage return anywhere in the line other than the one just before its final LF (`BAD_CR`); two equal ALTs (`ALT_DUP`); an INFO entry with a value whose tag is undefined or has an unread Number (`UNDEFINED_TAG`); an A/R/G INFO entry without a value, or whose value is not `.` and has not the expected count (`BAD_COUNT`); in a sample, a GT allele that is not `.` or a number from 0 to n without leading zeros (`BAD_GT`; so is VCF 4.4's leading phase mark, `\|0\|1`, whose first allele is empty), a value whose key is undefined or unread (`UNDEFINED_TAG`), an A/R/G value that is not `.` and has not the expected count for the copies its GT names (`BAD_COUNT`), or more values than keys (`BAD_COUNT`). Expected count: A, n; R, n+1; G, (n+1)(n+2)/2 for two copies (always in INFO; in a sample, a GT naming two, or no GT value), n+1 for one, either for a lone `.` GT. Otherwise the line is refused. A whole-line outcome that stops the run is reported first; otherwise the message names `BAD_CR`, if it holds, and then the first of the later reasons, reading the line left to right (ALTs, INFO, then each sample in FORMAT's order, its extra values last). |
+| `split_alts` | One record per ALT, each with that ALT alone, in the input's ALT order. |
+| `split_site` | Each record keeps CHROM, POS, ID, REF, QUAL, FILTER and FORMAT byte for byte, and its number of columns. |
+| `split_valid` | If the line is a valid variant on its contig, so is every record; the laws of the normal form apply to each. |
+| `split_normalized` | If the whole line would be normalized (no problem), every record is normalized. |
+| `split_change` | The record for ALT a, as written (normalized, or passed as it came: any outcome that does not stop the run), read back from its text as a variant on the reference, makes exactly ALT a's change. |
+| `split_gt` | In the record for ALT a, every genotype names, copy by copy: REF where the input named REF; the record's ALT (1) where the input named ALT a; REF (`--multi-overlaps 0`) or unknown (`.`) where the input named another ALT; unknown where the input's was unknown. |
+| `split_phase` | The genotypes keep the input's separators, so its phasing and ploidy. |
+| `split_info_keys` | Each record has the input's INFO keys, in order. |
+| `split_info_values` | Every INFO entry with Number A, R or G and a value other than `.` gives, in the record for ALT a, exactly the values of that record's alleles: A, ALT a's; R, REF's and ALT a's; G, those of the genotypes REF/REF, REF/ALT a, ALT a/ALT a. |
+| `split_info_kept` | Every other INFO entry (a flag, an empty entry, a value `.`, a tag with a count, `.` or `P`) is copied byte for byte; `judge` then rewrites END for a record normalization moves, as without `-m`. |
+| `split_format_shape` | Each sample has as many values as in the input. |
+| `split_format_values` | As `split_info_values`, per sample value other than GT. For G: a sample whose GT names one copy gives REF's and ALT a's values; two copies, or no GT value, the three genotype values; a lone `.` GT, whichever its count says. |
+| `split_format_kept` | Every other sample value (other than GT) is copied byte for byte. |
+
+An example of G values (`split_format_values`): REF `C`, ALTs `G,T` (n = 2), and a sample with
+`GT=1/2` and `PL=10,20,30,40,50,60`. Two copies give six values, for the genotypes 0/0, 0/1, 1/1,
+0/2, 1/2, 2/2 in that order (genotype j/k, j ≤ k, is value k(k+1)/2 + j, counting from 0).
+
+- The record for ALT 1 (`C G`) keeps 0/0, 0/1, 1/1: `PL=10,20,30`.
+- The record for ALT 2 (`C T`) keeps 0/0, 0/2, 2/2: `PL=10,40,60`, which are that record's 0/0,
+  0/1, 1/1.
+- A one-copy sample (`GT=2`, `PL=7,8,9`, one value per allele) keeps REF's and the ALT's: `7,8` for
+  ALT 1, `7,9` for ALT 2.
+
+`twice_run` holds with `-m` too: every record of a split line has one ALT and no carriage return,
+so it reads back as written, and a refused line is passed as it came and is refused again. This is
+why `BAD_CR` exists: a value cut at a carriage return could leave a record ending in one, which a
+second run would read as a CR LF ending, and so judge differently.
+
+What splitting loses (which ALTs one sample carries together, the values for the other ALTs) is
+listed in [`USAGE.md`](USAGE.md).
 
 ## The program
 
@@ -210,7 +258,9 @@ block, is the index saved to the temporary file and renamed into place; a line t
 refuse gives, after all of the run's messages, `error: cannot index <path>`, exit 2, and no
 end-of-file block; any other end leaves no index at either name. Bend's runtime stops with
 `_exit`, so then (and on a kill) the temporary `<index>.tmp` stays, a file htslib never reads.
-A run without `-W` leaves an old index of the `-o` file as it is.
+A run without `-W` leaves an old index of the `-o` file as it is, but for a BGZF `-o` file it
+first warns about the index htslib would read for it: only the first one htslib would find,
+and none if that is a directory or the `-o` file.
 
 All the real bugs found in this project were in the driver, and three independent reviews of it
 found them. See `NOTES.md`, "Driver review".

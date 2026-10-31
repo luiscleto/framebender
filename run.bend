@@ -36,7 +36,7 @@ def args_text(xs: List<&2, String>) -> String:
 # the #CHROM line ends. No date, so the output is the same on every run.
 def added(o: B.Opts, +term: String) -> String:
   match o:
-    case B.Opts{s, w, args}:
+    case B.Opts{s, w, m, z, args}:
       "##framebender_normVersion=" ++ version() ++ term ++ "##framebender_normCommand=norm" ++ args_text(args) ++ term
 
 # The column-header line: its first field is exactly "#CHROM".
@@ -171,8 +171,8 @@ def flush(items: List<&2, Item>, +last: Maybe<&2, Item>) -> Flush:
     case +x <> t:
       flush.put(flush.ok(last, Item.key(x)), x, last, flush(t, Some{x}))
 
-# Counts for the summary: body lines, changed, out of scope, passed through
-# with a problem.
+# Counts for the summary: records (with -m, each record of a split line),
+# changed, out of scope, passed through with a problem.
 type Cnt is Data:
   Cnt{lines: Nat, changed: Nat, skipped: Nat, warned: Nat}
 
@@ -278,13 +278,23 @@ def stale_note(s: Bool, +at: B.At) -> List<&2, B.Note>:
 
 def Opts.w(o: B.Opts) -> Nat:
   match o:
-    case B.Opts{s, w, a}:
+    case B.Opts{s, w, m, z, a}:
       w
 
 def Opts.strict(o: B.Opts) -> Bool:
   match o:
-    case B.Opts{s, w, a}:
+    case B.Opts{s, w, m, z, a}:
       s
+
+def Opts.split(o: B.Opts) -> Bool:
+  match o:
+    case B.Opts{s, w, m, z, a}:
+      m
+
+def Opts.over0(o: B.Opts) -> Bool:
+  match o:
+    case B.Opts{s, w, m, z, a}:
+      z
 
 def problem_line(strict: Bool, +st: RunSt, +w: Nat, +c: B.Code, +l: B.Line, +at: B.At, +inpos: Nat) -> RunSt:
   match strict:
