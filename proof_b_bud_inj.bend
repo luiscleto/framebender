@@ -117,7 +117,7 @@ def c.inj.b(+hold: Bool, +b: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.
     Norm.split.out(NS.split(C.BT(len, t), at, lf, o0, dfs), back, O1(st, w, o0, args), P.mkRun(rp), at, lf, Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, dfs, hold}, PC.mkWin(fa, wp), fneed)):
   match b:
     case False{}:
-      %Equal.sym(NS.Out, NS.split(C.BT(len, t), at, lf, o0, dfs), NS.Out{C.BT(len, t), None{}}, q) : BD.AdvC(fa, cs, LI.PPs(hold, dfs, O1(st, w, o0, args), rp, len, t, d, at, rest, pd, eof, back, wp, None{}, fneed),
+      %Equal.sym(NS.Ans, NS.split(C.BT(len, t), at, lf, o0, dfs), NS.Out{C.BT(len, t), None{}}, q) : BD.AdvC(fa, cs, LI.PPs(hold, dfs, O1(st, w, o0, args), rp, len, t, d, at, rest, pd, eof, back, wp, None{}, fneed),
         Norm.split.out(_, back, O1(st, w, o0, args), P.mkRun(rp), at, lf, Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, dfs, hold}, PC.mkWin(fa, wp), fneed))
       BDe.c.dec(hold, dfs, fa, T, cs, O, N, O1(st, w, o0, args), rp, len, t, d, at, rest, pd, eof, back, wp, fneed, hb, hw, hr, hg, hx, hbig, hbi, hnr)
     case True{}:
@@ -129,7 +129,7 @@ def c.inj.b(+hold: Bool, +b: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.
       (hpt, q6) = q5
       (hrt, ck) = q6
       (h10c, hcr) = ck
-      %Equal.sym(NS.Out, NS.split(C.BT(len, t), at, lf, o0, dfs), NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}}, eo) : BD.AdvC(fa, cs, LI.PPs(hold, dfs, O1(st, w, o0, args), rp, len, t, d, at, rest, pd, eof, back, wp, None{}, fneed),
+      %Equal.sym(NS.Ans, NS.split(C.BT(len, t), at, lf, o0, dfs), NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}}, eo) : BD.AdvC(fa, cs, LI.PPs(hold, dfs, O1(st, w, o0, args), rp, len, t, d, at, rest, pd, eof, back, wp, None{}, fneed),
         Norm.split.out(_, back, O1(st, w, o0, args), P.mkRun(rp), at, lf, Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, dfs, hold}, PC.mkWin(fa, wp), fneed))
       c.leaf(hold, dfs, fa, cs, st, w, o0, args, rp, len, t, d, at, rest, pd, eof, back, wp, fneed, hw, lf, hok, hs, hal, hlt, hfl, l2, t2, ps, hpt, hrt, h10c, hcr,
         LN.src_line(len, t, d, at, lf, hok, hs, hfl, hlt), hnr)

@@ -1041,303 +1041,139 @@ def is_crlf(+l: Ln) -> Bool:
 # ---------------------------------------------------------------------------
 
 # When the writer gives up on a line that is not MALFORMED, has two or more
-# ALTs, none equal up to case, and no CR, the line is read once more for
-# what split_problem says of its INFO entries and samples, in order (the
-# first problem found). A problem: B.Rec.parts refuses the line with it
-# (law split_when), and the line comes back with the code (Ref); none: the
+# ALTs, none equal up to case, and no CR, the line is read again for what
+# split_problem says of its INFO entries and its samples, in order: the
+# first problem found. With one, B.Rec.parts refuses the line with it (law
+# split_when) and the line comes back with the code (Ref); with none, the
 # writer gave up for a size, and the String path decides.
 
-# A per-allele value x for copies cp of a record with n ALTs (count_problem):
-# '.', or as many values as expected_count says; else BAD_COUNT.
-def cnt.c(+num: B.Num, +n: Nat, +cp: Maybe<&2, Nat>, r: D.Bytes & Nat) -> D.Bytes & Maybe<&2, B.Code>:
-  (b, +k) = r
-  (b, Bool.pick(Maybe<&2, B.Code>, B.Vals.fits(B.Vals.expected_count(num, n, B.Vals.copies(cp, n, 1n+k)), 1n+k), None{}, Some{B.BadCount{}}))
-
-def cnt.dot(dot: Bool, b: D.Bytes, +num: B.Num, +n: Nat, +cp: Maybe<&2, Nat>, +x: Rg) -> D.Bytes & Maybe<&2, B.Code>:
-  match dot:
-    case True{}:
-      (b, None{})
-    case False{}:
-      cnt.c(num, n, cp, count(b, x, 44))
-
-def cnt.k(r: D.Bytes & Bool, +num: B.Num, +n: Nat, +cp: Maybe<&2, Nat>, +x: Rg) -> D.Bytes & Maybe<&2, B.Code>:
-  (b, dot) = r
-  cnt.dot(dot, b, num, n, cp, x)
-
-def cnt(b: D.Bytes, +num: B.Num, +n: Nat, +cp: Maybe<&2, Nat>, +x: Rg) -> D.Bytes & Maybe<&2, B.Code>:
-  cnt.k(is1(b, x, 46), num, n, cp, x)
-
-# An INFO entry x (info_problem): without a value (no '='), BAD_COUNT when
-# its tag is per allele; with one, UNDEFINED_TAG when the header does not
-# define its tag (or gives it an Unknown Number), else the count of its
-# value v for a tag of Number A, R or G.
-def iprob.v(m: Maybe<&2, B.Num>, +k: String, b: D.Bytes, +n: Nat, +v: Rg) -> D.Bytes & Maybe<&2, B.Code>:
-  match m:
-    case None{}:
-      (b, Some{B.UndefinedTag{"INFO/" ++ k}})
-    case Some{B.NumUnknown{}}:
-      (b, Some{B.UndefinedTag{"INFO/" ++ k}})
-    case Some{B.NumOther{}}:
-      (b, None{})
-    case Some{num}:
-      cnt(b, num, n, Some{2n}, v)
-
-def iprob.if(noval: Bool, +m: Maybe<&2, B.Num>, +k: String, b: D.Bytes, +n: Nat, +v: Rg) -> D.Bytes & Maybe<&2, B.Code>:
-  match noval:
-    case True{}:
-      (b, Bool.pick(Maybe<&2, B.Code>, B.Num.per_allele(m), Some{B.BadCount{}}, None{}))
-    case False{}:
-      iprob.v(m, k, b, n, v)
-
-def iprob.k(+x: Rg, +j: U32, r: D.Bytes & String, +tags: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
-  (b, +k) = r
-  iprob.if(U32.is_eq(Rg.z(x), j), B.Tags.find(tags, k), k, b, n, Rg{(j + 1 : U32), Rg.z(x)})
-
-def iprob.at(+x: Rg, r: D.Bytes & U32, +tags: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
-  (b, +j) = r
-  iprob.k(x, j, txt(b, Rg{Rg.a(x), j}), tags, n)
-
-# Its key is the text before its first '=' (B.Info.key).
-def iprob(b: D.Bytes, +x: Rg, +tags: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
-  iprob.at(x, F.find(b, Rg.a(x), Rg.z(x), 61), tags, n)
-
-def iprobs.m(m: Maybe<&2, B.Code>, b: D.Bytes, +x: Rg, +tags: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+# The problems on text: LAWS.bend's definitions (first_code, count_problem,
+# info_problem, gt_problem, format_problem, sample_problems), copied.
+def first.put(m: Maybe<&2, B.Code>, rest: Maybe<&2, B.Code>) -> Maybe<&2, B.Code>:
   match m:
     case Some{c}:
-      (b, Some{c})
+      Some{c}
     case None{}:
-      iprob(b, x, tags, n)
+      rest
 
-def iprobs.step(r: D.Bytes & Maybe<&2, B.Code>, +x: Rg, +tags: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
-  (b, m) = r
-  iprobs.m(m, b, x, tags, n)
-
-# The first problem of the entries xs (r: the one found so far, if any).
-def iprobs(xs: List<&2, Rg>, r: D.Bytes & Maybe<&2, B.Code>, +tags: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
-  match xs:
+def first(ms: List<&2, Maybe<&2, B.Code>>) -> Maybe<&2, B.Code>:
+  match ms:
     case Nil{}:
-      r
-    case +x <> t:
-      iprobs(t, iprobs.step(r, x, tags, n), tags, n)
+      None{}
+    case m <> t:
+      first.put(m, first(t))
 
-# A FORMAT key, for its values' problems: GT, a key whose values are kept,
-# one cut by Number num, or one whose values are refused (code c).
-type Pk is Data:
-  PGt{}
-  PKeep{}
-  PVal{num: B.Num}
-  PBad{c: B.Code}
+def count_problem(num: B.Num, +n: Nat, cp: Maybe<&2, Nat>, +v: String) -> Maybe<&2, B.Code>:
+  +c = List.length(&2, String, String.split(v, ','))
+  Bool.pick(Maybe<&2, B.Code>, String.eq(v, ".") || B.Vals.fits(B.Vals.expected_count(num, n, B.Vals.copies(cp, n, c)), c), None{}, Some{B.BadCount{}})
 
-def pkind.num(m: Maybe<&2, B.Num>, +k: String) -> Pk:
+def has_value(+e: String) -> Bool:
+  Nat.is_lt(String.length(B.Info.key(e)), String.length(e))
+
+def value_text(+e: String) -> String:
+  String.drop(e, Nat.add(String.length(B.Info.key(e)), 1n))
+
+def info_problem.of(m: Maybe<&2, B.Num>, +e: String, +n: Nat) -> Maybe<&2, B.Code>:
   match m:
     case None{}:
-      PBad{B.UndefinedTag{"FORMAT/" ++ k}}
+      Some{B.UndefinedTag{"INFO/" ++ B.Info.key(e)}}
     case Some{B.NumUnknown{}}:
-      PBad{B.UndefinedTag{"FORMAT/" ++ k}}
+      Some{B.UndefinedTag{"INFO/" ++ B.Info.key(e)}}
     case Some{B.NumOther{}}:
-      PKeep{}
+      None{}
     case Some{num}:
-      PVal{num}
+      count_problem(num, n, Some{2n}, value_text(e))
 
-def pkind.k(r: D.Bytes & String, +tags: List<&2, B.Tag>) -> D.Bytes & Pk:
-  (b, +k) = r
-  (b, Bool.pick(Pk, String.eq(k, "GT"), PGt{}, pkind.num(B.Tags.find(tags, k), k)))
+def info_problem(+m: Maybe<&2, B.Num>, +e: String, +n: Nat) -> Maybe<&2, B.Code>:
+  Bool.pick(Maybe<&2, B.Code>, has_value(e), info_problem.of(m, e, n),
+    Bool.pick(Maybe<&2, B.Code>, B.Num.per_allele(m), Some{B.BadCount{}}, None{}))
 
-def pkinds.cons(r: D.Bytes & Pk, acc: List<&2, Pk>) -> D.Bytes & List<&2, Pk>:
-  (b, k) = r
-  (b, k <> acc)
+def info_problems(es: List<&2, String>, +tags: List<&2, B.Tag>, +n: Nat) -> List<&2, Maybe<&2, B.Code>>:
+  match es:
+    case Nil{}:
+      Nil{}
+    case +e <> t:
+      info_problem(B.Tags.find(tags, B.Info.key(e)), e, n) <> info_problems(t, tags, n)
 
-def pkinds.step(r: D.Bytes & List<&2, Pk>, +x: Rg, +tags: List<&2, B.Tag>) -> D.Bytes & List<&2, Pk>:
-  (b, acc) = r
-  pkinds.cons(pkind.k(txt(b, x), tags), acc)
-
-def rev_pk(xs: List<&2, Pk>, acc: List<&2, Pk>) -> List<&2, Pk>:
+def gt_cut(xs: List<&2, String>) -> List<&2, String>:
   match xs:
     case Nil{}:
-      acc
+      Nil{}
     case x <> t:
-      rev_pk(t, x <> acc)
+      List.append(&2, String, String.split(x, '|'), gt_cut(t))
 
-# The kinds of keys xs (r: the kinds so far, last first).
-def pkinds.go(xs: List<&2, Rg>, r: D.Bytes & List<&2, Pk>, +tags: List<&2, B.Tag>) -> D.Bytes & List<&2, Pk>:
-  match xs:
+def gt_ok.go(ts: List<&2, String>, +n: Nat) -> Bool:
+  match ts:
     case Nil{}:
-      r
-    case +x <> t:
-      pkinds.go(t, pkinds.step(r, x, tags), tags)
+      True{}
+    case +t <> r:
+      (String.eq(t, ".") || (B.Gt.canon(t) && Nat.is_le(Maybe.default(&2, Nat, B.Pos.read(t), 0n), n))) && gt_ok.go(r, n)
 
-def pkinds.fin(r: D.Bytes & List<&2, Pk>) -> D.Bytes & List<&2, Pk>:
-  (b, acc) = r
-  (b, rev_pk(acc, Nil{}))
+def gt_problem(+n: Nat, g: String) -> Maybe<&2, B.Code>:
+  Bool.pick(Maybe<&2, B.Code>, gt_ok.go(gt_cut(String.split(g, '/')), n), None{}, Some{B.BadGt{}})
 
-def pkinds(xs: List<&2, Rg>, b: D.Bytes, +tags: List<&2, B.Tag>) -> D.Bytes & List<&2, Pk>:
-  pkinds.fin(pkinds.go(xs, (b, Nil{}), tags))
-
-# One allele a .. e-1 of a genotype is fine (gt_ok): '.' alone, or a number
-# at most n written with no leading zero.
-def gtk.one(+x: U32, +n: Nat) -> Bool:
-  U32.is_eq(x, 46) || (U32.is_ge(x, 48) && U32.is_le(x, 57) && Nat.is_le(U32.to_nat((x - 48 : U32)), n))
-
-def gtk.num(m: Maybe<&2, U32>, zero: Bool, +n: Nat) -> Bool:
+def format_problem(m: Maybe<&2, B.Num>, +k: String, +v: String, +n: Nat, +p: Maybe<&2, Nat>) -> Maybe<&2, B.Code>:
   match m:
-    case Some{+v}:
-      Bool.not(zero) && Nat.is_le(U32.to_nat(v), n)
     case None{}:
-      False{}
+      Some{B.UndefinedTag{"FORMAT/" ++ k}}
+    case Some{B.NumUnknown{}}:
+      Some{B.UndefinedTag{"FORMAT/" ++ k}}
+    case Some{B.NumOther{}}:
+      None{}
+    case Some{num}:
+      count_problem(num, n, p, v)
 
-def gtk.d(r: D.Bytes & Maybe<&2, U32>, zero: Bool, +n: Nat) -> D.Bytes & Bool:
-  (b, m) = r
-  (b, gtk.num(m, zero, n))
+def sample_problems(ks: List<&2, String>, vs: List<&2, String>, +fmt: List<&2, B.Tag>, +n: Nat, +p: Maybe<&2, Nat>) -> List<&2, Maybe<&2, B.Code>>:
+  match ks vs:
+    case _ Nil{}:
+      Nil{}
+    case Nil{} v <> t:
+      [Some{B.BadCount{}}]
+    case +k <> kt +v <> vt:
+      Bool.pick(Maybe<&2, B.Code>, String.eq(k, "GT"), gt_problem(n, v), format_problem(B.Tags.find(fmt, k), k, v, n, p))
+        <> sample_problems(kt, vt, fmt, n, p)
 
-def gtk.many(one: Bool, +n: Nat, +a: U32, +e: U32, +x: U32, b: D.Bytes) -> D.Bytes & Bool:
-  match one:
-    case True{}:
-      (b, gtk.one(x, n))
-    case False{}:
-      gtk.d(FC.num(b, a, e), U32.is_eq(x, 48), n)
+# A sample (its column col, its values cut at ':', the FORMAT keys ks): its
+# first problem.
+def sprob.str(r: D.Bytes & String, +ks: List<&2, String>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+  (b, +col) = r
+  +vs = String.split(col, ':')
+  (b, first(sample_problems(ks, vs, fmt, n, B.Gt.copies(B.Fmt.gt(ks, vs)))))
 
-def gtk.x(+n: Nat, +a: U32, +e: U32, r: D.Bytes & U32) -> D.Bytes & Bool:
-  (b, +x) = r
-  gtk.many(U32.is_eq((e - a : U32), 1), n, a, e, x, b)
-
-def gtk.e(empty: Bool, b: D.Bytes, +n: Nat, +a: U32, +e: U32) -> D.Bytes & Bool:
-  match empty:
-    case True{}:
-      (b, False{})
-    case False{}:
-      gtk.x(n, a, e, BY.at(b, a))
-
-def gtk(b: D.Bytes, +n: Nat, +a: U32, +e: U32) -> D.Bytes & Bool:
-  gtk.e(U32.is_le(e, a), b, n, a, e)
-
-# A genotype being read: the next allele starts at a; ok so far.
-type Gc is Type:
-  Gc{b: D.Bytes, a: U32, z: U32, ok: Bool, done: Bool}
-
-# The allele a .. e-1 read (ok); the genotype ends at it (end) or once one
-# is not fine.
-def gtc.if(end: Bool, +a: U32, +e: U32, +z: U32, r: D.Bytes & Bool) -> Gc:
-  match end:
-    case True{}:
-      (b, +ok) = r
-      Gc{b, a, z, ok, True{}}
-    case False{}:
-      (b, +ok) = r
-      Gc{b, (e + 1 : U32), z, ok, Bool.not(ok)}
-
-def gtc.next(+n: Nat, +a: U32, +z: U32, r: D.Bytes & U32) -> Gc:
-  (b, +e) = r
-  gtc.if(U32.is_eq(e, z), a, e, z, gtk(b, n, a, e))
-
-def gtc.loop(k: Nat, x: Gc, +n: Nat) -> Gc:
-  match k x:
-    case 0n x:
-      x
-    case 1n+m Gc{b, a, z, ok, True{}}:
-      Gc{b, a, z, ok, True{}}
-    case 1n+m Gc{b, +a, +z, ok, False{}}:
-      gtc.loop(m, gtc.next(n, a, z, F.find2(b, a, z, 47, 124)), n)
-
-def gtc.fin(x: Gc) -> D.Bytes & Maybe<&2, B.Code>:
-  match x:
-    case Gc{b, a, z, ok, d}:
-      (b, Bool.pick(Maybe<&2, B.Code>, ok, None{}, Some{B.BadGt{}}))
-
-# A genotype x of a record with n ALTs (gt_problem): BAD_GT unless each
-# allele between '/' and '|' is fine.
-def gtc(b: D.Bytes, +n: Nat, +x: Rg) -> D.Bytes & Maybe<&2, B.Code>:
-  match x:
-    case Rg{+a, +z}:
-      gtc.fin(gtc.loop(1n+U32.to_nat((z - a : U32)), Gc{b, a, z, True{}, False{}}, n))
-
-# A value x under the key k (sample_problems' value): its problem.
-def vprob(k: Pk, b: D.Bytes, +x: Rg, +n: Nat, +cp: Maybe<&2, Nat>) -> D.Bytes & Maybe<&2, B.Code>:
-  match k:
-    case PGt{}:
-      gtc(b, n, x)
-    case PKeep{}:
+def sprob.w(w: Sw, +x: Rg, +ks: List<&2, String>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+  match w:
+    case Sw{b, o, p, True{}}:
       (b, None{})
-    case PVal{+num}:
-      cnt(b, num, n, cp, x)
-    case PBad{c}:
-      (b, Some{c})
+    case Sw{b, o, p, False{}}:
+      sprob.str(txt(b, x), ks, fmt, n)
 
-# A sample's values being read: the next starts at s (ks: the keys left);
-# m: the problem found (then done), done also once the values end.
-type Sv is Type:
-  Sv{b: D.Bytes, ks: List<&2, Pk>, s: U32, z: U32, m: Maybe<&2, B.Code>, done: Bool}
-
-def sv.m(m: Maybe<&2, B.Code>, b: D.Bytes, kt: List<&2, Pk>, +e: U32, +z: U32) -> Sv:
-  match m:
-    case Some{c}:
-      Sv{b, kt, e, z, Some{c}, True{}}
-    case None{}:
-      Sv{b, kt, (e + 1 : U32), z, None{}, U32.is_eq(e, z)}
-
-def sv.got(r: D.Bytes & Maybe<&2, B.Code>, kt: List<&2, Pk>, +e: U32, +z: U32) -> Sv:
-  (b, m) = r
-  sv.m(m, b, kt, e, z)
-
-def sv.val(k: Pk, kt: List<&2, Pk>, r: D.Bytes & U32, +s: U32, +z: U32, +n: Nat, +cp: Maybe<&2, Nat>) -> Sv:
-  (b, +e) = r
-  sv.got(vprob(k, b, Rg{s, e}, n, cp), kt, e, z)
-
-# The value at s (it ends at the first ':' from s, or at z), under the next
-# key; a value with no key left is BAD_COUNT (sample_problems).
-def sv.step(b: D.Bytes, ks: List<&2, Pk>, +s: U32, +z: U32, +n: Nat, +cp: Maybe<&2, Nat>) -> Sv:
-  match ks:
-    case Nil{}:
-      Sv{b, Nil{}, s, z, Some{B.BadCount{}}, True{}}
-    case k <> kt:
-      sv.val(k, kt, F.find(b, s, z, 58), s, z, n, cp)
-
-def sv.loop(k: Nat, x: Sv, +n: Nat, +cp: Maybe<&2, Nat>) -> Sv:
-  match k x:
-    case 0n x:
-      x
-    case 1n+f Sv{b, ks, s, z, m, True{}}:
-      Sv{b, ks, s, z, m, True{}}
-    case 1n+f Sv{b, ks, +s, +z, m, False{}}:
-      sv.loop(f, sv.step(b, ks, s, z, n, cp), n, cp)
-
-def sv.fin(x: Sv) -> D.Bytes & Maybe<&2, B.Code>:
-  match x:
-    case Sv{b, ks, s, z, m, d}:
-      (b, m)
-
-def sprob.cp(+pks: List<&2, Pk>, +a: U32, +z: U32, +n: Nat, r: D.Bytes & Maybe<&2, Nat>) -> D.Bytes & Maybe<&2, B.Code>:
-  (b, +cp) = r
-  sv.fin(sv.loop(1n+U32.to_nat((z - a : U32)), Sv{b, pks, a, z, None{}, False{}}, n, cp))
-
-def sprob.e(+pks: List<&2, Pk>, +fks: List<&2, Fk>, +a: U32, +z: U32, +n: Nat, r: D.Bytes & U32) -> D.Bytes & Maybe<&2, B.Code>:
-  (b, +e) = r
-  sprob.cp(pks, a, z, n, copies(fks, False{}, hgt(fks), (b, e), a, z))
-
-# One sample's column x: its values' first problem (sample_problems), for
-# the copies its GT gives (the writer's copies, B.Gt.copies).
-def sprob(b: D.Bytes, +x: Rg, +pks: List<&2, Pk>, +fks: List<&2, Fk>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+# A sample's column x: no problem when the writer writes it, alone, in the
+# record for ALT 1 (it writes only what B.Fmt.split gives, and B.Fmt.split
+# refuses a sample exactly when it has a problem); else read on its text.
+# fks: the keys' kinds, as the writer has them.
+def sprob(b: D.Bytes, +x: Rg, +ks: List<&2, String>, +fks: List<&2, Fk>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
   match x:
     case Rg{+a, +z}:
-      sprob.e(pks, fks, a, z, n, F.find(b, a, z, 58))
+      sprob.w(sample(Sw{b, BY.empty(0n), Rg{a, a}, True{}}, fks, Rg{a, z}, False{}, n, 1n), Rg{a, z}, ks, fmt, n)
 
-def sprobs.m(m: Maybe<&2, B.Code>, b: D.Bytes, +x: Rg, +pks: List<&2, Pk>, +fks: List<&2, Fk>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+def sprobs.m(m: Maybe<&2, B.Code>, b: D.Bytes, +x: Rg, +ks: List<&2, String>, +fks: List<&2, Fk>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
   match m:
     case Some{c}:
       (b, Some{c})
     case None{}:
-      sprob(b, x, pks, fks, n)
+      sprob(b, x, ks, fks, fmt, n)
 
-def sprobs.step(r: D.Bytes & Maybe<&2, B.Code>, +x: Rg, +pks: List<&2, Pk>, +fks: List<&2, Fk>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+def sprobs.step(r: D.Bytes & Maybe<&2, B.Code>, +x: Rg, +ks: List<&2, String>, +fks: List<&2, Fk>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
   (b, m) = r
-  sprobs.m(m, b, x, pks, fks, n)
+  sprobs.m(m, b, x, ks, fks, fmt, n)
 
 # The first problem of the samples cols (r: the one found so far, if any).
-def sprobs(cols: List<&2, Rg>, r: D.Bytes & Maybe<&2, B.Code>, +pks: List<&2, Pk>, +fks: List<&2, Fk>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+def sprobs(cols: List<&2, Rg>, r: D.Bytes & Maybe<&2, B.Code>, +ks: List<&2, String>, +fks: List<&2, Fk>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
   match cols:
     case Nil{}:
       r
     case +c <> t:
-      sprobs(t, sprobs.step(r, c, pks, fks, n), pks, fks, n)
+      sprobs(t, sprobs.step(r, c, ks, fks, fmt, n), ks, fks, fmt, n)
 
 def refuse.m(m: Maybe<&2, B.Code>, b: D.Bytes, +f0: Rg, +f1: Rg) -> Ans:
   match m:
@@ -1350,40 +1186,33 @@ def refuse.out(r: D.Bytes & Maybe<&2, B.Code>, +f0: Rg, +f1: Rg) -> Ans:
   (b, m) = r
   refuse.m(m, b, f0, f1)
 
-def refuse.pk(r: D.Bytes & List<&2, Pk>, +cols: List<&2, Rg>, m: Maybe<&2, B.Code>, +fks: List<&2, Fk>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
-  (b, +pks) = r
-  sprobs(cols, (b, m), pks, fks, n)
+def refuse.ks(r: D.Bytes & String, m: Maybe<&2, B.Code>, +cols: List<&2, Rg>, +fks: List<&2, Fk>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
+  (b, +k) = r
+  sprobs(cols, (b, m), String.split(k, ':'), fks, fmt, n)
 
-def refuse.ks(r: D.Bytes & List<&2, Rg>, +cols: List<&2, Rg>, m: Maybe<&2, B.Code>, +fks: List<&2, Fk>, +n: Nat, +defs: B.Defs) -> D.Bytes & Maybe<&2, B.Code>:
-  (b, xs) = r
-  refuse.pk(pkinds(xs, b, B.Defs.fmt(defs)), cols, m, fks, n)
-
-def refuse.f(r: D.Bytes & Maybe<&2, B.Code>, +f: Rg, +cols: List<&2, Rg>, +fks: List<&2, Fk>, +n: Nat, +defs: B.Defs) -> D.Bytes & Maybe<&2, B.Code>:
-  (b, m) = r
-  refuse.ks(cut(b, f, 58), cols, m, fks, n, defs)
-
-# Then the samples (with FORMAT, fields 9 on: rest is FORMAT and them).
-def refuse.fmt(r: D.Bytes & Maybe<&2, B.Code>, +rest: List<&2, Rg>, +fks: List<&2, Fk>, +n: Nat, +defs: B.Defs) -> D.Bytes & Maybe<&2, B.Code>:
+# Then the samples: rest is FORMAT and the samples (fields 8 on).
+def refuse.fmt(+rest: List<&2, Rg>, r: D.Bytes & Maybe<&2, B.Code>, +fks: List<&2, Fk>, +fmt: List<&2, B.Tag>, +n: Nat) -> D.Bytes & Maybe<&2, B.Code>:
   match rest:
     case +f <> +cols:
-      refuse.f(r, f, cols, fks, n, defs)
+      (b, m) = r
+      refuse.ks(txt(b, f), m, cols, fks, fmt, n)
     case Nil{}:
       r
 
-def refuse.info(r: D.Bytes & List<&2, Rg>, +f0: Rg, +f1: Rg, +rest: List<&2, Rg>, +fks: List<&2, Fk>, +n: Nat, +defs: B.Defs) -> Ans:
-  (b, es) = r
-  refuse.out(refuse.fmt(iprobs(es, (b, None{}), B.Defs.info(defs), n), rest, fks, n, defs), f0, f1)
+def refuse.info(r: D.Bytes & String, +f0: Rg, +f1: Rg, +rest: List<&2, Rg>, +fks: List<&2, Fk>, +n: Nat, +defs: B.Defs) -> Ans:
+  (b, +info) = r
+  refuse.out(refuse.fmt(rest, (b, first(info_problems(String.split(info, ';'), B.Defs.info(defs), n))), fks, B.Defs.fmt(defs), n), f0, f1)
 
-# The line's first problem: its INFO entries', then its samples' (the
-# writer's FORMAT kinds fks give each sample's copies).
+# The line's first problem (n: its ALTs): its INFO entries', then its
+# samples' (fks: the FORMAT keys' kinds the writer used).
 def refuse(b: D.Bytes, +fs: List<&2, Rg>, +fks: List<&2, Fk>, +n: Nat, +defs: B.Defs) -> Ans:
   match fs:
     case +f0 <> +f1 <> f2 <> f3 <> f4 <> f5 <> f6 <> +f7 <> +rest:
-      refuse.info(cut(b, f7, 59), f0, f1, rest, fks, n, defs)
+      refuse.info(txt(b, f7), f0, f1, rest, fks, n, defs)
     case _:
       Out{b, None{}}
 
-# The writer's answer, a line it gave up on read for its refusal.
+# The writer's answer; a line it gave up on is read for its refusal.
 def go.ref(o2: Ans, +fs: List<&2, Rg>, +fks: List<&2, Fk>, +n: Nat, +defs: B.Defs) -> Ans:
   match o2:
     case Out{b, None{}}:

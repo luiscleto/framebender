@@ -554,7 +554,7 @@ def inj.b(+b: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: Li
     Norm.split.out(NS.split(C.BT(len, t), at, lf, o0, dfs), back, B.Opts{st, w, True{}, o0, args}, P.mkRun(rp), at, lf, Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, dfs, False{}}, PC.mkWin(fa, wp), fneed)):
   match b:
     case False{}:
-      %Equal.sym(NS.Out, NS.split(C.BT(len, t), at, lf, o0, dfs), NS.Out{C.BT(len, t), None{}}, q) : S.AdvG(fa, T, cs, O, N, StM(dfs, B.Opts{st, w, True{}, o0, args}, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed),
+      %Equal.sym(NS.Ans, NS.split(C.BT(len, t), at, lf, o0, dfs), NS.Out{C.BT(len, t), None{}}, q) : S.AdvG(fa, T, cs, O, N, StM(dfs, B.Opts{st, w, True{}, o0, args}, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed),
         Norm.split.out(_, back, B.Opts{st, w, True{}, o0, args}, P.mkRun(rp), at, lf, Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, dfs, False{}}, PC.mkWin(fa, wp), fneed))
       DE.dec(False{}, dfs, fa, T, cs, O, N, B.Opts{st, w, True{}, o0, args}, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, fneed, hb, hw, hr, hg, hx, hbig, {==})
     case True{}:
@@ -566,7 +566,7 @@ def inj.b(+b: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: Li
       (hpt, q6) = q5
       (hrt, ck) = q6
       (h10c, hcr) = ck
-      %Equal.sym(NS.Out, NS.split(C.BT(len, t), at, lf, o0, dfs), NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}}, eo) : S.AdvG(fa, T, cs, O, N, StM(dfs, B.Opts{st, w, True{}, o0, args}, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed),
+      %Equal.sym(NS.Ans, NS.split(C.BT(len, t), at, lf, o0, dfs), NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}}, eo) : S.AdvG(fa, T, cs, O, N, StM(dfs, B.Opts{st, w, True{}, o0, args}, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed),
         Norm.split.out(_, back, B.Opts{st, w, True{}, o0, args}, P.mkRun(rp), at, lf, Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, dfs, False{}}, PC.mkWin(fa, wp), fneed))
       +p = StM(dfs, B.Opts{st, w, True{}, o0, args}, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, asked, fneed)
       inj.tk(dfs, fa, T, cs, O, N, st, w, o0, args, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hx, hbig, hin, lf, hok, hs, hal, hlt, hfl, l2, t2, ps, hok2, hpt, hrt, h10c, hcr,
@@ -669,7 +669,7 @@ def inj.b_sp(+b: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs:
     Norm.split.out(NS.split(C.BT(len, t), at, lf, o0, dfs), back, B.Opts{st, w, True{}, o0, args}, P.mkRun(rp), at, lf, Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, dfs, True{}}, PC.mkWin(fa, wp), fneed)):
   match b:
     case False{}:
-      %Equal.sym(NS.Out, NS.split(C.BT(len, t), at, lf, o0, dfs), NS.Out{C.BT(len, t), None{}}, q) : S.AdvG(fa, T, cs, O, N, LI.PPs(True{}, dfs, B.Opts{st, w, True{}, o0, args}, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed),
+      %Equal.sym(NS.Ans, NS.split(C.BT(len, t), at, lf, o0, dfs), NS.Out{C.BT(len, t), None{}}, q) : S.AdvG(fa, T, cs, O, N, LI.PPs(True{}, dfs, B.Opts{st, w, True{}, o0, args}, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed),
         Norm.split.out(_, back, B.Opts{st, w, True{}, o0, args}, P.mkRun(rp), at, lf, Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, dfs, True{}}, PC.mkWin(fa, wp), fneed))
       DE.dec(True{}, dfs, fa, T, cs, O, N, B.Opts{st, w, True{}, o0, args}, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed, fneed, hb, hw, hr, hg, hx, hbig, hnr)
     case True{}:

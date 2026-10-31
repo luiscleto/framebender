@@ -68,16 +68,16 @@ def crt_eq(+fs: Rgs(), +iks: List<&2, NS.Ik>, +fks: List<&2, NS.Fk>, +term: NS.R
 # split into pieces ps, the records' buffer holds their text, each followed
 # by the terminator, and passed the check: one LF per piece, and no CR
 # unless the terminator is CR LF, cr), or the line back alone (False).
-def SPB(+b: Bool, +len: U32, +t: AT.Tree<U32>, -out: NS.Out, +pt: B.Parts, +term: String, +cr: Bool) -> Type:
+def SPB(+b: Bool, +len: U32, +t: AT.Tree<U32>, -out: NS.Ans, +pt: B.Parts, +term: String, +cr: Bool) -> Type:
   match b:
     case True{}:
-      &l2: U32 -> &t2: AT.Tree<U32> -> &ps: Ss() -> ({out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Out} &
+      &l2: U32 -> &t2: AT.Tree<U32> -> &ps: Ss() -> ({out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Ans} &
         ({W.OK(l2, t2) == True{} : Bool} & ({pt == B.Pieces{ps} : B.Parts} & ({NR.chars(W.V(l2, t2)) == Norm.recs_text(ps, term) : String} &
           CK.CK(l2, t2, List.length(&2, String, ps), cr)))))
     case False{}:
-      {out == NS.Out{C.BT(len, t), None{}} : NS.Out}
+      {out == NS.Out{C.BT(len, t), None{}} : NS.Ans}
 
-def SPR(+len: U32, +t: AT.Tree<U32>, -out: NS.Out, +pt: B.Parts, +term: String, +cr: Bool) -> Type:
+def SPR(+len: U32, +t: AT.Tree<U32>, -out: NS.Ans, +pt: B.Parts, +term: String, +cr: Bool) -> Type:
   &b: Bool -> SPB(b, len, t, out, pt, term, cr)
 
 def none(+len: U32, +t: AT.Tree<U32>, +pt: B.Parts, +term: String, +cr: Bool) -> SPR(len, t, NS.Out{C.BT(len, t), None{}}, pt, term, cr):
@@ -161,7 +161,7 @@ def ck.k(+l2: U32, +t2: AT.Tree<U32>, +k1: Nat, +k2: Nat, +cr: Bool, +e: {k1 == 
 def wr.p(+len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term: NS.Rg, +fs: Rgs(), +alts: Rgs(), +k2: Ss(), +pt: B.Parts,
   pr: RC.PRT(len, t, defs, fs, k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n),
   +hpe: {pt == LI.PT(len, t, defs, o0, fs, alts) : B.Parts},
-  +l2: U32, +t2: AT.Tree<U32>, -out: NS.Out, eo: {out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Out}, hok: {W.OK(l2, t2) == True{} : Bool},
+  +l2: U32, +t2: AT.Tree<U32>, -out: NS.Ans, eo: {out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Ans}, hok: {W.OK(l2, t2) == True{} : Bool},
   hs: {NR.chars(W.V(l2, t2)) == RC.RT(len, t, defs, fs, k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) : String},
   ck: CK.CK(l2, t2, List.length(&2, NS.Rg, alts), CRT(term))) ->
   SPB(True{}, len, t, out, pt, WT.TX(len, t, term), CRT(term)):
@@ -175,7 +175,7 @@ def wr.p(+len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term: NS.Rg, +f
 def wr.t(+len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term: NS.Rg, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +rest: Rgs(), +alts: Rgs(),
   +k1: Ss(), +k2: Ss(), +pt: B.Parts, +hk: {RC.KSS(K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest))) == k2 : Ss()},
   +ert: {RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) == RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) : String}, +erg: {RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n) == RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), alts, 1n) : Bool}, +hpe: {pt == LI.PT(len, t, defs, o0, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), alts) : B.Parts},
-  +l2: U32, +t2: AT.Tree<U32>, -out: NS.Out, eo: {out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Out}, hok: {W.OK(l2, t2) == True{} : Bool},
+  +l2: U32, +t2: AT.Tree<U32>, -out: NS.Ans, eo: {out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Ans}, hok: {W.OK(l2, t2) == True{} : Bool},
   +hg: {RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n) == True{} : Bool}, +hs: {NR.chars(W.V(l2, t2)) == RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) : String},
   ck: CK.CK(l2, t2, List.length(&2, NS.Rg, alts), CRT(term))) ->
   SPB(True{}, len, t, out, pt, WT.TX(len, t, term), CRT(term)):
@@ -186,7 +186,7 @@ def wr.t(+len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term: NS.Rg, +f
 def wr.b(+b: Bool, +len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term: NS.Rg, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +rest: Rgs(), +alts: Rgs(),
   +k1: Ss(), +k2: Ss(), +pt: B.Parts, +hk: {RC.KSS(K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest))) == k2 : Ss()},
   +ert: {RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) == RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) : String}, +erg: {RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n) == RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), alts, 1n) : Bool}, +hpe: {pt == LI.PT(len, t, defs, o0, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), alts) : B.Parts},
-  -out: NS.Out, q: TOP.WRB(b, len, t, out, RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n), RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n), List.length(&2, NS.Rg, alts), CRT(term))) ->
+  -out: NS.Ans, q: TOP.WRB(b, len, t, out, RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n), RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n), List.length(&2, NS.Rg, alts), CRT(term))) ->
   SPB(b, len, t, out, pt, WT.TX(len, t, term), CRT(term)):
   match b:
     case True{}:
@@ -203,7 +203,7 @@ def wr.b(+b: Bool, +len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term:
 def wr.r(+len: U32, +t: AT.Tree<U32>, +defs: B.Defs, +o0: Bool, +term: NS.Rg, +f0: NS.Rg, +f1: NS.Rg, +f2: NS.Rg, +f3: NS.Rg, +f4: NS.Rg, +f5: NS.Rg, +f6: NS.Rg, +a7: U32, +z7: U32, +rest: Rgs(), +alts: Rgs(),
   +k1: Ss(), +k2: Ss(), +pt: B.Parts, +hk: {RC.KSS(K.TXS(len, t, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest))) == k2 : Ss()},
   +ert: {RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) == RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), term, alts, 1n) : String}, +erg: {RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n) == RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k2, o0, List.length(&2, NS.Rg, alts), alts, 1n) : Bool}, +hpe: {pt == LI.PT(len, t, defs, o0, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), alts) : B.Parts},
-  -out: NS.Out, r: TOP.WRES(len, t, out, RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n), RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n), List.length(&2, NS.Rg, alts), CRT(term))) ->
+  -out: NS.Ans, r: TOP.WRES(len, t, out, RC.RT(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), term, alts, 1n), RC.RG(len, t, defs, RC.FSX(f0, f1, f2, f3, f4, f5, f6, a7, z7, rest), k1, o0, List.length(&2, NS.Rg, alts), alts, 1n), List.length(&2, NS.Rg, alts), CRT(term))) ->
   SPR(len, t, out, pt, WT.TX(len, t, term), CRT(term)):
   (+b, q) = r
   (b, wr.b(b, len, t, defs, o0, term, f0, f1, f2, f3, f4, f5, f6, a7, z7, rest, alts, k1, k2, pt, hk, ert, erg, hpe, out, q))
