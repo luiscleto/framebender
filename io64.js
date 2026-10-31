@@ -8,3 +8,4 @@ io_eff(CID(Io.out_set), (fa, path, file, z, level, n) => io_tup(fa, z == 1 ? 200
 io_eff(CID(Io.out_write), (n, a) => 5);
 io_eff(CID(Io.out_close), (c) => 0);
 io_eff(CID(Io.out_index), (fmt, path) => 2003);
+io_eff(CID(Io.ix_found), (path) => 0);

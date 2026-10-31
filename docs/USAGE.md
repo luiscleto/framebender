@@ -80,7 +80,13 @@ region queries for the new file.
   remove that file (it may index `out.vcf`), and refuses to run while it exists:
   `error: cannot write out.vcf.gz.tbi (htslib would read out.vcf.csi first)`.
 - A run without `-W` leaves an old index as it is. htslib warns about it only when it is a second
-  or more older than the file, so remove it, or use `-W`.
+  or more older than the file, so framebender warns first: for a BGZF `-o` file, before anything
+  is read, one line for each name htslib would read as its index (`out.vcf.gz.csi`,
+  `out.vcf.csi`, `out.vcf.gz.tbi`, `out.vcf.tbi`, in that order) that exists:
+  `warning: htslib would read out.vcf.csi as the index of out.vcf.gz; remove it or use -W`.
+  It touches nothing (`out.vcf.csi` may index `out.vcf`), and the run goes on as without it.
+  A directory there is not warned about (htslib cannot read it, and says so); nor is plain output
+  or stdout.
 
 ## Differences from bcftools norm
 
@@ -103,3 +109,4 @@ The records are the same as bcftools 1.24's, except:
     header-only file;
   - it writes the index after the end-of-file block, and only on success;
   - it removes old indexes; bcftools saves the index first and leaves stale ones.
+- **Old indexes without `-W`** are warned about (see "Old index files"); bcftools says nothing.
