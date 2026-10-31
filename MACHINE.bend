@@ -272,17 +272,18 @@ def launch(b: Norm.Begin, argv: List<&2, String>, +fasta: String, +vcf: String, 
 #   code the run is the run without -W, with no index. htslib's own log
 #   messages are switched off.
 # - Old indexes without -W: when B.Args.output(argv) names a BGZF -o file and
-#   B.Args.index(argv) is NoIdx, before any input is opened, one line on
-#   stderr for each index name htslib 1.24 would read for the -o path, in its
-#   order (<-o path>.csi, <stem>.csi, <-o path>.tbi, <stem>.tbi; <stem> as in
-#   (3), no <stem> names when the path has no '.' after its first byte),
-#   where stat finds something that is not a directory (htslib finds a
-#   directory too, but cannot read it) and that is not the -o path itself:
+#   B.Args.index(argv) is NoIdx, before any input is opened, at most one line
+#   on stderr for the index htslib 1.24 would read for the -o path: of the
+#   names in its order (<-o path>.csi, <stem>.csi, <-o path>.tbi,
+#   <stem>.tbi; <stem> as in (3), no <stem> names when the path has no '.'
+#   after its first byte), the first that is the -o path itself or where
+#   stat finds something; when that is something that is not a directory
+#   and not the -o path (htslib finds a directory too, but cannot read it):
 #   "warning: htslib would read <name> as the index of <path>; remove it or
 #   use -W". Nothing there is opened or changed (<stem>.csi may index another
-#   file). These lines come before the messages run says, and change nothing
+#   file). The line comes before the messages run says, and changes nothing
 #   else: the output bytes, the other messages and the exit code are as
-#   above.
+#   above, also when it cannot be written (it is then left out).
 # - Answering each reference read Req{chrom, a, b} of an Ask, in order, with
 #   exactly truth(B.Fasta.parse(fasta), chrom, a, b): Unknown when the .fai has
 #   no such contig, else Known with the contig's length String.length(Contig.raw)

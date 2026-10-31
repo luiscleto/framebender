@@ -62,8 +62,9 @@ import lawful-bytes@0.1.0.0/bytes.bend as BY
 #   bytes on disk, line breaks included, in parts).
 # Its one warning: without -W, for a BGZF -o file, before anything is read,
 # one line "warning: htslib would read <name> as the index of <path>; remove
-# it or use -W" for each old index htslib would read for it (stale; law
-# machine's comment). It changes nothing else.
+# it or use -W" for the old index htslib would read for it, if any (stale;
+# law machine's comment). It changes nothing else; a failed write of it is
+# ignored.
 # Arguments, paths and all output are bytes, copied exactly, except that a
 # path in an error has each backslash, LF and CR written as \\, \n and \r, so
 # the error stays one line.
@@ -158,9 +159,9 @@ def Io.threads(n: U32) -> IO(U32):
   import "./io64.c"
   import "./io64.js"
 
-# Whether htslib would read the file at path (its bytes) as an index: 1 when
-# stat finds something there that is not a directory, else 0. Changes
-# nothing.
+# What htslib finds at path (its bytes) when it looks for an index: 0 when
+# stat finds nothing there, 1 something that is not a directory, 2 a
+# directory. Changes nothing.
 def Io.ix_found(path: List<&2, U32>) -> IO(U32):
   import "./io64.c"
   import "./io64.js"
@@ -265,6 +266,13 @@ def put?(fd: U32, s: String) -> IO(Unit):
     r : Result<&1, &1, U32 & String, Unit> <- Io.write_fd(fd, str_bytes(s))
     or_die(Unit, r, "cannot write")
 
+# s written to fd, best effort: a failed write is ignored (the old-index
+# warning, which changes nothing else).
+def put.try?(fd: U32, s: String) -> IO(Unit):
+  do IO<Unit>:
+    r : Result<&1, &1, U32 & String, Unit> <- Io.write_fd(fd, str_bytes(s))
+    IO.pure(Unit, Unit{})
+
 # The -o path in an error ("-" for stdout).
 def out_name?(out: Maybe<&2, String>) -> String:
   match out:
@@ -353,15 +361,18 @@ def stale.out?(sk: B.Sink, ix: B.Idx) -> Maybe<&2, String>:
     case _ _:
       None{}
 
-# One warning per index name htslib 1.24 would read for p that Io.ix_found
-# finds, in htslib's order (hts_idx_check_local: p.csi, <stem>.csi, p.tbi,
-# <stem>.tbi, <stem> as ix_stem cuts it; no <stem> names when p has no '.'
-# after its first byte): "warning: htslib would read <name> as the index of
-# <path>; remove it or use -W". Nothing is removed or touched: <stem>.csi may
-# index another file (p without its extension). A name that is p itself (p
-# ending in .csi or .tbi) is not warned about: it is the output. Checked
-# before anything is read (main.k), so the warnings come first, also for a
-# run that stops later; exit codes and other messages are unchanged.
+# One warning for the index htslib 1.24 would read for p, if it is an old
+# one. htslib tries the names in order (hts_idx_check_local: p.csi,
+# <stem>.csi, p.tbi, <stem>.tbi, <stem> as ix_stem cuts it; no <stem> names
+# when p has no '.' after its first byte) and reads the first one stat finds.
+# So the list stops there: at a file, with "warning: htslib would read <name>
+# as the index of <path>; remove it or use -W"; at a directory (htslib finds
+# it but cannot read it) or at p itself (p ending in .csi: the output, which
+# is there once written), with no warning. Nothing is removed or touched:
+# <stem>.csi may index another file (p without its extension). Checked
+# before anything is read (main.k), so the warning comes first, also for a
+# run that stops later; exit codes, output and other messages are
+# unchanged, also when the warning cannot be written (put.try).
 def stale?(m: Maybe<&2, String>) -> IO(Unit):
   match m:
     case None{}:
@@ -396,16 +407,29 @@ def stale.each?(+p: String, ns: List<&2, String>) -> IO(Unit):
     case Nil{}:
       IO.pure(Unit, Unit{})
     case +n <> t:
+      stale.name(String.eq(n, p), p, n, t)
+
+# The name n, then (when stat finds nothing there) the names t.
+def stale.name?(self: Bool, +p: String, +n: String, t: List<&2, String>) -> IO(Unit):
+  match self:
+    case True{}:
+      IO.pure(Unit, Unit{})
+    case False{}:
       do IO<Unit>:
         r : U32 <- Io.ix_found(str_bytes(n))
-        stale.one(U32.is_eq(r, 1) && Bool.not(String.eq(n, p)), p, n)
-        stale.each(p, t)
+        stale.one(r, p, n, t)
 
-def stale.one?(found: Bool, +p: String, +n: String) -> IO(Unit):
-  match found:
-    case True{}:
-      put(2, "warning: htslib would read " ++ esc(n) ++ " as the index of " ++ esc(p) ++ "; remove it or use -W\n")
-    case False{}:
+# r: what Io.ix_found finds at n.
+def stale.one?(+r: U32, +p: String, +n: String, t: List<&2, String>) -> IO(Unit):
+  stale.at(U32.is_eq(r, 0), U32.is_eq(r, 1), p, n, t)
+
+def stale.at?(none: Bool, file: Bool, +p: String, +n: String, t: List<&2, String>) -> IO(Unit):
+  match none file:
+    case True{} _:
+      stale.each(p, t)
+    case False{} True{}:
+      put.try(2, "warning: htslib would read " ++ esc(n) ++ " as the index of " ++ esc(p) ++ "; remove it or use -W\n")
+    case False{} False{}:
       IO.pure(Unit, Unit{})
 
 def out_fail.go?(-A: Type, oom: Bool, inp: Bool, nolib: Bool, out: Maybe<&2, String>) -> IO(A):

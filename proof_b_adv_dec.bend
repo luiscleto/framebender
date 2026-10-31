@@ -32,6 +32,7 @@ import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_base.bend as PB
+import ./proof_b_defs_line.bend as DL
 
 # The byte mode's decoded path (norm.bend's decoded): a source with no
 # complete line (to pend), a line of more than 2^28 bytes (to the String
@@ -234,13 +235,13 @@ def dec.hold.h(+hold: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report,
               +sp2 = Equal.trans(R.RunSt, P.specRun(rp2), R.head_line(False{}, P.specRun(rp1), o, Norm.line(P.btext(len, t, at, (j - at : U32)))), R.head_line(False{}, P.specRun(rp1), o, Norm.line(P.btext(len, t, at, (j - at : U32)))), sp2c, {==})
               +A = P.btext(len, t, at, (j - at : U32))
               +l = Norm.line(A)
-              +dfs2 = B.Defs.line(dfs, B.Line.body(l))
+              +dfs2 = Norm.defs.line(dfs, B.Line.body(l))
               +hrs = Equal.trans(R.RunSt, P.specRun(rp2), R.head_line(False{}, R.tick(P.specRun(rp)), o, l), L.line_step(fa, dfs, o, P.specRun(rp), B.Text.line(A)),
                 %s1 : {P.specRun(rp2) == R.head_line(False{}, _, o, l) : R.RunSt}; sp2,
                 Equal.sym(R.RunSt, L.line_step(fa, dfs, o, P.specRun(rp), B.Text.line(A)), R.head_line(False{}, R.tick(P.specRun(rp)), o, l), hold_step(dfs, fa, o, rp, A, hx, hin, eisc)))
               +hd = {(%Equal.sym(Bool, R.RunSt.inbody(P.specRun(rp)), False{}, Equal.trans(Bool, R.RunSt.inbody(P.specRun(rp)), P.RunP.i(rp), False{}, inbody_spec(rp), hin)) :
                   {dfs2 == Bool.pick(B.Defs, _, dfs, B.Defs.line(dfs, B.Line.body(B.Text.line(A)))) : B.Defs};
-                %LN.line_eq(A) : {dfs2 == B.Defs.line(dfs, B.Line.body(_)) : B.Defs}; {==}) :
+                %LN.line_eq(A) : {dfs2 == B.Defs.line(dfs, B.Line.body(_)) : B.Defs}; DL.line_eq(dfs, B.Line.body(l))) :
                 {dfs2 == Bool.pick(B.Defs, R.RunSt.inbody(P.specRun(rp)), dfs, B.Defs.line(dfs, B.Line.body(B.Text.line(A)))) : B.Defs}}
               %Equal.sym(NR.Run, NR.head_line(False{}, P.mkRun(rp1), o, l), P.mkRun(rp2), e2) :
                 S.AdvG(fa, T, cs, O, N, PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed),

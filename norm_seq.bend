@@ -491,11 +491,33 @@ def at_of(+n: Nat, +fs: List<&2, String>) -> B.At:
 # Splitting (-m): the context's header definitions, the records written
 # ---------------------------------------------------------------------------
 
-# A header line's definition added (B.Defs.line; lines before #CHROM).
+# B.Defs.line, its prefix matched first: B.Defs.line's Bool.pick takes both
+# branches as arguments, so a run would parse every header line twice
+# (Hdr.tag), the #CHROM line too, here only a definition, once
+# (proof_b_defs_line.bend's line_eq: the two are equal).
+def defs.fmt(fmt: Bool, +d: B.Defs, +body: String) -> B.Defs:
+  match fmt:
+    case True{}:
+      B.Defs.add_fmt(B.Hdr.tag(String.drop(body, 10n)), d)
+    case False{}:
+      d
+
+def defs.info(info: Bool, +d: B.Defs, +body: String) -> B.Defs:
+  match info:
+    case True{}:
+      B.Defs.add_info(B.Hdr.tag(String.drop(body, 8n)), d)
+    case False{}:
+      defs.fmt(String.starts_with(body, "##FORMAT=<"), d, body)
+
+def defs.line(+d: B.Defs, +body: String) -> B.Defs:
+  defs.info(String.starts_with(body, "##INFO=<"), d, body)
+
+# A header line's definition added (B.Defs.line, as defs.line; lines before
+# #CHROM).
 def Cx.line(cx: Cx, +body: String) -> Cx:
   match cx:
     case Cx{rest, pend, eof, +dfs, hold}:
-      Cx{rest, pend, eof, B.Defs.line(dfs, body), hold}
+      Cx{rest, pend, eof, defs.line(dfs, body), hold}
 
 # What B.Rec.parts says of a body line.
 def Cx.parts(cx: Cx, +o: B.Opts, +body: String) -> Cx & B.Parts:

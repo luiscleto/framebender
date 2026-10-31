@@ -46,6 +46,7 @@ import lawful-bytes@0.1.0.0/proof_same.bend as SM
 import lawful-bytes@0.1.0.0/proof_list.bend as BL
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_u32.bend as U
+import ./proof_b_defs_line.bend as DL
 
 # The String mode's line holes of adv_ok (proof_b_adv.bend: adv.ms.sb,
 # adv.ms.sl), and the verdict lemma they share with the byte mode's slow path
@@ -1945,7 +1946,7 @@ def msline.i(+dfs: B.Defs, ib: Bool, +fa: List<&2, B.Contig>, +T: R.Report, +cs:
       +L0 = B.Text.line(q)
       +isc = R.is_chrom_line(B.Line.body(L0))
       +s2 = R.head_line(isc, R.tick(s), o, L0)
-      +dfs2 = B.Defs.line(dfs, B.Line.body(L0))
+      +dfs2 = Norm.defs.line(dfs, B.Line.body(L0))
       +D = S.DEFS(SO(dfs, o, s, qs, ql, src, pd, eof, back, wp, asked, fneed), cs)
       +Y = B.Text.lines(MS.ITX(src2, pd, eof, cs))
       +hs2 = {(%Equal.sym(R.RunSt, L.line_step(fa, D, o, s, L0), L.line_in(R.RunSt.inbody(s), fa, D, o, R.tick(s), L0), spec_eq(D, fa, o, s, L0, hx)) : {s2 == _ : R.RunSt};
@@ -1961,7 +1962,8 @@ def msline.i(+dfs: B.Defs, ib: Bool, +fa: List<&2, B.Contig>, +T: R.Report, +cs:
             {L.defs.go(B.Text.lines(_), False{}, dfs) == L.defs.go(Y, isc, dfs2) : B.Defs};
           %Equal.sym(List<&2, B.Line>, B.Text.lines(String.append(q, String.append("\n", MS.ITX(src2, pd, eof, cs)))), L0 <> Y, LS.lines_cons(q, MS.ITX(src2, pd, eof, cs), hq)) :
             {L.defs.go(_, False{}, dfs) == L.defs.go(Y, isc, dfs2) : B.Defs};
-          {==}) : {D == L.defs.go(Y, isc, dfs2) : B.Defs}}
+          Equal.cong(B.Defs, B.Defs, z => L.defs.go(Y, isc, z), B.Defs.line(dfs, B.Line.body(L0)), dfs2, Equal.sym(B.Defs, dfs2, B.Defs.line(dfs, B.Line.body(L0)), DL.line_eq(dfs, B.Line.body(L0))))) :
+          {D == L.defs.go(Y, isc, dfs2) : B.Defs}}
       +hdd = Equal.trans(B.Defs, S.DEFS(SM2(dfs2, o, s2, qs, ql, src2, pd, eof, wp), cs), L.defs.go(Y, isc, dfs2), D, e1, Equal.sym(B.Defs, D, L.defs.go(Y, isc, dfs2), e2))
       wentS(dfs, dfs2, fa, T, cs, O, N, o, s, qs, ql, q, src, src2, pd, eof, back, wp, asked, fneed, s2, hr, hg, hst, hp, hp2, hn2, hq, hqb, hout, h5, hw2, hm2, hr0, hdd, hs2, hql, hxb, hsb, hob, hfb,
         hd5(isc, s, L0, o, X0(qs), h5, hout), hd6(isc, s, L0, o, h6),

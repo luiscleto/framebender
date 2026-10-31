@@ -343,6 +343,44 @@ s against 2.63-2.71 s, identical output. That file has few multiallelic lines (4
 split), so the faster splitter does not show there; the 2-4% gap is within the spread of the
 runs (`fb_m4`, the build before stale-index, took 2.69-2.89 s in the same rounds).
 
+**Driver review 10, decisions 1-5** (`reviews/responses-driver10.md`; build `fb_d10`, logs
+`data/tmp/split/suites6/`, timings `bench/d10.out`):
+- (1) `io64_threads_of` (io64.c) takes `-m X`, the glued `-mX` (X: `-any`, `-both`, `-`) and
+  `--multi-overlaps 0|.`, as `B.Args.parse` does. Before, any of them left `--threads` unread:
+  `--threads 1` gave 19 threads (the default pool), now 4, as without `-m`. `test/threads.sh`
+  now fails when a run with `--threads N` shows more than 2N+2 threads, for each of those forms.
+- (2) `test/split.sh` fails on a difference in either direction. Checked with a binary that
+  drops the last record: every seed fails (the old count of `<` lines passed it).
+- (3), (4) The old-index warning: `stale` in main.bend stops at the first name htslib would
+  find (`Io.ix_found` now answers 0 nothing, 1 a file, 2 a directory). A file gives the one
+  warning; a directory, or the `-o` path itself (`-o x.csi`: htslib reads the output as its
+  index once it is written), gives none, and the later names are not looked at. The warning
+  goes through `put.try`, which ignores a failed write. MACHINE.bend's comment on the warning
+  says the same. `test/index.sh` has the new cases (several old files, a directory or a
+  dangling symlink before an old file, `-o x.csi` with and without an old `x.csi`, stderr
+  `/dev/full`); the build before the fix fails them.
+- (5) The machine's `Cx.line` calls `Norm.defs.line`, which matches the prefix before parsing
+  (`B.Defs.line`'s `Bool.pick` takes both branches as arguments, so every header line was parsed
+  twice, the `#CHROM` line too). `proof_b_defs_line.bend` proves `line_eq`:
+  `Norm.defs.line(d, body) == B.Defs.line(d, body)`. The spec is unchanged. Three proofs use it
+  where the machine's definitions met the spec's (`proof_b_adv_wr`, `proof_b_adv_dec`,
+  `proof_b_adv_msx`).
+
+Checks: `check.sh`'s steps through `bcheck400.sh`: the examples' TODOs only, main's unsafe
+report, `PROOF.bend` ALL PROOFS CHECK with `--check-only` and with `--verdict`. Tests, all
+passing: spec against machine 150 of 150; `test/split.sh` 200 of 200; bcftools `-m`: cohort,
+HG002 chr22, HG002 whole genome and the scrambled set 0 differing, joined 12 (the symbolic SVs,
+as before); `thr_m.sh` 1,092; `test/same.sh` 128; `test/par.sh` 312; `test/threads.sh` 2,128
+and THREAD COUNT OK; `test/out.sh` OK; `test/index.sh` ALL PASS.
+
+A 100k-sample header, one record (`d10/wide/w.vcf`, 1.5 MB), 5 rounds interleaved, identical
+output:
+
+| run | main (66ace09) | before the fix (`fb_m5`) | fixed (`fb_d10`) |
+|---|---|---|---|
+| no `-m` | 0.13-0.14 s | 0.47-0.50 s | 0.15-0.18 s |
+| `-m -any` | | 0.55-0.57 s | 0.21-0.24 s |
+
 ## Stage 2, milestone (1): the byte splitter and its proof
 
 The approved plan (after the prototype timing below): the byte splitter is the main path and

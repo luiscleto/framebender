@@ -9,7 +9,8 @@
 # Then: the usage errors of --threads; that the generated C still reads
 # BENDRTS (if DIR/fb.c exists); and, on Linux, the most threads seen while
 # NEW runs with --threads N (Bend's N workers, plus the driver's helpers: the
-# VCF read-ahead, and up to N reference reads while the workers wait).
+# VCF read-ahead, and up to N reference reads while the workers wait), with
+# and without the -m and --multi-overlaps forms: at most 2N+2.
 # Results go to DIR (default data/tmp/threads/t). Inputs as for test/same.sh
 # and test/par.sh.
 cd "$(dirname "$0")/.."
@@ -67,15 +68,25 @@ if [ -f $D/fb.c ]; then
   grep -q 'getenv("BENDRTS")' $D/fb.c && echo "BENDRTS READ" || echo "BENDRTS NOT READ: the constructor in io64.c does nothing"
 fi
 
-# The thread count (Linux): the most threads seen while NEW runs on chr22.
+# The thread count (Linux): the most threads seen while NEW runs on chr22,
+# with each form of -m and --multi-overlaps too (io64.c reads --threads from
+# the command line before Bend starts, and must accept every line
+# Args.parse accepts). At most 2N+2: the N workers, the main thread, the
+# read-ahead and up to N reference reads; more means the runtime's default
+# pool.
 if [ -d /proc/self/task ]; then
-  for n in 1 3 8; do
-    $N norm --threads $n -f data/chr22.fa data/hg002.chr22.vcf > /dev/null 2>&1 & pid=$!
-    mx=0
-    while kill -0 $pid 2>/dev/null; do
-      k=$(ls /proc/$pid/task 2>/dev/null | wc -l); [ "$k" -gt $mx ] && mx=$k
+  t=0
+  for a in "" "-m -any" "-m-any" "-m -both" "-m-both" "-m -" "-m-" "--multi-overlaps 0" "--multi-overlaps ." "-m -any --multi-overlaps ."; do
+    for n in 1 3 8; do
+      $N norm --threads $n $a -f data/chr22.fa data/hg002.chr22.vcf > /dev/null 2>&1 & pid=$!
+      mx=0
+      while kill -0 $pid 2>/dev/null; do
+        k=$(ls /proc/$pid/task 2>/dev/null | wc -l); [ "$k" -gt $mx ] && mx=$k
+      done
+      wait $pid
+      [ -z "$a" ] && echo "--threads $n: at most $mx threads seen"
+      [ $mx -le $((2 * n + 2)) ] || { echo "THREADS? [--threads $n $a] $mx threads seen"; t=1; }
     done
-    wait $pid
-    echo "--threads $n: at most $mx threads seen"
   done
+  [ $t = 0 ] && echo "THREAD COUNT OK"
 fi

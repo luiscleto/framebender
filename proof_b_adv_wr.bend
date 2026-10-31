@@ -17,6 +17,7 @@ import ./proof_b_adv_wf.bend as W
 import ./proof_b_adv_tostr.bend as TS
 import ./proof_b_adv_line.bend as LI
 import ./proof_b_adv_sp.bend as HX
+import ./proof_b_defs_line.bend as DL
 import lawful-bytes@0.1.0.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
@@ -291,7 +292,7 @@ def wr.h(+hold: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: 
     & {P.specRun(p2) == R.head_line(True{}, P.specRun(rp1), o, Norm.line(P.btext(len, t, at, (j - at : U32)))) : R.RunSt})),
   +hnr: LI.HNE(hold, len, at)) ->
   S.AdvG(fa, T, cs, O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed),
-    Norm.done.b(o, (NR.head_line(True{}, P.mkRun(rp1), o, Norm.line(P.btext(len, t, at, (j - at : U32)))), C.BT(len, t)), (j + 1 : U32), Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, B.Defs.line(dfs, B.Line.body(Norm.line(P.btext(len, t, at, (j - at : U32))))), hold}, PC.mkWin(fa, wp))):
+    Norm.done.b(o, (NR.head_line(True{}, P.mkRun(rp1), o, Norm.line(P.btext(len, t, at, (j - at : U32)))), C.BT(len, t)), (j + 1 : U32), Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, Norm.defs.line(dfs, B.Line.body(Norm.line(P.btext(len, t, at, (j - at : U32))))), hold}, PC.mkWin(fa, wp))):
   match hh:
     case (+rp2, q):
       match q:
@@ -302,12 +303,12 @@ def wr.h(+hold: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: 
               +l = Norm.line(P.btext(len, t, at, (j - at : U32)))
               +sp2 = Equal.trans(R.RunSt, P.specRun(rp2), R.head_line(True{}, P.specRun(rp1), o, l), R.head_line(True{}, P.specRun(rp1), o, l), sp2c, {==})
               +A = P.btext(len, t, at, (j - at : U32))
-              +dfs2 = B.Defs.line(dfs, B.Line.body(l))
+              +dfs2 = Norm.defs.line(dfs, B.Line.body(l))
               +IT2 = S.intext(LI.P2(hold, dfs2, o, rp2, len, t, d, j, rest, pd, eof, wp), cs)
               +hd = {%Equal.sym(Bool, R.RunSt.inbody(P.specRun(rp)), False{}, Equal.trans(Bool, R.RunSt.inbody(P.specRun(rp)), P.RunP.i(rp), False{}, LI.ib_spec(rp), hin)) :
                   {dfs2 == Bool.pick(B.Defs, _, dfs, B.Defs.line(dfs, B.Line.body(B.Text.line(A)))) : B.Defs};
-                %Equal.sym(B.Line, Norm.line(A), B.Text.line(A), LSS.line_eq(A)) : {B.Defs.line(dfs, B.Line.body(_)) == B.Defs.line(dfs, B.Line.body(B.Text.line(A))) : B.Defs};
-                {==} : {dfs2 == Bool.pick(B.Defs, R.RunSt.inbody(P.specRun(rp)), dfs, B.Defs.line(dfs, B.Line.body(B.Text.line(A)))) : B.Defs}}
+                %LSS.line_eq(A) : {dfs2 == B.Defs.line(dfs, B.Line.body(_)) : B.Defs};
+                DL.line_eq(dfs, B.Line.body(l)) : {dfs2 == Bool.pick(B.Defs, R.RunSt.inbody(P.specRun(rp)), dfs, B.Defs.line(dfs, B.Line.body(B.Text.line(A)))) : B.Defs}}
               +hrs = Equal.trans(R.RunSt, P.specRun(rp2), R.head_line(True{}, R.tick(P.specRun(rp)), o, l), L.line_step(fa, dfs, o, P.specRun(rp), B.Text.line(P.btext(len, t, at, (j - at : U32)))),
                 %s1 : {P.specRun(rp2) == R.head_line(True{}, _, o, l) : R.RunSt}; sp2,
                 Equal.sym(R.RunSt, L.line_step(fa, dfs, o, P.specRun(rp), B.Text.line(P.btext(len, t, at, (j - at : U32)))), R.head_line(True{}, R.tick(P.specRun(rp)), o, l), write_step(dfs, fa, o, rp, P.btext(len, t, at, (j - at : U32)), hx, hin, eisc)))
@@ -343,7 +344,7 @@ def wr.tick(+hold: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c
   tk: TKW(rp),
   +hnr: LI.HNE(hold, len, at)) ->
   S.AdvG(fa, T, cs, O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed),
-    Norm.done.b(o, (NR.head_line(True{}, NR.tick(P.mkRun(rp)), o, Norm.line(P.btext(len, t, at, (j - at : U32)))), C.BT(len, t)), (j + 1 : U32), Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, B.Defs.line(dfs, B.Line.body(Norm.line(P.btext(len, t, at, (j - at : U32))))), hold}, PC.mkWin(fa, wp))):
+    Norm.done.b(o, (NR.head_line(True{}, NR.tick(P.mkRun(rp)), o, Norm.line(P.btext(len, t, at, (j - at : U32)))), C.BT(len, t)), (j + 1 : U32), Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, Norm.defs.line(dfs, B.Line.body(Norm.line(P.btext(len, t, at, (j - at : U32))))), hold}, PC.mkWin(fa, wp))):
   match tk:
     case (+rp1, q):
       match q:
@@ -362,7 +363,7 @@ def wr.tick(+hold: Bool, +dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +c
                   +m0 = S.md_ok(S.MBP{LI.RTP(hold, rp)})
                   +ha = W.W8_args(fa, p, W.c9_8(m0, W.W1(fa, p), W.W2(fa, p), W.W3(fa, p), W.W4(fa, p), W.W5(fa, p), W.W6(fa, p), W.W7(fa, p), W.W8(fa, p), hw))
                   %Equal.sym(NR.Run, NR.tick(P.mkRun(rp)), P.mkRun(rp1), e1) :
-                    S.AdvG(fa, T, cs, O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed), Norm.done.b(o, (NR.head_line(True{}, _, o, l), C.BT(len, t)), (j + 1 : U32), Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, B.Defs.line(dfs, B.Line.body(Norm.line(P.btext(len, t, at, (j - at : U32))))), hold}, PC.mkWin(fa, wp)))
+                    S.AdvG(fa, T, cs, O, N, LI.PPs(hold, dfs, o, rp, len, t, d, at, rest, pd, eof, back, wp, asked, fneed), Norm.done.b(o, (NR.head_line(True{}, _, o, l), C.BT(len, t)), (j + 1 : U32), Norm.Cx{P.mkSrcs(rest), P.mkPd(pd), eof, Norm.defs.line(dfs, B.Line.body(Norm.line(P.btext(len, t, at, (j - at : U32))))), hold}, PC.mkWin(fa, wp)))
                   wr.h(hold, dfs, fa, T, cs, O, N, o, rp, len, t, d, at, j, rest, pd, eof, back, wp, asked, fneed, hb, hw, hr, hg, hi, hx, hin, hs, hn, hle, hby, hal, hlt, hinc, hsm, eisc, rp1, s1,
                     PR.run_head_write(rp1, o, l, i1, hin1, hx1, hh1, hbytes(rp1, i1), line_bytes(P.btext(len, t, at, (j - at : U32)), hby),
                       added_bytes(o, B.Line.term(l), ha, term_bytes(P.btext(len, t, at, (j - at : U32)))), hl, hadd), hnr)

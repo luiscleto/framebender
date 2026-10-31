@@ -6,7 +6,8 @@
 # sample columns padded to the FORMAT length), and a sample value that is
 # only missing values (bcftools writes a missing Number=R value as .,.) read
 # as one '.'. Exits 0 when every run has the same exit code and the same
-# records.
+# records: a record only one of the two writes (missing, extra or changed)
+# fails the run.
 cd "$(dirname "$0")/.."
 N=$(realpath "$1"); S=${2:-40}; D=${3:-data/tmp/split_t}
 BC=${BCFTOOLS:-bcftools}
@@ -21,9 +22,9 @@ for s in $(seq 1 $S); do
     nice -n 19 timeout 600 $N norm -c w -m -any $o -f $D/s$s.fa $D/s$s.vcf > $D/fb.vcf 2> $D/fb.err; fe=$?
     nice -n 19 timeout 600 $BC norm --no-version -c w -m -any $o -f $D/s$s.fa $D/s$s.vcf > $D/bc.vcf 2> $D/bc.err; be=$?
     runs=$((runs + 1))
-    n=$(diff <(up $D/fb.vcf) <(up $D/bc.vcf) | grep -c '^<')
+    n=$(diff <(up $D/fb.vcf) <(up $D/bc.vcf) | grep -c '^[<>]')
     if [ $fe != $be ] || [ $n != 0 ]; then
-      bad=1; echo "DIFF seed $s [$o]: exit framebender $fe bcftools $be, $n records differ"
+      bad=1; echo "DIFF seed $s [$o]: exit framebender $fe bcftools $be, $n differing lines (either side)"
       diff <(up $D/fb.vcf) <(up $D/bc.vcf) | cut -c1-200 | head -6
     fi
   done
