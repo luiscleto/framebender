@@ -6,10 +6,10 @@ import lawful-bytes@0.1.0.0/fast.bend as F
 # framebender: the fast path's tests on the bytes of one line (code, not
 # spec). They decide, without decoding the line, that a body record is valid,
 # in scope, already in normal form and written as Rec.rebuild would write it,
-# with no END entry in INFO (so J.fast gives Same, given the REF check and
-# the CHROM run, which norm.bend tests). Any doubt answers Slow, and the
-# String path (norm_line.bend) decides. notes/bytes.md has the refinement
-# argument for each test.
+# with INFO's END, if any, as B.Info.end_ok asks (so J.fast gives Same, given
+# the REF check and the CHROM run, which norm.bend tests). Any doubt answers
+# Slow, and the String path (norm_line.bend) decides. notes/bytes.md has the
+# refinement argument for each test.
 
 # ---------------------------------------------------------------------------
 # The first 8 fields: their ends
@@ -50,7 +50,7 @@ type Ab is Type:
 
 # ---------------------------------------------------------------------------
 # INFO has no END entry (an entry whose key, the text before its first '=',
-# is END)
+# is END): norm_fix.bend's test (the fast path's is endok, below)
 # ---------------------------------------------------------------------------
 
 type B4 is Type:

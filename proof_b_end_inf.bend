@@ -26,7 +26,7 @@ import lawful-arrays@0.1.0.0/proof_base.bend as AB
 # INFO as the String path's full field split has it (B.Rec.fields, field 7)
 # is the text of INFO's bytes, whatever INFO holds: proof_c_pre_inf.bend's
 # chain (itself phase B's pass_fields chain) without its no-END hypothesis,
-# derived from it by data/tmp/fb-end/mk_inf.py (the fb-end agent's script).
+# derived from it by a script (the hypothesis and its conjunct removed).
 
 def INF(+len: U32, +t: AT.Tree<U32>, +s: U32) -> String:
   S.fld(Z.X(len, t), Nat.add(Z.n(M.E6(len, t, s)), 1n), Z.n(M.E7(len, t, s)))
