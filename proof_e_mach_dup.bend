@@ -122,7 +122,7 @@ law tcok_k:
   for +ls: List<&2, B.Line>
   for +a2: {B.Text.lines(String.append(PT.after(c, k), String.concat(cs))) == List.append(&2, B.Line, ls, B.Text.lines(String.append(P.pdtext(pd), String.concat(cs)))) : List<&2, B.Line>}
   for d: {P.settle(P.specRun(rp)) == P.settle(L.run.go(ls, fa, dfs, o, SD.rs0(c0, l))) : R.RunSt} & {P.settle(P.specRun(rp)) == P.settle(L.run.go(ls, fa, dfs, o, SD.rs0(c0, l))) : R.RunSt}
-  PT.TcOK(dfs, fa, o, c, k, c0, l, cs, PT.TcP{rp, pd, wp}) & PT.TcOK(dfs, fa, o, c, k, c0, l, cs, PT.TcP{rp, pd, wp})
+  PT.TcOK(dfs, fa, o, c, k, c0, cs, PT.TcP{rp, pd, wp, l}) & PT.TcOK(dfs, fa, o, c, k, c0, cs, PT.TcP{rp, pd, wp, l})
 
 def tcok_k(dfs,fa, o, c, k, c0, l, cs, rp, pd, wp, a1, ls, a2, d):
   (d1, d2) = d
@@ -135,15 +135,14 @@ law tcok_dup:
   for +c: String
   for +k: U32
   for +c0: String
-  for +l: Nat
   for +cs: List<&2, String>
   for +x: PT.TcP
-  for h: PT.TcOK(dfs, fa, o, c, k, c0, l, cs, x)
-  PT.TcOK(dfs, fa, o, c, k, c0, l, cs, x) & PT.TcOK(dfs, fa, o, c, k, c0, l, cs, x)
+  for h: PT.TcOK(dfs, fa, o, c, k, c0, cs, x)
+  PT.TcOK(dfs, fa, o, c, k, c0, cs, x) & PT.TcOK(dfs, fa, o, c, k, c0, cs, x)
 
-def tcok_dup(dfs,fa, o, c, k, c0, l, cs, x, h):
+def tcok_dup(dfs,fa, o, c, k, c0, cs, x, h):
   match x:
-    case PT.TcP{+rp, +pd, +wp}:
+    case PT.TcP{+rp, +pd, +wp, +l}:
       (+a1, h1) = h
       (+ls, h2) = h1
       (+a2, h3) = h2
@@ -157,20 +156,19 @@ law tresok_dup:
   for +ok: Bool
   for +k: U32
   for +c0: String
-  for +l: Nat
   for +cs: List<&2, String>
   for +r: PT.TResP
-  for h: PT.TResOK(dfs, fa, o, c, ok, k, c0, l, cs, r)
-  PT.TResOK(dfs, fa, o, c, ok, k, c0, l, cs, r) & PT.TResOK(dfs, fa, o, c, ok, k, c0, l, cs, r)
+  for h: PT.TResOK(dfs, fa, o, c, ok, k, c0, cs, r)
+  PT.TResOK(dfs, fa, o, c, ok, k, c0, cs, r) & PT.TResOK(dfs, fa, o, c, ok, k, c0, cs, r)
 
-def tresok_dup(dfs,fa, o, c, ok, k, c0, l, cs, r, h):
+def tresok_dup(dfs,fa, o, c, ok, k, c0, cs, r, h):
   match ok r:
     case _ PT.TDirtyP{}:
       (Unit{}, Unit{})
     case True{} PT.TCleanP{+x}:
-      tcok_dup(dfs, fa, o, c, k, c0, l, cs, x, h)
+      tcok_dup(dfs, fa, o, c, k, c0, cs, x, h)
     case False{} PT.TCleanP{+x}:
-      Empty.absurd(PT.TResOK(dfs, fa, o, c, False{}, k, c0, l, cs, PT.TCleanP{x}) & PT.TResOK(dfs, fa, o, c, False{}, k, c0, l, cs, PT.TCleanP{x}), h)
+      Empty.absurd(PT.TResOK(dfs, fa, o, c, False{}, k, c0, cs, PT.TCleanP{x}) & PT.TResOK(dfs, fa, o, c, False{}, k, c0, cs, PT.TCleanP{x}), h)
 
 law toutok_dup:
   for +dfs: B.Defs
@@ -187,9 +185,9 @@ def toutok_dup(dfs,fa, o, p, cs, x, h):
     case PT.Pc{+c, +rs, +ok, +k, +c0, +l} PT.TOutP{+len, +t, +d, +r}:
       (+a1, h1) = h
       (+a2, h2) = h1
-      cons2({D.ok(C.BT(len, t), d) == True{} : Bool}, {D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>} & PT.TResOK(dfs, fa, o, c, ok, k, c0, l, cs, r), a1,
-        cons2({D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>}, PT.TResOK(dfs, fa, o, c, ok, k, c0, l, cs, r), a2,
-          tresok_dup(dfs, fa, o, c, ok, k, c0, l, cs, r, h2)))
+      cons2({D.ok(C.BT(len, t), d) == True{} : Bool}, {D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>} & PT.TResOK(dfs, fa, o, c, ok, k, c0, cs, r), a1,
+        cons2({D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>}, PT.TResOK(dfs, fa, o, c, ok, k, c0, cs, r), a2,
+          tresok_dup(dfs, fa, o, c, ok, k, c0, cs, r, h2)))
 
 law batchok_dup:
   for +dfs: B.Defs

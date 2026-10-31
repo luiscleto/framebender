@@ -25,9 +25,10 @@ import lawful-halves@0.1.0.0/halves.bend as HH
 # 3. Run: one task per piece (lawful-halves' H.all, in parallel). A task runs
 #    Q's pump on the piece's lines after its first LF, from a fresh run whose
 #    CHROM is the first line's and whose last written key is l (a phantom:
-#    the task stops, UNSORTED, if it writes a smaller key). It is clean when
-#    every complete line is handled on bytes, with no message, no stop and no
-#    read its windows do not answer.
+#    the task stops, UNSORTED, if it writes a smaller key; it then runs once
+#    more from the key it stopped at, which the merge checks against the
+#    true run's). It is clean when every complete line is handled on bytes,
+#    with no message, no stop and no read its windows do not answer.
 # 4. Combine, in order: the line across the boundary is handled by Q on the
 #    true state; then a clean task whose run fits the true one (merge.ok) is
 #    spliced in, the true run's output handed out in this step; any other
@@ -43,9 +44,13 @@ import lawful-halves@0.1.0.0/halves.bend as HH
 type Tc is Type:
   Tc{run: NR.Run, pend: Q.Pd, win: Q.Win, k: U32, c0: String, l: Nat}
 
+# A task's result: dirty, clean, or (from its first run only) stopped as
+# UNSORTED against the phantom, by an item of key l: the task runs again
+# from l, with the window w and the spare ones ws (task.again).
 type TRes is Type:
   TDirty{}
   TClean{c: Tc}
+  TAgain{l: Nat, w: Q.Win, ws: List<&1, Q.Win>}
 
 # A task's result, with its piece (handed back by the task when it ran on it).
 type TOut is Type:
@@ -536,6 +541,61 @@ def task.idle(st: Q.St, ph: Ph, +k: U32, +c0: String, +l: Nat) -> Tk:
     case PIn{}:
       task.dirty(st, PIn{})
 
+# Whether the run stopped as UNSORTED against the phantom (the line before
+# the item out of order is line 0).
+def again.ph(ns: List<&2, B.Note>) -> Bool:
+  match ns:
+    case B.Stop{B.Unsorted{}, Some{a}, Some{B.At{+ln, c, p}}} <> t:
+      Nat.is_eq(ln, 0n)
+    case _:
+      False{}
+
+def again.key(+ok: Bool, c: Cp) -> D.Bytes & Maybe<&2, Nat>:
+  match c:
+    case Cp{b, +f, c1, +p}:
+      (b, Bool.pick(Maybe<&2, Nat>, ok && f, Some{p}, None{}))
+
+def again.len(+ok: Bool, +ow: U32, r: D.Bytes & U32) -> D.Bytes & Maybe<&2, Nat>:
+  (b, +n) = r
+  again.key(ok, cp(b, ow, n))
+
+def again.run.k(p: D.Bytes & Maybe<&2, Nat>, +n: Nat, +i: Bool, +h: String, +c: Maybe<&2, String>, cb: D.Bytes, +e: List<&2, String>, +l: Maybe<&2, NR.Ck>, +f: List<&2, NR.Ck>, +b: List<&2, NR.Ck>, +bn: Nat, +tl: Nat, +k: R.Cnt, +ow: U32, +ns: List<&2, B.Note>, +x: Bool) -> NR.Run & Maybe<&2, Nat>:
+  (ob, +m) = p
+  (NR.Run{n, i, h, c, cb, e, l, f, b, bn, tl, k, ob, ow, ns, x}, m)
+
+# The key of the item a stop against the phantom refused: the POS of its
+# text, the first after the bytes written (any value is correct: it only
+# chooses the phantom of the task's second run).
+def again.run(r: NR.Run) -> NR.Run & Maybe<&2, Nat>:
+  match r:
+    case NR.Run{+n, +i, +h, +c, cb, +e, +l, +f, +b, +bn, +tl, +k, ob, +ow, +ns, +x}:
+      again.run.k(again.len(again.ph(ns), ow, BY.len(ob)), n, i, h, c, cb, e, l, f, b, bn, tl, k, ow, ns, x)
+
+# The task stopped against the phantom l at an item of key l2 below it: it
+# hands back its piece and its windows, to run again from l2.
+def task.again.if(go: Bool, +l2: Nat, +o: B.Opts, run: NR.Run, src: List<&1, Q.Src>, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, +dfs: B.Defs, spare: List<&1, Q.Win>, ph: Ph) -> Tk:
+  match go:
+    case True{}:
+      TEnd{TOut{task.back(Q.St{o, Q.MB{run}, src, pend, eof, back, Q.WNone{}, asked, fneed, dfs}, ph), TAgain{l2, win, spare}}}
+    case False{}:
+      task.dirty(Q.St{o, Q.MB{run}, src, pend, eof, back, win, asked, fneed, dfs}, ph)
+
+def task.again(p: NR.Run & Maybe<&2, Nat>, +l: Nat, +o: B.Opts, src: List<&1, Q.Src>, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, +dfs: B.Defs, spare: List<&1, Q.Win>, ph: Ph) -> Tk:
+  (run, m) = p
+  match m:
+    case Some{+l2}:
+      task.again.if(Nat.is_lt(l2, l), l2, o, run, src, pend, eof, back, win, asked, fneed, dfs, spare, ph)
+    case None{}:
+      task.dirty(Q.St{o, Q.MB{run}, src, pend, eof, back, win, asked, fneed, dfs}, ph)
+
+# The task's run stopped: dirty, unless it stopped against the phantom.
+def task.ended(st: Q.St, spare: List<&1, Q.Win>, ph: Ph, +l: Nat) -> Tk:
+  match st:
+    case Q.St{+o, Q.MB{run}, src, pend, +eof, +back, win, +asked, +fneed, +dfs}:
+      task.again(again.run(run), l, o, src, pend, eof, back, win, asked, fneed, dfs, spare, ph)
+    case Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed, dfs}:
+      task.dirty(Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed, dfs}, ph)
+
 def task.want(st: Q.St, spare: List<&1, Q.Win>, ph: Ph, +el: U32, +len: U32) -> Tk:
   match spare:
     case Nil{}:
@@ -552,7 +612,7 @@ def task.adv(a: Q.Adv, spare: List<&1, Q.Win>, ph: Ph, +el: U32, +len: U32, +k: 
     case Q.Idle{st}:
       task.idle(st, ph, k, c0, l)
     case Q.Ended{st}:
-      task.dirty(st, ph)
+      task.ended(st, spare, ph, l)
     case Q.Yield{st}:
       task.dirty(st, ph)
 
@@ -586,9 +646,36 @@ def task.run0(+c0: String, +l: Nat, +len: U32) -> NR.Run:
 def task.res(+o: B.Opts, +len: U32) -> U32:
   Bool.pick(U32, R.Opts.split(o), (len + len : U32), len)
 
+# One run of the task's loop on its piece, from the phantom l.
+def task.run1(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, w: Q.Win, spare: List<&1, Q.Win>, +el: U32, +c0: String, +l: Nat, +dfs: B.Defs) -> TOut:
+  task.loop(Nat.add(U32.to_nat(len), 8n), task.next(Q.St{o, Q.MB{task.run0(c0, l, task.res(o, len))}, [Q.SB{b, (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, w, None{}, False{}, dfs}, PIn{}, spare, el, len), el, len, k, c0, l)
+
+# The second run's result: a second stop against the phantom is dirty.
+def task.final(r: TOut) -> TOut:
+  match r:
+    case TOut{b, TAgain{l2, w, ws}}:
+      TOut{b, TDirty{}}
+    case TOut{b, TDirty{}}:
+      TOut{b, TDirty{}}
+    case TOut{b, TClean{c}}:
+      TOut{b, TClean{c}}
+
+# The first run's result: when it stopped against the phantom (its first
+# line moved below the first line's POS: notes/split.md), the task runs once
+# more from the key it stopped at; the merge checks that key against the
+# true run's.
+def task.retry(+o: B.Opts, +len: U32, +k: U32, +el: U32, +c0: String, +dfs: B.Defs, r: TOut) -> TOut:
+  match r:
+    case TOut{b, TAgain{+l2, w, ws}}:
+      task.final(task.run1(o, b, len, k, w, ws, el, c0, l2, dfs))
+    case TOut{b, TDirty{}}:
+      TOut{b, TDirty{}}
+    case TOut{b, TClean{c}}:
+      TOut{b, TClean{c}}
+
 def task.start(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, p: Q.Win & List<&1, Q.Win>, +el: U32, +c0: String, +l: Nat, +dfs: B.Defs) -> TOut:
   (w, spare) = p
-  task.loop(Nat.add(U32.to_nat(len), 8n), task.next(Q.St{o, Q.MB{task.run0(c0, l, task.res(o, len))}, [Q.SB{b, (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, w, None{}, False{}, dfs}, PIn{}, spare, el, len), el, len, k, c0, l)
+  task.retry(o, len, k, el, c0, dfs, task.run1(o, b, len, k, w, spare, el, c0, l, dfs))
 
 def task.last.k(+o: B.Opts, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat, b: D.Bytes, q: U32 & Bool, +dfs: B.Defs) -> TOut:
   (+el, fl) = q
@@ -1031,6 +1118,8 @@ def comb.piece(r: TRes, q: Q.St, b: D.Bytes, rest: List<&1, TOut>, +eofp: Bool) 
       seq_out(Q.step(q, P.Chunk{b}), rest, eofp)
     case TClean{c}:
       comb.clean(q.n(q), b, c, rest, eofp)
+    case TAgain{l, w, ws}:
+      seq_out(Q.step(q, P.Chunk{b}), rest, eofp)
 
 def comb.end(eofp: Bool, q: Q.St) -> Step:
   match eofp:

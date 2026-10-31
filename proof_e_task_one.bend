@@ -123,9 +123,13 @@ def ROK(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>
       LP.LRok(dfs, fa, o, cs, c0, l, LA0, LP.LClean{rp, pd, wp})
     case LP.LClean{rp, pd, wp} False{}:
       Empty
+    case LP.LAgain{l2, wp, sp} _:
+      Empty
 
-def OneG(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +ok: Bool, +k: U32, +c0: String, +l: Nat, -tout: W.TOut) -> Type:
-  &len: U32 -> &t: AT.Tree<U32> -> &d: Nat -> &r: LP.LR ->
+# A task's result: its piece's buffer, and a result that is dirty or clean
+# from the phantom l (the plan's, or the key of the task's second run).
+def OneG(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +ok: Bool, +k: U32, +c0: String, -tout: W.TOut) -> Type:
+  &len: U32 -> &t: AT.Tree<U32> -> &d: Nat -> &l: Nat -> &r: LP.LR ->
     ({tout == W.TOut{C.BT(len, t), LP.mkLR(fa, k, c0, l, r)} : W.TOut}
     & ({D.ok(C.BT(len, t), d) == True{} : Bool}
     & ({D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>}
@@ -143,30 +147,110 @@ def ENC(+c: String) -> Type:
 # The piece itself, dirty.
 def dirty_enc(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +ok: Bool, +k: U32, +c0: String, +l: Nat,
   en: ENC(c)) ->
-  OneG(dfs, fa, o, cs, c, ok, k, c0, l, W.TOut{E.enc(c), W.TDirty{}}):
+  OneG(dfs, fa, o, cs, c, ok, k, c0, W.TOut{E.enc(c), W.TDirty{}}):
   (hok, e1) = en
   (hv, e2) = e1
-  (L0(c), (EN.enc_t(c), (E.depth(String.length(c)), (LP.LDirty{},
-    (Equal.cong(D.Bytes, W.TOut, z => W.TOut{z, W.TDirty{}}, E.enc(c), C.BT(L0(c), EN.enc_t(c)), EN.enc_bt(c)), (hok, (hv, Unit{})))))))
+  (L0(c), (EN.enc_t(c), (E.depth(String.length(c)), (l, (LP.LDirty{},
+    (Equal.cong(D.Bytes, W.TOut, z => W.TOut{z, W.TDirty{}}, E.enc(c), C.BT(L0(c), EN.enc_t(c)), EN.enc_bt(c)), (hok, (hv, Unit{}))))))))
 
-def rok_true(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c0: String, +l: Nat, +LA0: List<&2, B.Line>, +r: LP.LR,
-  h: LP.LRok(dfs, fa, o, cs, c0, l, LA0, r)) -> ROK(dfs, fa, o, cs, c0, l, LA0, r, True{}):
+# One run of the task's loop from the phantom l, with the windows wp1 and
+# sps (task.run1): the loop from the start picture (no copy: the loop hands
+# the piece back).
+def run1_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l: Nat,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +wp1: PC.WP, +sps: List<&2, PC.WP>, +EL: U32,
+  +hfa: {PC.fa_bytes(fa) == True{} : Bool},
+  +hab: {E.all_bytes(S.opts_args(o)) == True{} : Bool},
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +hv: {D.view(C.BT(len, tr)) == E.codes(c) : List<&2, U32>},
+  +hk1: {U32.is_le((k + 1 : U32), len) == True{} : Bool},
+  +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
+  r0: ST.R0G(c0, l, W.task.res(o, len)),
+  +hw: {LP.wins_ok(fa, wp1 <> sps) == True{} : Bool}) ->
+  LP.LoopG(dfs, fa, o, cs, c0, l, LA(c, k, cs), k, len, tr, W.task.run1(o, C.BT(len, tr), len, k, PC.mkWin(fa, wp1), LP.mkWins(fa, sps), EL, c0, l, dfs)):
+  (+rp0, q1) = r0
+  (+er0, q2) = q1
+  (+hinv, q3) = q2
+  (+hset, hib) = q3
+  +F = Nat.add(U32.to_nat(len), 8n)
+  +X1 = Bool.and(PC.wp_ok(fa, wp1), S.mb_win.k(wp1))
+  +hw1 = BUF.andl(X1, LP.wins_ok(fa, sps), hw)
+  +hsp = BUF.andr(X1, LP.wins_ok(fa, sps), hw)
+  %Equal.sym(NR.Run, W.task.run0(c0, l, W.task.res(o, len)), P.mkRun(rp0), er0) :
+    LP.LoopG(dfs, fa, o, cs, c0, l, LA(c, k, cs), k, len, tr, W.task.loop(F, W.task.next(Q.St{o, Q.MB{_}, [Q.SB{C.BT(len, tr), (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, PC.mkWin(fa, wp1), None{}, False{}, dfs}, W.PIn{}, LP.mkWins(fa, sps), EL, len), EL, len, k, c0, l))
+  %Equal.sym(D.Bytes, BY.empty(0n), C.BT(0, G.tnew(0n, 0)), G.empty_eq(0n)) :
+    LP.LoopG(dfs, fa, o, cs, c0, l, LA(c, k, cs), k, len, tr, W.task.loop(F, W.task.next(Q.St{o, Q.MB{P.mkRun(rp0)}, [Q.SB{C.BT(len, tr), (k + 1 : U32)}], Q.PB{_}, False{}, 0n, PC.mkWin(fa, wp1), None{}, False{}, dfs}, W.PIn{}, LP.mkWins(fa, sps), EL, len), EL, len, k, c0, l))
+  LP.start_ok(dfs, F, fa, o, cs, c0, l, LA(c, k, cs), k, S.report(fa, cs, "", Nil{}, P0(dfs, o, rp0, len, tr, d, k, wp1)), len, tr, d, EL, hok, hL, P0(dfs, o, rp0, len, tr, d, k, wp1), sps, (k + 1 : U32), hfa,
+    inv0(dfs, fa, o, cs, c, k, c0, l, rp0, len, tr, d, wp1, hok, hv, hk1, hinv, hib, hset, hw1, hab), {==}, hsp)
+
+# The second run's result: a second stop against the phantom is dirty.
+def final_r(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l2: Nat,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat,
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +hv: {D.view(C.BT(len, tr)) == E.codes(c) : List<&2, U32>},
+  +r: LP.LR,
+  h: LP.LRok(dfs, fa, o, cs, c0, l2, LA(c, k, cs), r)) ->
+  OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.final(W.TOut{C.BT(len, tr), LP.mkLR(fa, k, c0, l2, r)})):
   match r:
     case LP.LDirty{}:
-      Unit{}
+      (len, (tr, (d, (l2, (LP.LDirty{}, ({==}, (hok, (hv, Unit{}))))))))
     case LP.LClean{+rp, +pd, +wp}:
-      h
+      (len, (tr, (d, (l2, (LP.LClean{rp, pd, wp}, ({==}, (hok, (hv, h))))))))
+    case LP.LAgain{+l3, +wp, +sp}:
+      (len, (tr, (d, (l2, (LP.LDirty{}, ({==}, (hok, (hv, Unit{}))))))))
 
-# The loop's result: the piece and the result.
-def oneL(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l: Nat, +len: U32, +tr: AT.Tree<U32>, +d: Nat,
+def final_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l2: Nat,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat,
   +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
   +hv: {D.view(C.BT(len, tr)) == E.codes(c) : List<&2, U32>},
   -tout: W.TOut,
-  lg: LP.LoopG(dfs, fa, o, cs, c0, l, LA(c, k, cs), k, len, tr, tout)) ->
-  OneG(dfs, fa, o, cs, c, True{}, k, c0, l, tout):
+  lg: LP.LoopG(dfs, fa, o, cs, c0, l2, LA(c, k, cs), k, len, tr, tout)) ->
+  OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.final(tout)):
   (+r, g1) = lg
   (e, h) = g1
-  (len, (tr, (d, (r, (e, (hok, (hv, rok_true(dfs, fa, o, cs, c0, l, LA(c, k, cs), r, h))))))))
+  %Equal.sym(W.TOut, tout, W.TOut{C.BT(len, tr), LP.mkLR(fa, k, c0, l2, r)}, e) : OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.final(_))
+  final_r(dfs, fa, o, cs, c, k, c0, l2, len, tr, d, hok, hv, r, h)
+
+# The first run's result: clean or dirty as it is; stopped against the
+# phantom, the task runs again from the key it stopped at.
+def retry_r(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l: Nat,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +EL: U32,
+  +hfa: {PC.fa_bytes(fa) == True{} : Bool},
+  +hab: {E.all_bytes(S.opts_args(o)) == True{} : Bool},
+  +hb0: {E.is_bytes(c0) == True{} : Bool},
+  +hq: {Q.len_le(c0, 268435456) == True{} : Bool},
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +hv: {D.view(C.BT(len, tr)) == E.codes(c) : List<&2, U32>},
+  +hk1: {U32.is_le((k + 1 : U32), len) == True{} : Bool},
+  +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
+  +r: LP.LR,
+  h: LP.LRok(dfs, fa, o, cs, c0, l, LA(c, k, cs), r)) ->
+  OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.retry(o, len, k, EL, c0, dfs, W.TOut{C.BT(len, tr), LP.mkLR(fa, k, c0, l, r)})):
+  match r:
+    case LP.LDirty{}:
+      (len, (tr, (d, (l, (LP.LDirty{}, ({==}, (hok, (hv, Unit{}))))))))
+    case LP.LClean{+rp, +pd, +wp}:
+      (len, (tr, (d, (l, (LP.LClean{rp, pd, wp}, ({==}, (hok, (hv, h))))))))
+    case LP.LAgain{+l2, +wp, +sp}:
+      final_ok(dfs, fa, o, cs, c, k, c0, l2, len, tr, d, hok, hv, W.task.run1(o, C.BT(len, tr), len, k, PC.mkWin(fa, wp), LP.mkWins(fa, sp), EL, c0, l2, dfs),
+        run1_ok(dfs, fa, o, cs, c, k, c0, l2, len, tr, d, wp, sp, EL, hfa, hab, hok, hv, hk1, hL, ST.run0_ok(c0, l2, W.task.res(o, len), hb0, hq), h))
+
+def retry_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l: Nat,
+  +len: U32, +tr: AT.Tree<U32>, +d: Nat, +EL: U32,
+  +hfa: {PC.fa_bytes(fa) == True{} : Bool},
+  +hab: {E.all_bytes(S.opts_args(o)) == True{} : Bool},
+  +hb0: {E.is_bytes(c0) == True{} : Bool},
+  +hq: {Q.len_le(c0, 268435456) == True{} : Bool},
+  +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
+  +hv: {D.view(C.BT(len, tr)) == E.codes(c) : List<&2, U32>},
+  +hk1: {U32.is_le((k + 1 : U32), len) == True{} : Bool},
+  +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
+  -tout: W.TOut,
+  lg: LP.LoopG(dfs, fa, o, cs, c0, l, LA(c, k, cs), k, len, tr, tout)) ->
+  OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.retry(o, len, k, EL, c0, dfs, tout)):
+  (+r, g1) = lg
+  (e, h) = g1
+  %Equal.sym(W.TOut, tout, W.TOut{C.BT(len, tr), LP.mkLR(fa, k, c0, l, r)}, e) : OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.retry(o, len, k, EL, c0, dfs, _))
+  retry_r(dfs, fa, o, cs, c, k, c0, l, len, tr, d, EL, hfa, hab, hb0, hq, hok, hv, hk1, hL, r, h)
 
 def WOK(+fa: List<&2, B.Contig>, +R1: Pr.Req) -> Type:
   {W.task.win(R1, M.truths.one(fa, R1)) == PC.mkWin(fa, WN.WPR(fa, R1)) : Q.Win}
@@ -177,44 +261,43 @@ def wins1(+fa: List<&2, B.Contig>, +wp: PC.WP, +h: {Bool.and(PC.wp_ok(fa, wp), S
   %Equal.sym(Bool, Bool.and(PC.wp_ok(fa, wp), S.mb_win.k(wp)), True{}, h) : {Bool.and(_, True{}) == True{} : Bool}
   {==}
 
-# The task runs on the piece from the start picture (no copy: the loop hands
-# the piece back), with the piece's last LF as rlf finds it.
+def wins2(+fa: List<&2, B.Contig>, +w1: PC.WP, +w2: PC.WP,
+  +h1: {Bool.and(PC.wp_ok(fa, w1), S.mb_win.k(w1)) == True{} : Bool},
+  +h2: {Bool.and(PC.wp_ok(fa, w2), S.mb_win.k(w2)) == True{} : Bool}) ->
+  {LP.wins_ok(fa, [w1, w2]) == True{} : Bool}:
+  %Equal.sym(Bool, Bool.and(PC.wp_ok(fa, w1), S.mb_win.k(w1)), True{}, h1) : {Bool.and(_, LP.wins_ok(fa, [w2])) == True{} : Bool}
+  wins1(fa, w2, h2)
+
+# The task runs on the piece from the start picture, with the piece's last
+# LF as rlf finds it, and again if its first run stopped against the phantom.
 def oneC(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l: Nat,
   +R1: Pr.Req, +R2: Pr.Req, +len: U32, +tr: AT.Tree<U32>, +d: Nat,
   +hfa: {PC.fa_bytes(fa) == True{} : Bool},
   +hab: {E.all_bytes(S.opts_args(o)) == True{} : Bool},
+  +hb0: {E.is_bytes(c0) == True{} : Bool},
+  +hq: {Q.len_le(c0, 268435456) == True{} : Bool},
   +hok: {D.ok(C.BT(len, tr), d) == True{} : Bool},
   +hv: {D.view(C.BT(len, tr)) == E.codes(c) : List<&2, U32>},
   +hk1: {U32.is_le((k + 1 : U32), len) == True{} : Bool},
   +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
-  r0: ST.R0G(c0, l, W.task.res(o, len)),
   w1: WOK(fa, R1),
   w2: WOK(fa, R2)) ->
-  OneG(dfs, fa, o, cs, c, True{}, k, c0, l, W.task.last(o, len, W.task.wins2([R1, R2], M.truths.one(fa, R1), M.truths.one(fa, R2)), k, c0, l, W.rlf(C.BT(len, tr), len, (k + 1 : U32)), dfs)):
-  (+rp0, q1) = r0
-  (+er0, q2) = q1
-  (+hinv, q3) = q2
-  (+hset, hib) = q3
+  OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.last(o, len, W.task.wins2([R1, R2], M.truths.one(fa, R1), M.truths.one(fa, R2)), k, c0, l, W.rlf(C.BT(len, tr), len, (k + 1 : U32)), dfs)):
   (+we1, hw1) = w1
   (+we2, hw2) = w2
   +WP1 = WN.WPR(fa, R1)
   +WP2 = WN.WPR(fa, R2)
-  +F = Nat.add(U32.to_nat(len), 8n)
   +EL = Pair.fst(U32, Bool, BUF.RL(len, tr, len, (k + 1 : U32)))
   +FL = Pair.snd(U32, Bool, BUF.RL(len, tr, len, (k + 1 : U32)))
   %Equal.sym(D.Bytes & (U32 & Bool), W.rlf(C.BT(len, tr), len, (k + 1 : U32)), (C.BT(len, tr), (EL, FL)), BUF.rlf_b(len, tr, len, (k + 1 : U32))) :
-    OneG(dfs, fa, o, cs, c, True{}, k, c0, l, W.task.last(o, len, W.task.wins2([R1, R2], M.truths.one(fa, R1), M.truths.one(fa, R2)), k, c0, l, _, dfs))
+    OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.last(o, len, W.task.wins2([R1, R2], M.truths.one(fa, R1), M.truths.one(fa, R2)), k, c0, l, _, dfs))
   %Equal.sym(Q.Win, W.task.win(R1, M.truths.one(fa, R1)), PC.mkWin(fa, WP1), we1) :
-    OneG(dfs, fa, o, cs, c, True{}, k, c0, l, W.task.start(o, C.BT(len, tr), len, k, W.task.wins([_, W.task.win(R2, M.truths.one(fa, R2))]), EL, c0, l, dfs))
+    OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.start(o, C.BT(len, tr), len, k, W.task.wins([_, W.task.win(R2, M.truths.one(fa, R2))]), EL, c0, l, dfs))
   %Equal.sym(Q.Win, W.task.win(R2, M.truths.one(fa, R2)), PC.mkWin(fa, WP2), we2) :
-    OneG(dfs, fa, o, cs, c, True{}, k, c0, l, W.task.start(o, C.BT(len, tr), len, k, W.task.wins([PC.mkWin(fa, WP1), _]), EL, c0, l, dfs))
-  %Equal.sym(NR.Run, W.task.run0(c0, l, W.task.res(o, len)), P.mkRun(rp0), er0) :
-    OneG(dfs, fa, o, cs, c, True{}, k, c0, l, W.task.loop(F, W.task.next(Q.St{o, Q.MB{_}, [Q.SB{C.BT(len, tr), (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, PC.mkWin(fa, WP1), None{}, False{}, dfs}, W.PIn{}, [PC.mkWin(fa, WP2)], EL, len), EL, len, k, c0, l))
-  %Equal.sym(D.Bytes, BY.empty(0n), C.BT(0, G.tnew(0n, 0)), G.empty_eq(0n)) :
-    OneG(dfs, fa, o, cs, c, True{}, k, c0, l, W.task.loop(F, W.task.next(Q.St{o, Q.MB{P.mkRun(rp0)}, [Q.SB{C.BT(len, tr), (k + 1 : U32)}], Q.PB{_}, False{}, 0n, PC.mkWin(fa, WP1), None{}, False{}, dfs}, W.PIn{}, [PC.mkWin(fa, WP2)], EL, len), EL, len, k, c0, l))
-  oneL(dfs, fa, o, cs, c, k, c0, l, len, tr, d, hok, hv, W.task.loop(F, W.task.next(S.mkSt(fa, P0(dfs, o, rp0, len, tr, d, k, WP1)), W.PIn{}, LP.mkWins(fa, [WP2]), EL, len), EL, len, k, c0, l),
-    LP.start_ok(dfs, F, fa, o, cs, c0, l, LA(c, k, cs), k, S.report(fa, cs, "", Nil{}, P0(dfs, o, rp0, len, tr, d, k, WP1)), len, tr, d, EL, hok, hL, P0(dfs, o, rp0, len, tr, d, k, WP1), [WP2], (k + 1 : U32), hfa,
-      inv0(dfs, fa, o, cs, c, k, c0, l, rp0, len, tr, d, WP1, hok, hv, hk1, hinv, hib, hset, hw1, hab), {==}, wins1(fa, WP2, hw2)))
+    OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.start(o, C.BT(len, tr), len, k, W.task.wins([PC.mkWin(fa, WP1), _]), EL, c0, l, dfs))
+  retry_ok(dfs, fa, o, cs, c, k, c0, l, len, tr, d, EL, hfa, hab, hb0, hq, hok, hv, hk1, hL,
+    W.task.run1(o, C.BT(len, tr), len, k, PC.mkWin(fa, WP1), LP.mkWins(fa, [WP2]), EL, c0, l, dfs),
+    run1_ok(dfs, fa, o, cs, c, k, c0, l, len, tr, d, WP1, [WP2], EL, hfa, hab, hok, hv, hk1, hL, ST.run0_ok(c0, l, W.task.res(o, len), hb0, hq), wins2(fa, WP1, WP2, hw1, hw2)))
 
 def oneB(+dfs: B.Defs, +q2: Bool, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l: Nat,
   +R1: Pr.Req, +R2: Pr.Req,
@@ -228,13 +311,12 @@ def oneB(+dfs: B.Defs, +q2: Bool, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List
   +hk1: {U32.is_le((k + 1 : U32), L0(c)) == True{} : Bool},
   w1: WOK(fa, R1),
   w2: WOK(fa, R2)) ->
-  OneG(dfs, fa, o, cs, c, True{}, k, c0, l, W.task.len.if(q2, o, C.BT(L0(c), EN.enc_t(c)), L0(c), W.task.wins2([R1, R2], M.truths.one(fa, R1), M.truths.one(fa, R2)), k, c0, l, dfs)):
+  OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.len.if(q2, o, C.BT(L0(c), EN.enc_t(c)), L0(c), W.task.wins2([R1, R2], M.truths.one(fa, R1), M.truths.one(fa, R2)), k, c0, l, dfs)):
   match q2:
     case False{}:
-      (L0(c), (EN.enc_t(c), (E.depth(String.length(c)), (LP.LDirty{}, ({==}, (hok, (hv, Unit{})))))))
+      (L0(c), (EN.enc_t(c), (E.depth(String.length(c)), (l, (LP.LDirty{}, ({==}, (hok, (hv, Unit{}))))))))
     case True{}:
-      oneC(dfs, fa, o, cs, c, k, c0, l, R1, R2, L0(c), EN.enc_t(c), E.depth(String.length(c)), hfa, hab, hok, hv, hk1, hq2,
-        ST.run0_ok(c0, l, W.task.res(o, L0(c)), hb0, hq), w1, w2)
+      oneC(dfs, fa, o, cs, c, k, c0, l, R1, R2, L0(c), EN.enc_t(c), E.depth(String.length(c)), hfa, hab, hb0, hq, hok, hv, hk1, hq2, w1, w2)
 
 def oneQ(+dfs: B.Defs, +q: Bool, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l: Nat,
   +R1: Pr.Req, +R2: Pr.Req,
@@ -246,7 +328,7 @@ def oneQ(+dfs: B.Defs, +q: Bool, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<
   en: ENC(c),
   w1: WOK(fa, R1),
   w2: WOK(fa, R2)) ->
-  OneG(dfs, fa, o, cs, c, True{}, k, c0, l, W.task.go(q, o, E.enc(c), [R1, R2], M.truths.one(fa, R1), M.truths.one(fa, R2), k, c0, l, dfs)):
+  OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.go(q, o, E.enc(c), [R1, R2], M.truths.one(fa, R1), M.truths.one(fa, R2), k, c0, l, dfs)):
   match q:
     case False{}:
       dirty_enc(dfs, fa, o, cs, c, True{}, k, c0, l, en)
@@ -254,7 +336,7 @@ def oneQ(+dfs: B.Defs, +q: Bool, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<
       (+hok, e1) = en
       (+hv, e2) = e1
       %Equal.sym(D.Bytes, E.enc(c), C.BT(L0(c), EN.enc_t(c)), EN.enc_bt(c)) :
-        OneG(dfs, fa, o, cs, c, True{}, k, c0, l, W.task.len(o, BY.len(_), W.task.wins2([R1, R2], M.truths.one(fa, R1), M.truths.one(fa, R2)), k, c0, l, dfs))
+        OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.len(o, BY.len(_), W.task.wins2([R1, R2], M.truths.one(fa, R1), M.truths.one(fa, R2)), k, c0, l, dfs))
       oneB(dfs, U32.is_lt(L0(c), 1073741824), fa, o, cs, c, k, c0, l, R1, R2, hfa, hab, hb0, hq, {==}, hok, hv, hk1, w1, w2)
 
 # A task on a piece with two reads, run with their truthful answers.
@@ -267,7 +349,7 @@ def one_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, Stri
   +hrs: {BUF.rs_ok2([Pr.Req{c1, x1, y1}, Pr.Req{c2, x2, y2}]) == True{} : Bool},
   +hb0: {E.is_bytes(c0) == True{} : Bool},
   +hk1: {U32.is_lt((k + 1 : U32), L0(c)) == True{} : Bool}) ->
-  OneG(dfs, fa, o, cs, c, True{}, k, c0, l, W.task(o, E.enc(c), True{}, [Pr.Req{c1, x1, y1}, Pr.Req{c2, x2, y2}], M.truths.one(fa, Pr.Req{c1, x1, y1}), M.truths.one(fa, Pr.Req{c2, x2, y2}), k, c0, l, dfs)):
+  OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task(o, E.enc(c), True{}, [Pr.Req{c1, x1, y1}, Pr.Req{c2, x2, y2}], M.truths.one(fa, Pr.Req{c1, x1, y1}), M.truths.one(fa, Pr.Req{c2, x2, y2}), k, c0, l, dfs)):
   +A = Bool.and(E.le31(Nat.sub(y1, x1)), E.is_bytes(c1))
   +Bq = Bool.and(Bool.and(E.le31(Nat.sub(y2, x2)), E.is_bytes(c2)), True{})
   +ha = BUF.andl(A, Bq, hrs)
@@ -281,5 +363,5 @@ def one_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, Stri
 def one_no(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +rs: List<&2, Pr.Req>, +k: U32, +c0: String, +l: Nat,
   +hcb: {E.is_bytes(c) == True{} : Bool},
   +hcn: {E.le31(String.length(c)) == True{} : Bool}) ->
-  OneG(dfs, fa, o, cs, c, False{}, k, c0, l, W.task(o, E.enc(c), False{}, rs, Pr.Unknown{}, Pr.Unknown{}, k, c0, l, dfs)):
+  OneG(dfs, fa, o, cs, c, False{}, k, c0, W.task(o, E.enc(c), False{}, rs, Pr.Unknown{}, Pr.Unknown{}, k, c0, l, dfs)):
   dirty_enc(dfs, fa, o, cs, c, False{}, k, c0, l, EN.enc_ok(c, hcb, hcn))
