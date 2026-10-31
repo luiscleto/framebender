@@ -1160,31 +1160,38 @@ def ref.pos(+o: B.Opts, p: NR.Run & Nat, +c: B.Code, +ch: String, r: D.Bytes & S
   (b, +pos) = r
   done.b(o, NR.problem_line(False{}, run, R.Opts.w(o), c, B.At{n, ch, pos}, Maybe.default(&2, Nat, B.Pos.read(pos), 0n), b, s, (lf + 1 - s : U32)), (lf + 1 : U32), cx, win)
 
-def ref.same(same: Bool, +back: Nat, +o: B.Opts, run: NR.Run, +c: B.Code, +f1: NS.Rg, +ch: String, b: D.Bytes, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
-  match same:
+def ref.if(ok: Bool, +back: Nat, +o: B.Opts, run: NR.Run, +c: B.Code, +ch: String, +f1: NS.Rg, b: D.Bytes, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  match ok:
     case True{}:
       ref.pos(o, ticked(run), c, ch, NS.txt(b, f1), s, lf, cx, win)
     case False{}:
       decoded(back, o, run, b, s, cx, win, fneed)
 
-def ref.chrom(+back: Nat, +o: B.Opts, run: NR.Run, +c: B.Code, +f1: NS.Rg, +c0: String, r: D.Bytes & String, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
-  (b, +ch) = r
-  ref.same(String.eq(ch, c0), back, o, run, c, f1, ch, b, s, lf, cx, win, fneed)
+def ref.on(p: Win & Bool, +big: Bool, +back: Nat, +o: B.Opts, run: NR.Run, +c: B.Code, +ch: String, +f1: NS.Rg, b: D.Bytes, +s: U32, +lf: U32, cx: Cx, +fneed: Bool) -> Adv:
+  (win, on) = p
+  ref.if(on && Bool.not(big), back, o, run, c, ch, f1, b, s, lf, cx, win, fneed)
 
-def ref.win(win: Win, +back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +c: B.Code, +f0: NS.Rg, +f1: NS.Rg, +s: U32, +lf: U32, cx: Cx, +fneed: Bool) -> Adv:
+# The window is the contig ch's (WKnown).
+def Win.on(win: Win, +ch: String) -> Win & Bool:
   match win:
     case WKnown{+c0, cb, +a0, +b0, +clen, +off, raw, +offu, +rlen, +clenu}:
-      ref.chrom(back, o, run, c, f1, c0, NS.txt(b, f0), s, lf, cx, WKnown{c0, cb, a0, b0, clen, off, raw, offu, rlen, clenu}, fneed)
+      (WKnown{c0, cb, a0, b0, clen, off, raw, offu, rlen, clenu}, String.eq(ch, c0))
     case w:
-      decoded(back, o, run, b, s, cx, w, fneed)
+      (w, False{})
 
-# Under -c e the run stops at the line: the String path says how.
+def ref.ch(r: D.Bytes & String, +back: Nat, +o: B.Opts, run: NR.Run, +c: B.Code, +f1: NS.Rg, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
+  (b, +ch) = r
+  ref.on(Win.on(win, ch), U32.is_lt(268435456, (lf - s : U32)), back, o, run, c, ch, f1, b, s, lf, cx, fneed)
+
+# Under -c e the run stops at the line: the String path says how. Under -c w
+# (and a line of at most 2^28 bytes) the line goes through here when its
+# CHROM is the window's contig, else the String path takes it.
 def ref.b(strict: Bool, +back: Nat, +o: B.Opts, run: NR.Run, b: D.Bytes, +c: B.Code, +f0: NS.Rg, +f1: NS.Rg, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
   match strict:
     case True{}:
       decoded(back, o, run, b, s, cx, win, fneed)
     case False{}:
-      ref.win(win, back, o, run, b, c, f0, f1, s, lf, cx, fneed)
+      ref.ch(NS.txt(b, f0), back, o, run, c, f1, s, lf, cx, win, fneed)
 
 def split.out(o2: NS.Ans, +back: Nat, +o: B.Opts, run: NR.Run, +s: U32, +lf: U32, cx: Cx, win: Win, +fneed: Bool) -> Adv:
   match o2:
