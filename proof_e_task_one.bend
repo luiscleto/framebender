@@ -156,7 +156,7 @@ def dirty_enc(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, S
 # One run of the task's loop from the phantom l, with the windows wp1 and
 # sps (task.run1): the loop from the start picture (no copy: the loop hands
 # the piece back).
-def run1_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l: Nat,
+def run1_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l: Nat, +rs: U32,
   +len: U32, +tr: AT.Tree<U32>, +d: Nat, +wp1: PC.WP, +sps: List<&2, PC.WP>, +EL: U32,
   +hfa: {PC.fa_bytes(fa) == True{} : Bool},
   +hab: {E.all_bytes(S.opts_args(o)) == True{} : Bool},
@@ -164,9 +164,9 @@ def run1_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, Str
   +hv: {D.view(C.BT(len, tr)) == E.codes(c) : List<&2, U32>},
   +hk1: {U32.is_le((k + 1 : U32), len) == True{} : Bool},
   +hL: {U32.is_lt(len, 1073741824) == True{} : Bool},
-  r0: ST.R0G(c0, l, W.task.res(o, len)),
+  r0: ST.R0G(c0, l, rs),
   +hw: {LP.wins_ok(fa, wp1 <> sps) == True{} : Bool}) ->
-  LP.LoopG(dfs, fa, o, cs, c0, l, LA(c, k, cs), k, len, tr, W.task.run1(o, C.BT(len, tr), len, k, PC.mkWin(fa, wp1), LP.mkWins(fa, sps), EL, c0, l, dfs)):
+  LP.LoopG(dfs, fa, o, cs, c0, l, LA(c, k, cs), k, len, tr, W.task.run1(o, C.BT(len, tr), len, k, PC.mkWin(fa, wp1), LP.mkWins(fa, sps), EL, c0, l, rs, dfs)):
   (+rp0, q1) = r0
   (+er0, q2) = q1
   (+hinv, q3) = q2
@@ -175,7 +175,7 @@ def run1_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, Str
   +X1 = Bool.and(PC.wp_ok(fa, wp1), S.mb_win.k(wp1))
   +hw1 = BUF.andl(X1, LP.wins_ok(fa, sps), hw)
   +hsp = BUF.andr(X1, LP.wins_ok(fa, sps), hw)
-  %Equal.sym(NR.Run, W.task.run0(c0, l, W.task.res(o, len)), P.mkRun(rp0), er0) :
+  %Equal.sym(NR.Run, W.task.run0(c0, l, rs), P.mkRun(rp0), er0) :
     LP.LoopG(dfs, fa, o, cs, c0, l, LA(c, k, cs), k, len, tr, W.task.loop(F, W.task.next(Q.St{o, Q.MB{_}, [Q.SB{C.BT(len, tr), (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, PC.mkWin(fa, wp1), None{}, False{}, dfs}, W.PIn{}, LP.mkWins(fa, sps), EL, len), EL, len, k, c0, l))
   %Equal.sym(D.Bytes, BY.empty(0n), C.BT(0, G.tnew(0n, 0)), G.empty_eq(0n)) :
     LP.LoopG(dfs, fa, o, cs, c0, l, LA(c, k, cs), k, len, tr, W.task.loop(F, W.task.next(Q.St{o, Q.MB{P.mkRun(rp0)}, [Q.SB{C.BT(len, tr), (k + 1 : U32)}], Q.PB{_}, False{}, 0n, PC.mkWin(fa, wp1), None{}, False{}, dfs}, W.PIn{}, LP.mkWins(fa, sps), EL, len), EL, len, k, c0, l))
@@ -231,8 +231,8 @@ def retry_r(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, Str
     case LP.LClean{+rp, +pd, +wp}:
       (len, (tr, (d, (l, (LP.LClean{rp, pd, wp}, ({==}, (hok, (hv, h))))))))
     case LP.LAgain{+l2, +wp, +sp}:
-      final_ok(dfs, fa, o, cs, c, k, c0, l2, len, tr, d, hok, hv, W.task.run1(o, C.BT(len, tr), len, k, PC.mkWin(fa, wp), LP.mkWins(fa, sp), EL, c0, l2, dfs),
-        run1_ok(dfs, fa, o, cs, c, k, c0, l2, len, tr, d, wp, sp, EL, hfa, hab, hok, hv, hk1, hL, ST.run0_ok(c0, l2, W.task.res(o, len), hb0, hq), h))
+      final_ok(dfs, fa, o, cs, c, k, c0, l2, len, tr, d, hok, hv, W.task.run1(o, C.BT(len, tr), len, k, PC.mkWin(fa, wp), LP.mkWins(fa, sp), EL, c0, l2, W.task.res(o, len), dfs),
+        run1_ok(dfs, fa, o, cs, c, k, c0, l2, W.task.res(o, len), len, tr, d, wp, sp, EL, hfa, hab, hok, hv, hk1, hL, ST.run0_ok(c0, l2, W.task.res(o, len), hb0, hq), h))
 
 def retry_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l: Nat,
   +len: U32, +tr: AT.Tree<U32>, +d: Nat, +EL: U32,
@@ -296,8 +296,8 @@ def oneC(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String
   %Equal.sym(Q.Win, W.task.win(R2, M.truths.one(fa, R2)), PC.mkWin(fa, WP2), we2) :
     OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.start(o, C.BT(len, tr), len, k, W.task.wins([PC.mkWin(fa, WP1), _]), EL, c0, l, dfs))
   retry_ok(dfs, fa, o, cs, c, k, c0, l, len, tr, d, EL, hfa, hab, hb0, hq, hok, hv, hk1, hL,
-    W.task.run1(o, C.BT(len, tr), len, k, PC.mkWin(fa, WP1), LP.mkWins(fa, [WP2]), EL, c0, l, dfs),
-    run1_ok(dfs, fa, o, cs, c, k, c0, l, len, tr, d, WP1, [WP2], EL, hfa, hab, hok, hv, hk1, hL, ST.run0_ok(c0, l, W.task.res(o, len), hb0, hq), wins2(fa, WP1, WP2, hw1, hw2)))
+    W.task.run1(o, C.BT(len, tr), len, k, PC.mkWin(fa, WP1), LP.mkWins(fa, [WP2]), EL, c0, l, 65536, dfs),
+    run1_ok(dfs, fa, o, cs, c, k, c0, l, 65536, len, tr, d, WP1, [WP2], EL, hfa, hab, hok, hv, hk1, hL, ST.run0_ok(c0, l, 65536, hb0, hq), wins2(fa, WP1, WP2, hw1, hw2)))
 
 def oneB(+dfs: B.Defs, +q2: Bool, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l: Nat,
   +R1: Pr.Req, +R2: Pr.Req,

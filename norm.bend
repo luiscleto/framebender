@@ -666,9 +666,10 @@ def task.run0(+c0: String, +l: Nat, +len: U32) -> NR.Run:
 def task.res(+o: B.Opts, +len: U32) -> U32:
   Bool.pick(U32, R.Opts.split(o), (len + len : U32), len)
 
-# One run of the task's loop on its piece, from the phantom l.
-def task.run1(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, w: Q.Win, spare: List<&1, Q.Win>, +el: U32, +c0: String, +l: Nat, +dfs: B.Defs) -> TOut:
-  task.loop(Nat.add(U32.to_nat(len), 8n), task.next(Q.St{o, Q.MB{task.run0(c0, l, task.res(o, len))}, [Q.SB{b, (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, w, None{}, False{}, dfs}, PIn{}, spare, el, len), el, len, k, c0, l)
+# One run of the task's loop on its piece, from the phantom l, with room for
+# res bytes of output.
+def task.run1(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, w: Q.Win, spare: List<&1, Q.Win>, +el: U32, +c0: String, +l: Nat, +res: U32, +dfs: B.Defs) -> TOut:
+  task.loop(Nat.add(U32.to_nat(len), 8n), task.next(Q.St{o, Q.MB{task.run0(c0, l, res)}, [Q.SB{b, (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, w, None{}, False{}, dfs}, PIn{}, spare, el, len), el, len, k, c0, l)
 
 # The second run's result: a second stop against the phantom is dirty.
 def task.final(r: TOut) -> TOut:
@@ -680,22 +681,24 @@ def task.final(r: TOut) -> TOut:
     case TOut{b, TClean{c}}:
       TOut{b, TClean{c}}
 
-# The first run's result: when it stopped against the phantom (its first
-# line moved below the first line's POS: notes/split.md), the task runs once
-# more from the key it stopped at; the merge checks that key against the
+# The first run's result: when it stopped against the phantom (at its first
+# write, plan.first), the task runs once more from the key it stopped at,
+# with room for its output (task.res); the merge checks that key against the
 # true run's.
 def task.retry(+o: B.Opts, +len: U32, +k: U32, +el: U32, +c0: String, +dfs: B.Defs, r: TOut) -> TOut:
   match r:
     case TOut{b, TAgain{+l2, w, ws}}:
-      task.final(task.run1(o, b, len, k, w, ws, el, c0, l2, dfs))
+      task.final(task.run1(o, b, len, k, w, ws, el, c0, l2, task.res(o, len), dfs))
     case TOut{b, TDirty{}}:
       TOut{b, TDirty{}}
     case TOut{b, TClean{c}}:
       TOut{b, TClean{c}}
 
+# The first run stops at its first write (plan.first): it gets a small
+# output buffer (it grows if the run goes on).
 def task.start(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, p: Q.Win & List<&1, Q.Win>, +el: U32, +c0: String, +l: Nat, +dfs: B.Defs) -> TOut:
   (w, spare) = p
-  task.retry(o, len, k, el, c0, dfs, task.run1(o, b, len, k, w, spare, el, c0, l, dfs))
+  task.retry(o, len, k, el, c0, dfs, task.run1(o, b, len, k, w, spare, el, c0, l, 65536, dfs))
 
 def task.last.k(+o: B.Opts, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat, b: D.Bytes, q: U32 & Bool, +dfs: B.Defs) -> TOut:
   (+el, fl) = q
