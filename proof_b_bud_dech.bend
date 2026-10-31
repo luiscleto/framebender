@@ -126,16 +126,7 @@ def lcons(+dfs: B.Defs, +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d
   +hsp: LI.SPLIT(len, t, d, at, j),
   +hn: {P.nolf(P.btext(len, t, at, (j - at : U32))) == True{} : Bool}) ->
   {B.Text.lines(BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs)) == B.Text.line(P.btext(len, t, at, (j - at : U32))) <> B.Text.lines(BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back, wp, None{}, fneed), cs)) : List<&2, B.Line>}:
-  +pre = BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed)
-  +post = BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back, wp, None{}, fneed)
-  Equal.trans(List<&2, B.Line>, B.Text.lines(BM.TP(pre, cs)), B.Text.lines(S.intext(pre, cs)), B.Text.line(P.btext(len, t, at, (j - at : U32))) <> B.Text.lines(BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back, wp, None{}, fneed), cs)),
-    Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), BM.TP(pre, cs), S.intext(pre, cs), BL.text_pic(pre, cs)),
-    Equal.trans(List<&2, B.Line>, B.Text.lines(S.intext(pre, cs)), B.Text.lines(String.append(P.btext(len, t, at, (j - at : U32)), String.append("\n", S.intext(post, cs)))), B.Text.line(P.btext(len, t, at, (j - at : U32))) <> B.Text.lines(BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back, wp, None{}, fneed), cs)),
-      Equal.cong(String, List<&2, B.Line>, z => B.Text.lines(z), S.intext(pre, cs), String.append(P.btext(len, t, at, (j - at : U32)), String.append("\n", S.intext(post, cs))),
-        Equal.sym(String, String.append(P.btext(len, t, at, (j - at : U32)), String.append("\n", S.intext(post, cs))), S.intext(pre, cs), LI.itx(dfs, o, S.MBP{rp}, S.MBP{rp}, rest, pd, eof, back, back, wp, None{}, None{}, fneed, fneed, cs, len, t, d, at, j, hsp))),
-      Equal.trans(List<&2, B.Line>, B.Text.lines(String.append(P.btext(len, t, at, (j - at : U32)), String.append("\n", S.intext(post, cs)))), B.Text.line(P.btext(len, t, at, (j - at : U32))) <> B.Text.lines(S.intext(post, cs)), B.Text.line(P.btext(len, t, at, (j - at : U32))) <> B.Text.lines(BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back, wp, None{}, fneed), cs)),
-        LSS.lines_cons(P.btext(len, t, at, (j - at : U32)), S.intext(post, cs), hn),
-        Equal.cong(String, List<&2, B.Line>, z => B.Text.line(P.btext(len, t, at, (j - at : U32))) <> B.Text.lines(z), S.intext(post, cs), BM.TP(post, cs), Equal.sym(String, BM.TP(post, cs), S.intext(post, cs), BL.text_pic(post, cs))))))
+  BM.tpl(dfs, cs, o, S.MBP{rp}, S.MBP{rp}, len, t, d, at, j, rest, pd, eof, back, back, wp, wp, None{}, None{}, fneed, fneed, hsp, hn)
 
 # ---------------------------------------------------------------------------
 # The leaves
@@ -177,8 +168,8 @@ def TMC(+dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>,
     Norm.Went{Norm.St{o, Norm.to_ms(P.mkRun(rp)), P.mkSrcs(Con{P.SBP{len, t, d, at}, rest}), P.mkPd(pd), eof, back, PC.mkWin(fa, wp), None{}, f2, dfs}}):
   +ls = BN.lines(P.mkSrcs(Con{P.SBP{len, t, d, at}, rest}), P.mkPd(pd), eof, cs)
   (%Equal.sym(Bool, BN.fast_left(Norm.to_ms(P.mkRun(rp)), f2), False{}, fl_ms(rp, f2)) :
-     {Nat.is_le(BN.WA.ls(fa, _, back, PC.mkWin(fa, wp), None{}, ls), BN.WA.ls(fa, Bool.not(fneed), back, PC.mkWin(fa, wp), None{}, ls)) == True{} : Bool};
-   wa_fl(fa, Bool.not(fneed), back, wp, None{}, ls),
+     {Nat.is_le(BN.WAX(fa, o, _, back, PC.mkWin(fa, wp), None{}, ls), BN.WAX(fa, o, Bool.not(fneed), back, PC.mkWin(fa, wp), None{}, ls)) == True{} : Bool};
+   BM.wax_le(fa, o, False{}, back, wp, None{}, Bool.not(fneed), back, wp, None{}, ls, wa_fl(fa, Bool.not(fneed), back, wp, None{}, ls)),
    hbi)
 
 # The source's text moves to the line end.
@@ -207,17 +198,21 @@ def CPT.pa(+dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>,
           match q2:
             case (hpd2, htx):
               +q2p = Q2(dfs, o, rp, rest, pd2, eof, back, wp, fneed)
-              +eqT = Equal.trans(String, BM.TP(q2p, cs), S.intext(q2p, cs), BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs), BL.text_pic(q2p, cs),
+              +eqT = Equal.trans(String, BM.TP(q2p, cs), S.intext(q2p, cs), BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs), BL.text_pic(q2p, cs, W.nr_first(rest, W.W8_nr(fa, o, S.MBP{rp}, len, t, d, at, rest, pd, eof, back, wp, None{}, fneed, dfs, BL.w8_of(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), hw)))),
                 Equal.trans(String, S.intext(q2p, cs), S.intext(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs), BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs),
                   DPT.DP.tq(dfs, rest, fa, cs, o, rp, len, t, d, at, pd, eof, back, wp, None{}, fneed, fneed, hw, hn, hsa, pd2, htx),
-                  Equal.sym(String, BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs), S.intext(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs), BL.text_pic(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs))))
+                  Equal.sym(String, BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs), S.intext(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs), BL.text_pic(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs, BL.rf_of(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), hw)))))
               %Equal.sym(Norm.Pd, Norm.pend.add(P.mkPd(pd), C.BT(len, t), at, (len - at : U32)), P.mkPd(pd2), eadd) :
                 BD.AdvC(fa, cs, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), Norm.Went{Norm.St{o, Norm.MB{P.mkRun(rp)}, P.mkSrcs(rest), _, eof, back, PC.mkWin(fa, wp), None{}, fneed, dfs}})
-              ({%Equal.sym(String, BM.TP(q2p, cs), BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs), eqT) :
-                  {Nat.is_le(BN.WA.ls(fa, Bool.not(fneed), back, PC.mkWin(fa, wp), None{}, B.Text.lines(_)), BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed)), cs)) == True{} : Bool};
-                N.le_refl(BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed)), cs)) : {Nat.is_le(BN.WA.ls(fa, Bool.not(fneed), back, PC.mkWin(fa, wp), None{}, B.Text.lines(BM.TP(q2p, cs))), BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed)), cs)) == True{} : Bool}},
-               {%Equal.sym(String, BM.TP(q2p, cs), BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs), eqT) : {BN.bi.ls(back, PC.mkWin(fa, wp), None{}, B.Text.lines(_)) == True{} : Bool};
-                hbi : {BN.bi.ls(back, PC.mkWin(fa, wp), None{}, B.Text.lines(BM.TP(q2p, cs))) == True{} : Bool}})
+              +hnr = W.W8_nr(fa, o, S.MBP{rp}, len, t, d, at, rest, pd, eof, back, wp, None{}, fneed, dfs, BL.w8_of(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), hw))
+              +eal = Equal.sym(List<&2, B.Line>, BN.ALL(P.mkSrcs(rest), P.mkPd(pd2), eof, cs), BN.lines(P.mkSrcs(rest), P.mkPd(pd2), eof, cs), BL.all_nr(rest, pd2, eof, cs, hnr))
+              ({%eal : {Nat.is_le(BN.WAX(fa, o, Bool.not(fneed), back, PC.mkWin(fa, wp), None{}, _), BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed)), cs)) == True{} : Bool};
+                %Equal.sym(String, BM.TP(q2p, cs), BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs), eqT) :
+                  {Nat.is_le(BN.WAX(fa, o, Bool.not(fneed), back, PC.mkWin(fa, wp), None{}, B.Text.lines(_)), BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed)), cs)) == True{} : Bool};
+                N.le_refl(BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed)), cs)) : {Nat.is_le(BN.WAX(fa, o, Bool.not(fneed), back, PC.mkWin(fa, wp), None{}, BN.ALL(P.mkSrcs(rest), P.mkPd(pd2), eof, cs)), BN.WAS(fa, S.mkSt(fa, BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed)), cs)) == True{} : Bool}},
+               {%eal : {BN.bi.ls(back, PC.mkWin(fa, wp), None{}, _) == True{} : Bool};
+                %Equal.sym(String, BM.TP(q2p, cs), BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs), eqT) : {BN.bi.ls(back, PC.mkWin(fa, wp), None{}, B.Text.lines(_)) == True{} : Bool};
+                hbi : {BN.bi.ls(back, PC.mkWin(fa, wp), None{}, BN.ALL(P.mkSrcs(rest), P.mkPd(pd2), eof, cs)) == True{} : Bool}})
 
 def CPT(+dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +fneed: Bool,
@@ -283,7 +278,7 @@ def K.vw(+dfs: B.Defs, +reqs: List<&2, Pr.Req>, +b2: Nat, +fa: List<&2, B.Contig
       +g2 = {%Equal.sym(List<&2, B.Line>, B.Text.lines(BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs)), B.Text.line(P.btext(len, t, at, (j - at : U32))) <> B.Text.lines(BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, (j + 1 : U32)}, rest}, pd, eof, back, wp, None{}, fneed), cs)), e1) : {BN.bi.ls(b2, PC.mkWin(fa, wp), Some{reqs}, _) == True{} : Bool};
         %LN.line_eq(P.btext(len, t, at, (j - at : U32))) : {Bool.or(Nat.is_eq(b2, 0n), BN.heldZ(PC.mkWin(fa, wp), Some{reqs}, BN.lchrom(_), BN.lend(_))) == True{} : Bool};
         vb2 : {BN.bi.ls(b2, PC.mkWin(fa, wp), Some{reqs}, B.Text.lines(BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs))) == True{} : Bool}}
-      (g1, g2)
+      (BM.wax_want(fa, o, KQ, FL, b2, wp, Some{reqs}, FL, back, wp, None{}, B.Text.lines(BM.TP(BD.StM(dfs, o, S.MBP{rp}, Con{P.SBP{len, t, d, at}, rest}, pd, eof, back, wp, None{}, fneed), cs)), g1), g2)
 
 def K.same.d(+dfs: B.Defs, +fa: List<&2, B.Contig>, +cs: List<&2, String>,
   +o: B.Opts, +rp: P.RunP, +len: U32, +t: AT.Tree<U32>, +d: Nat, +at: U32, +rest: List<&2, P.SrcP>, +pd: P.PdP, +eof: Bool, +back: Nat, +wp: PC.WP, +fneed: Bool,
