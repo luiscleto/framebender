@@ -457,10 +457,124 @@ def noend.go(n: Nat, x: Ne) -> D.Bytes & Bool:
 def noend(b: D.Bytes, +from: U32, +to: U32) -> D.Bytes & Bool:
   noend.go(U32.to_nat((to - from + 2 : U32)), Ne{b, from, to, from, True{}, True{}})
 
+# ---------------------------------------------------------------------------
+# INFO's END entries: none, or exactly one, END=<digits> as num reads them
+# (1 to 9 digits, no leading zero), with the value POS + len(REF) - 1
+# (B.Info.end_ok). The entries are the pieces between ';'; an entry's key is
+# the text before its first '=' (B.Info.key).
+# ---------------------------------------------------------------------------
+
+def lit.eq(+k: U32, r: D.Bytes & U32) -> D.Bytes & Bool:
+  (b, +x) = r
+  (b, U32.is_eq(x, k))
+
+def lit.one(ok: Bool, b: D.Bytes, +k: U32, +j: U32) -> D.Bytes & Bool:
+  match ok:
+    case True{}:
+      lit.eq(k, BY.at(b, j))
+    case False{}:
+      (b, False{})
+
+# r's flag, and bytes j, j+1, ... are ks.
+def lit.go(ks: List<&2, U32>, r: D.Bytes & Bool, +j: U32) -> D.Bytes & Bool:
+  match ks:
+    case Nil{}:
+      r
+    case +k <> t:
+      (b, ok) = r
+      lit.go(t, lit.one(ok, b, k, j), (j + 1 : U32))
+
+def key3.if(three: Bool, b: D.Bytes, +j: U32) -> D.Bytes & Bool:
+  match three:
+    case True{}:
+      lit.go([69, 78, 68], (b, True{}), j)
+    case False{}:
+      (b, False{})
+
+# The n bytes from j are END.
+def key3(b: D.Bytes, +j: U32, +n: U32) -> D.Bytes & Bool:
+  key3.if(U32.is_eq(n, 3), b, j)
+
+# At the entry starting at j (INFO ends at to; pos: POS, rl: REF's length):
+# every END entry so far had the value pos + rl - 1 (ok); one was seen
+# (seen); another entry to look at (more).
+type Ek is Type:
+  Ek{b: D.Bytes, j: U32, to: U32, pos: U32, rl: U32, ok: Bool, seen: Bool, more: Bool}
+
+# After an entry ending at sm (a ';', or INFO's end).
+def ek.w(+ok: Bool, seen: Bool, end: Bool, b: D.Bytes, +sm: U32, +to: U32, +pos: U32, +rl: U32) -> Ek:
+  match end:
+    case True{}:
+      Ek{b, sm, to, pos, rl, ok, seen, False{}}
+    case False{}:
+      Ek{b, (sm + 1 : U32), to, pos, rl, ok, seen, ok}
+
+def ek.v(ok: Bool, seen: Bool, +to: U32, +pos: U32, +rl: U32, r: D.Bytes & U32) -> Ek:
+  (b, +sm) = r
+  ek.w(ok, seen, U32.is_eq(sm, to), b, sm, to, pos, rl)
+
+# The END value v is pos + rl - 1 (as v - pos == rl - 1, with pos <= v and
+# 1 <= rl: no word wraps).
+def ek.val.k(ok: Bool, seen: Bool, +sm: U32, +to: U32, +pos: U32, +rl: U32, v: Bv) -> Ek:
+  match v:
+    case Bv{b, vok, +x}:
+      +good = ok && Bool.not(seen) && vok && U32.is_le(pos, x) && U32.is_le(1, rl) && U32.is_eq((x - pos : U32), (rl - 1 : U32))
+      ek.w(good, True{}, U32.is_eq(sm, to), b, sm, to, pos, rl)
+
+# An END entry with its '=' at ke: its value is the bytes up to the next ';'.
+def ek.val(ok: Bool, seen: Bool, +ke: U32, +to: U32, +pos: U32, +rl: U32, r: D.Bytes & U32) -> Ek:
+  (b, +sm) = r
+  ek.val.k(ok, seen, sm, to, pos, rl, num(b, (ke + 1 : U32), sm))
+
+def ek.e(+ok: Bool, seen: Bool, isend: Bool, end: Bool, semi: Bool, b: D.Bytes, +ke: U32, +to: U32, +pos: U32, +rl: U32) -> Ek:
+  match isend end semi:
+    case False{} True{} _:
+      Ek{b, ke, to, pos, rl, ok, seen, False{}}
+    case False{} False{} True{}:
+      Ek{b, (ke + 1 : U32), to, pos, rl, ok, seen, ok}
+    case False{} False{} False{}:
+      ek.v(ok, seen, to, pos, rl, F.find(b, ke, to, 59))
+    case True{} False{} False{}:
+      ek.val(ok, seen, ke, to, pos, rl, F.find(b, ke, to, 59))
+    case True{} _ _:
+      Ek{b, ke, to, pos, rl, False{}, seen, False{}}
+
+def ek.n(ok: Bool, seen: Bool, isend: Bool, +ke: U32, +to: U32, +pos: U32, +rl: U32, r: D.Bytes & U32) -> Ek:
+  (b, +y) = r
+  ek.e(ok, seen, isend, U32.is_eq(ke, to), U32.is_eq(y, 59), b, ke, to, pos, rl)
+
+def ek.h(ok: Bool, seen: Bool, +ke: U32, +to: U32, +pos: U32, +rl: U32, r: D.Bytes & Bool) -> Ek:
+  (b, isend) = r
+  ek.n(ok, seen, isend, ke, to, pos, rl, BY.at(b, ke))
+
+def ek.k(+j: U32, +to: U32, ok: Bool, seen: Bool, +pos: U32, +rl: U32, r: D.Bytes & U32) -> Ek:
+  (b, +ke) = r
+  ek.h(ok, seen, ke, to, pos, rl, key3(b, j, (ke - j : U32)))
+
+# The entry at j: its key ends at the first '=' or ';' (or INFO's end); the
+# next entry starts after the next ';'.
+def ek.step(x: Ek) -> Ek:
+  match x:
+    case Ek{b, +j, +to, +pos, +rl, ok, seen, m}:
+      ek.k(j, to, ok, seen, pos, rl, F.find2(b, j, to, 61, 59))
+
+def ek.go(n: Nat, x: Ek) -> D.Bytes & Bool:
+  match n x:
+    case 0n Ek{b, j, to, pos, rl, ok, seen, m}:
+      (b, False{})
+    case 1n+k Ek{b, j, to, pos, rl, ok, seen, False{}}:
+      (b, ok)
+    case 1n+k Ek{b, j, to, pos, rl, ok, seen, True{}}:
+      ek.go(k, ek.step(Ek{b, j, to, pos, rl, ok, seen, True{}}))
+
+# INFO (from .. to-1) passes the END check for POS pos and a REF of rl bytes.
+def endok(b: D.Bytes, +from: U32, +to: U32, +pos: U32, +rl: U32) -> D.Bytes & Bool:
+  ek.go(U32.to_nat((to - from + 2 : U32)), Ek{b, from, to, pos, rl, True{}, False{}, True{}})
+
 def pre.al.if(ok: Bool, +pos: U32, +c: Cut, b: D.Bytes) -> Pr:
   match ok c:
-    case True{} Cut8{e0, e1, e2, e3, e4, e5, +e6, +e7, lf}:
-      pre.info(pos, c, noend(b, (e6 + 1 : U32), e7))
+    case True{} Cut8{e0, e1, +e2, +e3, e4, e5, +e6, +e7, lf}:
+      pre.info(pos, c, endok(b, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)))
     case _ _:
       Pr{b, Slow{}}
 
