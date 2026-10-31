@@ -81,17 +81,6 @@ def ovf_n(+len: U32, +k: U32, +hx: {Nat.is_le(Nat.add(U32.to_nat(len), U32.to_na
   Equal.trans(Nat, U32.to_nat((len + k + 8 : U32)), Nat.add(U32.to_nat((len + k : U32)), 8n), y, U.to_nat_add_fits_p((len + k : U32), 8, h),
     Equal.cong(Nat, Nat, z => Nat.add(z, 8n), U32.to_nat((len + k : U32)), x, hlk))
 
-def ovf_n2(+len: U32, +k: U32, +hx: {Nat.is_le(Nat.add(U32.to_nat(len), U32.to_nat(k)), Nat.pow(2n, 29n)) == True{} : Bool}) ->
-  {U32.to_nat(((len + k + 8 : U32) * 2 : U32)) == Nat.add(Nat.add(Nat.add(U32.to_nat(len), U32.to_nat(k)), 8n), Nat.add(Nat.add(U32.to_nat(len), U32.to_nat(k)), 8n)) : Nat}:
-  +x = Nat.add(U32.to_nat(len), U32.to_nat(k))
-  +y = Nat.add(x, 8n)
-  +nn = (len + k + 8 : U32)
-  +m2 = Equal.trans(Nat, Nat.mul(U32.to_nat(nn), U32.to_nat(2)), Nat.mul(y, U32.to_nat(2)), Nat.add(y, y),
-    Equal.cong(Nat, Nat, z => Nat.mul(z, U32.to_nat(2)), U32.to_nat(nn), y, ovf_n(len, k, hx)),
-    Equal.trans(Nat, Nat.mul(y, 2n), Nat.double(y), Nat.add(y, y), N.mul2_r(y), N.dbl_add(y)))
-  +h = AB.subst(Nat, z => {Nat.is_lt(z, Nat.pow(2n, 32n)) == True{} : Bool}, Nat.add(y, y), Nat.mul(U32.to_nat(nn), U32.to_nat(2)), Equal.sym(Nat, Nat.mul(U32.to_nat(nn), U32.to_nat(2)), Nat.add(y, y), m2), ovf_y(x, hx))
-  Equal.trans(Nat, U32.to_nat((nn * 2 : U32)), Nat.mul(U32.to_nat(nn), U32.to_nat(2)), Nat.add(y, y), U.to_nat_mul_fits_p(nn, 2, h), m2)
-
 # depth
 # =====
 
@@ -266,20 +255,19 @@ def room_ok.k(+len: U32, +t: AT.Tree<U32>, +d: Nat, +k: U32, +z: Bool,
       +x = Nat.add(U32.to_nat(len), U32.to_nat(k))
       +y = Nat.add(x, 8n)
       +m = Nat.mul(4n, Nat.pow(2n, d))
-      +need = ((len + k + 8 : U32) * 2 : U32)
+      +need = (len + k + 8 : U32)
       +e = NR.depth(need)
       +t2 = G.gtree(U32.to_nat(U32.shln(1, d)), t, G.tnew(e, 0), 0)
       +heq = G.grow_eq(len, t, d, e, C.ok_full(len, t, d, hok))
       +hd = C.ok_d(len, t, d, hok)
-      +hn2 = ovf_n2(len, k, hx)
-      +hgt0 = N.lt_le_trans(m, y, Nat.add(y, y), N.not_le_lt(y, m, room_c(len, t, d, k, False{}, ez, hok, hx)), N.le_add_r(y, y))
-      +hgt = AB.subst(Nat, w => {Nat.is_lt(m, w) == True{} : Bool}, Nat.add(y, y), U32.to_nat(need), Equal.sym(Nat, U32.to_nat(need), Nat.add(y, y), hn2), hgt0)
+      +hn2 = ovf_n(len, k, hx)
+      +hgt0 = N.not_le_lt(y, m, room_c(len, t, d, k, False{}, ez, hok, hx))
+      +hgt = AB.subst(Nat, w => {Nat.is_lt(m, w) == True{} : Bool}, y, U32.to_nat(need), Equal.sym(Nat, U32.to_nat(need), y, hn2), hgt0)
       +he = dg_ge(29n, 0n, need, d, hd, hgt, hd)
       +he29 = dg_le(29n, 0n, need)
       +hok2 = AB.subst(D.Bytes, b => {D.ok(b, e) == True{} : Bool}, BY.grow(C.BT(len, t), e), C.BT(len, t2), heq, G.grow_ok_t(len, t, d, e, hok, he, he29))
       +hv2 = AB.subst(D.Bytes, b => {D.view(b) == D.view(C.BT(len, t)) : List<&2, U32>}, BY.grow(C.BT(len, t), e), C.BT(len, t2), heq, G.grow_view_t(len, t, d, e, hok, he, he29))
-      +hxn = AB.subst(Nat, w => {Nat.is_le(x, w) == True{} : Bool}, Nat.add(y, y), U32.to_nat(need), Equal.sym(Nat, U32.to_nat(need), Nat.add(y, y), hn2),
-        N.le_trans(x, y, Nat.add(y, y), N.le_add_r(x, 8n), N.le_add_r(y, y)))
+      +hxn = AB.subst(Nat, w => {Nat.is_le(x, w) == True{} : Bool}, y, U32.to_nat(need), Equal.sym(Nat, U32.to_nat(need), y, hn2), N.le_add_r(x, 8n))
       +hxf = N.le_trans(x, Nat.pow(2n, 29n), Nat.mul(4n, Nat.pow(2n, 29n)), hx, le_mul4(Nat.pow(2n, 29n)))
       +hxf2 = AB.subst(Nat, w => {Nat.is_le(x, Nat.mul(4n, Nat.pow(2n, w))) == True{} : Bool}, 29n, Nat.add(0n, 29n), {==}, hxf)
       +hcap = AB.subst(Nat, w => {Nat.is_le(x, Nat.mul(4n, Nat.pow(2n, w))) == True{} : Bool}, NR.depth.go(29n, 0n, need), e, {==}, dg_cap(29n, 0n, need, x, hxn, hxf2, {==}))

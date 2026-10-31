@@ -104,7 +104,7 @@ def room.if(ok: Bool, +n: U32, b: D.Bytes) -> D.Bytes:
     case True{}:
       b
     case False{}:
-      BY.grow(b, depth((n * 2 : U32)))
+      BY.grow(b, depth(n))
 
 def room.k(+n: U32, r: D.Bytes & U32) -> D.Bytes:
   (b, +cap) = r

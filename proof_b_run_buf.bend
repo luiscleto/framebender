@@ -41,7 +41,7 @@ def rt.if(c: Bool, +t: AT.Tree<U32>, +e: Nat) -> AT.Tree<U32>:
 
 # The tree room leaves.
 def RT(+l: U32, +t: AT.Tree<U32>, +k: U32) -> AT.Tree<U32>:
-  rt.if(U32.is_le((l + k + 8 : U32), CAPV(l, t)), t, NR.depth(((l + k + 8 : U32) * 2 : U32)))
+  rt.if(U32.is_le((l + k + 8 : U32), CAPV(l, t)), t, NR.depth((l + k + 8 : U32)))
 
 law room_if:
   for +c: Bool
@@ -49,14 +49,14 @@ law room_if:
   for +t: AT.Tree<U32>
   for +n: U32
   for +hf: {A.full(U32, AT.fromT(U32, t), RD.tdepth(t)) == True{} : Bool}
-  {NR.room.if(c, n, C.BT(l, t)) == C.BT(l, rt.if(c, t, NR.depth((n * 2 : U32)))) : D.Bytes}
+  {NR.room.if(c, n, C.BT(l, t)) == C.BT(l, rt.if(c, t, NR.depth(n))) : D.Bytes}
 
 def room_if(c, l, t, n, hf):
   match c:
     case True{}:
       {==}
     case False{}:
-      G.grow_eq(l, t, RD.tdepth(t), NR.depth((n * 2 : U32)), hf)
+      G.grow_eq(l, t, RD.tdepth(t), NR.depth(n), hf)
 
 law room_eq:
   for +l: U32
@@ -101,7 +101,7 @@ def room_c(+l: U32, +t: AT.Tree<U32>, +k: U32, +c: Bool,
   hc: {U32.is_le((l + k + 8 : U32), CAPV(l, t)) == c : Bool},
   +hok: {D.ok(C.BT(l, t), RD.tdepth(t)) == True{} : Bool},
   +hL: {Nat.is_lt(Nat.add(Nat.add(U32.to_nat(l), U32.to_nat(k)), 8n), Nat.mul(4n, Nat.pow(2n, 29n))) == True{} : Bool}) ->
-  RoomP(l, t, k, rt.if(c, t, NR.depth(((l + k + 8 : U32) * 2 : U32)))):
+  RoomP(l, t, k, rt.if(c, t, NR.depth((l + k + 8 : U32)))):
   match c:
     case True{}:
       +n = (l + k + 8 : U32)
@@ -127,18 +127,15 @@ def room_c(+l: U32, +t: AT.Tree<U32>, +k: U32, +c: Bool,
       +hcv = Equal.trans(Bool, Nat.is_le(U32.to_nat(n), U32.to_nat(CAPV(l, t))), U32.is_le(n, CAPV(l, t)), c,
         Equal.sym(Bool, U32.is_le(n, CAPV(l, t)), Nat.is_le(U32.to_nat(n), U32.to_nat(CAPV(l, t))), U.is_le_to_nat(n, CAPV(l, t))), hc)
       +ecap = O.capacity_view_t(l, t, dt, hok)
-      +e = NR.depth((n * 2 : U32))
+      +e = NR.depth(n)
       +T2 = rt.if(False{}, t, e)
       +hnM = AB.subst(Nat, y => {Nat.is_lt(y, M) == True{} : Bool}, NN, U32.to_nat(n), Equal.sym(Nat, U32.to_nat(n), NN, hn), hL)
-      +en2 = NM.mul2_fits(n, hnM)
-      +hx1 = AB.subst(Nat, y => {Nat.is_le(U32.to_nat(n), y) == True{} : Bool}, Nat.mul(U32.to_nat(n), 2n), U32.to_nat((n * 2 : U32)),
-        Equal.sym(Nat, U32.to_nat((n * 2 : U32)), Nat.mul(U32.to_nat(n), 2n), en2), NM.le_dbl(U32.to_nat(n)))
-      +hb = NM.depth_bound((n * 2 : U32), U32.to_nat(n), hx1, N.lt_to_le(U32.to_nat(n), M, hnM))
+      +hb = NM.depth_bound(n, U32.to_nat(n), N.le_refl(U32.to_nat(n)), N.lt_to_le(U32.to_nat(n), M, hnM))
       +hcl = N.not_le_lt(U32.to_nat(n), U32.to_nat(CAPV(l, t)), hcv)
       +ec4 = Equal.trans(Nat, U32.to_nat(CAPV(l, t)), D.cap(C.BT(l, t)), Nat.mul(4n, Nat.pow(2n, dt)), ecap, O.cap_ok_t(l, t, dt, hok))
       +hcl4 = AB.subst(Nat, y => {Nat.is_lt(y, U32.to_nat(n)) == True{} : Bool}, U32.to_nat(CAPV(l, t)), Nat.mul(4n, Nat.pow(2n, dt)), ec4, hcl)
       +hde = NM.pinv(dt, e, N.lt_le_trans(Nat.mul(4n, Nat.pow(2n, dt)), U32.to_nat(n), Nat.mul(4n, Nat.pow(2n, e)), hcl4, hb))
-      +he29 = NM.depth_le((n * 2 : U32))
+      +he29 = NM.depth_le(n)
       +ge = G.grow_eq(l, t, dt, e, C.ok_full(l, t, dt, hok))
       +hv = AB.subst(D.Bytes, z => {D.view(z) == D.view(C.BT(l, t)) : List<&2, U32>}, BY.grow(C.BT(l, t), e), C.BT(l, T2), ge,
         G.grow_view_t(l, t, dt, e, hok, hde, he29))

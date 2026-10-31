@@ -256,7 +256,7 @@ def room_if(+c: Bool, +n: U32, +l: U32, +t: AT.Tree<U32>) -> {NR.room.if(c, n, C
     case True{}:
       {==}
     case False{}:
-      +need = (n * 2 : U32)
+      +need = n
       +sh = U32.is_le(need, U32.shln(4, 0n))
       %Equal.sym(Nat, NS.depth.go(29n, sh, 0n, need), NR.depth.go(29n, 0n, need), depth_eq(29n, 0n, need)) :
         {BY.grow(C.BT(l, t), NR.depth(need)) == BY.grow(C.BT(l, t), _) : D.Bytes}
