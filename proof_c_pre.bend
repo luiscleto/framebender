@@ -63,7 +63,7 @@ def fix_lf(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
     +h0 => +h1 => +h2 => +h3 => +h4 => +h5 => +h6 => +h7 => +h8 => +h9 => +h10 => +h11 => +h12 => +h13 => +h14 => +h15 => +h16 => htt =>
       CU.pass_lf.k(len, t, d, s, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13, h14, h15, h16))
 
-# The String path cuts the same fields, INFO kept as "" (as pass_fields).
+# The String path cuts the same fields, INFO as J.pfs keeps it (as pass_fields).
 def fix_fields(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
   +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32,
   +als: List<&2, NX.Ap>, +up: Bool,
@@ -75,7 +75,7 @@ def fix_fields(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
     +h0 => +h1 => +h2 => +h3 => +h4 => +h5 => +h6 => +h7 => +h8 => +h9 => +h10 => +h11 => +h12 => +h13 => +h14 => +h15 => +h16 => htt =>
       I.dtt(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, CU.FDD(len, t, s, e0, e1, e2, e3, e4, e5, e6, e7, lf), htt,
         +g1 => +g2 => +g3 => +g4 => +g5 => +g6 => +g7 => +g8 => +g9 => +g10 =>
-          CU.pass_fields.k(len, t, d, s, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13, h14, h15, h16, g8, g10)))
+          CU.pass_fields.k(len, t, d, s, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13, h14, h15, h16, g10)))
 
 # POS reads as the number read, written as Nat.show writes it, not 0, and
 # below 10^9 (as pass_pos and pass_pos_small).

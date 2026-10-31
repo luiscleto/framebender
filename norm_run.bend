@@ -497,6 +497,12 @@ def bump(r: Run, changed: Bool, skipped: Bool, warned: Bool) -> Run:
 def fast_done(r: Run, +w: Nat, +line: Nat, +pos: Nat, src: D.Bytes, +s: U32, +n: U32) -> Run & D.Bytes:
   same_run(bump(r, False{}, False{}, False{}), w, Ck{pos, pos, line, None{}, n}, pos, Raw{}, src, s, n)
 
+# An out-of-scope record found on its bytes (norm_fast.bend's Skip), in the
+# current run: as body_line writes a Skipped result (the line as it came, its
+# POS written as Nat.show(pos)).
+def skip_done(r: Run, +w: Nat, +line: Nat, +pos: Nat, src: D.Bytes, +s: U32, +n: U32) -> Run & D.Bytes:
+  same_run(bump(r, False{}, True{}, False{}), w, Ck{pos, pos, line, None{}, n}, pos, Raw{}, src, s, n)
+
 # A record rewritten on its bytes (norm_fix.bend), in the current run: as
 # body_line writes a Normalized result with a new text and no message. The
 # new text is bytes 0 .. n-1 of src; k: the new POS; inpos: the input POS

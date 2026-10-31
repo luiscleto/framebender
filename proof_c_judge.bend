@@ -8,6 +8,7 @@ import ./norm_line.bend as J
 import ./proof_window_defs.bend as WS
 import ./proof_window.bend as PW
 import ./proof_fast.bend as PF
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # Phase C: the rewrite path's verdict, at the String level (as
 # proof_b_adv_judge.bend's fast_res for the fast path): when the fields the
@@ -26,6 +27,7 @@ law fix_fast:
   for +f4: String
   for +f5: String
   for +f6: String
+  for +f7: String
   for +body: String
   for +p: Nat
   for +r: List<&2, B.Base>
@@ -47,12 +49,13 @@ law fix_fast:
   for +hc: {J.ref_check(clen, off, B.Bases.of_fasta(raw), Nat.sub(p, 1n), r) == Some{True{}} : Maybe<&2, Bool>}
   for +hns: {Bool.and(B.Rec.same_var(B.Var{p, r, alts}, w), J.same.text(f1, f3, f4, B.Var{p, r, alts})) == False{} : Bool}
   for +hst: {B.Rec.stale(B.Rec.fields(body), B.Var{p, r, alts}, w) == False{} : Bool}
-  {J.fast(Some{J.Known{clen, off, raw}}, [f0, f1, f2, f3, f4, f5, f6, ""], body) == J.Other{Some{RW(w, B.Var{p, r, alts}, body)}} : J.Fast}
+  for +hend: {J.end_ok(f7, Nat.sub(Nat.add(p, String.length(f3)), 1n)) == True{} : Bool}
+  {J.fast(Some{J.Known{clen, off, raw}}, [f0, f1, f2, f3, f4, f5, f6, f7], body) == J.Other{Some{RW(w, B.Var{p, r, alts}, body)}} : J.Fast}
 
-def fix_fast(f0, f1, f2, f3, f4, f5, f6, body, p, r, alts, clen, off, raw, w, h0, h1, hz, hr, ha, hl, he, hn, hd, hv, hc, hns, hst):
+def fix_fast(f0, f1, f2, f3, f4, f5, f6, f7, body, p, r, alts, clen, off, raw, w, h0, h1, hz, hr, ha, hl, he, hn, hd, hv, hc, hns, hst, hend):
   +e1 = Equal.sym(Maybe<&2, Nat>, B.Pos.read(f1), Some{p}, h1)
   +a = {Some{J.Known{clen, off, raw}} : Maybe<&2, J.Ans>}
-  +FS = {[f0, f1, f2, f3, f4, f5, f6, ""] : List<&2, String>}
+  +FS = {[f0, f1, f2, f3, f4, f5, f6, f7] : List<&2, String>}
   +s4 = String.split(f4, ',')
   +G = {J.Other{Some{RW(w, B.Var{p, r, alts}, body)}} : J.Fast}
   %Equal.sym(Bool, String.is_empty(f0), False{}, h0) :
@@ -66,6 +69,10 @@ def fix_fast(f0, f1, f2, f3, f4, f5, f6, body, p, r, alts, clen, off, raw, w, h0
   %Equal.sym(Bool, B.Text.any_not_letters(s4), False{}, hn) :
     {J.fast.go(False{}, _, a, FS, body) == G : J.Fast}
   +bs = B.Bases.of_fasta(raw)
+  +E1 = Nat.sub(Nat.add(Maybe.default(&2, Nat, B.Pos.read(f1), 0n), String.length(f3)), 1n)
+  +hend1 = AB.subst(Maybe<&2, Nat>, z => {J.end_ok(f7, Nat.sub(Nat.add(Maybe.default(&2, Nat, z, 0n), String.length(f3)), 1n)) == True{} : Bool}, Some{p}, B.Pos.read(f1), e1, hend)
+  %Equal.sym(Bool, J.end_ok(f7, E1), True{}, hend1) :
+    {J.fast.found(_, B.Allele.read(f3), B.Alleles.read(s4), clen, off, bs, Maybe.default(&2, Nat, B.Pos.read(f1), 0n), f1, f3, f4, body) == G : J.Fast}
   %Equal.sym(Maybe<&2, List<&2, B.Base>>, B.Allele.read(f3), Some{r}, hr) :
     {J.fast.found(True{}, _, B.Alleles.read(s4), clen, off, bs, Maybe.default(&2, Nat, B.Pos.read(f1), 0n), f1, f3, f4, body) == G : J.Fast}
   %Equal.sym(Maybe<&2, List<&2, List<&2, B.Base>>>, B.Alleles.read(s4), Some{alts}, ha) :
@@ -97,6 +104,7 @@ law fix_res:
   for +f4: String
   for +f5: String
   for +f6: String
+  for +f7: String
   for +p: Nat
   for +r: List<&2, B.Base>
   for +alts: List<&2, List<&2, B.Base>>
@@ -104,7 +112,7 @@ law fix_res:
   for +off: Nat
   for +raw: String
   for +w: B.Var
-  for +hpf: {J.pfs(body) == [f0, f1, f2, f3, f4, f5, f6, ""] : List<&2, String>}
+  for +hpf: {J.pfs(body) == [f0, f1, f2, f3, f4, f5, f6, f7] : List<&2, String>}
   for +h0: {String.is_empty(f0) == False{} : Bool}
   for +h1: {B.Pos.read(f1) == Some{p} : Maybe<&2, Nat>}
   for +hz: {Nat.is_eq(p, 0n) == False{} : Bool}
@@ -119,14 +127,15 @@ law fix_res:
   for +hns: {Bool.and(B.Rec.same_var(B.Var{p, r, alts}, w), J.same.text(f1, f3, f4, B.Var{p, r, alts})) == False{} : Bool}
   for +hst: {B.Rec.stale(B.Rec.fields(body), B.Var{p, r, alts}, w) == False{} : Bool}
   for +ht: {WS.truthful(fa, WS.chrom_of(body), Some{J.Known{clen, off, raw}}) == True{} : Bool}
+  for +hend: {J.end_ok(f7, Nat.sub(Nat.add(p, String.length(f3)), 1n)) == True{} : Bool}
   {L.judge(fa, body) == RW(w, B.Var{p, r, alts}, body) : B.Res}
 
-def fix_res(fa, body, f0, f1, f2, f3, f4, f5, f6, p, r, alts, clen, off, raw, w, hpf, h0, h1, hz, hr, ha, hl, he, hn, hd, hv, hc, hns, hst, ht):
+def fix_res(fa, body, f0, f1, f2, f3, f4, f5, f6, f7, p, r, alts, clen, off, raw, w, hpf, h0, h1, hz, hr, ha, hl, he, hn, hd, hv, hc, hns, hst, ht, hend):
   +a = {Some{J.Known{clen, off, raw}} : Maybe<&2, J.Ans>}
   +P0 = B.Rec.pos(B.Rec.fields(body))
   +RR = RW(w, B.Var{p, r, alts}, body)
-  +es = {%Equal.sym(List<&2, String>, J.pfs(body), [f0, f1, f2, f3, f4, f5, f6, ""], hpf) : {J.fast(a, _, body) == J.Other{Some{RR}} : J.Fast};
-    fix_fast(f0, f1, f2, f3, f4, f5, f6, body, p, r, alts, clen, off, raw, w, h0, h1, hz, hr, ha, hl, he, hn, hd, hv, hc, hns, hst) : {J.fast(a, J.pfs(body), body) == J.Other{Some{RR}} : J.Fast}}
+  +es = {%Equal.sym(List<&2, String>, J.pfs(body), [f0, f1, f2, f3, f4, f5, f6, f7], hpf) : {J.fast(a, _, body) == J.Other{Some{RR}} : J.Fast};
+    fix_fast(f0, f1, f2, f3, f4, f5, f6, f7, body, p, r, alts, clen, off, raw, w, h0, h1, hz, hr, ha, hl, he, hn, hd, hv, hc, hns, hst, hend) : {J.fast(a, J.pfs(body), body) == J.Other{Some{RR}} : J.Fast}}
   +ej = Equal.trans(Maybe<&2, B.Res>, J.judge_in(a, body), PF.fr_res(J.fast(a, J.pfs(body), body), P0, body), Some{RR},
     Equal.sym(Maybe<&2, B.Res>, PF.fr_res(J.fast(a, J.pfs(body), body), P0, body), J.judge_in(a, body), PF.fast_judge(a, body)),
     Equal.cong(J.Fast, Maybe<&2, B.Res>, f => PF.fr_res(f, P0, body), J.fast(a, J.pfs(body), body), J.Other{Some{RR}}, es))
