@@ -5,6 +5,8 @@ import ./run.bend as R
 import ./protocol.bend as Pr
 import ./norm_line.bend as J
 import ./proof_b_cachedefs.bend as PC
+import ./proof_b_defs.bend as P
+import ./norm_seq.bend as Norm
 import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_xa.bend as BX
 import ./proof_b_budget_mb.bend as BM
@@ -406,3 +408,23 @@ def split_le(fa, o, l, ps, term, t, fl, back, wp, m, fl2, back2, wp2, m2, hs):
                 {Nat.is_le(Nat.add(Nat.add(K, LTt), XT), Nat.add(Nat.add(R1, LTt), Nat.add(XA1, XT))) == True{} : Bool}}
               N.le_trans(BN.WAX(fa, o, fl2, back2, PC.mkWin(fa, wp2), m2, A), Nat.add(Nat.add(K, LTt), XT), BN.WAX(fa, o, fl, back, PC.mkWin(fa, wp), m, l <> t),
                 PB.le_add(BN.WA.ls(fa, fl2, back2, PC.mkWin(fa, wp2), m2, A), Nat.add(K, LTt), BN.XA(o, fa, A), XT, hw, hx), h2)
+
+# The records of a split line on its text (SR, inject.r) in front of the
+# sources xs: their lines, then those of xs.
+law all_rs:
+  for ps: Ss()
+  for +tm: String
+  for +xs: List<&2, P.SrcP>
+  for +pd: P.PdP
+  for +eof: Bool
+  for +cs: List<&2, String>
+  {BN.ALL(Norm.recs_src(ps, tm, P.mkSrcs(xs)), P.mkPd(pd), eof, cs) == List.append(&2, B.Line, SR.LS(ps, tm), BN.ALL(P.mkSrcs(xs), P.mkPd(pd), eof, cs)) : List<&2, B.Line>}
+
+def all_rs(ps, tm, xs, pd, eof, cs):
+  match ps:
+    case Nil{}:
+      {==}
+    case +p <> +t:
+      Equal.cong(List<&2, B.Line>, List<&2, B.Line>, z => B.Line{p, tm} <> z,
+        BN.ALL(Norm.recs_src(t, tm, P.mkSrcs(xs)), P.mkPd(pd), eof, cs), List.append(&2, B.Line, SR.LS(t, tm), BN.ALL(P.mkSrcs(xs), P.mkPd(pd), eof, cs)),
+        all_rs(t, tm, xs, pd, eof, cs))
