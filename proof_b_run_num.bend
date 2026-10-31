@@ -80,6 +80,33 @@ law mul2_fits:
 def mul2_fits(a, h):
   U.to_nat_mul_fits_p(a, 2, dbl_lt(29n, 32n, {==}, U32.to_nat(2), {==}, U32.to_nat(a), h))
 
+# n <= NR.want(n), when n * 2 does not wrap.
+def want_ge.c(+c: Bool, +a: U32, +h: {Nat.is_lt(Nat.mul(U32.to_nat(a), U32.to_nat(2)), Nat.pow(2n, 32n)) == True{} : Bool}) ->
+  {Nat.is_le(U32.to_nat(a), U32.to_nat(NR.want.if(c, a))) == True{} : Bool}:
+  match c:
+    case True{}:
+      AB.subst(Nat, y => {Nat.is_le(U32.to_nat(a), y) == True{} : Bool}, Nat.mul(U32.to_nat(a), 2n), U32.to_nat((a * 2 : U32)),
+        Equal.sym(Nat, U32.to_nat((a * 2 : U32)), Nat.mul(U32.to_nat(a), 2n), U.to_nat_mul_fits_p(a, 2, h)), le_dbl(U32.to_nat(a)))
+    case False{}:
+      N.le_refl(U32.to_nat(a))
+
+law want_ge:
+  for +a: U32
+  for +h: {Nat.is_lt(Nat.mul(U32.to_nat(a), U32.to_nat(2)), Nat.pow(2n, 32n)) == True{} : Bool}
+  {Nat.is_le(U32.to_nat(a), U32.to_nat(NR.want(a))) == True{} : Bool}
+
+def want_ge(a, h):
+  want_ge.c(U32.is_lt(a, 67108864), a, h)
+
+# want_ge below 2^31.
+law want_ge31:
+  for +a: U32
+  for +h: {Nat.is_lt(U32.to_nat(a), Nat.mul(4n, Nat.pow(2n, 29n))) == True{} : Bool}
+  {Nat.is_le(U32.to_nat(a), U32.to_nat(NR.want(a))) == True{} : Bool}
+
+def want_ge31(a, h):
+  want_ge(a, dbl_lt(29n, 32n, {==}, U32.to_nat(2), {==}, U32.to_nat(a), h))
+
 # 2^(e+1) = 2^e + 2^e.
 law pow_dbl:
   for +e: Nat
