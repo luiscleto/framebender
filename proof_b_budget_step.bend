@@ -165,27 +165,139 @@ def yield_bud(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: 
       %Equal.sym(Norm.St, st, S.mkSt(fa, p), est) : BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.out(_, Pr.Ask{Nil{}}))
       yb.k(fa, T, cs, O, p, hw, hy, bi2)
 
-def IHG(+g: Nat, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>) -> Type:
-  @q: S.StP -> {S.WF(fa, q) == True{} : Bool} -> {Nat.is_le(S.measure(q), g) == True{} : Bool} ->
-    S.AdvG(fa, T, cs, O, N, q, Norm.advance(S.mkSt(fa, q))) -> BD.AdvB(fa, cs, q, Norm.advance(S.mkSt(fa, q))) -> BD.AdvBi(cs, Norm.advance(S.mkSt(fa, q))) ->
-    BD.BudS(fa, T, cs, O, BD.WP(fa, cs, q), Norm.pump(1n+g, Norm.advance(S.mkSt(fa, q))))
+def is_went(a: Norm.Adv) -> Bool:
+  match a:
+    case Norm.Went{st}:
+      True{}
+    case _:
+      False{}
 
-# A line handled (Went): on with the next state's picture p2.
-def went_k(+g: Nat, -st: Norm.St, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +p: S.StP, +p2: S.StP,
+# A step that is not Went ends the pump, with any fuel.
+def pb_other(+f: Nat, a: Norm.Adv, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +p: S.StP,
   +hb: {PC.fa_bytes(fa) == True{} : Bool},
-  +hf: {Nat.is_le(S.measure(p), 1n+g) == True{} : Bool},
-  +est: {st == S.mkSt(fa, p2) : Norm.St},
-  +wf2: {S.WF(fa, p2) == True{} : Bool},
-  +er2: {S.report(fa, cs, O, N, p2) == T : R.Report},
-  +elt: {Nat.is_lt(S.measure(p2), S.measure(p)) == True{} : Bool},
-  +eask2: {S.StP.asked(p2) == None{} : Maybe<&2, List<&2, Pr.Req>>},
-  +eg2: {S.guard(O, N, p2) == True{} : Bool},
-  ab: {Nat.is_le(BN.WAS(fa, st, cs), BD.WP(fa, cs, p)) == True{} : Bool},
-  abi: {BN.biS(st, cs) == True{} : Bool},
-  ih: IHG(g, fa, T, cs, O, N)) ->
-  BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(1n+(1n+g), Norm.Went{st})):
-  ?TODO
+  +hw: {S.WF(fa, p) == True{} : Bool},
+  ag: S.AdvG(fa, T, cs, O, N, p, a), ab: BD.AdvB(fa, cs, p, a), abi: BD.AdvBi(cs, a),
+  +hnw: {is_went(a) == False{} : Bool}) ->
+  BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(f, a)):
+  match f a:
+    case 0n Norm.Went{st}:
+      Empty.absurd(BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(0n, Norm.Went{st})), PB.false_ne_true(Equal.sym(Bool, True{}, False{}, hnw)))
+    case 1n+g Norm.Went{st}:
+      Empty.absurd(BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(1n+g, Norm.Went{st})), PB.false_ne_true(Equal.sym(Bool, True{}, False{}, hnw)))
+    case _ Norm.Want{st, +r}:
+      (+p2, a1) = ag
+      (+est, a2) = a1
+      +ab2 = AB.subst(Norm.St, z => {Nat.is_le(Nat.add(1n+List.length(&2, Pr.Req, r), BN.WAS(fa, z, cs)), BD.WP(fa, cs, p)) == True{} : Bool}, st, S.mkSt(fa, p2), est, ab)
+      +bi2 = AB.subst(Norm.St, z => {BN.biS(z, cs) == True{} : Bool}, st, S.mkSt(fa, p2), est, abi)
+      %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.out(_, Pr.Ask{r}))
+      out_bud(fa, T, cs, O, p2, Pr.Ask{r}, BD.WP(fa, cs, p), bi2, ab2)
+    case _ Norm.Idle{st}:
+      (+p2, a1) = ag
+      (+est, a2) = a1
+      (+wf2, a3) = a2
+      +ab2 = AB.subst(Norm.St, z => {Nat.is_le(BN.WAS(fa, z, cs), BD.WP(fa, cs, p)) == True{} : Bool}, st, S.mkSt(fa, p2), est, ab)
+      +bi2 = AB.subst(Norm.St, z => {BN.biS(z, cs) == True{} : Bool}, st, S.mkSt(fa, p2), est, abi)
+      %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.idle(_))
+      idle_bud(fa, T, cs, O, p2, BD.WP(fa, cs, p), wf2, bi2, ab2)
+    case _ Norm.Ended{st}:
+      (+p2, a1) = ag
+      (+est, a2) = a1
+      (+wf2, a3) = a2
+      +ab2 = AB.subst(Norm.St, z => {Nat.is_le(BN.WAS(fa, z, cs), BD.WP(fa, cs, p)) == True{} : Bool}, st, S.mkSt(fa, p2), est, ab)
+      +bi2 = AB.subst(Norm.St, z => {BN.biS(z, cs) == True{} : Bool}, st, S.mkSt(fa, p2), est, abi)
+      %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.finish(_))
+      bud_mono(fa, T, cs, O, BD.WP(fa, cs, p2), BD.WP(fa, cs, p), Norm.finish(S.mkSt(fa, p2)), fin_bud(fa, T, cs, O, p2, wf2, bi2), ab2)
+    case _ Norm.Yield{st}:
+      yield_bud(fa, T, cs, O, p, st, hw, ab, abi)
 
+# The pump's induction on its input's fuel g (pump.r's on the records',
+# drive_pump's LX).
+def IHB(+g: Nat, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>) -> Type:
+  @q: S.StP -> @a: Norm.Adv -> {DP.LX(q, g, 0n) == True{} : Bool} -> {S.WF(fa, q) == True{} : Bool} ->
+    S.AdvG(fa, T, cs, O, N, q, a) -> BD.AdvB(fa, cs, q, a) -> BD.AdvBi(cs, a) -> BD.BudS(fa, T, cs, O, BD.WP(fa, cs, q), Norm.pump(g, a))
+
+def pbR(+f2: Nat, a: Norm.Adv, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +p: S.StP,
+  +hb: {PC.fa_bytes(fa) == True{} : Bool},
+  +hw: {S.WF(fa, p) == True{} : Bool},
+  ag: S.AdvG(fa, T, cs, O, N, p, a), ab: BD.AdvB(fa, cs, p, a), abi: BD.AdvBi(cs, a),
+  +g: Nat, +hI: {DP.LX(p, g, f2) == True{} : Bool}, ih: IHB(g, fa, T, cs, O, N)) ->
+  BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(g, Norm.pump.r(f2, a))):
+  match f2 a:
+    case 1n+h Norm.Went{st}:
+      (+p2, a1) = ag
+      (+est, a2) = a1
+      (+wf2, a3) = a2
+      (+er2, a4) = a3
+      (+elt, a5) = a4
+      (+eask2, a6) = a5
+      (eeof, a7) = a6
+      (+eg2, a8) = a7
+      +ab2 = AB.subst(Norm.St, z => {Nat.is_le(BN.WAS(fa, z, cs), BD.WP(fa, cs, p)) == True{} : Bool}, st, S.mkSt(fa, p2), est, ab)
+      +bi2 = AB.subst(Norm.St, z => {BN.biS(z, cs) == True{} : Bool}, st, S.mkSt(fa, p2), est, abi)
+      %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(g, Norm.pump.r(h, Norm.advance(_))))
+      bud_mono(fa, T, cs, O, BD.WP(fa, cs, p2), BD.WP(fa, cs, p), Norm.pump(g, Norm.pump.r(h, Norm.advance(S.mkSt(fa, p2)))),
+        pbR(h, Norm.advance(S.mkSt(fa, p2)), fa, T, cs, O, N, p2, hb, wf2,
+          SA.adv_ok(fa, T, cs, O, N, p2, hb, wf2, er2, eg2),
+          adv_bud(fa, T, cs, O, N, p2, hb, wf2, er2, eg2, eask2, bi2),
+          adv_bi(fa, T, cs, O, N, p2, hb, wf2, er2, eg2, eask2, bi2),
+          g, DP.lx_step(S.measure(p), S.mrec(S.StP.src(p)), S.measure(p2), S.mrec(S.StP.src(p2)), g, h, hI, elt), ih), ab2)
+    case 0n Norm.Went{st}:
+      ih(p, Norm.Went{st}, hI, hw, ag, ab, abi)
+    case _ Norm.Want{st, +r}:
+      pb_other(g, Norm.Want{st, r}, fa, T, cs, O, N, p, hb, hw, ag, ab, abi, {==})
+    case _ Norm.Idle{st}:
+      pb_other(g, Norm.Idle{st}, fa, T, cs, O, N, p, hb, hw, ag, ab, abi, {==})
+    case _ Norm.Ended{st}:
+      pb_other(g, Norm.Ended{st}, fa, T, cs, O, N, p, hb, hw, ag, ab, abi, {==})
+    case _ Norm.Yield{st}:
+      pb_other(g, Norm.Yield{st}, fa, T, cs, O, N, p, hb, hw, ag, ab, abi, {==})
+
+def pbL(+f: Nat, a: Norm.Adv, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +p: S.StP,
+  +hb: {PC.fa_bytes(fa) == True{} : Bool},
+  +hw: {S.WF(fa, p) == True{} : Bool},
+  ag: S.AdvG(fa, T, cs, O, N, p, a), ab: BD.AdvB(fa, cs, p, a), abi: BD.AdvBi(cs, a),
+  +hI: {DP.LX(p, f, 0n) == True{} : Bool}) ->
+  BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(f, a)):
+  match f a:
+    case 0n Norm.Went{st}:
+      (+p2, a1) = ag
+      (est, a2) = a1
+      (wf2, a3) = a2
+      (er2, a4) = a3
+      (+elt, a5) = a4
+      Empty.absurd(BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(0n, Norm.Went{st})),
+        DP.lx_z1(S.measure(p), S.mrec(S.StP.src(p)), S.measure(p2), S.mrec(S.StP.src(p2)), Nat.is_lt(S.measure(p2), S.measure(p)), {==},
+          PB.and_true_l(Nat.is_le(S.measure(p), 0n), Bool.or(Nat.is_lt(S.measure(p), 0n), Nat.is_le(S.mrec(S.StP.src(p)), 0n)), hI),
+          PB.and_true_r(Nat.is_le(S.measure(p), 0n), Bool.or(Nat.is_lt(S.measure(p), 0n), Nat.is_le(S.mrec(S.StP.src(p)), 0n)), hI), elt))
+    case 1n+g Norm.Went{st}:
+      (+p2, a1) = ag
+      (+est, a2) = a1
+      (+wf2, a3) = a2
+      (+er2, a4) = a3
+      (+elt, a5) = a4
+      (+eask2, a6) = a5
+      (eeof, a7) = a6
+      (+eg2, a8) = a7
+      +ab2 = AB.subst(Norm.St, z => {Nat.is_le(BN.WAS(fa, z, cs), BD.WP(fa, cs, p)) == True{} : Bool}, st, S.mkSt(fa, p2), est, ab)
+      +bi2 = AB.subst(Norm.St, z => {BN.biS(z, cs) == True{} : Bool}, st, S.mkSt(fa, p2), est, abi)
+      %Equal.sym(Norm.St, st, S.mkSt(fa, p2), est) : BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(g, Norm.pump.fill(Norm.fuel.st(_))))
+      %Equal.sym(Norm.St & Nat, Norm.fuel.st(S.mkSt(fa, p2)), (S.mkSt(fa, p2), DP.fuelN(S.StP.src(p2))), DP.fst_eq(fa, p2)) :
+        BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(g, Norm.pump.fill(_)))
+      bud_mono(fa, T, cs, O, BD.WP(fa, cs, p2), BD.WP(fa, cs, p), Norm.pump(g, Norm.pump.r(DP.fuelN(S.StP.src(p2)), Norm.advance(S.mkSt(fa, p2)))),
+        pbR(DP.fuelN(S.StP.src(p2)), Norm.advance(S.mkSt(fa, p2)), fa, T, cs, O, N, p2, hb, wf2,
+          SA.adv_ok(fa, T, cs, O, N, p2, hb, wf2, er2, eg2),
+          adv_bud(fa, T, cs, O, N, p2, hb, wf2, er2, eg2, eask2, bi2),
+          adv_bi(fa, T, cs, O, N, p2, hb, wf2, er2, eg2, eask2, bi2),
+          g, DP.lx_fill(S.measure(p), S.mrec(S.StP.src(p)), S.measure(p2), S.mrec(S.StP.src(p2)), g, DP.fuelN(S.StP.src(p2)), hI, elt, DP.mrec_le(S.StP.src(p2))),
+          +q => a2 => +hq => +hwq => agq => abq => abiq => pbL(g, a2, fa, T, cs, O, N, q, hb, hwq, agq, abq, abiq, hq)), ab2)
+    case _ Norm.Want{st, +r}:
+      pb_other(f, Norm.Want{st, r}, fa, T, cs, O, N, p, hb, hw, ag, ab, abi, {==})
+    case _ Norm.Idle{st}:
+      pb_other(f, Norm.Idle{st}, fa, T, cs, O, N, p, hb, hw, ag, ab, abi, {==})
+    case _ Norm.Ended{st}:
+      pb_other(f, Norm.Ended{st}, fa, T, cs, O, N, p, hb, hw, ag, ab, abi, {==})
+    case _ Norm.Yield{st}:
+      pb_other(f, Norm.Yield{st}, fa, T, cs, O, N, p, hb, hw, ag, ab, abi, {==})
 
 # The pump: from p (advance's result a), the step keeps the budget.
 def pb_go(+f: Nat, a: Norm.Adv, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +p: S.StP,
@@ -194,9 +306,7 @@ def pb_go(+f: Nat, a: Norm.Adv, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List
   +hf: {Nat.is_le(S.measure(p), f) == True{} : Bool},
   ag: S.AdvG(fa, T, cs, O, N, p, a), ab: BD.AdvB(fa, cs, p, a), abi: BD.AdvBi(cs, a)) ->
   BD.BudS(fa, T, cs, O, BD.WP(fa, cs, p), Norm.pump(1n+f, a)):
-  ?TODO
-
-
+  pbL(1n+f, a, fa, T, cs, O, N, p, hb, hw, ag, ab, abi, DP.lx_init(p, f, hf))
 
 # go from a good state with nothing asked: the pump with its fuel.
 def go_bud(+fa: List<&2, B.Contig>, +T: R.Report, +cs: List<&2, String>, +O: String, +N: List<&2, B.Note>, +q: S.StP,
