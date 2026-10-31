@@ -77,12 +77,12 @@ Which problem is reported:
 
 The summary line counts records after splitting.
 
-**Speed and memory.** Two costs of `-m`, to be reduced in a later version:
+**Speed and memory.** With `-m`:
 
-- A line that is refused is handled by a slow path: about 1 s per MB of refused lines, some 100
-  times slower than bcftools. With `-c e` this does not matter, as the run stops at the first one.
-  With `-c w` it does: a cohort file where every line is refused (for instance, for a tag with no
-  header line) can take hours. Fix the header first (`bcftools annotate -h`).
+- Under `-c w`, a refused line is passed through about as fast as a line that splits. It takes a
+  slow path, about 1 s per MB, when it is refused for `BAD_CR` or `ALT_DUP`, or when no line before
+  it on its contig has been checked against the reference yet (the first line of each contig, in a
+  file where every line is refused). Under `-c e` the run stops at the first refused line.
 - Memory grows with the records a split line makes and with the size of the file. One line with
   100,000 samples and 200 ALTs used about 1 GB. 3,000 lines with 2,000 samples and 30 ALTs used
   2.5 GB and took 2.5 to 3 times as long as bcftools, which used 0.16 GB. More `--threads` speeds
