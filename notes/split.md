@@ -10,9 +10,10 @@ rounds'). The draft type-checks, and its 107 examples evaluate.
 ## Law change: the step bound with -m (option (a), accepted)
 
 **Status.** Accepted by the owner and the three reviewers (`reviews/*-split-bound.md`, decisions
-29-36). Installed in `MACHINE.bend` as `splits.of(B.Args.parse(argv))` and `split_room`; the
-budget proofs that charge the split records are in progress. The fit below is corrected per
-decisions 29-34.
+29-36). Installed in `MACHINE.bend` as `splits.of(B.Args.parse(argv))` and `split_room`, and
+proven: the budget charges the split records (1 + k allowances per candidate line) and fits the
+new bound, sequentially and with threads (see "Proof status" below). The fit below is corrected
+per decisions 29-34.
 
 **What the bound is.** Law `machine` (MACHINE.bend) says the program finishes "within bound steps
 and bound reads", where
@@ -192,7 +193,7 @@ rounds, the same outputs, the same times):
 Kept: heavy multiallelic cohorts are what `-m` is for. Halving the pieces under `-m` might save
 memory everywhere, at the cost of more first lines on the main thread; it is untested.
 
-## Stage 2, milestone (2): the machine integration (in progress)
+## Stage 2, milestone (2): the machine integration (done)
 
 **State.** main (47e2aa5, phase J: `-W`) is merged into the working tree (file-wise; `types.bend`
 and `proof_f_args.bend` resolved by hand: the `-m` parsing and `-W` side by side). Build
@@ -218,21 +219,39 @@ and `proof_f_args.bend` resolved by hand: the `-m` parsing and `-W` side by side
 - The feeding guarantee `Fed` (`proof_e_qif_fed.bend`) says the fed state keeps the definitions
   and the record sources.
 
-**Proof status.** Everything checks except the sequential step budget: `PROOF.bend` has 27 holes,
-all in `proof_b_budget_*` and `proof_b_bud_*` (fb-budget, branch `split-budget`). The threads
-machine's 8 holes are closed (`wrap` 4, `wrap_col` 2, `wrap_clean` 1, `mach_asm` 1), and so are the
-threads machine's 14 budget holes (`proof_e_bud_*`: the step's `W.dfs_of`, the batch's definitions
-`StP.dfs(p) == dfs` from `PhaseOK`, WF's widened ninth fact, `S.report` with `DEFS`, the record
-sources in `where_eq`, the edge's fuel 4096) and the sequential assembly (`proof_b_assemble`'s
-`machine_go`/`machine_h`: the report with `L.defs(concat cs)`, as `start_ok` gives it).
-The bound of decisions 29-36 is installed in `MACHINE.bend` (`splits.of`, `split_room`); the start
-lemmas (`bud_need`, `start_need`) meet it by `need <= old bound <= bound` until the budget charges
-the split records. Phase B's potential now charges them (fb-budget's `BN.ALL`/`XA`/`WAX`,
-cherry-picked as 840fe0b): the threads machine's budget follows it (`proof_e_bud_fed`: `stK`
-carries the opts, `all_lines`; `proof_e_bud_comb`: the merged state's `XA` is within Q's, `xa_app`,
-the opts kept along the edge, `fed_o`). `proof_e_bud_start.start_need` is phase B's
-`start_fit` (split-budget b27752d; it checks once split-budget is merged) (the start fit with the threads machine's 12 per piece of 256 bytes, `K`, and the
-output under the square: `BR.out_len` is false under `-m`, data/tmp/split/outlen/gen.py).
+**Proof status.** Everything is proven: `PROOF.bend` has no holes and checks with `--verdict`
+(the lead's full gate on d933949: ALL PROOFS CHECK, check-only and verdict; `examples.bend`
+keeps its own TODOs). No approved law changed beyond the CR change and the `-m` bound
+(decisions 24-36); `bound`, `split_room` and `proof_b_budget_api.bend`'s statements are as frozen.
+
+How the budget charges the split records (decisions 29-34):
+- Phase B's potential (fb-budget, `proof_b_budget_need.bend`): `WAS` is `WAX` over `ALL`, the
+  lines still to come with the records of a split line in front (`SP` buffers, `SR` records),
+  then the input's own lines; `WAX` = `WA` + `XA`, where `XA` gives each candidate line (`-m`, not
+  malformed, two or more ALTs: `Rec.parts`' test) n_alts more allowances. When a line is split, its
+  `XA` pays its records (`proof_b_bud_split.bend`, `split_le`: a record is no longer than its line,
+  `proof_b_bud_recl.bend`); each record has one ALT, so its own `XA` is 0.
+- The output bound `out_len` is `OB + XO` twice (`proof_b_budget_run.bend`): the old linear
+  bound `2 OB` is false under `-m` (one line with 1000 ALTs and a 5000-byte INFO: 12,126 bytes in,
+  5,022,199 out, `data/tmp/split/outlen/gen.py`); `XO` charges each candidate line's records
+  `21 (1 + |text|)` each, under the square term.
+- The start fit `start_fit` (`proof_b_bud_start.bend`) meets the new bound with an extra share
+  `K` (256 K <= 12 |vcf|); phase B's `bud_need` is it with K = 0, the threads machine's
+  `start_need` (`proof_e_bud_start.bend`) with K = the wrapper's 12 per piece of 256 bytes.
+- The sequential walk (fb-budget): records read from `SP` go through the byte budget walk with
+  `hold` (as the advance chain), the `-m` byte dispatch (`proof_b_bud_inj.bend`), the slow path
+  (`K.slow`: whole, split on the text, refused), String mode (`clk`), the record sources
+  (`c.mbsrc`, `c.mssrc`); the pump with two fuels (`pb_go` over `drive_pump`'s `LX`).
+- The threads machine (fb-split, `proof_e_bud_*`): the fed state keeps the opts (`stK` carries
+  them) and has no record in front (`all_lines`); a merged batch's `XA` is within Q's (its lines
+  are a suffix of Q's, `xa_app`), with the opts kept along the edge (`fed_o`, `edge_bud`); the
+  step's `W.dfs_of`, the batch's definitions `StP.dfs(p) == dfs` from `PhaseOK`, WF's widened
+  ninth fact, the edge's fuel 4096. The sequential assembly (`proof_b_assemble`) takes the report
+  with `L.defs(concat cs)`, as `start_ok` gives it.
+
+Work split: fb-split (branch `split`) did the threads machine, its budget and the assembly;
+fb-budget (branch `split-budget`, merged at d933949) did phase B's budget; the potential's
+definition (f86e95e) was cherry-picked into `split` first (840fe0b) so both could build on it.
 
 Done in earlier stretches: `proof_f_out` (the `-m` parser states, the `-W` record); `wrap_mc` (the
 merge: "in the body" comes from `segok`'s first conjunct, so the state's `DEFS` is its field);
