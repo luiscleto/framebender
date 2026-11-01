@@ -380,7 +380,12 @@ def plan.last.k(+k: U32, +c1: String, +p1: Nat, +l: Nat, +s1: U32, r: D.Bytes & 
 # buffered keys are above the phantom (a left trim moves a key past the next
 # lines' POS: scrambled padding, notes/speed.md). The guess is the first
 # line's POS moved right by its REF and ALTs' left trim (plan.est): its item's
-# key, unless the item is moved left.
+# key, unless the item is moved left. When the first line's REF and ALT take
+# more than plan.big() bytes, there is no guess (the phantom is its POS):
+# decoding them would cost more than the run it might save.
+
+def plan.big() -> U32:
+  4096
 
 def plan.pre.if(same: Bool, +r: Nat) -> Nat:
   match same:
@@ -397,23 +402,30 @@ def plan.pre(m: Nat, a: String, b: String) -> Nat:
     case _ _ _:
       0n
 
-# The bases a REF and an ALT lose on the left: after their common suffix is
-# cut (each keeping a base), their common prefix but one base.
-def plan.trim(+r: String, +a: String) -> Nat:
-  +m = Nat.min(String.length(r), String.length(a))
-  +sf = plan.pre(Nat.sub(m, 1n), String.reverse(r), String.reverse(a))
+# The bases a REF (r, reversed v, of length n) and an ALT lose on the left:
+# after their common suffix is cut (each keeping a base), their common prefix
+# but one base.
+def plan.trim(+r: String, +v: String, +n: Nat, +a: String) -> Nat:
+  +m = Nat.min(n, String.length(a))
+  +sf = plan.pre(Nat.sub(m, 1n), v, String.reverse(a))
   plan.pre(Nat.sub(Nat.sub(m, sf), 1n), r, a)
 
-def plan.trims(+r: String, as: List<&2, String>, +m: Nat) -> Nat:
-  match as:
-    case Nil{}:
+# The least of m and plan.trim over the ALTs as (none read once it is 0).
+def plan.trims(+r: String, +v: String, +n: Nat, as: List<&2, String>, m: Nat) -> Nat:
+  match as m:
+    case Nil{} _:
       m
-    case +a <> t:
-      plan.trims(r, t, Nat.min(m, plan.trim(r, a)))
+    case Con{a, t} 0n:
+      0n
+    case Con{+a, t} 1n+j:
+      plan.trims(r, v, n, t, Nat.min(1n+j, plan.trim(r, v, n, a)))
+
+def plan.est.n(+r: String, +n: Nat, +alt: String) -> Nat:
+  plan.trims(r, String.reverse(r), n, String.split(alt, ','), n)
 
 # The least of plan.trim over the ALTs (split at commas).
 def plan.est(+r: String, +alt: String) -> Nat:
-  plan.trims(r, String.split(alt, ','), String.length(r))
+  plan.est.n(r, String.length(r), alt)
 
 # The first tab after j (e1 if none before it).
 def plan.tab(+e1: U32, r: D.Bytes & U32) -> D.Bytes & U32:
@@ -424,26 +436,27 @@ def plan.ph.alt(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +r: String,
   (b, +a) = q
   plan.last.k(k, c1, p1, Nat.add(p1, plan.est(r, a)), s1, rlf(b, len, s1))
 
-def plan.ph.t5(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +t4: U32, +r: String, q: D.Bytes & U32) -> Pl:
-  (b, +t5) = q
+def plan.ph.ref(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +t4: U32, +t5: U32, q: D.Bytes & String) -> Pl:
+  (b, +r) = q
   plan.ph.alt(k, c1, p1, s1, len, r, Q.text(b, (t4 + 1 : U32), (t5 - t4 - 1 : U32)))
 
-def plan.ph.ref(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +e1: U32, +t4: U32, q: D.Bytes & String) -> Pl:
-  (b, +r) = q
-  plan.ph.t5(k, c1, p1, s1, len, t4, r, F.find(b, (t4 + 1 : U32), e1, 9))
-
-# REF is t3+1 .. t4-1 and ALT from t4+1 up to the next tab (or the LF), when
-# the line has a non-empty REF and a tab after it; else the phantom is p1.
-def plan.ph.if(ok: Bool, +k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +e1: U32, +t3: U32, +t4: U32, b: D.Bytes) -> Pl:
+# REF is t3+1 .. t4-1 and ALT t4+1 .. t5-1 (t5 the next tab, or the LF),
+# when the line has a non-empty REF and a tab after it, and the two take at
+# most plan.big() bytes; else the phantom is p1.
+def plan.ph.if(ok: Bool, +k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +t3: U32, +t4: U32, +t5: U32, b: D.Bytes) -> Pl:
   match ok:
     case True{}:
-      plan.ph.ref(k, c1, p1, s1, len, e1, t4, Q.text(b, (t3 + 1 : U32), (t4 - t3 - 1 : U32)))
+      plan.ph.ref(k, c1, p1, s1, len, t4, t5, Q.text(b, (t3 + 1 : U32), (t4 - t3 - 1 : U32)))
     case False{}:
       plan.last.k(k, c1, p1, p1, s1, rlf(b, len, s1))
 
+def plan.ph.t5(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +e1: U32, +t3: U32, +t4: U32, q: D.Bytes & U32) -> Pl:
+  (b, +t5) = q
+  plan.ph.if(U32.is_lt(t3, t4) && U32.is_lt(t4, e1) && U32.is_le((t5 - t3 : U32), plan.big()), k, c1, p1, s1, len, t3, t4, t5, b)
+
 def plan.ph.t4(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +e1: U32, +t3: U32, q: D.Bytes & U32) -> Pl:
   (b, +t4) = q
-  plan.ph.if(U32.is_lt(t3, t4) && U32.is_lt(t4, e1), k, c1, p1, s1, len, e1, t3, t4, b)
+  plan.ph.t5(k, c1, p1, s1, len, e1, t3, t4, plan.tab(e1, (b, t4)))
 
 # The first line (s1 .. e1, e1 its LF): t3 is its third tab (after ID).
 def plan.ph(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +e1: U32, q: D.Bytes & U32) -> Pl:
