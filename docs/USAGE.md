@@ -90,8 +90,9 @@ The summary line counts records after splitting.
   speeds such files up only a little.
 - The time for one line grows with the square of the records it makes when they are large: one
   line with 10,000 samples took 7.5 s with 325 ALTs, 30 s with 650 and 120 s with 1,300 (bcftools:
-  6.5 s). With 100,000 samples each record is ten times larger, and so are the time and memory:
-  such a run can look like a hang.
+  6.5 s). With 100,000 samples each record is ten times larger, and so is the time: the line with
+  325 ALTs took 75 s and 1.4 GB, against 7.4 s and 0.26 GB with 10,000 samples (bcftools: 5.0 s
+  and 0.64 GB, against 0.5 s). Such a run can look like a hang.
 
 Splitting loses information; read the records with that in mind:
 

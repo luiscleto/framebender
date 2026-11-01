@@ -81,7 +81,7 @@ panel, chr22: 1,066,557 records of about 14 KB each, 14.8 GB uncompressed):
 | HG002 chr22 | 0.11–0.12 s | 0.06 s |
 | HG002 whole genome (2.8 GB) | 8.0–8.1 s | 1.8 s |
 | HG002 whole genome, `.vcf.gz` | 7.9–8.0 s | 1.8 s |
-| HG002, 20,739 indels moved to random positions | 0.07–0.09 s | 0.08–0.09 s |
+| HG002, 20,739 indels moved to random positions | 0.07–0.09 s | 0.06–0.08 s |
 | 1000 Genomes chr22, first 800 MB | 3.5–3.7 s | 0.29–0.30 s |
 | 1000 Genomes chr22, `.vcf.gz` (425 MiB) | 69.8 s | 6.9 s |
 | HG002 chr22, `-Oz -W` (with its index) | 0.13–0.14 s | 0.09–0.10 s |
@@ -91,8 +91,11 @@ panel, chr22: 1,066,557 records of about 14 KB each, 14.8 GB uncompressed):
 framebender reads the file in pieces and normalizes 16 at a time in parallel; the proof covers
 the parallel version, which gives byte-for-byte the output of the sequential one. The `-W` rows write a
 compressed file and its CSI index (bcftools with `--threads 16`, both on 16 CPUs; framebender's
-index is byte for byte bcftools index's of the same file, both with libdeflate). A file whose
-rewritten records carry an INFO/END is still slower than bcftools, and so is `-m` on files with
+index is byte for byte bcftools index's of the same file, both with libdeflate). A file where
+nearly every record is rewritten, such as the scrambled indels, is still somewhat slower than
+bcftools when the output is not written to disk (0.06 s against 0.05 s to `/dev/null`); 30 copies
+of it in a row take 0.21 s against bcftools' 0.51 s. A file whose rewritten records carry an
+INFO/END is still slower than bcftools, and so is `-m` on files with
 many samples and many ALTs per line, where memory also grows with the records a line makes (see
 [USAGE](docs/USAGE.md)). framebender uses more memory, which `--threads` trades against speed (HG002 whole genome; the output is identical at every
 setting):
