@@ -83,10 +83,11 @@ The summary line counts records after splitting.
   slow path, about 1 s per MB, when it is refused for `BAD_CR` or `ALT_DUP`, or when no line before
   it on its contig has been checked against the reference yet (the first line of each contig, in a
   file where every line is refused). Under `-c e` the run stops at the first refused line.
-- Memory grows with the records a split line makes and with the size of the file. One line with
-  100,000 samples and 200 ALTs used about 1 GB. 3,000 lines with 2,000 samples and 30 ALTs used
-  2.5 GB and took 2.5 to 3 times as long as bcftools, which used 0.16 GB. More `--threads` speeds
-  such files up only a little.
+- Memory grows with the records a split line makes and with the records that wait in the `-w`
+  window (each piece's records are held until it is merged). One line with 100,000 samples and 200
+  ALTs used 0.57 GB. 3,000 lines in a row with 2,000 samples and 30 ALTs used 2.0 GB (1.2 GB with
+  `--threads 1`) and took 2.5 to 3 times as long as bcftools, which used 0.16 GB. More `--threads`
+  speeds such files up only a little.
 
 Splitting loses information; read the records with that in mind:
 

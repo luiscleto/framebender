@@ -289,3 +289,108 @@ and HG002: within the noise (the only change on their path is one match on the w
 - `match` must come before any `+x = ...` or `%` step in a body, and a computed value cannot be
   destructured in place (give it its own def); defs must come before their uses, constructors
   too.
+
+# fb-memory: -m memory (speed phase, 2026-10-31)
+
+Brief: `notes/briefs/SPEED_MEMORY.md` (driver review 10, decision 14). Commits 19804ee, ff49b8b.
+Files: `norm_run.bend`, `norm_split.bend`, `proof_b_run_num.bend`, `proof_b_run_buf.bend`,
+`proof_b_lines_room.bend`, `proof_s_w.bend`, `docs/USAGE.md`. No law or spec change. Scratch:
+`data/tmp/memory/` (generators `gen.py`, `gen2.py`; instrumented build `ibuild.sh` + `instr.py`;
+`bench.sh`, `suite.sh`, `ident.sh`).
+
+## Where the memory goes
+
+Measured with a build that counts fresh heap per block class, the live peak of big blocks, and
+each big block's call site (`instr.py`). A packed buffer costs about one byte per byte; a block
+class is a power of two, and the runtime keeps freed blocks per class (notes/memory.md), so the
+heap is the sum of each class's peak.
+
+- **`NR.room` asked for twice the bytes needed, then rounded up to a power of two**: blocks 2 to
+  4 times what they hold. This was most of the "12 bytes per byte of records".
+- **The splitter's buffer** holds all of a line's records (h200: 80 MB in a 256 MB block).
+- **The run's output buffer** holds this step's output plus the texts waiting in the `-w`
+  window. Split records of one line all wait (none is ready until a line `w` bases on), so h200's
+  80 MB of records sit there whole; w30 (consecutive positions, 30 records each) keeps about
+  240 MB of records in the window. The spec requires this (bcftools keeps the same records,
+  in binary).
+- **The step-end copy** (`NR.take`) copies the waiting texts into a new buffer while the old one
+  goes to the driver: the window twice at a step boundary.
+- **Tasks** (every thread count; `--threads 1` is batches of one piece) hold their piece's whole
+  output until the merge (105 MB per 3.5 MB piece on w30), and a growing buffer leaves a block
+  parked in every size it passed through, one per concurrent task. On w30 at the default
+  threads: live peak 1.3 GB against 2.5 GB committed.
+
+## What changed
+
+`NR.room` (and the splitter's copy) asks for `NR.want(n)`: 2n below 64 MiB, n from there. Exactly n
+everywhere halved the large blocks but made small buffers grow through every size, which on w5
+(16-32 MB task buffers at 16 tasks) cost 900 to 1150 MB; skipping a size below 64 MiB keeps w5
+as it was. Proofs: `NM.want_ge` (n <= want(n) when n * 2 fits), used in `room_c` and
+`room_ok.k`; `room_if` in `proof_s_w.bend` follows.
+
+## Timings
+
+`data/tmp/memory/bench.sh`: fb_base (5636de8, the branch's base) and fb_new interleaved with
+bcftools 1.24, three rounds, 00:27 to 00:53, each run under `data/tmp/bench.lock`, `nice -n 19`,
+`taskset -c 0-15`, `-c w`, to a file. Load 2 to 7 (other agents' checks). Wall s / peak RSS MB.
+Output md5 identical between the two builds in every pair.
+
+| input | threads | base | new | bcftools |
+|---|---|---|---|---|
+| h200: 1 line, 100k samples GT, 200 ALTs | 1 | 2.38-2.48 / 958 | 2.25-2.40 / 574 | 0.40 / 120 |
+| | default | 2.37-2.53 / 958 | 2.26-2.39 / 574 | |
+| | 16 | 2.38-2.51 / 960 | 2.37-2.41 / 574 | |
+| w30: 3000 lines in a row, 2000 samples, 30 ALTs | 1 | 59.0-61.8 / 1569 | 59.4-61.3 / 1187 | 19.2-20.1 / 157 |
+| | default | 50.2-51.9 / 2393 | 49.7-52.7 / 2007 | |
+| | 16 | 49.7-51.7 / 2390 | 50.9-51.6 / 2010 | |
+| w5: 12,000 lines, 2000 samples, 5 ALTs | 1 | 23.3-23.4 / 219 | 21.5-22.6 / 219 | 4.1-4.4 / 46 |
+| | default | 14.1-14.9 / 900 | 13.7-14.3 / 899 | |
+| | 16 | 13.6-14.7 / 895 | 14.0-14.2 / 899 | |
+| cohort `-m -any` | default | 1.08-1.64 / 325 | 1.10-1.66 / 324 | |
+| joined `-m -any` | default | 1.03-1.68 / 319 | 1.06-1.12 / 321 | |
+| HG002 whole genome `-m -any` | default | 3.15-3.91 / 389 | 2.94-3.14 / 390 | |
+| HG002 whole genome | default | 2.19-2.58 / 333 | 2.36-2.48 / 334 | |
+
+(The reviewer's bcftools figure for one 410 KB line, 2.2 s and 553 MB, is not what bcftools 1.24
+gives on `gen.py wide h200 1 200 100000` here: 0.40 s, 120 MB.)
+
+## What did not pay (measured on scratch builds, not kept)
+
+- **An earlier yield** (the sequential pump ends the step once this step wrote 4 MiB and at least
+  as much as waits): no change (sparse 30-ALT file, 281 against 282 MB). Every piece runs as a
+  task, at every thread count, and a task holds its output until the merge; the pump only runs
+  the seams and redone pieces. A yield inside a task makes it dirty (`task.adv`).
+- **Smaller pieces** (driver, `piece()` 1 MiB / 512 KiB): w30 at the default 2242 to 2232 / 1287
+  MB, but cohort 1.15 to 4.20 / 5.19 s and HG002 1.97 to 2.50 / 2.68 s.
+- **Streaming a line's records** (the brief's lead): needs a new `Src` form holding the line and
+  the next ALT, in every function over sources and in about 45 proof files that match `SP`. It
+  would save the splitter's buffer only: 128 MB on h200 now, nothing on w30 or w5 (a line's
+  records there are 40-240 KB). The records still wait in the window afterwards.
+- **`NR.mid` from the back** (insert where the newest keys stop, after a read-only check that no
+  older key is above the item's): w30k 13.5 to 13.2 s, w5k 5.4 to 4.6 s, h200 the same. On w30
+  the check fails 80% of the time (a record moved left belongs before older items of the front
+  list), so the old path still runs. Proof cost about that of `mid` today (`proof_b_run_ins`,
+  `proof_b_run_add`: ~800 lines); not attempted.
+
+## What is still slow, and why
+
+- **w30 (2.5-3x bcftools)**: `NR.mid`, an item whose key is below the buffer's largest, rebuilds
+  the whole buffer list (`append_ck`, `rev_ck`, `ins.start`) and moves ob's tail; split records
+  of a line arrive out of key order (each ALT moves left by its own amount), so with 30,000 items
+  waiting each such record costs O(buffer). About 45% of the profile. A cheaper insert needs the
+  buffer's sortedness, which is not in `RunInv` (54 proof files use it).
+- **w5 (3.5x bcftools)**: the splitter's per-sample writing (the `spin_*` writer functions, about
+  60%), already the subject of `notes/split.md`'s "Splitter speed".
+- **One line with many huge records** (1300 ALTs x 100k samples): `mid` moves the tail bytes of
+  every record whose key is below the last: quadratic in the line's records (520 MB of records:
+  hundreds of GB moved). Still does not finish; the fix is a buffer that does not keep texts in
+  key order, a representation change.
+
+## Checks
+
+- Gate through `test/bcheck.sh` on ff49b8b: `PROOF.bend` ALL PROOFS CHECK (`--check-only` and
+  `--verdict`), `examples.bend` 38 TODOs only, `main.bend` "rely on unsafe" as before.
+- Against main's build (984688a), stdout, stderr and exit code (`data/tmp/memory/suite.sh`):
+  `same.sh` 128, `par.sh` 312, `threads.sh` 2128 identical, `out.sh` OK, `index.sh` ALL PASS,
+  `split.sh` 80 as bcftools; `ident.sh`: h200, w30, w5, w30k, w5k and the sparse file, `-c w` and
+  `-c e`, `--threads` 1, default, 16: 36 of 36 identical.
