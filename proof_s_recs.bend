@@ -6,7 +6,7 @@ import ./proof_base.bend as PB
 import ./proof_b_defs.bend as P
 import ./proof_b_lines_str.bend as LSS
 import ./proof_s_line.bend as LI
-import lawful-fields@0.1.0.0/defs.bend as FD
+import lawful-fields@0.1.1.0/defs.bend as FD
 import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # The records' buffer read back as lines (norm_seq.bend's SP source): its

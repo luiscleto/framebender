@@ -14,10 +14,10 @@ import ./proof_s_vals.bend as VL
 import ./proof_s_gtspec.bend as G
 import ./proof_s_gt.bend as GT
 import ./proof_s_kinds.bend as KD
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/fast.bend as F
-import lawful-fields@0.1.0.0/defs.bend as FD
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/fast.bend as F
+import lawful-fields@0.1.1.0/defs.bend as FD
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U

@@ -23,6 +23,9 @@ refused.
 - A record that moves further stops the run with UNSORTED, naming both lines; re-run with a
   larger `-w`. (bcftools writes such a record out of order and exits successfully.)
 - Larger windows hold more records in memory, which slows down files with many samples per line.
+- When the records waiting in the window come to hundreds of MB of text, the run can run out of
+  memory or crash: 1000 Genomes chr22 (2,548 samples, about 14 KB per line) under `-c w` crashes
+  at `-w 2000000` and above, and works at `-w 1000000`.
 
 ### `-m -any`, `-m -both`, `-m -`: split multiallelic records
 

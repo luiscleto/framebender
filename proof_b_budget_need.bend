@@ -8,7 +8,7 @@ import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
 import ./norm_run.bend as NR
 import ./bytes_enc.bend as E
-import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.1.0/defs.bend as D
 
 # The budget's potential (notes/bytes_proofs_budget.md, "The potential, as
 # defined"). The API (proof_b_budget_api.bend) defines need and bi as these.

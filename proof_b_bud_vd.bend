@@ -9,7 +9,7 @@ import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
 import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BD
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import ./LAWS.bend as L
 import ./norm_line.bend as J
@@ -24,8 +24,8 @@ import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./bytes_enc.bend as E
 import ./proof_window_lists.bend as WL
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 
 # ---------------------------------------------------------------------------
 # The verdict's Want pays: tools

@@ -10,11 +10,11 @@ import ./proof_s_wt.bend as WT
 import ./proof_s_scan.bend as SC
 import ./proof_s_read.bend as RD
 import ./proof_s_cut.bend as K
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_same.bend as S
-import lawful-bytes@0.1.0.0/proof_seq.bend as Q
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_same.bend as S
+import lawful-bytes@0.1.1.0/proof_seq.bend as Q
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U

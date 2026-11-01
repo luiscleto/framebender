@@ -9,7 +9,7 @@ import ./proof_b_simdefs.bend as S
 import ./proof_b_adv_line.bend as LI
 import ./proof_b_adv_sp.bend as HX
 import ./norm_run.bend as NR
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import ./proof_b_lines_str.bend as LSS
 import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BD

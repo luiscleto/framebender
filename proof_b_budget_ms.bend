@@ -23,8 +23,8 @@ import ./proof_b_adv_line.bend as LI
 import ./proof_b_adv_nat.bend as LP
 import ./proof_b_adv_part.bend as DPT
 import ./proof_b_adv_str.bend as AS
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_b_adv_msx.bend as MSX
 import ./proof_b_adv_sp.bend as HX
@@ -35,7 +35,7 @@ import ./proof_b_cache_lem.bend as X
 import ./proof_b_lines_str.bend as LS
 import ./proof_machine_nat.bend as PN
 import ./proof_fast.bend as PF
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-arrays@0.1.0.0/proof_base.bend as AB

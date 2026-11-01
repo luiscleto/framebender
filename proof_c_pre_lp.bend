@@ -7,11 +7,11 @@ import ./proof_c_pre_let.bend as L
 import ./proof_b_alleles_list.bend as LS
 import ./proof_b_alleles_loop.bend as LP
 import ./proof_b_cut_nat.bend as Z
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_find.bend as PF
-import lawful-bytes@0.1.0.0/proof_same.bend as PSm
-import lawful-bytes@0.1.0.0/proof_seq.bend as SQ
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_find.bend as PF
+import lawful-bytes@0.1.1.0/proof_same.bend as PSm
+import lawful-bytes@0.1.1.0/proof_seq.bend as SQ
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import lawful-words@0.1.0.0/proof_nat.bend as N

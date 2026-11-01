@@ -3,7 +3,7 @@ import ./types.bend as B
 import ./norm.bend as Norm
 import ./norm_line.bend as J
 import ./bytes_enc.bend as E
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 
 # A counterexample to proof_b_cache.bend's against_hit as stated: POS is
 # 2^32 - 1, so the fast path's end (POS - 1 + rl, a U32) wraps to 1, and

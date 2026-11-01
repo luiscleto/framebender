@@ -3,8 +3,8 @@ import ./types.bend as B
 import ./norm_fix.bend as NX
 import ./proof_c_defs.bend as Q
 import ./proof_c_text.bend as TX
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import ./proof_c_txt_lem.bend as XL
 

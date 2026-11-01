@@ -1,12 +1,12 @@
 import Base
 import ./norm_fast.bend as NF
 import ./proof_b_fasteq.bend as FE
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/fast.bend as F
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_find.bend as PF
-import lawful-bytes@0.1.0.0/proof_same.bend as PS
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/fast.bend as F
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_find.bend as PF
+import lawful-bytes@0.1.1.0/proof_same.bend as PS
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Every call NF.line makes on a buffer mirror C.BT(len, t) hands the mirror

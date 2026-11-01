@@ -6,7 +6,7 @@ import ./norm.bend as Norm
 import ./norm_run.bend as NR
 import ./bytes_enc.bend as E
 import ./proof_b_defs.bend as P
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Counterexamples to proof_b_sim.bend's adv_ok as stated (its WF and mkSt

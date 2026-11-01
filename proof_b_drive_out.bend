@@ -16,8 +16,8 @@ import ./proof_b_enc.bend as ENC
 import ./proof_b_lit.bend as LIT
 import ./proof_base.bend as PB
 import ./proof_machine_nat.bend as PN
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 

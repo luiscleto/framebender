@@ -1,6 +1,6 @@
 import Base
 import ./types.bend as B
-import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.1.0/defs.bend as D
 
 # framebender: the protocol between the program and its driver
 # (implementation layer, used by MACHINE.bend; not part of the science laws).

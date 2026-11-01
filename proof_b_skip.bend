@@ -15,9 +15,9 @@ import ./proof_c_pre_key.bend as K
 import ./proof_b_alleles.bend as AL
 import ./proof_fast.bend as PF
 import ./proof_window.bend as PW
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-fields@0.1.0.0/defs.bend as FD
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-fields@0.1.1.0/defs.bend as FD
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import lawful-words@0.1.0.0/proof_nat.bend as N

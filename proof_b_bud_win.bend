@@ -21,8 +21,8 @@ import ./proof_fast.bend as PF
 import ./proof_b_adv_wf.bend as W
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 
 # pb-cut's budget lemmas on windows (notes/bytes_proofs_budget.md, "Suggested
 # for pb-cache"): Z1 fast_none_fits, Z2 zero_decides, Z3 held_serves. The

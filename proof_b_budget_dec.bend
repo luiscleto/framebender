@@ -11,7 +11,7 @@ import ./proof_b_simdefs.bend as S
 import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BD
 import ./proof_b_bud_dech.bend as DH
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # The byte mode's decoded paths (as proof_b_adv_dec.bend's dec): header lines,

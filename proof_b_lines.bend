@@ -6,9 +6,9 @@ import ./norm_fast.bend as NF
 import ./bytes_enc.bend as E
 import ./proof_b_defs.bend as P
 import ./proof_b_fasteq.bend as FE
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import ./proof_b_lines_str.bend as S
 import ./proof_b_lines_bt.bend as X
@@ -18,7 +18,7 @@ import ./proof_b_lines_piece.bend as PS
 import ./proof_b_lit.bend as LT
 import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_b_enc.bend as EN
-import lawful-bytes@0.1.0.0/proof_find.bend as FD
+import lawful-bytes@0.1.1.0/proof_find.bend as FD
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import lawful-words@0.1.0.0/proof_nat.bend as N
 

@@ -15,23 +15,23 @@ import ./proof_b_adv_wf.bend as W
 import ./proof_b_adv_ms.bend as MS
 import ./proof_b_adv_tostr.bend as TS
 import ./proof_b_adv_dec.bend as DE
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import ./proof_b_adv_fast.bend as FA
 import ./proof_b_adv_msx.bend as MX
 import ./proof_b_adv_msr.bend as MR
 import ./proof_s_multi.bend as MU
 import ./proof_b_adv_split.bend as SP
-import lawful-bytes@0.1.0.0/proof_find.bend as PF
+import lawful-bytes@0.1.1.0/proof_find.bend as PF
 import ./proof_b_fasteq.bend as FE
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import ./norm_split.bend as NS
-import lawful-bytes@0.1.0.0/fast.bend as F
+import lawful-bytes@0.1.1.0/fast.bend as F
 import ./proof_b_adv_line.bend as LI
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./proof_b_adv_sp.bend as HX
-import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.1.0/defs.bend as D
 
 # adv_ok's proof (proof_b_sim.bend calls adv): handling the next line keeps a
 # good state standing for the same report. By cases on advance's paths:

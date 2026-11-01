@@ -11,15 +11,15 @@ import ./proof_b_cut_inv.bend as V
 import ./proof_b_cut_nat.bend as Z
 import ./proof_b_cut_fx.bend as FX
 import ./proof_b_cut_pos.bend as PO
-import lawful-fields@0.1.0.0/proof_num.bend as LN
+import lawful-fields@0.1.1.0/proof_num.bend as LN
 import ./proof_c_pre_pair.bend as P
 import ./proof_c_pre_inv.bend as I
 import ./proof_c_pre_cut.bend as K
 import ./proof_c_pre_let.bend as L
 import ./proof_c_pre_als.bend as AS
 import ./proof_c_pre_ifo.bend as IF
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Phase C, area "pre": the rewrite path's tests on a line's bytes

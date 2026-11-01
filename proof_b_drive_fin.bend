@@ -16,8 +16,8 @@ import ./proof_b_drivedefs.bend as DR
 import ./proof_b_drive_out.bend as DO
 import ./proof_b_rg.bend as RGH
 import ./proof_base.bend as PB
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Helpers for proof_b_drive.bend: the end of the run (Norm.finish) from a

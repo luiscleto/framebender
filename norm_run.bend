@@ -1,9 +1,9 @@
 import Base
 import ./types.bend as B
 import ./run.bend as R
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/fast.bend as F
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/fast.bend as F
 
 # framebender: the run's bookkeeping on packed bytes (code, not spec).
 #

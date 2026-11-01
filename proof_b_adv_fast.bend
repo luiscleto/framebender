@@ -31,10 +31,10 @@ import ./proof_b_lines_pd.bend as Y
 import ./proof_b_lines_str.bend as LSS
 import ./proof_b_adv_nat.bend as LP
 import lawful-words@0.1.0.0/proof_nat.bend as NN
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 import lawful-words@0.1.0.0/proof_u32.bend as U
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # adv_ok's fast path (norm.bend fast.pre .. fast.wo): a byte-mode body line

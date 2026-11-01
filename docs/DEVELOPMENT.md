@@ -26,7 +26,7 @@ one thread can be reused by any (`notes/memory.md`); it stops if the generated r
 one the patch was written for. Bend fixed this upstream after 2.0.39 (bendlang/bend#1856), so on
 a later Bend the patch and its check go.
 
-The `lawful-*` packages are imported by name and version (`lawful-bytes@0.1.0.0/...`): Bend
+The `lawful-*` packages are imported by name and version (`lawful-bytes@0.1.1.0/...`): Bend
 fetches each from BendHub once into `~/.bend/lib` and checks it against the package's hash. To
 change a package, edit its own repository, publish a new version (`bend PROOF.bend --publish
 lawful-x@0.1.0.1` from its directory) and raise the version here, in every file that imports it

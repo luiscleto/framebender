@@ -6,9 +6,9 @@ import ./proof_base.bend as P
 import ./proof_machine_nat.bend as MN
 import ./proof_s_gtspec.bend as G
 import ./proof_s_read.bend as RD
-import lawful-fields@0.1.0.0/defs.bend as FD
-import lawful-fields@0.1.0.0/proof_num.bend as LN
-import lawful-fields@0.1.0.0/proof_digits.bend as LDG
+import lawful-fields@0.1.1.0/defs.bend as FD
+import lawful-fields@0.1.1.0/proof_num.bend as LN
+import lawful-fields@0.1.1.0/proof_digits.bend as LDG
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U
 

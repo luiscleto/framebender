@@ -5,9 +5,9 @@ import ./run.bend as R
 import ./norm_seq.bend as Q
 import ./norm_run.bend as NR
 import ./norm_fast.bend as NF
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/fast.bend as F
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/fast.bend as F
 import lawful-halves@0.1.0.0/defs.bend as HD
 import lawful-halves@0.1.0.0/halves.bend as HH
 

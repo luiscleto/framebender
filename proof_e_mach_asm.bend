@@ -12,7 +12,7 @@ import ./proof_b_drivedefs.bend as DD
 import ./proof_base.bend as PB
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import lawful-words@0.1.0.0/proof_nat.bend as N
-import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.1.0/defs.bend as D
 import ./proof_b_fa_bytes.bend as FB
 import ./proof_b_assemble.bend as AS
 import ./proof_b_budget_need.bend as BN

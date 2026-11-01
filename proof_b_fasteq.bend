@@ -1,9 +1,9 @@
 import Base
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as B
-import lawful-bytes@0.1.0.0/fast.bend as F
-import lawful-bytes@0.1.0.0/LAWS.bend as L
-import lawful-bytes@0.1.0.0/PROOF.bend as LP
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as B
+import lawful-bytes@0.1.1.0/fast.bend as F
+import lawful-bytes@0.1.1.0/LAWS.bend as L
+import lawful-bytes@0.1.1.0/PROOF.bend as LP
 
 # fast.bend's operations give bytes.bend's results: lawful-bytes' fast laws
 # (LAWS.bend, proven in PROOF.bend), restated where the phase-B proofs reach

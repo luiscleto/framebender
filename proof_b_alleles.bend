@@ -5,12 +5,12 @@ import ./norm_seq.bend as Norm
 import ./norm_line.bend as J
 import ./norm_fast.bend as NF
 import ./proof_b_fasteq.bend as FE
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
-import lawful-fields@0.1.0.0/defs.bend as FD
-import lawful-bytes@0.1.0.0/proof_list.bend as BL
+import lawful-fields@0.1.1.0/defs.bend as FD
+import lawful-bytes@0.1.1.0/proof_list.bend as BL
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_base.bend as P

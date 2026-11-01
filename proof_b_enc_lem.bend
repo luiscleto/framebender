@@ -4,9 +4,9 @@ import lawful-words@0.1.0.0/defs.bend as W
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U
 import lawful-words@0.1.0.0/proof_bytes.bend as Y
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_seq.bend as SQ
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_seq.bend as SQ
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # Helpers for proof_b_enc.bend: list facts about codes, words and padding,

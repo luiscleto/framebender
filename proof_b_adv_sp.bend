@@ -23,11 +23,11 @@ import ./proof_b_adv_tostr.bend as TS
 import ./proof_b_alleles_list.bend as AL
 import ./proof_b_lines.bend as LN
 import ./proof_b_adv_part.bend as DPT
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/proof_ops.bend as O
 import lawful-words@0.1.0.0/proof_u32.bend as U
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 

@@ -3,8 +3,8 @@ import ./types.bend as B
 import ./tan.bend as V
 import ./norm_fix.bend as NX
 import ./proof_c_defs.bend as Q
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import ./proof_c_tan_pair.bend as TP
 import ./proof_c_tan_lists.bend as TL

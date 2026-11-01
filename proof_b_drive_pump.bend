@@ -14,7 +14,7 @@ import ./proof_b_drive_out.bend as DO
 import ./proof_b_drive_fin.bend as DF
 import ./proof_b_drive_finms.bend as FMS
 import ./proof_base.bend as PB
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 

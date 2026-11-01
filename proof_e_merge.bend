@@ -7,7 +7,7 @@ import ./proof_b_defs.bend as P
 import ./proof_b_rundefs.bend as PR
 import ./proof_b_simdefs.bend as S
 import ./proof_e_defs.bend as SD
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import ./proof_b_run_inv.bend as PI
 import ./proof_e_merge_lem.bend as ML

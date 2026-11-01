@@ -10,8 +10,8 @@ import ./proof_c_pre_lp.bend as G
 import ./proof_b_alleles_list.bend as LS
 import ./proof_b_alleles_loop.bend as LP
 import ./proof_b_alleles_spec.bend as SP
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import lawful-words@0.1.0.0/proof_nat.bend as N

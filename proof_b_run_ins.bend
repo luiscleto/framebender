@@ -4,7 +4,7 @@ import ./norm_run.bend as NR
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import ./proof_b_rundefs.bend as RD
 
 # norm_run.bend's insert against run.bend's R.insert, on the spec items

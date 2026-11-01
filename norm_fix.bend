@@ -2,9 +2,9 @@ import Base
 import ./types.bend as B
 import ./norm_fast.bend as NF
 import ./norm_run.bend as NR
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/fast.bend as F
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/fast.bend as F
 
 # framebender: rewriting a record on its bytes (code, not spec). A body line
 # the fast path does not take (norm_fast.bend) may still be judged without

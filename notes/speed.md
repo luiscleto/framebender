@@ -907,3 +907,21 @@ and stderr the same across the builds). It is in fb-fix11's run set too, whose `
 outputs but did not flag crashes; this branch's `cmp.sh` now prints CRASH lines. With the window
 as large as the 800 MB file, something in the trusted part or the runtime recurses deeply;
 not looked into further.
+
+## Large -w crash (2026-11-01)
+
+`data/kg/sub.vcf -c w -w 2000000` (and above) segfaults; `-w 1000000` works; same on every build
+since the window became a byte buffer. Found by fb-fix11b, diagnosed by lb-tolist (lawful-bytes
+`notes/tolist.md`). Two causes, one under the other:
+- lawful-bytes' `to_list` recursed once per byte on the C stack. Fixed in lawful-bytes@0.1.1.0
+  (constant stack, faster, less memory); framebender and lawful-fields moved to it.
+- framebender's own switch to String mode under `-c w` (`norm_seq.to_ms` -> `norm_run.to_spec`)
+  turns the whole pending output buffer into a String (`to_list`, `chars`, then `String.take`/
+  `drop` per record). At `-w 2M` that buffer is over 134 MB, so `chars` overflows the stack, and
+  with a larger stack the String would need tens of GB. Not fixed: documented in USAGE (`-w`).
+  A fix would hand the buffered records to String mode without converting the buffer at once.
+Other recursions whose depth grows with the input (lb-tolist's list, from the compiled C; 16-byte
+frames, 2 GiB stack, so about 134M frames): `spec.items`/`append_ck`/`ins.go` per buffered record;
+`norm_seq` `cat.go`/`take_w.go` and `pend.add`'s switch past 2^28 bytes; per character of one line
+in `norm_line` and `norm_split`; `norm_fix` `al.go` per allele letter; main's `.fai` to text. Only
+inputs far past real ones (a 100 MB line or allele, a 100 MB `.fai`) reach them.

@@ -4,8 +4,8 @@ import ./norm_split.bend as NS
 import ./proof_s_line.bend as SL
 import ./proof_s_drv.bend as DR
 import ./proof_b_adv_nat.bend as LP
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U

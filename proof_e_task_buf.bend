@@ -3,11 +3,11 @@ import ./protocol.bend as Pr
 import ./norm_seq.bend as Q
 import ./norm.bend as W
 import ./bytes_enc.bend as E
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/fast.bend as F
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_same.bend as SM
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/fast.bend as F
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_same.bend as SM
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_bytes.bend as WB
 import ./proof_b_fasteq.bend as FE
@@ -24,24 +24,29 @@ def at_lt(+len: U32, +t: AT.Tree<U32>, +i: U32) -> {U32.is_lt(C.AT(len, t, i), 2
     {U32.is_lt(Pair.snd(D.Bytes, U32, BY.at.fin(len, i, _)), 256) == True{} : Bool}
   WB.byte_lt(C.WD(t, k), U32.to_nat((i .&. 3 : U32)))
 
-# Bytes read as a list are bytes.
-def tl_bytes(+n: Nat, +len: U32, +t: AT.Tree<U32>, +s: U32) ->
-  {D.all_bytes(Pair.snd(D.Bytes, List<&2, U32>, BY.to_list.go(n, BY.at(C.BT(len, t), s), s))) == True{} : Bool}:
+# Bytes read as a list are bytes: to_list's loop puts bytes in front of an
+# accumulator of bytes.
+def tl_bytes(+n: Nat, +len: U32, +t: AT.Tree<U32>, +j: U32, +acc: List<&2, U32>, +h: {D.all_bytes(acc) == True{} : Bool}) ->
+  {D.all_bytes(Pair.snd(D.Bytes, List<&2, U32>, BY.to_list.go(n, BY.at(C.BT(len, t), j), j, acc))) == True{} : Bool}:
   match n:
     case 0n:
-      %Equal.sym(D.Bytes & U32, BY.at(C.BT(len, t), s), (C.BT(len, t), C.AT(len, t, s)), C.at_pair_t(len, t, s)) :
-        {D.all_bytes(Pair.snd(D.Bytes, List<&2, U32>, BY.to_list.go(0n, _, s))) == True{} : Bool}
-      {==}
+      %Equal.sym(D.Bytes & U32, BY.at(C.BT(len, t), j), (C.BT(len, t), C.AT(len, t, j)), C.at_pair_t(len, t, j)) :
+        {D.all_bytes(Pair.snd(D.Bytes, List<&2, U32>, BY.to_list.go(0n, _, j, acc))) == True{} : Bool}
+      h
     case 1n+m:
-      +s1 = (s + 1 : U32)
-      +x = C.AT(len, t, s)
-      +G = Pair.snd(D.Bytes, List<&2, U32>, BY.to_list.go(m, BY.at(C.BT(len, t), s1), s1))
-      %Equal.sym(D.Bytes & U32, BY.at(C.BT(len, t), s), (C.BT(len, t), x), C.at_pair_t(len, t, s)) :
-        {D.all_bytes(Pair.snd(D.Bytes, List<&2, U32>, BY.to_list.go(1n+m, _, s))) == True{} : Bool}
-      %Equal.sym(D.Bytes & List<&2, U32>, BY.to_list.go(m, BY.at(C.BT(len, t), s1), s1), (C.BT(len, t), G), SM.tl_pair(m, len, t, s1)) :
-        {D.all_bytes(Pair.snd(D.Bytes, List<&2, U32>, BY.to_list.cons(x, _))) == True{} : Bool}
-      %Equal.sym(Bool, U32.is_lt(x, 256), True{}, at_lt(len, t, s)) : {Bool.and(_, D.all_bytes(G)) == True{} : Bool}
-      tl_bytes(m, len, t, s1)
+      +j1 = (j - 1 : U32)
+      +x = C.AT(len, t, j)
+      %Equal.sym(D.Bytes & U32, BY.at(C.BT(len, t), j), (C.BT(len, t), x), C.at_pair_t(len, t, j)) :
+        {D.all_bytes(Pair.snd(D.Bytes, List<&2, U32>, BY.to_list.go(1n+m, _, j, acc))) == True{} : Bool}
+      +hc = {
+        %Equal.sym(Bool, U32.is_lt(x, 256), True{}, at_lt(len, t, j)) : {Bool.and(_, D.all_bytes(acc)) == True{} : Bool}
+        h : {D.all_bytes(Con{x, acc}) == True{} : Bool}}
+      tl_bytes(m, len, t, j1, Con{x, acc}, hc)
+
+# The same for to_list itself.
+def tlb(+len: U32, +t: AT.Tree<U32>, +s: U32, +n: U32) ->
+  {D.all_bytes(Pair.snd(D.Bytes, List<&2, U32>, BY.to_list(C.BT(len, t), s, n))) == True{} : Bool}:
+  tl_bytes(U32.to_nat(n), len, t, ((s + n : U32) - 1 : U32), Nil{}, {==})
 
 def andl(+a: Bool, +b: Bool, +h: {Bool.and(a, b) == True{} : Bool}) -> {a == True{} : Bool}:
   match a:
@@ -74,7 +79,7 @@ def text_b(+len: U32, +t: AT.Tree<U32>, +s: U32, +n: U32) ->
     %Equal.sym(D.Bytes & List<&2, U32>, BY.to_list(C.BT(len, t), s, n), (C.BT(len, t), Y), SM.to_list_pair_t(len, t, s, n)) :
       {Q.text.k(_) == (C.BT(len, t), Q.chars(Y)) : D.Bytes & String}
     {==} : {Q.text(C.BT(len, t), s, n) == (C.BT(len, t), Q.chars(Y)) : D.Bytes & String}}
-  (Q.chars(Y), (e, chars_bytes(Y, tl_bytes(U32.to_nat(n), len, t, s))))
+  (Q.chars(Y), (e, chars_bytes(Y, tlb(len, t, s, n))))
 
 # ---------------------------------------------------------------------------
 # num, rlf, cp: the buffer comes back
@@ -232,7 +237,7 @@ def CP(+found: Bool, +len: U32, +t: AT.Tree<U32>, +tb: U32, +e: U32) -> Nat:
 def cc_bytes(+found: Bool, +len: U32, +t: AT.Tree<U32>, +s: U32, +tb: U32) -> {E.is_bytes(CC(found, len, t, s, tb)) == True{} : Bool}:
   match found:
     case True{}:
-      chars_bytes(TY(len, t, s, (tb - s : U32)), tl_bytes(U32.to_nat((tb - s : U32)), len, t, s))
+      chars_bytes(TY(len, t, s, (tb - s : U32)), tlb(len, t, s, (tb - s : U32)))
     case False{}:
       {==}
 

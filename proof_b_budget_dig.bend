@@ -2,7 +2,7 @@ import Base
 import ./types.bend as B
 import ./proof_b_cut_pos.bend as CP
 import ./proof_base.bend as P
-import lawful-fields@0.1.0.0/proof_num.bend as LN
+import lawful-fields@0.1.1.0/proof_num.bend as LN
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U
 import lawful-arrays@0.1.0.0/proof_base.bend as AB

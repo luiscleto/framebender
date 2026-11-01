@@ -13,8 +13,8 @@ import ./proof_b_adv_dec.bend as DE
 import ./proof_b_adv_line.bend as LI
 import ./proof_b_adv_sp.bend as HX
 import ./proof_b_adv_wf.bend as W
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/defs.bend as D
 import ./bytes_enc.bend as E
 import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BD
@@ -23,7 +23,7 @@ import ./proof_b_budget_fast.bend as BFa
 import ./proof_b_budget_ms.bend as BMS
 import ./proof_b_budget_mb.bend as BM
 import ./proof_b_bud_inj.bend as BI
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-arrays@0.1.0.0/proof_base.bend as AB

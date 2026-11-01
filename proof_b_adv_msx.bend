@@ -39,11 +39,11 @@ import ./proof_s_chars.bend as CH
 import ./proof_s_inj.bend as INJ
 import ./proof_s_one.bend as OI
 import ./proof_s_recs.bend as RSR
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_same.bend as SM
-import lawful-bytes@0.1.0.0/proof_list.bend as BL
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_same.bend as SM
+import lawful-bytes@0.1.1.0/proof_list.bend as BL
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_b_defs_line.bend as DL
