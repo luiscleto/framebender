@@ -40,3 +40,13 @@ identical to main's build.
 Open, outside this review: a generated `-m` file (`data/tmp/fix11/`, ph30) with `-w 100000000`
 segfaulted once on main's build and on this one, and ran out a 900 s timeout on a rerun; it
 predates the branch.
+
+Round 2 reports: `claude-driver11-r2.md` (ACCEPT, two minor), `gpt-driver11-r2.md`,
+`grok-driver11-r2.md`. All three: decisions 1-4 carried out and fix round 1's findings; output
+byte-identical to main's (Claude 594 runs, GPT 980, Grok 218 plus the named files).
+
+| # | finding | by | decision |
+|---|---|---|---|
+| 6 | The stand-in key's guess (`plan.trims`, `plan.ph.*`) decodes the first line's REF and ALT into Strings and redoes REF's length and reversal for every ALT: 100 kb REF x 500 ALTs first in a piece 1.54-1.61 s against main's 0.06 s; 1 MB alleles about 30% slower | GPT, Claude | **Fix** (fb-fix11b, `notes/briefs/FIX11B.md`): no guess (key = POS) when the first line's REF and ALT bytes exceed a small bound (read from the tab offsets, before decoding); REF's values once; stop when the trim reaches zero. Any key is correct, so no statement changes. |
+| 7 | README's scrambled-indels row reads as a tie (bcftools 0.07-0.09, framebender 0.08-0.09); interleaved runs give framebender 0.060-0.069 s, bcftools 0.047-0.053 s; the clause no longer says such files are slower | Claude, Grok | **Fix** (fb-fix11b): re-measure interleaved; keep "somewhat slower" for scr and mention scr30, where framebender wins. |
+| 8 | USAGE's many-ALT `-m` bullet says memory grows with time at 100,000 samples; measured 257 -> 1384 MB (5.4x) while time grows 10x | Grok | **Fix** (fb-fix11b): state the measured memory. |
