@@ -683,10 +683,13 @@ def as.go(als: List<&2, Ap>, r: Rs, first: Bool, +k: U32, +tr: U32, +d: Nat, +p0
         case Rs{b, w, +acc}:
           as.go(t, as.add(acc, Bool.pick(String, first, "", ","), al(b, w, a, k, tr, d, p0, offu)), False{}, k, tr, d, p0, offu)
 
+# The new line is at most a byte longer than the line (the new POS may have
+# one more digit; the alleles only lose bases), so its buffer is made with
+# room for the line and 24 bytes more (NR.room never grows it).
 def wr.fin(+s: U32, +e0: U32, +e1: U32, +e2: U32, +e4: U32, +lf: U32, +q: Nat, +rs: String, r: Rs) -> Wb:
   match r:
     case Rs{b, w, +as}:
-      put_b(put_s(put_c(put_s(put_b(put_s(put_b(Wb{BY.empty(0n), b, w, True{}}, s, ((e0 + 1 : U32) - s : U32)), Nat.show(q)), e1, ((e2 + 1 : U32) - e1 : U32)), rs), 9), as), e4, ((lf + 1 : U32) - e4 : U32))
+      put_b(put_s(put_c(put_s(put_b(put_s(put_b(Wb{BY.empty(NR.depth(((lf - s : U32) + 24 : U32))), b, w, True{}}, s, ((e0 + 1 : U32) - s : U32)), Nat.show(q)), e1, ((e2 + 1 : U32) - e1 : U32)), rs), 9), as), e4, ((lf + 1 : U32) - e4 : U32))
 
 def wr.alts(+s: U32, +e0: U32, +e1: U32, +e2: U32, +e4: U32, +lf: U32, +q: Nat, alts: List<&2, Ap>, +k: U32, +tr: U32, +d: Nat, +p0: U32, +offu: U32, r: Rs) -> Wb:
   match r:

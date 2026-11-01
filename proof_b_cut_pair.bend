@@ -706,6 +706,297 @@ def noend_t(+len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32) ->
   neg_t(U32.to_nat((to - from + 2 : U32)), len, t, from, to, from, True{}, True{})
 
 # ---------------------------------------------------------------------------
+# INFO: ends (its END entries, one entry at a time)
+# ---------------------------------------------------------------------------
+
+def LO(ok: Bool, +len: U32, +t: AT.Tree<U32>, +k: U32, +j: U32) -> Bool:
+  match ok:
+    case True{}:
+      U32.is_eq(C.AT(len, t, j), k)
+    case False{}:
+      False{}
+
+def lo_t(+ok: Bool, +len: U32, +t: AT.Tree<U32>, +k: U32, +j: U32) ->
+  {NF.lit.one(ok, C.BT(len, t), k, j) == (C.BT(len, t), LO(ok, len, t, k, j)) : D.Bytes & Bool}:
+  match ok:
+    case True{}:
+      %Equal.sym(D.Bytes & U32, BY.at(C.BT(len, t), j), (C.BT(len, t), C.AT(len, t, j)), C.at_pair_t(len, t, j)) :
+        {NF.lit.eq(k, _) == (C.BT(len, t), U32.is_eq(C.AT(len, t, j), k)) : D.Bytes & Bool}
+      {==}
+    case False{}:
+      {==}
+
+# lit.go on the mirror.
+def LIT(ks: List<&2, U32>, +len: U32, +t: AT.Tree<U32>, ok: Bool, +j: U32) -> Bool:
+  match ks:
+    case Nil{}:
+      ok
+    case +k <> q:
+      LIT(q, len, t, LO(ok, len, t, k, j), (j + 1 : U32))
+
+def lit_t(+ks: List<&2, U32>, +len: U32, +t: AT.Tree<U32>, +ok: Bool, +j: U32) ->
+  {NF.lit.go(ks, (C.BT(len, t), ok), j) == (C.BT(len, t), LIT(ks, len, t, ok, j)) : D.Bytes & Bool}:
+  match ks:
+    case Nil{}:
+      {==}
+    case +k <> +q:
+      %Equal.sym(D.Bytes & Bool, NF.lit.one(ok, C.BT(len, t), k, j), (C.BT(len, t), LO(ok, len, t, k, j)), lo_t(ok, len, t, k, j)) :
+        {NF.lit.go(q, _, (j + 1 : U32)) == (C.BT(len, t), LIT(q, len, t, LO(ok, len, t, k, j), (j + 1 : U32))) : D.Bytes & Bool}
+      lit_t(q, len, t, LO(ok, len, t, k, j), (j + 1 : U32))
+
+def K3IF(three: Bool, +len: U32, +t: AT.Tree<U32>, +j: U32) -> Bool:
+  match three:
+    case True{}:
+      LIT([69, 78, 68], len, t, True{}, j)
+    case False{}:
+      False{}
+
+def k3if_t(+three: Bool, +len: U32, +t: AT.Tree<U32>, +j: U32) ->
+  {NF.key3.if(three, C.BT(len, t), j) == (C.BT(len, t), K3IF(three, len, t, j)) : D.Bytes & Bool}:
+  match three:
+    case True{}:
+      lit_t([69, 78, 68], len, t, True{}, j)
+    case False{}:
+      {==}
+
+# The n bytes from j are END.
+def KEY3(+len: U32, +t: AT.Tree<U32>, +j: U32, +n: U32) -> Bool:
+  K3IF(U32.is_eq(n, 3), len, t, j)
+
+def key3_t(+len: U32, +t: AT.Tree<U32>, +j: U32, +n: U32) ->
+  {NF.key3(C.BT(len, t), j, n) == (C.BT(len, t), KEY3(len, t, j, n)) : D.Bytes & Bool}:
+  k3if_t(U32.is_eq(n, 3), len, t, j)
+
+# An Ek without its buffer (INFO's end to, POS and REF's length are fixed).
+type ED is Data:
+  ED{j: U32, ok: Bool, seen: Bool, more: Bool}
+
+def ER(+len: U32, +t: AT.Tree<U32>, +to: U32, +pos: U32, +rl: U32, x: ED) -> NF.Ek:
+  match x:
+    case ED{j, ok, seen, m}:
+      NF.Ek{C.BT(len, t), j, to, pos, rl, ok, seen, m}
+
+def EW(+ok: Bool, seen: Bool, end: Bool, +sm: U32) -> ED:
+  match end:
+    case True{}:
+      ED{sm, ok, seen, False{}}
+    case False{}:
+      ED{(sm + 1 : U32), ok, seen, ok}
+
+def ew_t(+ok: Bool, +seen: Bool, +end: Bool, +sm: U32, +len: U32, +t: AT.Tree<U32>, +to: U32, +pos: U32, +rl: U32) ->
+  {NF.ek.w(ok, seen, end, C.BT(len, t), sm, to, pos, rl) == ER(len, t, to, pos, rl, EW(ok, seen, end, sm)) : NF.Ek}:
+  match end:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+# The END value x is pos + rl - 1 (and this is the first END entry).
+def GOOD(ok: Bool, seen: Bool, vok: Bool, +x: U32, +pos: U32, +rl: U32) -> Bool:
+  ok && Bool.not(seen) && vok && U32.is_le(pos, x) && U32.is_le(1, rl) && U32.is_eq((x - pos : U32), (rl - 1 : U32))
+
+# An END entry with its '=' at ke: the next ';' (or INFO's end) at SM.
+def EV(+len: U32, +t: AT.Tree<U32>, ok: Bool, seen: Bool, +ke: U32, +to: U32, +pos: U32, +rl: U32) -> ED:
+  +sm = F1(len, t, ke, to, 59)
+  +nv = NUM(len, t, (ke + 1 : U32), sm)
+  EW(GOOD(ok, seen, Nv.ok(nv), Nv.v(nv), pos, rl), True{}, U32.is_eq(sm, to), sm)
+
+def ev_t(+len: U32, +t: AT.Tree<U32>, +ok: Bool, +seen: Bool, +ke: U32, +to: U32, +pos: U32, +rl: U32) ->
+  {NF.ek.val(ok, seen, ke, to, pos, rl, F.find(C.BT(len, t), ke, to, 59)) == ER(len, t, to, pos, rl, EV(len, t, ok, seen, ke, to, pos, rl)) : NF.Ek}:
+  +sm = F1(len, t, ke, to, 59)
+  +nv = NUM(len, t, (ke + 1 : U32), sm)
+  %Equal.sym(D.Bytes & U32, F.find(C.BT(len, t), ke, to, 59), (C.BT(len, t), sm), ff1(len, t, ke, to, 59)) :
+    {NF.ek.val(ok, seen, ke, to, pos, rl, _) == ER(len, t, to, pos, rl, EV(len, t, ok, seen, ke, to, pos, rl)) : NF.Ek}
+  %Equal.sym(NF.Bv, NF.num(C.BT(len, t), (ke + 1 : U32), sm), NF.Bv{C.BT(len, t), Nv.ok(nv), Nv.v(nv)}, num_t(len, t, (ke + 1 : U32), sm)) :
+    {NF.ek.val.k(ok, seen, sm, to, pos, rl, _) == ER(len, t, to, pos, rl, EV(len, t, ok, seen, ke, to, pos, rl)) : NF.Ek}
+  ew_t(GOOD(ok, seen, Nv.ok(nv), Nv.v(nv), pos, rl), True{}, U32.is_eq(sm, to), sm, len, t, to, pos, rl)
+
+def EE(+ok: Bool, seen: Bool, isend: Bool, end: Bool, semi: Bool, +len: U32, +t: AT.Tree<U32>, +ke: U32, +to: U32, +pos: U32, +rl: U32) -> ED:
+  match isend end semi:
+    case False{} True{} _:
+      ED{ke, ok, seen, False{}}
+    case False{} False{} True{}:
+      ED{(ke + 1 : U32), ok, seen, ok}
+    case False{} False{} False{}:
+      EW(ok, seen, U32.is_eq(F1(len, t, ke, to, 59), to), F1(len, t, ke, to, 59))
+    case True{} False{} False{}:
+      EV(len, t, ok, seen, ke, to, pos, rl)
+    case True{} _ _:
+      ED{ke, False{}, seen, False{}}
+
+def ee_t(+ok: Bool, +seen: Bool, +isend: Bool, +end: Bool, +semi: Bool, +len: U32, +t: AT.Tree<U32>, +ke: U32, +to: U32, +pos: U32, +rl: U32) ->
+  {NF.ek.e(ok, seen, isend, end, semi, C.BT(len, t), ke, to, pos, rl) == ER(len, t, to, pos, rl, EE(ok, seen, isend, end, semi, len, t, ke, to, pos, rl)) : NF.Ek}:
+  match isend end semi:
+    case False{} True{} _:
+      {==}
+    case False{} False{} True{}:
+      {==}
+    case False{} False{} False{}:
+      +sm = F1(len, t, ke, to, 59)
+      %Equal.sym(D.Bytes & U32, F.find(C.BT(len, t), ke, to, 59), (C.BT(len, t), sm), ff1(len, t, ke, to, 59)) :
+        {NF.ek.v(ok, seen, to, pos, rl, _) == ER(len, t, to, pos, rl, EW(ok, seen, U32.is_eq(sm, to), sm)) : NF.Ek}
+      ew_t(ok, seen, U32.is_eq(sm, to), sm, len, t, to, pos, rl)
+    case True{} False{} False{}:
+      ev_t(len, t, ok, seen, ke, to, pos, rl)
+    case True{} True{} _:
+      {==}
+    case True{} False{} True{}:
+      {==}
+
+# The entry at j: its key ends at the first '=' or ';' (or INFO's end).
+def EKE(+len: U32, +t: AT.Tree<U32>, +to: U32, +j: U32) -> U32:
+  F2(len, t, j, to, 61, 59)
+
+# ek.step on the mirror.
+def ES(+len: U32, +t: AT.Tree<U32>, +to: U32, +pos: U32, +rl: U32, +j: U32, ok: Bool, seen: Bool) -> ED:
+  +ke = EKE(len, t, to, j)
+  EE(ok, seen, KEY3(len, t, j, (ke - j : U32)), U32.is_eq(ke, to), U32.is_eq(C.AT(len, t, ke), 59), len, t, ke, to, pos, rl)
+
+def es_t(+len: U32, +t: AT.Tree<U32>, +to: U32, +pos: U32, +rl: U32, +j: U32, +ok: Bool, +seen: Bool, +m: Bool) ->
+  {NF.ek.step(NF.Ek{C.BT(len, t), j, to, pos, rl, ok, seen, m}) == ER(len, t, to, pos, rl, ES(len, t, to, pos, rl, j, ok, seen)) : NF.Ek}:
+  +ke = EKE(len, t, to, j)
+  +k = KEY3(len, t, j, (ke - j : U32))
+  %Equal.sym(D.Bytes & U32, F.find2(C.BT(len, t), j, to, 61, 59), (C.BT(len, t), ke), ff2(len, t, j, to, 61, 59)) :
+    {NF.ek.k(j, to, ok, seen, pos, rl, _) == ER(len, t, to, pos, rl, ES(len, t, to, pos, rl, j, ok, seen)) : NF.Ek}
+  %Equal.sym(D.Bytes & Bool, NF.key3(C.BT(len, t), j, (ke - j : U32)), (C.BT(len, t), k), key3_t(len, t, j, (ke - j : U32))) :
+    {NF.ek.h(ok, seen, ke, to, pos, rl, _) == ER(len, t, to, pos, rl, ES(len, t, to, pos, rl, j, ok, seen)) : NF.Ek}
+  %Equal.sym(D.Bytes & U32, BY.at(C.BT(len, t), ke), (C.BT(len, t), C.AT(len, t, ke)), C.at_pair_t(len, t, ke)) :
+    {NF.ek.n(ok, seen, k, ke, to, pos, rl, _) == ER(len, t, to, pos, rl, ES(len, t, to, pos, rl, j, ok, seen)) : NF.Ek}
+  ee_t(ok, seen, k, U32.is_eq(ke, to), U32.is_eq(C.AT(len, t, ke), 59), len, t, ke, to, pos, rl)
+
+# ek.go on the mirror.
+def EG(n: Nat, +len: U32, +t: AT.Tree<U32>, +to: U32, +pos: U32, +rl: U32, x: ED) -> Bool:
+  match n x:
+    case 0n ED{j, ok, seen, m}:
+      False{}
+    case 1n+k ED{j, ok, seen, False{}}:
+      ok
+    case 1n+k ED{+j, ok, seen, True{}}:
+      EG(k, len, t, to, pos, rl, ES(len, t, to, pos, rl, j, ok, seen))
+
+def eg_t(+n: Nat, +len: U32, +t: AT.Tree<U32>, +to: U32, +pos: U32, +rl: U32, +x: ED) ->
+  {NF.ek.go(n, ER(len, t, to, pos, rl, x)) == (C.BT(len, t), EG(n, len, t, to, pos, rl, x)) : D.Bytes & Bool}:
+  match n x:
+    case 0n ED{+j, +ok, +seen, +m}:
+      {==}
+    case 1n+k ED{+j, +ok, +seen, False{}}:
+      {==}
+    case 1n+k ED{+j, +ok, +seen, True{}}:
+      %Equal.sym(NF.Ek, NF.ek.step(NF.Ek{C.BT(len, t), j, to, pos, rl, ok, seen, True{}}), ER(len, t, to, pos, rl, ES(len, t, to, pos, rl, j, ok, seen)), es_t(len, t, to, pos, rl, j, ok, seen, True{})) :
+        {NF.ek.go(k, _) == (C.BT(len, t), EG(k, len, t, to, pos, rl, ES(len, t, to, pos, rl, j, ok, seen))) : D.Bytes & Bool}
+      eg_t(k, len, t, to, pos, rl, ES(len, t, to, pos, rl, j, ok, seen))
+
+# INFO's END entries (from .. to-1) pass NF.ends for POS pos and a REF of
+# rl bytes.
+def EK(+len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32, +pos: U32, +rl: U32) -> Bool:
+  EG(U32.to_nat((to - from + 2 : U32)), len, t, to, pos, rl, ED{from, True{}, False{}, True{}})
+
+def ends_t(+len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32, +pos: U32, +rl: U32) ->
+  {NF.ends(C.BT(len, t), from, to, pos, rl) == (C.BT(len, t), EK(len, t, from, to, pos, rl)) : D.Bytes & Bool}:
+  eg_t(U32.to_nat((to - from + 2 : U32)), len, t, to, pos, rl, ED{from, True{}, False{}, True{}})
+
+def EKI(ne: Bool, +len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32, +pos: U32, +rl: U32) -> Bool:
+  match ne:
+    case True{}:
+      True{}
+    case False{}:
+      EK(len, t, from, to, pos, rl)
+
+# INFO passes the END check (NF.pre.info.ne): no END entry (NE), or its
+# END entries pass (EK).
+def EKQ(+len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32, +pos: U32, +rl: U32) -> Bool:
+  EKI(NE(len, t, from, to), len, t, from, to, pos, rl)
+
+# ---------------------------------------------------------------------------
+# Out of scope: letters, oos (the ALT alleles, one at a time)
+# ---------------------------------------------------------------------------
+
+# letters.go on the mirror: x is byte j.
+def LTG(n: Nat, +len: U32, +t: AT.Tree<U32>, +x: U32, +j: U32, ok: Bool) -> Bool:
+  match n:
+    case 0n:
+      ok
+    case 1n+m:
+      LTG(m, len, t, C.AT(len, t, (j + 1 : U32)), (j + 1 : U32), ok && NF.alpha(x))
+
+def ltg_t(+n: Nat, +len: U32, +t: AT.Tree<U32>, +x: U32, +j: U32, +ok: Bool) ->
+  {NF.letters.go(n, (C.BT(len, t), x), j, ok) == (C.BT(len, t), LTG(n, len, t, x, j, ok)) : D.Bytes & Bool}:
+  match n:
+    case 0n:
+      {==}
+    case 1n+m:
+      +j1 = (j + 1 : U32)
+      +ok1 = ok && NF.alpha(x)
+      +z = C.AT(len, t, j1)
+      %Equal.sym(D.Bytes & U32, BY.at(C.BT(len, t), j1), (C.BT(len, t), z), C.at_pair_t(len, t, j1)) :
+        {NF.letters.go(m, _, j1, ok1) == (C.BT(len, t), LTG(m, len, t, z, j1, ok1)) : D.Bytes & Bool}
+      ltg_t(m, len, t, z, j1, ok1)
+
+def LETT(+len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32) -> Bool:
+  LTG(U32.to_nat((to - from : U32)), len, t, C.AT(len, t, from), from, True{})
+
+def letters_t(+len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32) ->
+  {NF.letters(C.BT(len, t), from, to) == (C.BT(len, t), LETT(len, t, from, to)) : D.Bytes & Bool}:
+  +x = C.AT(len, t, from)
+  %Equal.sym(D.Bytes & U32, BY.at(C.BT(len, t), from), (C.BT(len, t), x), C.at_pair_t(len, t, from)) :
+    {NF.letters.go(U32.to_nat((to - from : U32)), _, from, True{}) == (C.BT(len, t), LETT(len, t, from, to)) : D.Bytes & Bool}
+  ltg_t(U32.to_nat((to - from : U32)), len, t, x, from, True{})
+
+# A Ks without its buffer (ALT's end e is fixed).
+type KD is Data:
+  KD{a: U32, ok: Bool, odd: Bool, more: Bool}
+
+def KR(+len: U32, +t: AT.Tree<U32>, +e: U32, x: KD) -> NF.Ks:
+  match x:
+    case KD{a, ok, odd, m}:
+      NF.Ks{C.BT(len, t), a, e, ok, odd, m}
+
+# ks.step on the mirror: the allele a .. c-1, c the next comma (or e).
+def KSS(+len: U32, +t: AT.Tree<U32>, +e: U32, +a: U32, ok: Bool, odd: Bool) -> KD:
+  +c = F1(len, t, a, e, 44)
+  +ok2 = ok && U32.is_lt(a, c)
+  KD{(c + 1 : U32), ok2, odd || Bool.not(LETT(len, t, a, c)), ok2 && U32.is_lt(c, e)}
+
+def kss_t(+len: U32, +t: AT.Tree<U32>, +e: U32, +a: U32, +ok: Bool, +odd: Bool, +m: Bool) ->
+  {NF.ks.step(NF.Ks{C.BT(len, t), a, e, ok, odd, m}) == KR(len, t, e, KSS(len, t, e, a, ok, odd)) : NF.Ks}:
+  +c = F1(len, t, a, e, 44)
+  %Equal.sym(D.Bytes & U32, F.find(C.BT(len, t), a, e, 44), (C.BT(len, t), c), ff1(len, t, a, e, 44)) :
+    {NF.ks.c(a, e, ok, odd, _) == KR(len, t, e, KSS(len, t, e, a, ok, odd)) : NF.Ks}
+  %Equal.sym(D.Bytes & Bool, NF.letters(C.BT(len, t), a, c), (C.BT(len, t), LETT(len, t, a, c)), letters_t(len, t, a, c)) :
+    {NF.ks.l(c, e, a, ok, odd, _) == KR(len, t, e, KSS(len, t, e, a, ok, odd)) : NF.Ks}
+  {==}
+
+# ks.go on the mirror.
+def KG(n: Nat, +len: U32, +t: AT.Tree<U32>, +e: U32, x: KD) -> Bool:
+  match n x:
+    case 0n KD{a, ok, odd, m}:
+      False{}
+    case 1n+k KD{a, ok, odd, False{}}:
+      ok && odd
+    case 1n+k KD{+a, ok, odd, True{}}:
+      KG(k, len, t, e, KSS(len, t, e, a, ok, odd))
+
+def kg_t(+n: Nat, +len: U32, +t: AT.Tree<U32>, +e: U32, +x: KD) ->
+  {NF.ks.go(n, KR(len, t, e, x)) == (C.BT(len, t), KG(n, len, t, e, x)) : D.Bytes & Bool}:
+  match n x:
+    case 0n KD{+a, +ok, +odd, +m}:
+      {==}
+    case 1n+k KD{+a, +ok, +odd, False{}}:
+      {==}
+    case 1n+k KD{+a, +ok, +odd, True{}}:
+      %Equal.sym(NF.Ks, NF.ks.step(NF.Ks{C.BT(len, t), a, e, ok, odd, True{}}), KR(len, t, e, KSS(len, t, e, a, ok, odd)), kss_t(len, t, e, a, ok, odd, True{})) :
+        {NF.ks.go(k, _) == (C.BT(len, t), KG(k, len, t, e, KSS(len, t, e, a, ok, odd))) : D.Bytes & Bool}
+      kg_t(k, len, t, e, KSS(len, t, e, a, ok, odd))
+
+# ALT (from .. to-1) passes NF.oos.
+def OOS(+len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32) -> Bool:
+  KG(U32.to_nat((to - from + 2 : U32)), len, t, to, KD{from, True{}, False{}, True{}})
+
+def oos_t(+len: U32, +t: AT.Tree<U32>, +from: U32, +to: U32) ->
+  {NF.oos(C.BT(len, t), from, to) == (C.BT(len, t), OOS(len, t, from, to)) : D.Bytes & Bool}:
+  kg_t(U32.to_nat((to - from + 2 : U32)), len, t, to, KD{from, True{}, False{}, True{}})
+
+# ---------------------------------------------------------------------------
 # The tests: NF.pre, and NF.line
 # ---------------------------------------------------------------------------
 
@@ -727,12 +1018,37 @@ def PInfo(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, 
     case False{}:
       NF.Slow{}
 
+def SIf(+pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, ok: Bool) -> NF.Pre:
+  match ok:
+    case True{}:
+      NF.Skip{pos, e0, e1, e2, e3, e4, e5, e6, e7, lf}
+    case False{}:
+      NF.Slow{}
+
+def SAlt(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, ok: Bool) -> NF.Pre:
+  match ok:
+    case True{}:
+      SIf(pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, CRT(len, t, e7, lf))
+    case False{}:
+      NF.Slow{}
+
+def SRef(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, ok: Bool) -> NF.Pre:
+  match ok:
+    case True{}:
+      SAlt(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, OOS(len, t, (e3 + 1 : U32), e4))
+    case False{}:
+      NF.Slow{}
+
+# The out-of-scope tests (when the fast path's alleles test failed).
+def PSk(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32) -> NF.Pre:
+  SRef(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, U32.is_lt((e2 + 1 : U32), e3) && LETT(len, t, (e2 + 1 : U32), e3))
+
 def PAl(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, ok: Bool) -> NF.Pre:
   match ok:
     case True{}:
-      PInfo(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, NE(len, t, (e6 + 1 : U32), e7))
+      PInfo(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, EKQ(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)))
     case False{}:
-      NF.Slow{}
+      PSk(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf)
 
 def PPos(+len: U32, +t: AT.Tree<U32>, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, ok: Bool, +pos: U32) -> NF.Pre:
   match ok:
@@ -772,16 +1088,62 @@ def pinfo_t(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32
     case False{}:
       {==}
 
+def sif_t(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, +ok: Bool) ->
+  {NF.sk.if(ok, C.BT(len, t), NF.Skip{pos, e0, e1, e2, e3, e4, e5, e6, e7, lf}) == NF.Pr{C.BT(len, t), SIf(pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ok)} : NF.Pr}:
+  match ok:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+def salt_t(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, +ok: Bool) ->
+  {NF.sk.alt(pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, (C.BT(len, t), ok)) == NF.Pr{C.BT(len, t), SAlt(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ok)} : NF.Pr}:
+  match ok:
+    case True{}:
+      +x = C.AT(len, t, (lf - 1 : U32))
+      %Equal.sym(D.Bytes & U32, BY.at(C.BT(len, t), (lf - 1 : U32)), (C.BT(len, t), x), C.at_pair_t(len, t, (lf - 1 : U32))) :
+        {NF.sk.cr(pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, _) == NF.Pr{C.BT(len, t), SIf(pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, CRT(len, t, e7, lf))} : NF.Pr}
+      sif_t(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, CRT(len, t, e7, lf))
+    case False{}:
+      {==}
+
+def sref_t(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, +ok: Bool) ->
+  {NF.sk.ref.if(ok, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, (e3 + 1 : U32), e4, C.BT(len, t)) == NF.Pr{C.BT(len, t), SRef(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ok)} : NF.Pr}:
+  match ok:
+    case True{}:
+      +os = OOS(len, t, (e3 + 1 : U32), e4)
+      %Equal.sym(D.Bytes & Bool, NF.oos(C.BT(len, t), (e3 + 1 : U32), e4), (C.BT(len, t), os), oos_t(len, t, (e3 + 1 : U32), e4)) :
+        {NF.sk.alt(pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, _) == NF.Pr{C.BT(len, t), SAlt(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, os)} : NF.Pr}
+      salt_t(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, os)
+    case False{}:
+      {==}
+
+# pre.info.ne on the mirror: NE's answer, then ends when it found an END
+# entry.
+def pine_t(+ne: Bool, +len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32) ->
+  {NF.pre.info.ne(pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, (C.BT(len, t), ne)) == NF.Pr{C.BT(len, t), PInfo(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, EKI(ne, len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)))} : NF.Pr}:
+  match ne:
+    case True{}:
+      pinfo_t(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, True{})
+    case False{}:
+      +ek = EK(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32))
+      %Equal.sym(D.Bytes & Bool, NF.ends(C.BT(len, t), (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)), (C.BT(len, t), ek), ends_t(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32))) :
+        {NF.pre.info(pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, _) == NF.Pr{C.BT(len, t), PInfo(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ek)} : NF.Pr}
+      pinfo_t(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ek)
+
 def pal_t(+len: U32, +t: AT.Tree<U32>, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, +ok: Bool) ->
   {NF.pre.al.if(ok, pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, C.BT(len, t)) == NF.Pr{C.BT(len, t), PAl(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ok)} : NF.Pr}:
   match ok:
     case True{}:
       +ne = NE(len, t, (e6 + 1 : U32), e7)
       %Equal.sym(D.Bytes & Bool, NF.noend(C.BT(len, t), (e6 + 1 : U32), e7), (C.BT(len, t), ne), noend_t(len, t, (e6 + 1 : U32), e7)) :
-        {NF.pre.info(pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, _) == NF.Pr{C.BT(len, t), PInfo(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ne)} : NF.Pr}
-      pinfo_t(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, ne)
+        {NF.pre.info.ne(pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, _) == NF.Pr{C.BT(len, t), PInfo(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, EKQ(len, t, (e6 + 1 : U32), e7, pos, (e3 - e2 - 1 : U32)))} : NF.Pr}
+      pine_t(ne, len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf)
     case False{}:
-      {==}
+      +lt = LETT(len, t, (e2 + 1 : U32), e3)
+      %Equal.sym(D.Bytes & Bool, NF.letters(C.BT(len, t), (e2 + 1 : U32), e3), (C.BT(len, t), lt), letters_t(len, t, (e2 + 1 : U32), e3)) :
+        {NF.sk.ref(pos, NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, U32.is_lt((e2 + 1 : U32), e3), (e3 + 1 : U32), e4, _) == NF.Pr{C.BT(len, t), PSk(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf)} : NF.Pr}
+      sref_t(len, t, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, U32.is_lt((e2 + 1 : U32), e3) && lt)
 
 def ppos_t(+len: U32, +t: AT.Tree<U32>, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, +ok: Bool, +pos: U32) ->
   {NF.pre.pos(NF.Cut8{e0, e1, e2, e3, e4, e5, e6, e7, lf}, NF.Bv{C.BT(len, t), ok, pos}) == NF.Pr{C.BT(len, t), PPos(len, t, e0, e1, e2, e3, e4, e5, e6, e7, lf, ok, pos)} : NF.Pr}:

@@ -132,16 +132,16 @@ def ltx(l: B.Line) -> {B.Line.text(l) == String.append(B.Line.body(l), B.Line.te
       {==}
 
 # The fields of a body whose first seven are g0 .. g6 (J.pfs, INFO kept as
-# ""): g0 .. g4, field 5, and the rest.
-def fsg(g: J.C7, +body: String, +g0: String, +g1: String, +g2: String, +g3: String, +g4: String, +g5: String, +g6: String,
+# g7): g0 .. g4, field 5, and the rest.
+def fsg(g: J.C7, +body: String, +g0: String, +g1: String, +g2: String, +g3: String, +g4: String, +g5: String, +g6: String, +g7: String,
   +hg: {PF.gsplit(g, B.Rec.fields(body)) == B.Rec.fields(body) : List<&2, String>},
-  +hp: {J.pfs.g(g, body) == [g0, g1, g2, g3, g4, g5, g6, ""] : List<&2, String>}) ->
+  +hp: {J.pfs.g(g, body) == [g0, g1, g2, g3, g4, g5, g6, g7] : List<&2, String>}) ->
   {B.Rec.fields(body) == TS.L7(g0, g1, g2, g3, g4, B.Rec.field(B.Rec.fields(body), 5n), List.drop(&2, String, B.Rec.fields(body), 6n)) : List<&2, String>}:
   match g:
     case J.Got{+f0, +f1, +f2, +f3, +f4, +f5, +f6, +r}:
       +T = String.split(r, '\t')
       +PG = {[f0, f1, f2, f3, f4, f5, f6, J.info.if(J.noend(r), r)] : List<&2, String>}
-      +GG = {[g0, g1, g2, g3, g4, g5, g6, ""] : List<&2, String>}
+      +GG = {[g0, g1, g2, g3, g4, g5, g6, g7] : List<&2, String>}
       +h0 = Equal.cong(List<&2, String>, String, z => B.Rec.field(z, 0n), PG, GG, hp)
       +h1 = Equal.cong(List<&2, String>, String, z => B.Rec.field(z, 1n), PG, GG, hp)
       +h2 = Equal.cong(List<&2, String>, String, z => B.Rec.field(z, 2n), PG, GG, hp)
@@ -155,13 +155,13 @@ def fsg(g: J.C7, +body: String, +g0: String, +g1: String, +g2: String, +g3: Stri
       %Equal.sym(String, f4, g4, h4) : {g0 <> g1 <> g2 <> g3 <> _ <> f5 <> f6 <> T == g0 <> g1 <> g2 <> g3 <> g4 <> f5 <> f6 <> T : List<&2, String>}
       {==}
     case J.Short{}:
-      %Equal.sym(List<&2, String>, B.Rec.fields(body), [g0, g1, g2, g3, g4, g5, g6, ""], hp) : {_ == TS.L7(g0, g1, g2, g3, g4, B.Rec.field(_, 5n), List.drop(&2, String, _, 6n)) : List<&2, String>}
+      %Equal.sym(List<&2, String>, B.Rec.fields(body), [g0, g1, g2, g3, g4, g5, g6, g7], hp) : {_ == TS.L7(g0, g1, g2, g3, g4, B.Rec.field(_, 5n), List.drop(&2, String, _, 6n)) : List<&2, String>}
       {==}
 
-def fs_shape(+body: String, +g0: String, +g1: String, +g2: String, +g3: String, +g4: String, +g5: String, +g6: String,
-  +hp: {J.pfs(body) == [g0, g1, g2, g3, g4, g5, g6, ""] : List<&2, String>}) ->
+def fs_shape(+body: String, +g0: String, +g1: String, +g2: String, +g3: String, +g4: String, +g5: String, +g6: String, +g7: String,
+  +hp: {J.pfs(body) == [g0, g1, g2, g3, g4, g5, g6, g7] : List<&2, String>}) ->
   {B.Rec.fields(body) == TS.L7(g0, g1, g2, g3, g4, B.Rec.field(B.Rec.fields(body), 5n), List.drop(&2, String, B.Rec.fields(body), 6n)) : List<&2, String>}:
-  fsg(J.c7(body), body, g0, g1, g2, g3, g4, g5, g6, PF.c7_split(body), hp)
+  fsg(J.c7(body), body, g0, g1, g2, g3, g4, g5, g6, g7, PF.c7_split(body), hp)
 
 # Projections of proof_c_pre.bend's conjunctions.
 def tb0(+len: U32, +t: AT.Tree<U32>, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, h: {List.get(&2, U32, Q.xs(len, t), Q.n(e0)) == Some{9} : Maybe<&2, U32>}
@@ -259,7 +259,7 @@ def new_text(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
   +hrs: {rs == B.Allele.show(sb) : String},
   +has: {as == String.join(B.Alleles.show(y), ",") : String}) ->
   {TX.TXT(len, t, d, wl, wt, s, e0, e1, e2, e4, lf, q, rs, as) == String.append(B.Rec.rebuild(B.Rec.fields(B.Line.body(Norm.line(P.btext(len, t, s, (lf - s : U32))))), v, B.Var{q, sb, y}), B.Line.term(Norm.line(P.btext(len, t, s, (lf - s : U32))))) : String}:
-  +hfs = fs_shape(CU.lbody(D.view(C.BT(len, t)), s, lf), CU.fld(D.view(C.BT(len, t)), U32.to_nat(s), U32.to_nat(e0)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e0), 1n), U32.to_nat(e1)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e1), 1n), U32.to_nat(e2)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e2), 1n), U32.to_nat(e3)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e3), 1n), U32.to_nat(e4)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e4), 1n), U32.to_nat(e5)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e5), 1n), U32.to_nat(e6)), PE.fix_fields(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp))
+  +hfs = fs_shape(CU.lbody(D.view(C.BT(len, t)), s, lf), CU.fld(D.view(C.BT(len, t)), U32.to_nat(s), U32.to_nat(e0)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e0), 1n), U32.to_nat(e1)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e1), 1n), U32.to_nat(e2)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e2), 1n), U32.to_nat(e3)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e3), 1n), U32.to_nat(e4)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e4), 1n), U32.to_nat(e5)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e5), 1n), U32.to_nat(e6)), B.Rec.field(J.pfs(CU.lbody(D.view(C.BT(len, t)), s, lf)), 7n), PE.fix_fields(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp))
   +hin = AB.subst(List<&2, String>, z => {B.Info.has(B.Rec.field(z, 7n), "END") == False{} : Bool}, B.Rec.fields(CU.lbody(D.view(C.BT(len, t)), s, lf)), TS.L7(CU.fld(D.view(C.BT(len, t)), U32.to_nat(s), U32.to_nat(e0)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e0), 1n), U32.to_nat(e1)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e1), 1n), U32.to_nat(e2)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e2), 1n), U32.to_nat(e3)), CU.fld(D.view(C.BT(len, t)), Nat.add(U32.to_nat(e3), 1n), U32.to_nat(e4)), B.Rec.field(B.Rec.fields(CU.lbody(D.view(C.BT(len, t)), s, lf)), 5n), List.drop(&2, String, B.Rec.fields(CU.lbody(D.view(C.BT(len, t)), s, lf)), 6n)), hfs, inf0(len, t, s, lf, PE.fix_info(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)))
   +h5 = N.le_trans(U32.to_nat(e4), U32.to_nat(lf), Nat.add(U32.to_nat(lf), 1n), N.lt_to_le(U32.to_nat(e4), U32.to_nat(lf), e4lf(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp)), N.le_add_r(U32.to_nat(lf), 1n))
   +hlt = CU.line_text(D.view(C.BT(len, t)), s, lf, hlf(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp), slf(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, als, up, hok, hs, hp))

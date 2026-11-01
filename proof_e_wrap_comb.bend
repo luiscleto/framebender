@@ -47,7 +47,7 @@ def comb_next_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +T: R.Report, +cs: List<
         PB.and_true_l(E.is_bytes(c), E.all_bytes(PT.texts(pt)), ha), PB.and_true_l(E.le31(String.length(c)), E.pieces_ok(PT.texts(pt)), hp),
         WB.and2(E.all_bytes(PT.texts(pt)), E.pieces_ok(PT.texts(pt)), PB.and_true_r(E.is_bytes(c), E.all_bytes(PT.texts(pt)), ha), PB.and_true_r(E.le31(String.length(c)), E.pieces_ok(PT.texts(pt)), hp)),
         hok, hv, hpt, hbt, he, hdd)
-    case Con{PT.Pc{+c, +rs, True{}, +k, +c0, +l}, +pt} Con{PT.TOutP{+len, +t, +d, PT.TCleanP{PT.TcP{+rp, +pd, +wp}}}, +xt}:
+    case Con{PT.Pc{+c, +rs, True{}, +k, +c0, +l0}, +pt} Con{PT.TOutP{+len, +t, +d, PT.TCleanP{PT.TcP{+rp, +pd, +wp, +l}}}, +xt}:
       (hpc, hpt) = hps
       (hto, hbt) = hbo
       (+hok, h1) = hto

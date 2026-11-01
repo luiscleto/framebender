@@ -99,12 +99,28 @@ def depth.go(fuel: Nat, +d: Nat, +need: U32) -> Nat:
 def depth(+need: U32) -> Nat:
   depth.go(29n, 0n, need)
 
+# The bytes room grows a buffer to hold when it needs n: 2n below 256 MiB, n
+# from there. Each block size keeps its own freed blocks, so a buffer that
+# grows through every size leaves one parked in each (one per task); below
+# 256 MiB a growth skips a size (with n from 64 MiB, a -m window of 64 to
+# 256 MiB parked a 128 MiB block: notes/speed.md, fb-fix11). From 256 MiB on,
+# no block is more than twice what it holds.
+def want.if(small: Bool, +n: U32) -> U32:
+  match small:
+    case True{}:
+      (n * 2 : U32)
+    case False{}:
+      n
+
+def want(+n: U32) -> U32:
+  want.if(U32.is_lt(n, 268435456), n)
+
 def room.if(ok: Bool, +n: U32, b: D.Bytes) -> D.Bytes:
   match ok:
     case True{}:
       b
     case False{}:
-      BY.grow(b, depth((n * 2 : U32)))
+      BY.grow(b, depth(want(n)))
 
 def room.k(+n: U32, r: D.Bytes & U32) -> D.Bytes:
   (b, +cap) = r
@@ -243,9 +259,10 @@ def cut_tail.k(+from: U32, r: D.Bytes & D.Bytes) -> D.Bytes & D.Bytes:
   (tmp, b) = r
   (BY.truncate(b, from), tmp)
 
+# (the new buffer is made with room for them: put_bytes never grows it)
 def cut_tail.len(+from: U32, r: D.Bytes & U32) -> D.Bytes & D.Bytes:
   (b, +len) = r
-  cut_tail.k(from, put_bytes(BY.empty(0n), b, from, (len - from : U32)))
+  cut_tail.k(from, put_bytes(BY.empty(depth(((len - from : U32) + 8 : U32))), b, from, (len - from : U32)))
 
 def cut_tail(b: D.Bytes, +from: U32) -> D.Bytes & D.Bytes:
   cut_tail.len(from, BY.len(b))
@@ -496,6 +513,12 @@ def bump(r: Run, changed: Bool, skipped: Bool, warned: Bool) -> Run:
 # form, written as it came; its POS is written as Nat.show(pos).
 def fast_done(r: Run, +w: Nat, +line: Nat, +pos: Nat, src: D.Bytes, +s: U32, +n: U32) -> Run & D.Bytes:
   same_run(bump(r, False{}, False{}, False{}), w, Ck{pos, pos, line, None{}, n}, pos, Raw{}, src, s, n)
+
+# An out-of-scope record found on its bytes (norm_fast.bend's Skip), in the
+# current run: as body_line writes a Skipped result (the line as it came, its
+# POS written as Nat.show(pos)).
+def skip_done(r: Run, +w: Nat, +line: Nat, +pos: Nat, src: D.Bytes, +s: U32, +n: U32) -> Run & D.Bytes:
+  same_run(bump(r, False{}, True{}, False{}), w, Ck{pos, pos, line, None{}, n}, pos, Raw{}, src, s, n)
 
 # A record rewritten on its bytes (norm_fix.bend), in the current run: as
 # body_line writes a Normalized result with a new text and no message. The

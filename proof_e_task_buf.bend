@@ -320,6 +320,40 @@ def win_eq(+c: String, +a: Nat, +e: Nat) -> {W.plan.win(c, a, e) == Pr.Req{c, WB
 def win_le(+c: String, +a: Nat, +e: Nat) -> {E.le31(Nat.sub(e, WB(c, a, e))) == True{} : Bool}:
   Pair.snd({W.plan.win(c, a, e) == Pr.Req{c, WB(c, a, e), e} : Pr.Req}, {E.le31(Nat.sub(e, WB(c, a, e))) == True{} : Bool}, win_ok(c, a, e))
 
+# Two reads, each built by plan.win: within 2^31 letters, of bytes contigs.
+def two_win(+c1: String, +A1: Nat, +E1: Nat, +c2: String, +A2: Nat, +E2: Nat,
+  +hb1: {E.is_bytes(c1) == True{} : Bool},
+  +hb2: {E.is_bytes(c2) == True{} : Bool}) ->
+  {Bool.and(rs_ok2([W.plan.win(c1, A1, E1), W.plan.win(c2, A2, E2)]), two2([W.plan.win(c1, A1, E1), W.plan.win(c2, A2, E2)])) == True{} : Bool}:
+  +R1 = {Pr.Req{c1, WB(c1, A1, E1), E1} : Pr.Req}
+  +R2 = {Pr.Req{c2, WB(c2, A2, E2), E2} : Pr.Req}
+  %Equal.sym(Pr.Req, W.plan.win(c1, A1, E1), R1, win_eq(c1, A1, E1)) :
+    {Bool.and(rs_ok2([_, W.plan.win(c2, A2, E2)]), two2([_, W.plan.win(c2, A2, E2)])) == True{} : Bool}
+  %Equal.sym(Pr.Req, W.plan.win(c2, A2, E2), R2, win_eq(c2, A2, E2)) :
+    {Bool.and(rs_ok2([R1, _]), two2([R1, _])) == True{} : Bool}
+  %Equal.sym(Bool, E.le31(Nat.sub(E1, WB(c1, A1, E1))), True{}, win_le(c1, A1, E1)) :
+    {Bool.and(Bool.and(Bool.and(_, E.is_bytes(c1)), Bool.and(Bool.and(E.le31(Nat.sub(E2, WB(c2, A2, E2))), E.is_bytes(c2)), True{})), True{}) == True{} : Bool}
+  %Equal.sym(Bool, E.le31(Nat.sub(E2, WB(c2, A2, E2))), True{}, win_le(c2, A2, E2)) :
+    {Bool.and(Bool.and(Bool.and(True{}, E.is_bytes(c1)), Bool.and(Bool.and(_, E.is_bytes(c2)), True{})), True{}) == True{} : Bool}
+  %Equal.sym(Bool, E.is_bytes(c1), True{}, hb1) :
+    {Bool.and(Bool.and(Bool.and(True{}, _), Bool.and(Bool.and(True{}, E.is_bytes(c2)), True{})), True{}) == True{} : Bool}
+  %Equal.sym(Bool, E.is_bytes(c2), True{}, hb2) :
+    {Bool.and(Bool.and(Bool.and(True{}, True{}), Bool.and(Bool.and(True{}, _), True{})), True{}) == True{} : Bool}
+  {==}
+
+# plan.two: the span's halves, or the windows on from the first line and back
+# from the last.
+def two_ok(+halves: Bool, +c1: String, +p1: Nat, +c2: String, +p2: Nat, +a: Nat, +e: Nat,
+  +hb1: {E.is_bytes(c1) == True{} : Bool},
+  +hb2: {E.is_bytes(c2) == True{} : Bool}) ->
+  {Bool.and(rs_ok2(W.plan.two(halves, c1, p1, c2, p2, a, e)), two2(W.plan.two(halves, c1, p1, c2, p2, a, e))) == True{} : Bool}:
+  match halves:
+    case True{}:
+      +m = Nat.add(a, Nat.div(Nat.sub(e, a), 2n))
+      two_win(c1, a, Nat.add(m, Q.margin()), c1, Nat.sub(m, Q.margin()), e, hb1, hb1)
+    case False{}:
+      two_win(c1, Nat.sub(Nat.sub(p1, 1n), Q.margin()), Nat.add(p1, Q.ahead()), c2, Nat.sub(Nat.sub(p2, 1n), Q.ahead()), Nat.add(p2, Q.margin()), hb1, hb2)
+
 def reqs.if(+one: Bool, +c1: String, +p1: Nat, +c2: String, +p2: Nat, +a: Nat, +e: Nat,
   +h: {one == Bool.and(Bool.and(String.eq(c1, c2), Q.le31(Nat.sub(e, a))), Nat.is_le(Nat.sub(Nat.sub(e, a), Q.margin()), Q.ahead())) : Bool},
   +hb1: {E.is_bytes(c1) == True{} : Bool},
@@ -336,25 +370,7 @@ def reqs.if(+one: Bool, +c1: String, +p1: Nat, +c2: String, +p2: Nat, +a: Nat, +
         {Bool.and(Bool.and(Bool.and(True{}, _), Bool.and(Bool.and(True{}, _), True{})), True{}) == True{} : Bool}
       {==}
     case False{}:
-      +A1 = Nat.sub(Nat.sub(p1, 1n), Q.margin())
-      +E1 = Nat.add(p1, Q.ahead())
-      +A2 = Nat.sub(Nat.sub(p2, 1n), Q.ahead())
-      +E2 = Nat.add(p2, Q.margin())
-      +R1 = {Pr.Req{c1, WB(c1, A1, E1), E1} : Pr.Req}
-      +R2 = {Pr.Req{c2, WB(c2, A2, E2), E2} : Pr.Req}
-      %Equal.sym(Pr.Req, W.plan.win(c1, A1, E1), R1, win_eq(c1, A1, E1)) :
-        {Bool.and(rs_ok2([_, W.plan.win(c2, A2, E2)]), two2([_, W.plan.win(c2, A2, E2)])) == True{} : Bool}
-      %Equal.sym(Pr.Req, W.plan.win(c2, A2, E2), R2, win_eq(c2, A2, E2)) :
-        {Bool.and(rs_ok2([R1, _]), two2([R1, _])) == True{} : Bool}
-      %Equal.sym(Bool, E.le31(Nat.sub(E1, WB(c1, A1, E1))), True{}, win_le(c1, A1, E1)) :
-        {Bool.and(Bool.and(Bool.and(_, E.is_bytes(c1)), Bool.and(Bool.and(E.le31(Nat.sub(E2, WB(c2, A2, E2))), E.is_bytes(c2)), True{})), True{}) == True{} : Bool}
-      %Equal.sym(Bool, E.le31(Nat.sub(E2, WB(c2, A2, E2))), True{}, win_le(c2, A2, E2)) :
-        {Bool.and(Bool.and(Bool.and(True{}, E.is_bytes(c1)), Bool.and(Bool.and(_, E.is_bytes(c2)), True{})), True{}) == True{} : Bool}
-      %Equal.sym(Bool, E.is_bytes(c1), True{}, hb1) :
-        {Bool.and(Bool.and(Bool.and(True{}, _), Bool.and(Bool.and(True{}, E.is_bytes(c2)), True{})), True{}) == True{} : Bool}
-      %Equal.sym(Bool, E.is_bytes(c2), True{}, hb2) :
-        {Bool.and(Bool.and(Bool.and(True{}, True{}), Bool.and(Bool.and(True{}, _), True{})), True{}) == True{} : Bool}
-      {==}
+      two_ok(Bool.and(Bool.and(String.eq(c1, c2), Bool.not(Nat.is_le(Nat.sub(Nat.sub(p2, p1), Q.ahead()), Q.ahead()))), Nat.is_le(Nat.sub(Nat.sub(Nat.sub(Nat.sub(e, a), Q.ahead()), Q.ahead()), Q.ahead()), Q.ahead())), c1, p1, c2, p2, a, e, hb1, hb2)
 
 # plan.reqs: two reads, each within 2^31 letters, of bytes contigs.
 def reqs_ok(+c1: String, +p1: Nat, +c2: String, +p2: Nat,
@@ -386,8 +402,8 @@ def lrs_ok(+ok: Bool, +c1: String, +p1: Nat, +c2: String, +p2: Nat,
     case False{}:
       reqs_ok(c1, p1, c1, p1, hb1, hb1)
 
-def plcp(+ok: Bool, +k: U32, +c1: String, +p1: Nat, +c2: String, +p2: Nat, +len: U32, +t: AT.Tree<U32>) ->
-  {W.plan.last.cp(k, c1, p1, W.Cp{C.BT(len, t), ok, c2, p2}) == W.Pl{C.BT(len, t), lrs(ok, c1, p1, c2, p2), True{}, k, c1, p1} : W.Pl}:
+def plcp(+ok: Bool, +k: U32, +c1: String, +p1: Nat, +l: Nat, +c2: String, +p2: Nat, +len: U32, +t: AT.Tree<U32>) ->
+  {W.plan.last.cp(k, c1, p1, l, W.Cp{C.BT(len, t), ok, c2, p2}) == W.Pl{C.BT(len, t), lrs(ok, c1, p1, c2, p2), True{}, k, c1, l} : W.Pl}:
   match ok:
     case True{}:
       {==}
@@ -414,17 +430,93 @@ def LRS(+len: U32, +t: AT.Tree<U32>, +c1: String, +p1: Nat, +s1: U32) -> List<&2
   lrs(LOK(len, t, s1), c1, p1, LC(len, t, s1), LP(len, t, s1))
 
 # plan.last.k hands the buffer back with the reads LRS.
-def last_b(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +t: AT.Tree<U32>) ->
-  {W.plan.last.k(k, c1, p1, s1, W.rlf(C.BT(len, t), len, s1)) == W.Pl{C.BT(len, t), LRS(len, t, c1, p1, s1), True{}, k, c1, p1} : W.Pl}:
+def last_b(+k: U32, +c1: String, +p1: Nat, +l: Nat, +s1: U32, +len: U32, +t: AT.Tree<U32>) ->
+  {W.plan.last.k(k, c1, p1, l, s1, W.rlf(C.BT(len, t), len, s1)) == W.Pl{C.BT(len, t), LRS(len, t, c1, p1, s1), True{}, k, c1, l} : W.Pl}:
   +el = EL(len, t, s1)
   +s = LS(len, t, s1)
   %Equal.sym(D.Bytes & (U32 & Bool), W.rlf(C.BT(len, t), len, s1), (C.BT(len, t), (el, Pair.snd(U32, Bool, RL(len, t, len, s1)))), rlf_b(len, t, len, s1)) :
-    {W.plan.last.k(k, c1, p1, s1, _) == W.Pl{C.BT(len, t), LRS(len, t, c1, p1, s1), True{}, k, c1, p1} : W.Pl}
+    {W.plan.last.k(k, c1, p1, l, s1, _) == W.Pl{C.BT(len, t), LRS(len, t, c1, p1, s1), True{}, k, c1, l} : W.Pl}
   %Equal.sym(D.Bytes & (U32 & Bool), W.rlf(C.BT(len, t), el, s1), (C.BT(len, t), (Pair.fst(U32, Bool, RL(len, t, el, s1)), Pair.snd(U32, Bool, RL(len, t, el, s1)))), rlf_b(len, t, el, s1)) :
-    {W.plan.last.at(k, c1, p1, el, s1, _) == W.Pl{C.BT(len, t), LRS(len, t, c1, p1, s1), True{}, k, c1, p1} : W.Pl}
+    {W.plan.last.at(k, c1, p1, l, el, s1, _) == W.Pl{C.BT(len, t), LRS(len, t, c1, p1, s1), True{}, k, c1, l} : W.Pl}
   %Equal.sym(W.Cp, W.cp(C.BT(len, t), s, el), W.Cp{C.BT(len, t), LOK(len, t, s1), LC(len, t, s1), LP(len, t, s1)}, cp_b(len, t, s, el)) :
-    {W.plan.last.cp(k, c1, p1, _) == W.Pl{C.BT(len, t), LRS(len, t, c1, p1, s1), True{}, k, c1, p1} : W.Pl}
-  plcp(LOK(len, t, s1), k, c1, p1, LC(len, t, s1), LP(len, t, s1), len, t)
+    {W.plan.last.cp(k, c1, p1, l, _) == W.Pl{C.BT(len, t), LRS(len, t, c1, p1, s1), True{}, k, c1, l} : W.Pl}
+  plcp(LOK(len, t, s1), k, c1, p1, l, LC(len, t, s1), LP(len, t, s1), len, t)
+
+# ---------------------------------------------------------------------------
+# The phantom (plan.first): the buffer comes back
+# ---------------------------------------------------------------------------
+
+# plan.tab's tab.
+def TB(+len: U32, +t: AT.Tree<U32>, +e1: U32, +j: U32) -> U32:
+  Pair.snd(D.Bytes, U32, F.find(C.BT(len, t), (j + 1 : U32), e1, 9))
+
+def tab_b(+len: U32, +t: AT.Tree<U32>, +e1: U32, +j: U32) ->
+  {W.plan.tab(e1, (C.BT(len, t), j)) == (C.BT(len, t), TB(len, t, e1, j)) : D.Bytes & U32}:
+  FE.find_pair(C.BT(len, t), (j + 1 : U32), e1, 9)
+
+# The first line's REF (after its tab t3, up to t4) and ALT (after t4, up to
+# the next tab t5), and the phantom.
+def RF(+len: U32, +t: AT.Tree<U32>, +t3: U32, +t4: U32) -> String:
+  Q.chars(TY(len, t, (t3 + 1 : U32), (t4 - t3 - 1 : U32)))
+
+def AF(+len: U32, +t: AT.Tree<U32>, +t4: U32, +t5: U32) -> String:
+  Q.chars(TY(len, t, (t4 + 1 : U32), (t5 - t4 - 1 : U32)))
+
+def PHI(+ok: Bool, +len: U32, +t: AT.Tree<U32>, +p1: Nat, +t3: U32, +t4: U32, +t5: U32) -> Nat:
+  match ok:
+    case True{}:
+      Nat.add(p1, W.plan.est(RF(len, t, t3, t4), AF(len, t, t4, t5)))
+    case False{}:
+      p1
+
+def ph.if(+ok: Bool, +len: U32, +t: AT.Tree<U32>, +k: U32, +c1: String, +p1: Nat, +s1: U32, +t3: U32, +t4: U32, +t5: U32) ->
+  {W.plan.ph.if(ok, k, c1, p1, s1, len, t3, t4, t5, C.BT(len, t)) == W.plan.last.k(k, c1, p1, PHI(ok, len, t, p1, t3, t4, t5), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}:
+  match ok:
+    case True{}:
+      +n3 = (t4 - t3 - 1 : U32)
+      +n4 = (t5 - t4 - 1 : U32)
+      +R = RF(len, t, t3, t4)
+      %Equal.sym(D.Bytes & String, Q.text(C.BT(len, t), (t3 + 1 : U32), n3), (C.BT(len, t), R), text_p(len, t, (t3 + 1 : U32), n3)) :
+        {W.plan.ph.ref(k, c1, p1, s1, len, t4, t5, _) == W.plan.last.k(k, c1, p1, PHI(True{}, len, t, p1, t3, t4, t5), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+      %Equal.sym(D.Bytes & String, Q.text(C.BT(len, t), (t4 + 1 : U32), n4), (C.BT(len, t), AF(len, t, t4, t5)), text_p(len, t, (t4 + 1 : U32), n4)) :
+        {W.plan.ph.alt(k, c1, p1, s1, len, R, _) == W.plan.last.k(k, c1, p1, PHI(True{}, len, t, p1, t3, t4, t5), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+      {==}
+    case False{}:
+      {==}
+
+# plan.ph.t5's test, with t4 and t5 the tabs after t3.
+def OKP(+len: U32, +t: AT.Tree<U32>, +e1: U32, +t3: U32) -> Bool:
+  U32.is_lt(t3, TB(len, t, e1, t3)) && U32.is_lt(TB(len, t, e1, t3), e1) && U32.is_le((TB(len, t, e1, TB(len, t, e1, t3)) - t3 : U32), W.plan.big())
+
+def ph_b(+len: U32, +t: AT.Tree<U32>, +k: U32, +c1: String, +p1: Nat, +s1: U32, +e1: U32, +t3: U32) ->
+  {W.plan.ph(k, c1, p1, s1, len, e1, (C.BT(len, t), t3)) == W.plan.last.k(k, c1, p1, PHI(OKP(len, t, e1, t3), len, t, p1, t3, TB(len, t, e1, t3), TB(len, t, e1, TB(len, t, e1, t3))), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}:
+  +T4 = TB(len, t, e1, t3)
+  +T5 = TB(len, t, e1, T4)
+  %Equal.sym(D.Bytes & U32, W.plan.tab(e1, (C.BT(len, t), t3)), (C.BT(len, t), T4), tab_b(len, t, e1, t3)) :
+    {W.plan.ph.t4(k, c1, p1, s1, len, e1, t3, _) == W.plan.last.k(k, c1, p1, PHI(OKP(len, t, e1, t3), len, t, p1, t3, T4, T5), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+  %Equal.sym(D.Bytes & U32, W.plan.tab(e1, (C.BT(len, t), T4)), (C.BT(len, t), T5), tab_b(len, t, e1, T4)) :
+    {W.plan.ph.t5(k, c1, p1, s1, len, e1, t3, T4, _) == W.plan.last.k(k, c1, p1, PHI(OKP(len, t, e1, t3), len, t, p1, t3, T4, T5), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+  ph.if(OKP(len, t, e1, t3), len, t, k, c1, p1, s1, t3, T4, T5)
+
+# The first line's third tab (after ID), and the phantom plan.first takes.
+def T3(+len: U32, +t: AT.Tree<U32>, +s1: U32, +e1: U32) -> U32:
+  TB(len, t, e1, TB(len, t, e1, CF(len, t, s1, e1)))
+
+def PH(+len: U32, +t: AT.Tree<U32>, +p1: Nat, +s1: U32, +e1: U32) -> Nat:
+  PHI(OKP(len, t, e1, T3(len, t, s1, e1)), len, t, p1, T3(len, t, s1, e1), TB(len, t, e1, T3(len, t, s1, e1)), TB(len, t, e1, TB(len, t, e1, T3(len, t, s1, e1))))
+
+# plan.first, on a line with a tab: plan.last.k with the phantom PH.
+def first_b(+len: U32, +t: AT.Tree<U32>, +k: U32, +c1: String, +p1: Nat, +s1: U32, +e1: U32) ->
+  {W.plan.first(len, k, s1, e1, W.Cp{C.BT(len, t), True{}, c1, p1}) == W.plan.last.k(k, c1, p1, PH(len, t, p1, s1, e1), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}:
+  +T1 = CF(len, t, s1, e1)
+  +T2 = TB(len, t, e1, T1)
+  %Equal.sym(D.Bytes & U32, F.find(C.BT(len, t), s1, e1, 9), (C.BT(len, t), T1), FE.find_pair(C.BT(len, t), s1, e1, 9)) :
+    {W.plan.ph(k, c1, p1, s1, len, e1, W.plan.tab(e1, W.plan.tab(e1, _))) == W.plan.last.k(k, c1, p1, PH(len, t, p1, s1, e1), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+  %Equal.sym(D.Bytes & U32, W.plan.tab(e1, (C.BT(len, t), T1)), (C.BT(len, t), T2), tab_b(len, t, e1, T1)) :
+    {W.plan.ph(k, c1, p1, s1, len, e1, W.plan.tab(e1, _)) == W.plan.last.k(k, c1, p1, PH(len, t, p1, s1, e1), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+  %Equal.sym(D.Bytes & U32, W.plan.tab(e1, (C.BT(len, t), T2)), (C.BT(len, t), TB(len, t, e1, T2)), tab_b(len, t, e1, T2)) :
+    {W.plan.ph(k, c1, p1, s1, len, e1, _) == W.plan.last.k(k, c1, p1, PH(len, t, p1, s1, e1), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+  ph_b(len, t, k, c1, p1, s1, e1, TB(len, t, e1, T2))
 
 def last_ok(+c1: String, +p1: Nat, +s1: U32, +len: U32, +t: AT.Tree<U32>,
   +hb1: {E.is_bytes(c1) == True{} : Bool}) ->

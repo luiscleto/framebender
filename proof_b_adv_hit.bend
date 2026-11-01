@@ -15,6 +15,8 @@ import ./proof_b_defs.bend as P
 import ./proof_b_cachedefs.bend as CD
 import ./proof_b_simdefs.bend as S
 import ./proof_b_cut.bend as CU
+import ./proof_b_end.bend as PE
+import ./proof_b_end_key.bend as EK
 import ./proof_b_alleles.bend as AA
 import ./proof_b_lines_str.bend as LSS
 import ./proof_b_alleles_list.bend as AL
@@ -37,6 +39,7 @@ import lawful-bytes@0.1.0.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # The fast path's hit (norm.bend's fast.hit), its verdict: a line that
 # passes NF.line, whose CHROM is the window's contig and whose REF check
@@ -193,9 +196,21 @@ def hit_judge(+fa: List<&2, B.Contig>, +len: U32, +t: AT.Tree<U32>, +d: Nat, +s:
   +f6 = FLD(len, t, CU.nx(e5), n(e6))
   +g3 = F3(len, t, e2, e3)
   +g4 = F4(len, t, e3, e4)
-  +hpf = {%he2 : {J.pfs(body) == [f0, f1, f2, Norm.chars(D.slice(X, _, Nat.sub(n(e3), _))), g4, f5, f6, ""] : List<&2, String>};
-    %he3 : {J.pfs(body) == [f0, f1, f2, FLD(len, t, CU.nx(e2), n(e3)), Norm.chars(D.slice(X, _, Nat.sub(n(e4), _))), f5, f6, ""] : List<&2, String>};
-    CU.pass_fields(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp) : {J.pfs(body) == [f0, f1, f2, g3, g4, f5, f6, ""] : List<&2, String>}}
+  +F7P = B.Rec.field(J.pfs(body), 7n)
+  +hpf = {%he2 : {J.pfs(body) == [f0, f1, f2, Norm.chars(D.slice(X, _, Nat.sub(n(e3), _))), g4, f5, f6, F7P] : List<&2, String>};
+    %he3 : {J.pfs(body) == [f0, f1, f2, FLD(len, t, CU.nx(e2), n(e3)), Norm.chars(D.slice(X, _, Nat.sub(n(e4), _))), f5, f6, F7P] : List<&2, String>};
+    CU.pass_fields(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp) : {J.pfs(body) == [f0, f1, f2, g3, g4, f5, f6, F7P] : List<&2, String>}}
+  +sl3 = AA.sl(X, (e2 + 1 : U32), e3)
+  +h3l = N.lt_to_le(n(e3), n(len), N.lt_le_trans(n(e3), n(e4), n(len), h34x, h4l))
+  +hfit = AB.subst(Nat, z => {Nat.is_le(z, List.length(&2, U32, X)) == True{} : Bool}, n(e3), Nat.add(n((e2 + 1 : U32)), Nat.sub(n(e3), n((e2 + 1 : U32)))),
+    Equal.sym(Nat, Nat.add(n((e2 + 1 : U32)), Nat.sub(n(e3), n((e2 + 1 : U32)))), n(e3), N.le_sub_add(n((e2 + 1 : U32)), n(e3), h3)),
+    AB.subst(Nat, z => {Nat.is_le(n(e3), z) == True{} : Bool}, n(len), List.length(&2, U32, X), LP.len_x(len, t, d, hok), h3l))
+  +hlen = Equal.trans(Nat, String.length(g3), List.length(&2, U32, sl3), n((e3 - e2 - 1 : U32)),
+    Equal.trans(Nat, String.length(g3), String.length(NR.chars(sl3)), List.length(&2, U32, sl3), Equal.cong(String, Nat, z => String.length(z), g3, NR.chars(sl3), LSS.chars_norm(sl3)), LSS.length_chars(sl3)),
+    Equal.trans(Nat, List.length(&2, U32, sl3), Nat.sub(n(e3), n((e2 + 1 : U32))), n((e3 - e2 - 1 : U32)), LP.slice_len(X, n((e2 + 1 : U32)), Nat.sub(n(e3), n((e2 + 1 : U32))), hfit),
+      Equal.sym(Nat, n((e3 - e2 - 1 : U32)), Nat.sub(n(e3), n((e2 + 1 : U32))), n_rl(e2, e3, h23, he2))))
+  +hend = AB.subst(Nat, z => {J.end_ok(F7P, Nat.sub(Nat.add(n(pos), z), 1n)) == True{} : Bool}, n((e3 - e2 - 1 : U32)), String.length(g3), Equal.sym(Nat, String.length(g3), n((e3 - e2 - 1 : U32)), hlen),
+    PE.pass_end(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
   +hs0 = W.and_l(Nat.is_le(n(s), n(e0)), True{}, W.and_tt(Nat.is_le(n(s), n(e0)), True{}, PJ.lf_s0(len, t, s, e0, e1, e2, e3, e4, e5, e6, e7, lf, CU.pass_lf(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)), {==}))
   +hlt0 = {%U.is_lt_to_nat(s, e0) : {_ == True{} : Bool}; hse : {Nat.is_lt(n(s), n(e0)) == True{} : Bool}}
   +h0 = ne_chars(D.slice(X, n(s), Nat.sub(n(e0), n(s))),
@@ -212,12 +227,12 @@ def hit_judge(+fa: List<&2, B.Contig>, +len: U32, +t: AT.Tree<U32>, +d: Nat, +s:
   +hch = Equal.trans(String, c0, f0, WS.chrom_of(body),
     Equal.trans(String, c0, P.btext(len, t, s, (e0 - s : U32)), f0, Equal.sym(String, P.btext(len, t, s, (e0 - s : U32)), c0, hc0), btext_fld(len, t, s, e0, hs0)),
     Equal.trans(String, f0, B.Rec.field(J.pfs(body), 0n), WS.chrom_of(body),
-      Equal.cong(List<&2, String>, String, z => B.Rec.field(z, 0n), [f0, f1, f2, g3, g4, f5, f6, ""], J.pfs(body), Equal.sym(List<&2, String>, J.pfs(body), [f0, f1, f2, g3, g4, f5, f6, ""], hpf)),
+      Equal.cong(List<&2, String>, String, z => B.Rec.field(z, 0n), [f0, f1, f2, g3, g4, f5, f6, F7P], J.pfs(body), Equal.sym(List<&2, String>, J.pfs(body), [f0, f1, f2, g3, g4, f5, f6, F7P], hpf)),
       PF.pfs_field(body, 0n, {==})))
   +ht = {%hch : {WS.truthful(fa, _, Some{J.Known{String.length(r0), offv, CD.letters(r0, a0, b0)}}) == True{} : Bool};
     %hf : {WS.truthful(fa, c0, Some{CD.jtruth.k(_, a0, b0)}) == True{} : Bool};
     hjt : {WS.truthful(fa, WS.chrom_of(body), Some{J.Known{String.length(r0), offv, CD.letters(r0, a0, b0)}}) == True{} : Bool}}
-  JG.fast_res(fa, body, f0, f1, f2, g3, g4, f5, f6, n(pos), AA.REF(X, (e2 + 1 : U32), e3), AA.ALTS(X, (e3 + 1 : U32), e4), String.length(r0), offv, CD.letters(r0, a0, b0),
+  JG.fast_res(fa, body, f0, f1, f2, g3, g4, f5, f6, F7P, n(pos), AA.REF(X, (e2 + 1 : U32), e3), AA.ALTS(X, (e3 + 1 : U32), e4), String.length(r0), offv, CD.letters(r0, a0, b0),
     hpf, h0,
     PJ.pp_read(len, t, pos, e0, e1, CU.pass_pos(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)), PJ.pp_show(len, t, pos, e0, e1, CU.pass_pos(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)), PJ.pp_nz(len, t, pos, e0, e1, CU.pass_pos(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp)),
     PJ.ap_r(len, t, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4, AA.alleles_pass(len, t, d, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4, hok, h3, h34, h4, h4l, hal)), PJ.ap_a(len, t, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4, AA.alleles_pass(len, t, d, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4, hok, h3, h34, h4, h4l, hal)),
@@ -225,7 +240,7 @@ def hit_judge(+fa: List<&2, B.Contig>, +len: U32, +t: AT.Tree<U32>, +d: Nat, +s:
     PJ.ap_n(len, t, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4, AA.alleles_pass(len, t, d, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4, hok, h3, h34, h4, h4l, hal)), PJ.ap_s3(len, t, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4, AA.alleles_pass(len, t, d, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4, hok, h3, h34, h4, h4l, hal)),
     PJ.ap_s4(len, t, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4, AA.alleles_pass(len, t, d, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4, hok, h3, h34, h4, h4l, hal)), PJ.ap_d(len, t, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4, AA.alleles_pass(len, t, d, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4, hok, h3, h34, h4, h4l, hal)),
     AA.alleles_norm(len, t, d, (e2 + 1 : U32), e3, (e3 + 1 : U32), e4, hok, h3, h34, h4, h4l, hal, offv, basesv, n(pos)),
-    hc, ht)
+    hc, ht, hend)
 
 # The run
 # =======
@@ -497,12 +512,12 @@ law fs_f:
   for +hok: {D.ok(C.BT(len, t), d) == True{} : Bool}
   for +hs: {U32.is_le(s, len) == True{} : Bool}
   for +hp: PASS(len, t, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf)
-  {B.Rec.field(FS(len, t, s, lf), i) == B.Rec.field([FLD(len, t, n(s), n(e0)), FLD(len, t, CU.nx(e0), n(e1)), FLD(len, t, CU.nx(e1), n(e2)), FLD(len, t, CU.nx(e2), n(e3)), FLD(len, t, CU.nx(e3), n(e4)), FLD(len, t, CU.nx(e4), n(e5)), FLD(len, t, CU.nx(e5), n(e6)), ""], i) : String}
+  {B.Rec.field(FS(len, t, s, lf), i) == B.Rec.field([FLD(len, t, n(s), n(e0)), FLD(len, t, CU.nx(e0), n(e1)), FLD(len, t, CU.nx(e1), n(e2)), FLD(len, t, CU.nx(e2), n(e3)), FLD(len, t, CU.nx(e3), n(e4)), FLD(len, t, CU.nx(e4), n(e5)), FLD(len, t, CU.nx(e5), n(e6)), B.Rec.field(J.pfs(BODY(len, t, s, lf)), 7n)], i) : String}
 
 def fs_f(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, i, hi, hok, hs, hp):
   +body = BODY(len, t, s, lf)
-  %PF.pfs_field(body, i, hi) : {_ == B.Rec.field([FLD(len, t, n(s), n(e0)), FLD(len, t, CU.nx(e0), n(e1)), FLD(len, t, CU.nx(e1), n(e2)), FLD(len, t, CU.nx(e2), n(e3)), FLD(len, t, CU.nx(e3), n(e4)), FLD(len, t, CU.nx(e4), n(e5)), FLD(len, t, CU.nx(e5), n(e6)), ""], i) : String}
-  Equal.cong(List<&2, String>, String, z => B.Rec.field(z, i), J.pfs(body), [FLD(len, t, n(s), n(e0)), FLD(len, t, CU.nx(e0), n(e1)), FLD(len, t, CU.nx(e1), n(e2)), FLD(len, t, CU.nx(e2), n(e3)), FLD(len, t, CU.nx(e3), n(e4)), FLD(len, t, CU.nx(e4), n(e5)), FLD(len, t, CU.nx(e5), n(e6)), ""],
+  %PF.pfs_field(body, i, hi) : {_ == B.Rec.field([FLD(len, t, n(s), n(e0)), FLD(len, t, CU.nx(e0), n(e1)), FLD(len, t, CU.nx(e1), n(e2)), FLD(len, t, CU.nx(e2), n(e3)), FLD(len, t, CU.nx(e3), n(e4)), FLD(len, t, CU.nx(e4), n(e5)), FLD(len, t, CU.nx(e5), n(e6)), B.Rec.field(J.pfs(BODY(len, t, s, lf)), 7n)], i) : String}
+  Equal.cong(List<&2, String>, String, z => B.Rec.field(z, i), J.pfs(body), [FLD(len, t, n(s), n(e0)), FLD(len, t, CU.nx(e0), n(e1)), FLD(len, t, CU.nx(e1), n(e2)), FLD(len, t, CU.nx(e2), n(e3)), FLD(len, t, CU.nx(e3), n(e4)), FLD(len, t, CU.nx(e4), n(e5)), FLD(len, t, CU.nx(e5), n(e6)), B.Rec.field(J.pfs(BODY(len, t, s, lf)), 7n)],
     CU.pass_fields(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))
 
 law hpos_l:
@@ -526,7 +541,7 @@ law hpos_l:
   {B.Rec.pos(FS(len, t, s, lf)) == n(pos) : Nat}
 
 def hpos_l(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp):
-  %Equal.sym(String, B.Rec.field(FS(len, t, s, lf), 1n), B.Rec.field([FLD(len, t, n(s), n(e0)), FLD(len, t, CU.nx(e0), n(e1)), FLD(len, t, CU.nx(e1), n(e2)), FLD(len, t, CU.nx(e2), n(e3)), FLD(len, t, CU.nx(e3), n(e4)), FLD(len, t, CU.nx(e4), n(e5)), FLD(len, t, CU.nx(e5), n(e6)), ""], 1n), fs_f(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, 1n, {==}, hok, hs, hp)) : {Maybe.default(&2, Nat, B.Pos.read(_), 0n) == n(pos) : Nat}
+  %Equal.sym(String, B.Rec.field(FS(len, t, s, lf), 1n), B.Rec.field([FLD(len, t, n(s), n(e0)), FLD(len, t, CU.nx(e0), n(e1)), FLD(len, t, CU.nx(e1), n(e2)), FLD(len, t, CU.nx(e2), n(e3)), FLD(len, t, CU.nx(e3), n(e4)), FLD(len, t, CU.nx(e4), n(e5)), FLD(len, t, CU.nx(e5), n(e6)), B.Rec.field(J.pfs(BODY(len, t, s, lf)), 7n)], 1n), fs_f(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, 1n, {==}, hok, hs, hp)) : {Maybe.default(&2, Nat, B.Pos.read(_), 0n) == n(pos) : Nat}
   %Equal.sym(Maybe<&2, Nat>, B.Pos.read(FLD(len, t, CU.nx(e0), n(e1))), Some{n(pos)}, PJ.pp_read(len, t, pos, e0, e1, CU.pass_pos(len, t, d, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, hp))) : {Maybe.default(&2, Nat, _, 0n) == n(pos) : Nat}
   {==}
 

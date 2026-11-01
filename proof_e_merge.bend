@@ -19,20 +19,21 @@ import ./proof_e_merge_spec.bend as MP
 # Phase E, area "merge": norm_par.bend's merge on pictured runs
 # (notes/parallel_proofs.md). merge.ok on the byte runs gives SD.segok on the
 # states they stand for; the run merge.if builds is good and stands for
-# SD.shiftS, with S's whole output buffer handed out.
+# SD.shiftS, with S's whole output buffer and its messages handed out (T's,
+# renumbered, stay in the merged run).
 
 # merge.ok on two pictured runs (s: the true run, t: the task's).
 def okP(+l: Nat, +w: Nat, +c0: String, +s: P.RunP, +t: P.RunP) -> Bool:
   match s t:
     case P.RunP{sn, +si, sh, +sc, scbl, scbt, +se, +sl, +sf, +sb, +sbn, +stl, sk, sobl, sobt, sow, sns, +sx} P.RunP{+tn, +ti, th, +tc, tcbl, tcbt, +te, +tl, +tf, +tb, tbn, ttl, tk, tobl, tobt, tow, +tns, +tx}:
-      W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx)
+      W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx)
 
 # The run merge.if builds, pictured.
 def mergeP(+c0: String, +s: P.RunP, +t: P.RunP) -> P.RunP:
   match s t:
-    case P.RunP{+sn, si, +sh, +sc, scbl, scbt, +se, +sl, +sf, +sb, sbn, stl, +sk, sobl, sobt, sow, sns, sx} P.RunP{+tn, ti, th, +tc, +tcbl, +tcbt, +te, +tl, +tf, +tb, +tbn, +ttl, +tk, +tobl, +tobt, +tow, tns, tx}:
+    case P.RunP{+sn, si, +sh, +sc, scbl, scbt, +se, +sl, +sf, +sb, sbn, stl, +sk, sobl, sobt, sow, sns, sx} P.RunP{+tn, ti, th, +tc, +tcbl, +tcbt, +te, +tl, +tf, +tb, +tbn, +ttl, +tk, +tobl, +tobt, +tow, +tns, tx}:
       +same = R.is_cur(sc, c0)
-      P.RunP{Nat.add(sn, tn), True{}, sh, tc, tcbl, tcbt, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, NR.push_cur(sc, se))), W.last_of(tl, same, sl, W.buf_last(sf, sb), sn), W.cks_shift(sn, tf), W.cks_shift(sn, tb), tbn, ttl, W.cnt_add(sk, tk), tobl, tobt, tow, Nil{}, False{}}
+      P.RunP{Nat.add(sn, tn), True{}, sh, tc, tcbl, tcbt, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, NR.push_cur(sc, se))), W.last_of(tl, same, sl, W.buf_last(sf, sb), sn), W.cks_shift(sn, tf), W.cks_shift(sn, tb), tbn, ttl, W.cnt_add(sk, tk), tobl, tobt, tow, W.notes_shift(sn, tns), False{}}
 
 def RunP.ns(p: P.RunP) -> List<&2, B.Note>:
   match p:
@@ -61,7 +62,7 @@ law merge_yes:
 def merge_yes(l, w, c0, s, t, hok):
   match s t:
     case P.RunP{sn, si, sh, sc, scbl, scbt, se, sl, sf, sb, sbn, stl, sk, sobl, sobt, sow, sns, sx} P.RunP{tn, ti, th, tc, tcbl, tcbt, te, tl, tf, tb, tbn, ttl, tk, tobl, tobt, tow, tns, tx}:
-      %Equal.sym(Bool, W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx), True{}, hok) : {W.merge.if(_, NR.Run{sn, si, sh, sc, C.BT(scbl, scbt), se, sl, sf, sb, sbn, stl, sk, C.BT(sobl, sobt), sow, sns, sx}, NR.Run{tn, ti, th, tc, C.BT(tcbl, tcbt), te, tl, tf, tb, tbn, ttl, tk, C.BT(tobl, tobt), tow, tns, tx}, R.is_cur(sc, c0)) == W.MOk{C.BT(sobl, sobt), List.reverse(&2, B.Note, sns), P.mkRun(mergeP(c0, P.RunP{sn, si, sh, sc, scbl, scbt, se, sl, sf, sb, sbn, stl, sk, sobl, sobt, sow, sns, sx}, P.RunP{tn, ti, th, tc, tcbl, tcbt, te, tl, tf, tb, tbn, ttl, tk, tobl, tobt, tow, tns, tx}))} : W.Mg}
+      %Equal.sym(Bool, W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx), True{}, hok) : {W.merge.if(_, NR.Run{sn, si, sh, sc, C.BT(scbl, scbt), se, sl, sf, sb, sbn, stl, sk, C.BT(sobl, sobt), sow, sns, sx}, NR.Run{tn, ti, th, tc, C.BT(tcbl, tcbt), te, tl, tf, tb, tbn, ttl, tk, C.BT(tobl, tobt), tow, tns, tx}, R.is_cur(sc, c0)) == W.MOk{C.BT(sobl, sobt), List.reverse(&2, B.Note, sns), P.mkRun(mergeP(c0, P.RunP{sn, si, sh, sc, scbl, scbt, se, sl, sf, sb, sbn, stl, sk, sobl, sobt, sow, sns, sx}, P.RunP{tn, ti, th, tc, tcbl, tcbt, te, tl, tf, tb, tbn, ttl, tk, tobl, tobt, tow, tns, tx}))} : W.Mg}
       {==}
 
 # ... else MNo, the true run unchanged.
@@ -77,7 +78,7 @@ law merge_no:
 def merge_no(l, w, c0, s, t, hok):
   match s t:
     case P.RunP{sn, si, sh, sc, scbl, scbt, se, sl, sf, sb, sbn, stl, sk, sobl, sobt, sow, sns, sx} P.RunP{tn, ti, th, tc, tcbl, tcbt, te, tl, tf, tb, tbn, ttl, tk, tobl, tobt, tow, tns, tx}:
-      %Equal.sym(Bool, W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx), False{}, hok) : {W.merge.if(_, NR.Run{sn, si, sh, sc, C.BT(scbl, scbt), se, sl, sf, sb, sbn, stl, sk, C.BT(sobl, sobt), sow, sns, sx}, NR.Run{tn, ti, th, tc, C.BT(tcbl, tcbt), te, tl, tf, tb, tbn, ttl, tk, C.BT(tobl, tobt), tow, tns, tx}, R.is_cur(sc, c0)) == W.MNo{NR.Run{sn, si, sh, sc, C.BT(scbl, scbt), se, sl, sf, sb, sbn, stl, sk, C.BT(sobl, sobt), sow, sns, sx}} : W.Mg}
+      %Equal.sym(Bool, W.merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx), False{}, hok) : {W.merge.if(_, NR.Run{sn, si, sh, sc, C.BT(scbl, scbt), se, sl, sf, sb, sbn, stl, sk, C.BT(sobl, sobt), sow, sns, sx}, NR.Run{tn, ti, th, tc, C.BT(tcbl, tcbt), te, tl, tf, tb, tbn, ttl, tk, C.BT(tobl, tobt), tow, tns, tx}, R.is_cur(sc, c0)) == W.MNo{NR.Run{sn, si, sh, sc, C.BT(scbl, scbt), se, sl, sf, sb, sbn, stl, sk, C.BT(sobl, sobt), sow, sns, sx}} : W.Mg}
       {==}
 
 # The merged run is good.
@@ -97,7 +98,7 @@ def merge_inv(l, w, c0, s, t, hs, ht, hok):
     case P.RunP{sn, si, sh, sc, scbl, scbt, se, sl, sf, sb, sbn, stl, sk, sobl, sobt, sow, sns, sx} P.RunP{tn, ti, th, tc, tcbl, tcbt, te, tl, tf, tb, tbn, ttl, tk, tobl, tobt, tow, tns, tx}:
       MI.inv_w(sh, ti, th, tc, tcbl, tcbt, tf, tb, tbn, ttl, tobl, tobt, tow, tns, tx, sn,
         PI.pr9(si, sh, sc, scbl, scbt, sf, sb, sbn, stl, sobl, sobt, sow, sns, sx, hs), ht,
-        ML.not_t(tx, OK.ok4(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx, hok)))
+        ML.not_t(tx, OK.ok4(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx, hok)))
 
 # merge.ok gives the segment lemma's condition on the states they stand for.
 law merge_segok:
@@ -114,7 +115,7 @@ law merge_segok:
 def merge_segok(l, w, c0, s, t, hs, ht, hok):
   match s t:
     case P.RunP{sn, si, sh, sc, scbl, scbt, se, sl, sf, sb, sbn, stl, sk, sobl, sobt, sow, sns, sx} P.RunP{tn, ti, th, tc, tcbl, tcbt, te, tl, tf, tb, tbn, ttl, tk, tobl, tobt, tow, tns, tx}:
-      MG.segok_w(w, c0, l, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx,
+      MG.segok_w(w, c0, l, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx,
         Maybe.default(&2, String, sc, ""), String.drop(P.obtext(P.RunP{sn, si, sh, sc, scbl, scbt, se, sl, sf, sb, sbn, stl, sk, sobl, sobt, sow, sns, sx}), U32.to_nat(sow)),
         Maybe.default(&2, String, tc, ""), String.drop(P.obtext(P.RunP{tn, ti, th, tc, tcbl, tcbt, te, tl, tf, tb, tbn, ttl, tk, tobl, tobt, tow, tns, tx}), U32.to_nat(tow)),
         hok,

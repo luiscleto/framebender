@@ -19,6 +19,7 @@ import ./proof_var_lists.bend as VL
 import ./proof_b_alleles_list.bend as LS
 import ./proof_b_alleles_loop.bend as LP
 import ./proof_b_alleles_spec.bend as SP
+import lawful-arrays@0.1.0.0/proof_base.bend as AB
 
 # The fast path's allele tests (norm_fast.bend: NF.alleles) against the
 # String path: alleles that pass are read, written and normalized as they
@@ -796,10 +797,10 @@ def alleles_norm(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s3: U32, +e3: U32, +s4: 
   alleles_norm.go(len, t, d, s3, e3, s4, e4, hok, h3, h34, h4, hl, hp, off, bases, p)
 
 
-# J.fast on a record whose first 8 fields are these (INFO kept as "", as
-# J.pfs keeps an INFO without END), with the alleles' facts above and a
-# passed REF check: Same. (String level only.)
-def fast_same(+f0: String, +f1: String, +f2: String, +f3: String, +f4: String, +f5: String, +f6: String,
+# J.fast on a record whose first 8 fields are these (INFO as J.pfs keeps
+# it, passing the END check), with the alleles' facts above and a passed REF
+# check: Same. (String level only.)
+def fast_same(+f0: String, +f1: String, +f2: String, +f3: String, +f4: String, +f5: String, +f6: String, +f7: String,
   +body: String, +p: Nat, +r: List<&2, B.Base>, +alts: List<&2, List<&2, B.Base>>,
   +clen: Nat, +off: Nat, +raw: String,
   h0: {String.is_empty(f0) == False{} : Bool},
@@ -815,11 +816,12 @@ def fast_same(+f0: String, +f1: String, +f2: String, +f3: String, +f4: String, +
   hs4: {String.join(B.Alleles.show(alts), ",") == f4 : String},
   hd: {B.Alleles.distinct(r <> alts) == True{} : Bool},
   hv: {V.var_in(off, B.Bases.of_fasta(raw), B.Var{p, r, alts}) == Some{B.Var{p, r, alts}} : Maybe<&2, B.Var>},
-  hc: {J.ref_check(clen, off, B.Bases.of_fasta(raw), Nat.sub(p, 1n), r) == Some{True{}} : Maybe<&2, Bool>}) ->
-  {J.fast(Some{J.Known{clen, off, raw}}, [f0, f1, f2, f3, f4, f5, f6, ""], body) == J.Same{} : J.Fast}:
+  hc: {J.ref_check(clen, off, B.Bases.of_fasta(raw), Nat.sub(p, 1n), r) == Some{True{}} : Maybe<&2, Bool>},
+  hend: {J.end_ok(f7, Nat.sub(Nat.add(p, String.length(f3)), 1n)) == True{} : Bool}) ->
+  {J.fast(Some{J.Known{clen, off, raw}}, [f0, f1, f2, f3, f4, f5, f6, f7], body) == J.Same{} : J.Fast}:
   +e1 = Equal.sym(Maybe<&2, Nat>, B.Pos.read(f1), Some{p}, h1)
   +a = {Some{J.Known{clen, off, raw}} : Maybe<&2, J.Ans>}
-  +FS = {[f0, f1, f2, f3, f4, f5, f6, ""] : List<&2, String>}
+  +FS = {[f0, f1, f2, f3, f4, f5, f6, f7] : List<&2, String>}
   +s4 = String.split(f4, ',')
   %Equal.sym(Bool, String.is_empty(f0), False{}, h0) :
     {J.fast.go(Bool.or(Bool.or(Bool.or(_, Bool.not(Maybe.is_some(&2, Nat, B.Pos.read(f1)))), Bool.not(B.Text.is_letters(f3))), B.Text.any_empty(s4)), B.Text.any_not_letters(s4), a, FS, body) == J.Same{} : J.Fast}
@@ -832,6 +834,10 @@ def fast_same(+f0: String, +f1: String, +f2: String, +f3: String, +f4: String, +
   %Equal.sym(Bool, B.Text.any_not_letters(s4), False{}, hn) :
     {J.fast.go(False{}, _, a, FS, body) == J.Same{} : J.Fast}
   +bs = B.Bases.of_fasta(raw)
+  +E1 = Nat.sub(Nat.add(Maybe.default(&2, Nat, B.Pos.read(f1), 0n), String.length(f3)), 1n)
+  +hend1 = AB.subst(Maybe<&2, Nat>, z => {J.end_ok(f7, Nat.sub(Nat.add(Maybe.default(&2, Nat, z, 0n), String.length(f3)), 1n)) == True{} : Bool}, Some{p}, B.Pos.read(f1), e1, hend)
+  %Equal.sym(Bool, J.end_ok(f7, E1), True{}, hend1) :
+    {J.fast.found(_, B.Allele.read(f3), B.Alleles.read(s4), clen, off, bs, Maybe.default(&2, Nat, B.Pos.read(f1), 0n), f1, f3, f4, body) == J.Same{} : J.Fast}
   %Equal.sym(Maybe<&2, List<&2, B.Base>>, B.Allele.read(f3), Some{r}, hr) :
     {J.fast.found(True{}, _, B.Alleles.read(s4), clen, off, bs, Maybe.default(&2, Nat, B.Pos.read(f1), 0n), f1, f3, f4, body) == J.Same{} : J.Fast}
   %Equal.sym(Maybe<&2, List<&2, List<&2, B.Base>>>, B.Alleles.read(s4), Some{alts}, ha) :

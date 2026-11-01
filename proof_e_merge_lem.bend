@@ -306,18 +306,6 @@ def ctake(xs, n):
       %ctake(t, p) : {SCon{Chr{x}, String.take(NR.chars(List.take(&2, U32, t, p)), p)} == SCon{Chr{x}, _} : String}
       {==}
 
-law note_app_nil:
-  for +xs: List<&2, B.Note>
-  {List.append(&2, B.Note, xs, Nil{}) == xs : List<&2, B.Note>}
-
-def note_app_nil(xs):
-  match xs:
-    case Nil{}:
-      {==}
-    case Con{+x, +t}:
-      %note_app_nil(t) : {Con{x, List.append(&2, B.Note, t, Nil{})} == Con{x, _} : List<&2, B.Note>}
-      {==}
-
 law push_eq:
   for +c: Maybe<&2, String>
   for +e: List<&2, String>

@@ -22,14 +22,14 @@ def n(+x: U32) -> Nat:
 def CK(+l2: U32, +t2: AT.Tree<U32>, +k: Nat, +cr: Bool) -> Type:
   {FD.count(W.V(l2, t2), 10) == k : Nat} & {(cr || Nat.is_eq(FD.count(W.V(l2, t2), 13), 0n)) == True{} : Bool}
 
-def CKB(+b: Bool, +len: U32, +t: AT.Tree<U32>, +l2: U32, +t2: AT.Tree<U32>, -out: NS.Out, +k: Nat, +cr: Bool) -> Type:
+def CKB(+b: Bool, +len: U32, +t: AT.Tree<U32>, +l2: U32, +t2: AT.Tree<U32>, -out: NS.Ans, +k: Nat, +cr: Bool) -> Type:
   match b:
     case True{}:
-      {out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Out} & CK(l2, t2, k, cr)
+      {out == NS.Out{C.BT(len, t), Some{C.BT(l2, t2)}} : NS.Ans} & CK(l2, t2, k, cr)
     case False{}:
-      {out == NS.Out{C.BT(len, t), None{}} : NS.Out}
+      {out == NS.Out{C.BT(len, t), None{}} : NS.Ans}
 
-def CKR(+len: U32, +t: AT.Tree<U32>, +l2: U32, +t2: AT.Tree<U32>, -out: NS.Out, +k: Nat, +cr: Bool) -> Type:
+def CKR(+len: U32, +t: AT.Tree<U32>, +l2: U32, +t2: AT.Tree<U32>, -out: NS.Ans, +k: Nat, +cr: Bool) -> Type:
   &b: Bool -> CKB(b, len, t, l2, t2, out, k, cr)
 
 def drop0(xs: List<&2, U32>) -> {List.drop(&2, U32, xs, 0n) == xs : List<&2, U32>}:

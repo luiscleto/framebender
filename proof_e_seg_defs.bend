@@ -26,11 +26,12 @@ def img(+q: Maybe<&2, R.Item>, m: Maybe<&2, R.Item>, +d: Nat) -> Maybe<&2, R.Ite
       img.k(SD.is_phantom(x), q, x, d)
 
 # X as Y's state: lines d more, S's head, ended z under Y's, written p
-# before Y's, counts sk added, S's notes, the buffer's lines moved on by d.
+# before Y's, counts sk added, S's notes then Y's (moved on by d), the
+# buffer's lines moved on by d.
 def lift(+d: Nat, +sh: String, +z: List<&2, String>, +p: String, +sk: R.Cnt, +sns: List<&2, B.Note>, +q: Maybe<&2, R.Item>, st: R.RunSt) -> R.RunSt:
   match st:
     case R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}:
-      R.RunSt{Nat.add(n, d), i, sh, c, List.append(&2, String, e, z), img(q, l, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), sns, x}
+      R.RunSt{Nat.add(n, d), i, sh, c, List.append(&2, String, e, z), img(q, l, d), SD.items_shift(d, b), SD.cnt_add(sk, k), String.append(p, o), SD.notes_app(sns, SD.notes_shift(d, ns)), x}
 
 # No item is the phantom (line 0).
 def allreal(xs: List<&2, R.Item>) -> Bool:
@@ -59,18 +60,18 @@ def qok(+q: Maybe<&2, R.Item>, m: Maybe<&2, R.Item>) -> Bool:
 def inv2(+q: Maybe<&2, R.Item>, st: R.RunSt) -> Bool:
   match st:
     case R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}:
-      i && Bool.not(x) && List.is_empty(&2, B.Note, ns) && allreal(b) && qok(q, l)
+      i && Bool.not(x) && allreal(b) && qok(q, l)
 
-# What only grows along a run: the messages, and the CHROMs started.
+# What only grows along a run: being stopped, and the CHROMs started.
 def M(+c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, st: R.RunSt) -> Bool:
   match st:
     case R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}:
-      List.is_empty(&2, B.Note, ns) && SD.chroms_ok(List.append(&2, String, SD.cur_list(c), e), c0, se, sc)
+      Bool.not(x) && SD.chroms_ok(List.append(&2, String, SD.cur_list(c), e), c0, se, sc)
 
 def halt(st: R.RunSt) -> Bool:
   R.RunSt.halt(st)
 
-# T's end as segok sees it: not stopped, no messages, its CHROMs fresh.
+# T's end as segok sees it: not stopped, its CHROMs fresh.
 def Good(+c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +st: R.RunSt) -> Bool:
   Bool.not(halt(st)) && M(c0, se, sc, st)
 

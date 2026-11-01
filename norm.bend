@@ -24,13 +24,17 @@ import lawful-halves@0.1.0.0/halves.bend as HH
 #    reads per such piece (none if there is no such piece).
 # 3. Run: one task per piece (lawful-halves' H.all, in parallel). A task runs
 #    Q's pump on the piece's lines after its first LF, from a fresh run whose
-#    CHROM is the first line's and whose last written key is l (a phantom:
-#    the task stops, UNSORTED, if it writes a smaller key). It is clean when
-#    every complete line is handled on bytes, with no message, no stop and no
-#    read its windows do not answer.
+#    CHROM is the first line's and whose last written key is l (a phantom: a
+#    guess at the key of the task's first write, plan.first; if the task
+#    writes a smaller key it stops, UNSORTED, and runs once more from the key
+#    it stopped at, which the merge checks against the true run's). It is
+#    clean when every complete line is handled on bytes, with no stop and no
+#    read its windows do not answer (its warnings, -c w, are kept, numbered
+#    from its first line).
 # 4. Combine, in order: the line across the boundary is handled by Q on the
 #    true state; then a clean task whose run fits the true one (merge.ok) is
-#    spliced in, the true run's output handed out in this step; any other
+#    spliced in, the true run's output and messages handed out in this step
+#    (the task's messages, renumbered, stay in the spliced run); any other
 #    piece is handled by Q itself, asking for reads as Q does. One piece per
 #    step: each P.Ask{[]} gets the next one.
 
@@ -43,9 +47,13 @@ import lawful-halves@0.1.0.0/halves.bend as HH
 type Tc is Type:
   Tc{run: NR.Run, pend: Q.Pd, win: Q.Win, k: U32, c0: String, l: Nat}
 
+# A task's result: dirty, clean, or (from its first run only) stopped as
+# UNSORTED against the phantom, by an item of key l: the task runs again
+# from l, with the window w and the spare ones ws (task.again).
 type TRes is Type:
   TDirty{}
   TClean{c: Tc}
+  TAgain{l: Nat, w: Q.Win, ws: List<&1, Q.Win>}
 
 # A task's result, with its piece (handed back by the task when it ran on it).
 type TOut is Type:
@@ -299,11 +307,9 @@ def cp(b: D.Bytes, +s: U32, +e: U32) -> Cp:
 # The reads for a piece whose first complete line is at c1:p1 and last at
 # c2:p2 (POS 1-based): one window from margin() letters before the smaller
 # POS to margin() past the larger, when both are on one CHROM and it is at
-# most ahead() + margin() letters (and an empty one); else a window ahead()
-# letters on from the first, and one ahead() letters back from the last (each
-# empty if it is more than 2^31 letters). So no read takes more than a 4 MiB
-# block (notes/memory.md). A piece with a complete line after its first LF
-# has these two reads; any other piece none.
+# most ahead() + margin() letters (and an empty one); else two (plan.two),
+# each empty if it is more than 2^31 letters. A piece with a complete line
+# after its first LF has these two reads; any other piece none.
 def plan.win.if(one: Bool, +c: String, +a: Nat, +e: Nat) -> P.Req:
   match one:
     case True{}:
@@ -316,53 +322,158 @@ def plan.win.if(one: Bool, +c: String, +a: Nat, +e: Nat) -> P.Req:
 def plan.win(+c: String, +a: Nat, +e: Nat) -> P.Req:
   plan.win.if(Q.le31(Nat.sub(e, a)), c, a, e)
 
+# Two windows: a window ahead() letters on from the first line and one
+# ahead() letters back from the last, each in a 4 MiB block (notes/memory.md);
+# but when the lines are on one CHROM more than 2 ahead() letters apart (so
+# those two leave a gap: a sparse piece, or one with short lines) and the
+# span a .. e is at most 4 ahead() letters, its two halves, each with
+# margin() letters more where they meet (at most 2 ahead() + margin() + 1
+# letters, an 8 MiB block).
+def plan.two(halves: Bool, +c1: String, +p1: Nat, +c2: String, +p2: Nat, +a: Nat, +e: Nat) -> List<&2, P.Req>:
+  match halves:
+    case True{}:
+      +m = Nat.add(a, Nat.div(Nat.sub(e, a), 2n))
+      [plan.win(c1, a, Nat.add(m, Q.margin())), plan.win(c1, Nat.sub(m, Q.margin()), e)]
+    case False{}:
+      [plan.win(c1, Nat.sub(Nat.sub(p1, 1n), Q.margin()), Nat.add(p1, Q.ahead())),
+       plan.win(c2, Nat.sub(Nat.sub(p2, 1n), Q.ahead()), Nat.add(p2, Q.margin()))]
+
 def plan.reqs.if(one: Bool, +c1: String, +p1: Nat, +c2: String, +p2: Nat, +a: Nat, +e: Nat) -> List<&2, P.Req>:
   match one:
     case True{}:
       [P.Req{c1, a, e}, P.Req{c1, e, e}]
     case False{}:
-      [plan.win(c1, Nat.sub(Nat.sub(p1, 1n), Q.margin()), Nat.add(p1, Q.ahead())),
-       plan.win(c2, Nat.sub(Nat.sub(p2, 1n), Q.ahead()), Nat.add(p2, Q.margin()))]
+      plan.two(String.eq(c1, c2) && Bool.not(Nat.is_le(Nat.sub(Nat.sub(p2, p1), Q.ahead()), Q.ahead())) && Nat.is_le(Nat.sub(Nat.sub(Nat.sub(Nat.sub(e, a), Q.ahead()), Q.ahead()), Q.ahead()), Q.ahead()), c1, p1, c2, p2, a, e)
 
 def plan.reqs(+c1: String, +p1: Nat, +c2: String, +p2: Nat) -> List<&2, P.Req>:
   +a = Nat.sub(Nat.sub(Nat.min(p1, p2), 1n), Q.margin())
   +e = Nat.add(Nat.max(p1, p2), Q.margin())
   plan.reqs.if(String.eq(c1, c2) && Q.le31(Nat.sub(e, a)) && Nat.is_le(Nat.sub(Nat.sub(e, a), Q.margin()), Q.ahead()), c1, p1, c2, p2, a, e)
 
-def plan.last.cp(+k: U32, +c1: String, +p1: Nat, c: Cp) -> Pl:
+def plan.last.cp(+k: U32, +c1: String, +p1: Nat, +l: Nat, c: Cp) -> Pl:
   match c:
     case Cp{b, True{}, +c2, +p2}:
-      Pl{b, plan.reqs(c1, p1, c2, p2), True{}, k, c1, p1}
+      Pl{b, plan.reqs(c1, p1, c2, p2), True{}, k, c1, l}
     case Cp{b, False{}, c2, p2}:
-      Pl{b, plan.reqs(c1, p1, c1, p1), True{}, k, c1, p1}
+      Pl{b, plan.reqs(c1, p1, c1, p1), True{}, k, c1, l}
 
-def plan.last.at2(+k: U32, +c1: String, +p1: Nat, +el: U32, +s1: U32, b: D.Bytes, q: U32 & Bool) -> Pl:
+def plan.last.at2(+k: U32, +c1: String, +p1: Nat, +l: Nat, +el: U32, +s1: U32, b: D.Bytes, q: U32 & Bool) -> Pl:
   (+e0, f0) = q
-  plan.last.cp(k, c1, p1, cp(b, Bool.pick(U32, f0, (e0 + 1 : U32), s1), el))
+  plan.last.cp(k, c1, p1, l, cp(b, Bool.pick(U32, f0, (e0 + 1 : U32), s1), el))
 
-def plan.last.at(+k: U32, +c1: String, +p1: Nat, +el: U32, +s1: U32, r: D.Bytes & (U32 & Bool)) -> Pl:
+def plan.last.at(+k: U32, +c1: String, +p1: Nat, +l: Nat, +el: U32, +s1: U32, r: D.Bytes & (U32 & Bool)) -> Pl:
   (b, q) = r
-  plan.last.at2(k, c1, p1, el, s1, b, q)
+  plan.last.at2(k, c1, p1, l, el, s1, b, q)
 
-def plan.last.k2(+k: U32, +c1: String, +p1: Nat, +s1: U32, b: D.Bytes, q: U32 & Bool) -> Pl:
+def plan.last.k2(+k: U32, +c1: String, +p1: Nat, +l: Nat, +s1: U32, b: D.Bytes, q: U32 & Bool) -> Pl:
   (+el, len) = q
-  plan.last.at(k, c1, p1, el, s1, rlf(b, el, s1))
+  plan.last.at(k, c1, p1, l, el, s1, rlf(b, el, s1))
 
-def plan.last.k(+k: U32, +c1: String, +p1: Nat, +s1: U32, r: D.Bytes & (U32 & Bool)) -> Pl:
+def plan.last.k(+k: U32, +c1: String, +p1: Nat, +l: Nat, +s1: U32, r: D.Bytes & (U32 & Bool)) -> Pl:
   (b, q) = r
-  plan.last.k2(k, c1, p1, s1, b, q)
+  plan.last.k2(k, c1, p1, l, s1, b, q)
 
-def plan.first(+len: U32, +k: U32, +s1: U32, c: Cp) -> Pl:
+# The phantom key: a guess at the key of the task's first write (any value
+# is correct). Above that write, the first run stops there (UNSORTED) and the
+# task runs again from that key, which costs a dense piece its lines within -w
+# bases of the first one, twice. Below it, the merge refuses the task when S's
+# buffered keys are above the phantom (a left trim moves a key past the next
+# lines' POS: scrambled padding, notes/speed.md). The guess is the first
+# line's POS moved right by its REF and ALTs' left trim (plan.est): its item's
+# key, unless the item is moved left. When the first line's REF and ALT take
+# more than plan.big() bytes, there is no guess (the phantom is its POS):
+# decoding them would cost more than the run it might save.
+
+def plan.big() -> U32:
+  4096
+
+def plan.pre.if(same: Bool, +r: Nat) -> Nat:
+  match same:
+    case True{}:
+      Nat.add(1n, r)
+    case False{}:
+      0n
+
+# How many leading characters a and b share, at most m.
+def plan.pre(m: Nat, a: String, b: String) -> Nat:
+  match m a b:
+    case 1n+n SCon{+x, ta} SCon{+y, tb}:
+      plan.pre.if(U32.is_eq(B.Char.code(x), B.Char.code(y)), plan.pre(n, ta, tb))
+    case _ _ _:
+      0n
+
+# The bases a REF (r, reversed v, of length n) and an ALT lose on the left:
+# after their common suffix is cut (each keeping a base), their common prefix
+# but one base.
+def plan.trim(+r: String, +v: String, +n: Nat, +a: String) -> Nat:
+  +m = Nat.min(n, String.length(a))
+  +sf = plan.pre(Nat.sub(m, 1n), v, String.reverse(a))
+  plan.pre(Nat.sub(Nat.sub(m, sf), 1n), r, a)
+
+# The least of m and plan.trim over the ALTs as (none read once it is 0).
+def plan.trims(+r: String, +v: String, +n: Nat, as: List<&2, String>, m: Nat) -> Nat:
+  match as m:
+    case Nil{} _:
+      m
+    case Con{a, t} 0n:
+      0n
+    case Con{+a, t} 1n+j:
+      plan.trims(r, v, n, t, Nat.min(1n+j, plan.trim(r, v, n, a)))
+
+def plan.est.n(+r: String, +n: Nat, +alt: String) -> Nat:
+  plan.trims(r, String.reverse(r), n, String.split(alt, ','), n)
+
+# The least of plan.trim over the ALTs (split at commas).
+def plan.est(+r: String, +alt: String) -> Nat:
+  plan.est.n(r, String.length(r), alt)
+
+# The first tab after j (e1 if none before it).
+def plan.tab(+e1: U32, r: D.Bytes & U32) -> D.Bytes & U32:
+  (b, +j) = r
+  F.find(b, (j + 1 : U32), e1, 9)
+
+def plan.ph.alt(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +r: String, q: D.Bytes & String) -> Pl:
+  (b, +a) = q
+  plan.last.k(k, c1, p1, Nat.add(p1, plan.est(r, a)), s1, rlf(b, len, s1))
+
+def plan.ph.ref(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +t4: U32, +t5: U32, q: D.Bytes & String) -> Pl:
+  (b, +r) = q
+  plan.ph.alt(k, c1, p1, s1, len, r, Q.text(b, (t4 + 1 : U32), (t5 - t4 - 1 : U32)))
+
+# REF is t3+1 .. t4-1 and ALT t4+1 .. t5-1 (t5 the next tab, or the LF),
+# when the line has a non-empty REF and a tab after it, and the two take at
+# most plan.big() bytes; else the phantom is p1.
+def plan.ph.if(ok: Bool, +k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +t3: U32, +t4: U32, +t5: U32, b: D.Bytes) -> Pl:
+  match ok:
+    case True{}:
+      plan.ph.ref(k, c1, p1, s1, len, t4, t5, Q.text(b, (t3 + 1 : U32), (t4 - t3 - 1 : U32)))
+    case False{}:
+      plan.last.k(k, c1, p1, p1, s1, rlf(b, len, s1))
+
+def plan.ph.t5(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +e1: U32, +t3: U32, +t4: U32, q: D.Bytes & U32) -> Pl:
+  (b, +t5) = q
+  plan.ph.if(U32.is_lt(t3, t4) && U32.is_lt(t4, e1) && U32.is_le((t5 - t3 : U32), plan.big()), k, c1, p1, s1, len, t3, t4, t5, b)
+
+def plan.ph.t4(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +e1: U32, +t3: U32, q: D.Bytes & U32) -> Pl:
+  (b, +t4) = q
+  plan.ph.t5(k, c1, p1, s1, len, e1, t3, t4, plan.tab(e1, (b, t4)))
+
+# The first line (s1 .. e1, e1 its LF): t3 is its third tab (after ID).
+def plan.ph(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +e1: U32, q: D.Bytes & U32) -> Pl:
+  (b, +t3) = q
+  plan.ph.t4(k, c1, p1, s1, len, e1, t3, plan.tab(e1, (b, t3)))
+
+def plan.first(+len: U32, +k: U32, +s1: U32, +e1: U32, c: Cp) -> Pl:
   match c:
     case Cp{b, True{}, +c1, +p1}:
-      plan.last.k(k, c1, p1, s1, rlf(b, len, s1))
+      plan.ph(k, c1, p1, s1, len, e1, plan.tab(e1, plan.tab(e1, F.find(b, s1, e1, 9))))
     case Cp{b, False{}, c1, p1}:
       Pl{b, Nil{}, False{}, k, "", 0n}
 
 def plan.e1.if(line: Bool, +len: U32, +k: U32, +e1: U32, b: D.Bytes) -> Pl:
   match line:
     case True{}:
-      plan.first(len, k, (k + 1 : U32), cp(b, (k + 1 : U32), e1))
+      plan.first(len, k, (k + 1 : U32), e1, cp(b, (k + 1 : U32), e1))
     case False{}:
       Pl{b, Nil{}, False{}, k, "", 0n}
 
@@ -536,6 +647,61 @@ def task.idle(st: Q.St, ph: Ph, +k: U32, +c0: String, +l: Nat) -> Tk:
     case PIn{}:
       task.dirty(st, PIn{})
 
+# Whether the run stopped as UNSORTED against the phantom (the line before
+# the item out of order is line 0).
+def again.ph(ns: List<&2, B.Note>) -> Bool:
+  match ns:
+    case B.Stop{B.Unsorted{}, Some{a}, Some{B.At{+ln, c, p}}} <> t:
+      Nat.is_eq(ln, 0n)
+    case _:
+      False{}
+
+def again.key(+ok: Bool, c: Cp) -> D.Bytes & Maybe<&2, Nat>:
+  match c:
+    case Cp{b, +f, c1, +p}:
+      (b, Bool.pick(Maybe<&2, Nat>, ok && f, Some{p}, None{}))
+
+def again.len(+ok: Bool, +ow: U32, r: D.Bytes & U32) -> D.Bytes & Maybe<&2, Nat>:
+  (b, +n) = r
+  again.key(ok, cp(b, ow, n))
+
+def again.run.k(p: D.Bytes & Maybe<&2, Nat>, +n: Nat, +i: Bool, +h: String, +c: Maybe<&2, String>, cb: D.Bytes, +e: List<&2, String>, +l: Maybe<&2, NR.Ck>, +f: List<&2, NR.Ck>, +b: List<&2, NR.Ck>, +bn: Nat, +tl: Nat, +k: R.Cnt, +ow: U32, +ns: List<&2, B.Note>, +x: Bool) -> NR.Run & Maybe<&2, Nat>:
+  (ob, +m) = p
+  (NR.Run{n, i, h, c, cb, e, l, f, b, bn, tl, k, ob, ow, ns, x}, m)
+
+# The key of the item a stop against the phantom refused: the POS of its
+# text, the first after the bytes written (any value is correct: it only
+# chooses the phantom of the task's second run).
+def again.run(r: NR.Run) -> NR.Run & Maybe<&2, Nat>:
+  match r:
+    case NR.Run{+n, +i, +h, +c, cb, +e, +l, +f, +b, +bn, +tl, +k, ob, +ow, +ns, +x}:
+      again.run.k(again.len(again.ph(ns), ow, BY.len(ob)), n, i, h, c, cb, e, l, f, b, bn, tl, k, ow, ns, x)
+
+# The task stopped against the phantom l at an item of key l2 below it: it
+# hands back its piece and its windows, to run again from l2.
+def task.again.if(go: Bool, +l2: Nat, +o: B.Opts, run: NR.Run, src: List<&1, Q.Src>, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, +dfs: B.Defs, spare: List<&1, Q.Win>, ph: Ph) -> Tk:
+  match go:
+    case True{}:
+      TEnd{TOut{task.back(Q.St{o, Q.MB{run}, src, pend, eof, back, Q.WNone{}, asked, fneed, dfs}, ph), TAgain{l2, win, spare}}}
+    case False{}:
+      task.dirty(Q.St{o, Q.MB{run}, src, pend, eof, back, win, asked, fneed, dfs}, ph)
+
+def task.again(p: NR.Run & Maybe<&2, Nat>, +l: Nat, +o: B.Opts, src: List<&1, Q.Src>, pend: Q.Pd, +eof: Bool, +back: Nat, win: Q.Win, +asked: Maybe<&2, List<&2, P.Req>>, +fneed: Bool, +dfs: B.Defs, spare: List<&1, Q.Win>, ph: Ph) -> Tk:
+  (run, m) = p
+  match m:
+    case Some{+l2}:
+      task.again.if(Nat.is_lt(l2, l), l2, o, run, src, pend, eof, back, win, asked, fneed, dfs, spare, ph)
+    case None{}:
+      task.dirty(Q.St{o, Q.MB{run}, src, pend, eof, back, win, asked, fneed, dfs}, ph)
+
+# The task's run stopped: dirty, unless it stopped against the phantom.
+def task.ended(st: Q.St, spare: List<&1, Q.Win>, ph: Ph, +l: Nat) -> Tk:
+  match st:
+    case Q.St{+o, Q.MB{run}, src, pend, +eof, +back, win, +asked, +fneed, +dfs}:
+      task.again(again.run(run), l, o, src, pend, eof, back, win, asked, fneed, dfs, spare, ph)
+    case Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed, dfs}:
+      task.dirty(Q.St{o, Q.MS{s, qs, ql, c}, src, pend, eof, back, win, asked, fneed, dfs}, ph)
+
 def task.want(st: Q.St, spare: List<&1, Q.Win>, ph: Ph, +el: U32, +len: U32) -> Tk:
   match spare:
     case Nil{}:
@@ -552,7 +718,7 @@ def task.adv(a: Q.Adv, spare: List<&1, Q.Win>, ph: Ph, +el: U32, +len: U32, +k: 
     case Q.Idle{st}:
       task.idle(st, ph, k, c0, l)
     case Q.Ended{st}:
-      task.dirty(st, ph)
+      task.ended(st, spare, ph, l)
     case Q.Yield{st}:
       task.dirty(st, ph)
 
@@ -586,9 +752,36 @@ def task.run0(+c0: String, +l: Nat, +len: U32) -> NR.Run:
 def task.res(+o: B.Opts, +len: U32) -> U32:
   Bool.pick(U32, R.Opts.split(o), (len + len : U32), len)
 
+# One run of the task's loop on its piece, from the phantom l, with room for
+# res bytes of output.
+def task.run1(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, w: Q.Win, spare: List<&1, Q.Win>, +el: U32, +c0: String, +l: Nat, +res: U32, +dfs: B.Defs) -> TOut:
+  task.loop(Nat.add(U32.to_nat(len), 8n), task.next(Q.St{o, Q.MB{task.run0(c0, l, res)}, [Q.SB{b, (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, w, None{}, False{}, dfs}, PIn{}, spare, el, len), el, len, k, c0, l)
+
+# The second run's result: a second stop against the phantom is dirty.
+def task.final(r: TOut) -> TOut:
+  match r:
+    case TOut{b, TAgain{l2, w, ws}}:
+      TOut{b, TDirty{}}
+    case TOut{b, TDirty{}}:
+      TOut{b, TDirty{}}
+    case TOut{b, TClean{c}}:
+      TOut{b, TClean{c}}
+
+# The first run's result: when it stopped against the phantom (an item below
+# the guess, plan.first), the task runs once more from the key it stopped at;
+# the merge checks that key against the true run's.
+def task.retry(+o: B.Opts, +len: U32, +k: U32, +el: U32, +c0: String, +dfs: B.Defs, r: TOut) -> TOut:
+  match r:
+    case TOut{b, TAgain{+l2, w, ws}}:
+      task.final(task.run1(o, b, len, k, w, ws, el, c0, l2, task.res(o, len), dfs))
+    case TOut{b, TDirty{}}:
+      TOut{b, TDirty{}}
+    case TOut{b, TClean{c}}:
+      TOut{b, TClean{c}}
+
 def task.start(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, p: Q.Win & List<&1, Q.Win>, +el: U32, +c0: String, +l: Nat, +dfs: B.Defs) -> TOut:
   (w, spare) = p
-  task.loop(Nat.add(U32.to_nat(len), 8n), task.next(Q.St{o, Q.MB{task.run0(c0, l, task.res(o, len))}, [Q.SB{b, (k + 1 : U32)}], Q.PB{BY.empty(0n)}, False{}, 0n, w, None{}, False{}, dfs}, PIn{}, spare, el, len), el, len, k, c0, l)
+  task.retry(o, len, k, el, c0, dfs, task.run1(o, b, len, k, w, spare, el, c0, l, task.res(o, len), dfs))
 
 def task.last.k(+o: B.Opts, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat, b: D.Bytes, q: U32 & Bool, +dfs: B.Defs) -> TOut:
   (+el, fl) = q
@@ -746,6 +939,30 @@ def real_inpos(m: Maybe<&2, NR.Ck>) -> Nat:
     case Some{+c}:
       real_inpos.k(ck_phantom(c), c)
 
+def at_shift(+d: Nat, m: Maybe<&2, B.At>) -> Maybe<&2, B.At>:
+  match m:
+    case None{}:
+      None{}
+    case Some{B.At{ln, c, p}}:
+      Some{B.At{Nat.add(ln, d), c, p}}
+
+# A message with its line number moved on by d (a task's, as the true run's).
+def note_shift(+d: Nat, n: B.Note) -> B.Note:
+  match n:
+    case B.Warning{c, B.At{ln, ch, p}}:
+      B.Warning{c, B.At{Nat.add(ln, d), ch, p}}
+    case B.Stop{c, a, p}:
+      B.Stop{c, at_shift(d, a), at_shift(d, p)}
+    case B.Summary{a, b, c, e}:
+      B.Summary{a, b, c, e}
+
+def notes_shift(+d: Nat, xs: List<&2, B.Note>) -> List<&2, B.Note>:
+  match xs:
+    case Nil{}:
+      Nil{}
+    case x <> t:
+      note_shift(d, x) <> notes_shift(d, t)
+
 def cnt_add(a: R.Cnt, b: R.Cnt) -> R.Cnt:
   match a b:
     case R.Cnt{a1, a2, a3, a4} R.Cnt{b1, b2, b3, b4}:
@@ -841,7 +1058,8 @@ def last_of(+tl: Maybe<&2, NR.Ck>, +same: Bool, +sl: Maybe<&2, NR.Ck>, +elast: M
 # Whether the true run S, given T's lines, does what T did from its phantom
 # state, with S's buffered items E all written first (notes/parallel.md,
 # "merge"):
-# - both in the body and not stopped; T read lines and wrote no message;
+# - both in the body and not stopped; T read lines (its messages, warnings,
+#   are the true run's, their line numbers moved on);
 # - c0 has not ended in S; T's other CHROMs neither ended in S nor are S's;
 #   T's last is the phantom only while T's CHROM is c0;
 # - E is sorted and starts no lower than S's last;
@@ -849,28 +1067,29 @@ def last_of(+tl: Maybe<&2, NR.Ck>, +same: Bool, +sl: Maybe<&2, NR.Ck>, +elast: M
 #   E's keys and S's last are at most l; and unless T left c0 (which writes
 #   E), every key in T's buffer is l or above and a line of T had an input POS
 #   at least max(E) + w (so E was written).
-def merge.ok(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +tns: List<&2, B.Note>, +ti: Bool, +tx: Bool) -> Bool:
+def merge.ok(+l: Nat, +w: Nat, +c0: String, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, NR.Ck>, +sf: List<&2, NR.Ck>, +sb: List<&2, NR.Ck>, +sbn: Nat, +stl: Nat, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, NR.Ck>, +tf: List<&2, NR.Ck>, +tb: List<&2, NR.Ck>, +ti: Bool, +tx: Bool) -> Bool:
   +same = R.is_cur(sc, c0)
   +eempty = Nat.is_eq(sbn, 0n)
   +maxe = Nat.max(Bool.pick(Nat, eempty, 0n, stl), key_or(sl, 0n))
   +changed = Bool.not(List.is_empty(&2, String, te))
   +mlow = max_inpos(tf, max_inpos(tb, Bool.pick(Nat, changed, 0n, real_inpos(tl))))
-  si && ti && Bool.not(sx) && Bool.not(tx) && List.is_empty(&2, B.Note, tns) && Nat.is_lt(0n, tn) && Bool.not(R.has(c0, se)) && (Bool.not(last_ph(tl)) || R.is_cur(tc, c0)) && chroms_ok(List.append(&2, String, cur_list(tc), te), c0, se, sc) && sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{}))) && (eempty || NR.last_le(sl, key_or(buf_first(sf, sb), 0n))) && (Bool.not(same) || (Nat.is_le(maxe, l) && (changed || (keys_ge(tf, l) && keys_ge(tb, l))) && (changed || eempty || Nat.is_le(Nat.add(maxe, w), mlow))))
+  si && ti && Bool.not(sx) && Bool.not(tx) && Nat.is_lt(0n, tn) && Bool.not(R.has(c0, se)) && (Bool.not(last_ph(tl)) || R.is_cur(tc, c0)) && chroms_ok(List.append(&2, String, cur_list(tc), te), c0, se, sc) && sorted(NR.append_ck(sf, NR.rev_ck(sb, Nil{}))) && (eempty || NR.last_le(sl, key_or(buf_first(sf, sb), 0n))) && (Bool.not(same) || (Nat.is_le(maxe, l) && (changed || (keys_ge(tf, l) && keys_ge(tb, l))) && (changed || eempty || Nat.is_le(Nat.add(maxe, w), mlow))))
 
-# The run after S and T: S's output (its written bytes, then E) handed out
-# now; T's state, its line numbers shifted by S's, the counts added, ended
-# T's then S's (S's current pushed when T's first line started a new run).
+# The run after S and T: S's output (its written bytes, then E) and messages
+# handed out now; T's state, its line numbers (and its messages') shifted by
+# S's, the counts added, ended T's then S's (S's current pushed when T's
+# first line started a new run).
 def merge.if(ok: Bool, s: NR.Run, t: NR.Run, +same: Bool) -> Mg:
   match ok s t:
-    case True{} NR.Run{+sn, si, +sh, +sc, scb, +se, +sl, +sf, +sb, sbn, stl, +sk, sob, sow, +sns, sx} NR.Run{+tn, ti, th, +tc, tcb, +te, +tl, +tf, +tb, +tbn, +ttl, +tk, tob, +tow, tns, tx}:
-      MOk{sob, List.reverse(&2, B.Note, sns), NR.Run{Nat.add(sn, tn), True{}, sh, tc, tcb, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, NR.push_cur(sc, se))), last_of(tl, same, sl, buf_last(sf, sb), sn), cks_shift(sn, tf), cks_shift(sn, tb), tbn, ttl, cnt_add(sk, tk), tob, tow, Nil{}, False{}}}
+    case True{} NR.Run{+sn, si, +sh, +sc, scb, +se, +sl, +sf, +sb, sbn, stl, +sk, sob, sow, +sns, sx} NR.Run{+tn, ti, th, +tc, tcb, +te, +tl, +tf, +tb, +tbn, +ttl, +tk, tob, +tow, +tns, tx}:
+      MOk{sob, List.reverse(&2, B.Note, sns), NR.Run{Nat.add(sn, tn), True{}, sh, tc, tcb, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, NR.push_cur(sc, se))), last_of(tl, same, sl, buf_last(sf, sb), sn), cks_shift(sn, tf), cks_shift(sn, tb), tbn, ttl, cnt_add(sk, tk), tob, tow, notes_shift(sn, tns), False{}}}
     case False{} r t2:
       MNo{r}
 
 def merge(s: NR.Run, t: NR.Run, +l: Nat, +w: Nat, +c0: String) -> Mg:
   match s t:
-    case NR.Run{sn, +si, sh, +sc, scb, +se, +sl, +sf, +sb, +sbn, +stl, sk, sob, sow, sns, +sx} NR.Run{+tn, +ti, th, +tc, tcb, +te, +tl, +tf, +tb, tbn, ttl, tk, tob, tow, +tns, +tx}:
-      merge.if(merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, tns, ti, tx), NR.Run{sn, si, sh, sc, scb, se, sl, sf, sb, sbn, stl, sk, sob, sow, sns, sx}, NR.Run{tn, ti, th, tc, tcb, te, tl, tf, tb, tbn, ttl, tk, tob, tow, tns, tx}, R.is_cur(sc, c0))
+    case NR.Run{sn, +si, sh, +sc, scb, +se, +sl, +sf, +sb, +sbn, +stl, sk, sob, sow, sns, +sx} NR.Run{+tn, +ti, th, +tc, tcb, +te, +tl, +tf, +tb, tbn, ttl, tk, tob, tow, tns, +tx}:
+      merge.if(merge.ok(l, w, c0, sc, se, sl, sf, sb, sbn, stl, si, sx, tn, tc, te, tl, tf, tb, ti, tx), NR.Run{sn, si, sh, sc, scb, se, sl, sf, sb, sbn, stl, sk, sob, sow, sns, sx}, NR.Run{tn, ti, th, tc, tcb, te, tl, tf, tb, tbn, ttl, tk, tob, tow, tns, tx}, R.is_cur(sc, c0))
 
 # ---------------------------------------------------------------------------
 # Combine, in order
@@ -1031,6 +1250,8 @@ def comb.piece(r: TRes, q: Q.St, b: D.Bytes, rest: List<&1, TOut>, +eofp: Bool) 
       seq_out(Q.step(q, P.Chunk{b}), rest, eofp)
     case TClean{c}:
       comb.clean(q.n(q), b, c, rest, eofp)
+    case TAgain{l, w, ws}:
+      seq_out(Q.step(q, P.Chunk{b}), rest, eofp)
 
 def comb.end(eofp: Bool, q: Q.St) -> Step:
   match eofp:

@@ -160,6 +160,42 @@ def cur_list(m: Maybe<&2, String>) -> List<&2, String>:
     case Some{c}:
       [c]
 
+# ---------------------------------------------------------------------------
+# Messages
+# ---------------------------------------------------------------------------
+
+def at_shift(+d: Nat, m: Maybe<&2, B.At>) -> Maybe<&2, B.At>:
+  match m:
+    case None{}:
+      None{}
+    case Some{B.At{ln, c, p}}:
+      Some{B.At{Nat.add(ln, d), c, p}}
+
+# A message with its line number moved on by d (norm.bend's note_shift).
+def note_shift(+d: Nat, n: B.Note) -> B.Note:
+  match n:
+    case B.Warning{c, B.At{ln, ch, p}}:
+      B.Warning{c, B.At{Nat.add(ln, d), ch, p}}
+    case B.Stop{c, a, p}:
+      B.Stop{c, at_shift(d, a), at_shift(d, p)}
+    case B.Summary{a, b, c, e}:
+      B.Summary{a, b, c, e}
+
+def notes_shift(+d: Nat, xs: List<&2, B.Note>) -> List<&2, B.Note>:
+  match xs:
+    case Nil{}:
+      Nil{}
+    case x <> t:
+      note_shift(d, x) <> notes_shift(d, t)
+
+# a then b (a itself when b is empty, by computation).
+def notes_app(+a: List<&2, B.Note>, +b: List<&2, B.Note>) -> List<&2, B.Note>:
+  match b:
+    case Nil{}:
+      a
+    case x <> t:
+      List.append(&2, B.Note, a, x <> t)
+
 def cnt_add(a: R.Cnt, b: R.Cnt) -> R.Cnt:
   match a b:
     case R.Cnt{a1, a2, a3, a4} R.Cnt{b1, b2, b3, b4}:
@@ -188,24 +224,24 @@ def last_shift(+tl: Maybe<&2, R.Item>, +same: Bool, +sl: Maybe<&2, R.Item>, +ela
 # The true run S followed by T, T run on the same lines from rs0(c0, l): S's
 # buffer written first, then T's state, its line numbers moved on by S's;
 # ended T's then S's (S's CHROM pushed when T's first line started a new
-# CHROM run); the counts added.
+# CHROM run); the counts added; S's messages, then T's (renumbered).
 def shiftS(+c0: String, +S: R.RunSt, +T: R.RunSt) -> R.RunSt:
   match S T:
-    case R.RunSt{+sn, si, +sh, +sc, +se, +sl, +sb, +sk, +so, +sns, sx} R.RunSt{+tn, ti, th, +tc, +te, +tl, +tb, +tk, +to, tns, tx}:
+    case R.RunSt{+sn, si, +sh, +sc, +se, +sl, +sb, +sk, +so, +sns, sx} R.RunSt{+tn, ti, th, +tc, +te, +tl, +tb, +tk, +to, +tns, tx}:
       +same = R.is_cur(sc, c0)
-      R.RunSt{Nat.add(sn, tn), True{}, sh, tc, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, R.push_cur(sc, se))), last_shift(tl, same, sl, last_item(sb), sn), items_shift(sn, tb), cnt_add(sk, tk), String.append(so, String.append(texts(sb), to)), sns, False{}}
+      R.RunSt{Nat.add(sn, tn), True{}, sh, tc, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, R.push_cur(sc, se))), last_shift(tl, same, sl, last_item(sb), sn), items_shift(sn, tb), cnt_add(sk, tk), String.append(so, String.append(texts(sb), to)), notes_app(sns, notes_shift(sn, tns)), False{}}
 
-def segok.k(+w: Nat, +c0: String, +l: Nat, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, R.Item>, +sb: List<&2, R.Item>, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, R.Item>, +tb: List<&2, R.Item>, +tns: List<&2, B.Note>, +tx: Bool) -> Bool:
+def segok.k(+w: Nat, +c0: String, +l: Nat, +sc: Maybe<&2, String>, +se: List<&2, String>, +sl: Maybe<&2, R.Item>, +sb: List<&2, R.Item>, +si: Bool, +sx: Bool, +tn: Nat, +tc: Maybe<&2, String>, +te: List<&2, String>, +tl: Maybe<&2, R.Item>, +tb: List<&2, R.Item>, +tx: Bool) -> Bool:
   +same = R.is_cur(sc, c0)
   +eempty = List.is_empty(&2, R.Item, sb)
   +maxe = maxkey(sb, key_or(sl, 0n))
   +changed = Bool.not(List.is_empty(&2, String, te))
   +mlow = max_inpos(tb, Bool.pick(Nat, changed, 0n, real_inpos(tl)))
-  si && Bool.not(sx) && Bool.not(tx) && List.is_empty(&2, B.Note, tns) && Nat.is_lt(0n, tn) && Bool.not(R.has(c0, se)) && chroms_ok(List.append(&2, String, cur_list(tc), te), c0, se, sc) && sorted(sb) && (eempty || last_le(sl, key_or(first_item(sb), 0n))) && (Bool.not(same) || (Nat.is_le(maxe, l) && (changed || (keys_ge(tb, l) && (eempty || Nat.is_le(Nat.add(maxe, w), mlow))))))
+  si && Bool.not(sx) && Bool.not(tx) && Nat.is_lt(0n, tn) && Bool.not(R.has(c0, se)) && chroms_ok(List.append(&2, String, cur_list(tc), te), c0, se, sc) && sorted(sb) && (eempty || last_le(sl, key_or(first_item(sb), 0n))) && (Bool.not(same) || (Nat.is_le(maxe, l) && (changed || (keys_ge(tb, l) && (eempty || Nat.is_le(Nat.add(maxe, w), mlow))))))
 
 # When the segment lemma applies (norm_par.bend's merge.ok on run.bend's
 # states; S: the true run, T: the task's).
 def segok(+w: Nat, +c0: String, +l: Nat, +S: R.RunSt, +T: R.RunSt) -> Bool:
   match S T:
-    case R.RunSt{sn, +si, sh, +sc, +se, +sl, +sb, sk, so, sns, +sx} R.RunSt{+tn, ti, th, +tc, +te, +tl, +tb, tk, to, +tns, +tx}:
-      segok.k(w, c0, l, sc, se, sl, sb, si, sx, tn, tc, te, tl, tb, tns, tx)
+    case R.RunSt{sn, +si, sh, +sc, +se, +sl, +sb, sk, so, sns, +sx} R.RunSt{+tn, ti, th, +tc, +te, +tl, +tb, tk, to, tns, +tx}:
+      segok.k(w, c0, l, sc, se, sl, sb, si, sx, tn, tc, te, tl, tb, tx)

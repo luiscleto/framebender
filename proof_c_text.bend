@@ -7,6 +7,7 @@ import ./norm_fast.bend as NF
 import ./bytes_enc.bend as E
 import ./proof_b_rundefs.bend as RD
 import ./proof_b_run_buf.bend as BF
+import ./proof_b_lines_room.bend as RM
 import ./proof_b_judge_bytes.bend as JB
 import ./proof_b_run_inv.bend as PI
 import lawful-bytes@0.1.0.0/bytes.bend as BY
@@ -629,14 +630,15 @@ def write_t(+bl: U32, +bt: AT.Tree<U32>, +bd: Nat, +wl: U32, +wt: AT.Tree<U32>,
   +rs = ALA(bl, bt, wl, wt, a, k, tr, d, p0, offu)
   +as = ACC(als, "", True{}, bl, bt, wl, wt, k, tr, d, p0, offu)
   +G0 = TXT(bl, bt, bd, wl, wt, at, e0, e1, e2, e4, lf, q, rs, as)
-  +t0 = G.tnew(0n, 0)
+  +d0 = NR.depth(((lf - at : U32) + 24 : U32))
+  +t0 = G.tnew(d0, 0)
   %Equal.sym(NX.Rs, NX.al(C.BT(bl, bt), C.BT(wl, wt), a, k, tr, d, p0, offu), NX.Rs{C.BT(bl, bt), C.BT(wl, wt), rs}, al_pair(bl, bt, wl, wt, a, k, tr, d, p0, offu)) :
     WR(bl, bt, wl, wt, NX.wr.alts(at, e0, e1, e2, e4, lf, q, als, k, tr, d, p0, offu, _), G0)
   %Equal.sym(NX.Rs, NX.as.go(als, NX.Rs{C.BT(bl, bt), C.BT(wl, wt), ""}, True{}, k, tr, d, p0, offu), NX.Rs{C.BT(bl, bt), C.BT(wl, wt), as}, as_pair(als, "", True{}, bl, bt, wl, wt, k, tr, d, p0, offu)) :
     WR(bl, bt, wl, wt, NX.wr.fin(at, e0, e1, e2, e4, lf, q, rs, _), G0)
-  %Equal.sym(D.Bytes, BY.empty(0n), C.BT(0, t0), G.empty_eq(0n)) :
+  %Equal.sym(D.Bytes, BY.empty(d0), C.BT(0, t0), G.empty_eq(d0)) :
     WR(bl, bt, wl, wt, NX.put_b(NX.put_s(NX.put_c(NX.put_s(NX.put_b(NX.put_s(NX.put_b(NX.Wb{_, C.BT(bl, bt), C.BT(wl, wt), True{}}, at, K1(at, e0)), Nat.show(q)), e1, K2(e1, e2)), rs), 9), as), e4, K3(e4, lf)), G0)
   L1(bl, bt, bd, wl, wt, at, e0, e1, e2, e4, lf, q, rs, as, 0, t0, hbo, h1, h2, h3,
     als_bytes(U32.to_nat(NA(a, tr, d)), bl, bt, wl, wt, a, k, U32.from_nat(d), p0, offu), acc_bytes(als, "", True{}, bl, bt, wl, wt, k, tr, d, p0, offu, {==}),
-    BF.empty_ok_td(0n, {==}),
+    BF.empty_ok_td(d0, RM.dg_le(29n, 0n, ((lf - at : U32) + 24 : U32))),
     Equal.cong(List<&2, U32>, String, z => NR.chars(z), WW.V(0, t0), Nil{}, BF.view0(t0)))

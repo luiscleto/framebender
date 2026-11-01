@@ -9,6 +9,7 @@ import ./proof_b_frame_bl.bend as BL
 import ./proof_b_lines_str.bend as LS
 import ./proof_base.bend as PB
 import ./proof_e_defs.bend as SD
+import ./proof_e_seg_nf.bend as NF
 
 # Helpers for proof_e_wrap.bend (area E1), on the spec only: each line the
 # run handles adds one to its line count (while it has not stopped); the run
@@ -455,9 +456,12 @@ def pre_shift(c0, O, N, sx, tx):
     case R.RunSt{+sn, +si, +sh, +sc, +se, +sl, +sb, +sk, +so, +sns, +sxx} R.RunSt{+tn, +ti, +th, +tc, +te, +tl, +tb, +tk, +to, +tns, +txx}:
       +same = R.is_cur(sc, c0)
       +X = String.append(SD.texts(sb), to)
+      %NF.na_pre(N, sns, SD.notes_shift(sn, tns)) :
+        {S.pre(O, N, SD.shiftS(c0, R.RunSt{sn, si, sh, sc, se, sl, sb, sk, so, sns, sxx}, R.RunSt{tn, ti, th, tc, te, tl, tb, tk, to, tns, txx}))
+          == R.RunSt{Nat.add(sn, tn), True{}, sh, tc, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, R.push_cur(sc, se))), SD.last_shift(tl, same, sl, SD.last_item(sb), sn), SD.items_shift(sn, tb), SD.cnt_add(sk, tk), String.append(String.append(O, so), X), _, False{}} : R.RunSt}
       %Equal.sym(String, String.append(String.append(O, so), X), String.append(O, String.append(so, X)), LS.sassoc(O, so, X)) :
         {S.pre(O, N, SD.shiftS(c0, R.RunSt{sn, si, sh, sc, se, sl, sb, sk, so, sns, sxx}, R.RunSt{tn, ti, th, tc, te, tl, tb, tk, to, tns, txx}))
-          == R.RunSt{Nat.add(sn, tn), True{}, sh, tc, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, R.push_cur(sc, se))), SD.last_shift(tl, same, sl, SD.last_item(sb), sn), SD.items_shift(sn, tb), SD.cnt_add(sk, tk), _, List.append(&2, B.Note, N, sns), False{}} : R.RunSt}
+          == R.RunSt{Nat.add(sn, tn), True{}, sh, tc, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, R.push_cur(sc, se))), SD.last_shift(tl, same, sl, SD.last_item(sb), sn), SD.items_shift(sn, tb), SD.cnt_add(sk, tk), _, List.append(&2, B.Note, N, SD.notes_app(sns, SD.notes_shift(sn, tns))), False{}} : R.RunSt}
       {==}
 
 law segok_pre:
@@ -530,7 +534,7 @@ def shift_settle(c0, sx, tx, hx):
   match sx tx:
     case R.RunSt{+sn, +si, +sh, +sc, +se, +sl, +sb, +sk, +so, +sns, +sxx} R.RunSt{+tn, +ti, +th, +tc, +te, +tl, +tb, +tk, +to, +tns, False{}}:
       +same = R.is_cur(sc, c0)
-      Equal.cong(Maybe<&2, R.Item>, R.RunSt, z => R.RunSt{Nat.add(sn, tn), True{}, sh, tc, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, R.push_cur(sc, se))), z, SD.items_shift(sn, tb), SD.cnt_add(sk, tk), String.append(so, String.append(SD.texts(sb), to)), sns, False{}},
+      Equal.cong(Maybe<&2, R.Item>, R.RunSt, z => R.RunSt{Nat.add(sn, tn), True{}, sh, tc, List.append(&2, String, te, Bool.pick(List<&2, String>, same, se, R.push_cur(sc, se))), z, SD.items_shift(sn, tb), SD.cnt_add(sk, tk), String.append(so, String.append(SD.texts(sb), to)), SD.notes_app(sns, SD.notes_shift(sn, tns)), False{}},
         P.blank(SD.last_shift(P.blank(tl), same, sl, SD.last_item(sb), sn)), P.blank(SD.last_shift(tl, same, sl, SD.last_item(sb), sn)), ls_blank(tl, same, sl, SD.last_item(sb), sn))
     case R.RunSt{+sn, +si, +sh, +sc, +se, +sl, +sb, +sk, +so, +sns, +sxx} R.RunSt{+tn, +ti, +th, +tc, +te, +tl, +tb, +tk, +to, +tns, True{}}:
       Empty.absurd({P.settle(SD.shiftS(c0, R.RunSt{sn, si, sh, sc, se, sl, sb, sk, so, sns, sxx}, P.settle(R.RunSt{tn, ti, th, tc, te, tl, tb, tk, to, tns, True{}}))) == P.settle(SD.shiftS(c0, R.RunSt{sn, si, sh, sc, se, sl, sb, sk, so, sns, sxx}, R.RunSt{tn, ti, th, tc, te, tl, tb, tk, to, tns, True{}})) : R.RunSt}, PB.true_ne_false(hx))

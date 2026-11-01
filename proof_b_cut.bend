@@ -212,7 +212,7 @@ def FDD(+len: U32, +t: AT.Tree<U32>, +s: U32, +e0: U32, +e1: U32, +e2: U32, +e3:
   {J.pfs(lbody(xs(len, t), s, lf)) ==
     [fld(xs(len, t), n(s), n(e0)), fld(xs(len, t), nx(e0), n(e1)), fld(xs(len, t), nx(e1), n(e2)),
      fld(xs(len, t), nx(e2), n(e3)), fld(xs(len, t), nx(e3), n(e4)), fld(xs(len, t), nx(e4), n(e5)),
-     fld(xs(len, t), nx(e5), n(e6)), ""] : List<&2, String>}
+     fld(xs(len, t), nx(e5), n(e6)), B.Rec.field(J.pfs(lbody(xs(len, t), s, lf)), 7n)] : List<&2, String>}
 
 def FDC(+len: U32, +t: AT.Tree<U32>, +s: U32, c: NF.Cut) -> Type:
   match c:
@@ -242,14 +242,14 @@ def NEc(+len: U32, +t: AT.Tree<U32>, c: NF.Cut) -> Type:
       Unit
 
 def pass_fields.k(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, +hok: {D.ok(C.BT(len, t), d) == True{} : Bool}, +hs: {U32.is_le(s, len) == True{} : Bool}, +h0: {M.TP(len, t, s) == False{} : Bool}, +h1: {M.TT(len, t, s) == True{} : Bool}, +h2: {M.TP(len, t, (M.E0(len, t, s) + 1 : U32)) == False{} : Bool}, +h3: {M.TT(len, t, (M.E0(len, t, s) + 1 : U32)) == True{} : Bool}, +h4: {M.TP(len, t, (M.E1(len, t, s) + 1 : U32)) == False{} : Bool}, +h5: {M.TT(len, t, (M.E1(len, t, s) + 1 : U32)) == True{} : Bool}, +h6: {M.TP(len, t, (M.E2(len, t, s) + 1 : U32)) == False{} : Bool}, +h7: {M.TT(len, t, (M.E2(len, t, s) + 1 : U32)) == True{} : Bool}, +h8: {M.TP(len, t, (M.E3(len, t, s) + 1 : U32)) == False{} : Bool}, +h9: {M.TT(len, t, (M.E3(len, t, s) + 1 : U32)) == True{} : Bool}, +h10: {M.TP(len, t, (M.E4(len, t, s) + 1 : U32)) == False{} : Bool}, +h11: {M.TT(len, t, (M.E4(len, t, s) + 1 : U32)) == True{} : Bool}, +h12: {M.TP(len, t, (M.E5(len, t, s) + 1 : U32)) == False{} : Bool}, +h13: {M.TT(len, t, (M.E5(len, t, s) + 1 : U32)) == True{} : Bool}, +h14: {M.TP(len, t, (M.E6(len, t, s) + 1 : U32)) == False{} : Bool}, +hc: {V.ME(len, t, s, V.LFm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32)))) == V.K8(e0, e1, e2, e3, e4, e5, e6, e7, lf) : NF.Cut}, +hl: {V.LPm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32))) == False{} : Bool},
-  +hne: {M.NE(len, t, (e6 + 1 : U32), e7) == True{} : Bool}, +hcr: {M.CRT(len, t, e7, lf) == True{} : Bool}) ->
+  +hcr: {M.CRT(len, t, e7, lf) == True{} : Bool}) ->
   FDD(len, t, s, e0, e1, e2, e3, e4, e5, e6, e7, lf):
   %hc : FDC(len, t, s, _)
   FX.fd_core(len, t, d, s, hok, hs, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13, h14, hl,
-    AB.subst(NF.Cut, c => CRc(len, t, c), V.K8(e0, e1, e2, e3, e4, e5, e6, e7, lf), V.ME(len, t, s, V.LFm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32)))), Equal.sym(NF.Cut, V.ME(len, t, s, V.LFm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32)))), V.K8(e0, e1, e2, e3, e4, e5, e6, e7, lf), hc), hcr),
-    AB.subst(NF.Cut, c => NEc(len, t, c), V.K8(e0, e1, e2, e3, e4, e5, e6, e7, lf), V.ME(len, t, s, V.LFm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32)))), Equal.sym(NF.Cut, V.ME(len, t, s, V.LFm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32)))), V.K8(e0, e1, e2, e3, e4, e5, e6, e7, lf), hc), hne))
+    AB.subst(NF.Cut, c => CRc(len, t, c), V.K8(e0, e1, e2, e3, e4, e5, e6, e7, lf), V.ME(len, t, s, V.LFm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32)))), Equal.sym(NF.Cut, V.ME(len, t, s, V.LFm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32)))), V.K8(e0, e1, e2, e3, e4, e5, e6, e7, lf), hc), hcr))
 
-# The String path cuts the same fields (INFO kept as "": it has no END entry).
+# The String path cuts the same fields (INFO as J.pfs keeps it: "" when it
+# has no END entry, else its text).
 def pass_fields(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
   +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32,
   hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
@@ -258,10 +258,10 @@ def pass_fields(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32,
   {J.pfs(lbody(xs(len, t), s, lf)) ==
     [fld(xs(len, t), n(s), n(e0)), fld(xs(len, t), nx(e0), n(e1)), fld(xs(len, t), nx(e1), n(e2)),
      fld(xs(len, t), nx(e2), n(e3)), fld(xs(len, t), nx(e3), n(e4)), fld(xs(len, t), nx(e4), n(e5)),
-     fld(xs(len, t), nx(e5), n(e6)), ""] : List<&2, String>}:
+     fld(xs(len, t), nx(e5), n(e6)), B.Rec.field(J.pfs(lbody(xs(len, t), s, lf)), 7n)] : List<&2, String>}:
   V.dst(len, t, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, FDD(len, t, s, e0, e1, e2, e3, e4, e5, e6, e7, lf), V.inv(len, t, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hpre(len, t, s, pos, e0, e1, e2, e3, e4, e5, e6, e7, lf, hp)),
     +h0 => +h1 => +h2 => +h3 => +h4 => +h5 => +h6 => +h7 => +h8 => +h9 => +h10 => +h11 => +h12 => +h13 => +h14 => +h15 => +h16 => +h17 => +h18 => +h19 => +h20 => +h21 =>
-      pass_fields.k(len, t, d, s, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13, h14, h15, h16, h20, h21))
+      pass_fields.k(len, t, d, s, e0, e1, e2, e3, e4, e5, e6, e7, lf, hok, hs, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12, h13, h14, h15, h16, h21))
 
 def pass_pos.k(+len: U32, +t: AT.Tree<U32>, +d: Nat, +s: U32, +pos: U32, +e0: U32, +e1: U32, +e2: U32, +e3: U32, +e4: U32, +e5: U32, +e6: U32, +e7: U32, +lf: U32, +hok: {D.ok(C.BT(len, t), d) == True{} : Bool}, +hs: {U32.is_le(s, len) == True{} : Bool}, +h0: {M.TP(len, t, s) == False{} : Bool}, +h1: {M.TT(len, t, s) == True{} : Bool}, +h2: {M.TP(len, t, (M.E0(len, t, s) + 1 : U32)) == False{} : Bool}, +h3: {M.TT(len, t, (M.E0(len, t, s) + 1 : U32)) == True{} : Bool}, +h4: {M.TP(len, t, (M.E1(len, t, s) + 1 : U32)) == False{} : Bool}, +h5: {M.TT(len, t, (M.E1(len, t, s) + 1 : U32)) == True{} : Bool}, +h6: {M.TP(len, t, (M.E2(len, t, s) + 1 : U32)) == False{} : Bool}, +h7: {M.TT(len, t, (M.E2(len, t, s) + 1 : U32)) == True{} : Bool}, +h8: {M.TP(len, t, (M.E3(len, t, s) + 1 : U32)) == False{} : Bool}, +h9: {M.TT(len, t, (M.E3(len, t, s) + 1 : U32)) == True{} : Bool}, +h10: {M.TP(len, t, (M.E4(len, t, s) + 1 : U32)) == False{} : Bool}, +h11: {M.TT(len, t, (M.E4(len, t, s) + 1 : U32)) == True{} : Bool}, +h12: {M.TP(len, t, (M.E5(len, t, s) + 1 : U32)) == False{} : Bool}, +h13: {M.TT(len, t, (M.E5(len, t, s) + 1 : U32)) == True{} : Bool}, +h14: {M.TP(len, t, (M.E6(len, t, s) + 1 : U32)) == False{} : Bool}, +hc: {V.ME(len, t, s, V.LFm(len, t, s, M.TT(len, t, (M.E6(len, t, s) + 1 : U32)))) == V.K8(e0, e1, e2, e3, e4, e5, e6, e7, lf) : NF.Cut},
   +hnok: {M.Nv.ok(M.NUM(len, t, (e0 + 1 : U32), e1)) == True{} : Bool}, +hnv: {M.Nv.v(M.NUM(len, t, (e0 + 1 : U32), e1)) == pos : U32}) ->

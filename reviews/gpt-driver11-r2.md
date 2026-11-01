@@ -1,0 +1,5 @@
+1. **Should fix — new planning slowdown:** [norm.bend:407](/home/luisc/Work/bend-projects/framebender-speed/norm.bend:407). [This input](/tmp/fb-r11/r2/plan_long_500.vcf) places a record with a 100,000-base REF and 500 distinct symbolic ALTs first in a task. Without `-m`, three rounds measured **1.54–1.61 s versus main’s 0.059–0.061 s** at `--threads 1`; default threads also regress. `plan.trims` recomputes REF length and reversal for every ALT, even after the minimum trim reaches zero. **Fix:** stop at zero, cache REF-derived values, and bound estimation work with a fallback to POS.
+
+The original fixes otherwise hold: cohort and `sub.vcf` regressions are removed; w30k uses approximately **801/860 MiB** versus main’s **803/863 MiB** at one/default threads; h200 uses **703 MiB versus 958 MiB**. Scr and scr30 retain their parallel gains. The documentation changes match the recorded measurements and describe the requested slow cases.
+
+All **980 comparisons** matched stdout, stderr and exit status. Buffer-limit probes and the numeric proof’s kernel check passed.

@@ -158,6 +158,24 @@ def run_fast_done(+p: P.RunP, +o: B.Opts, +l: B.Line, +pos: Nat, +chrom: String,
   & {P.settle(P.specRun(p2)) == P.settle(R.body_line(B.Res{B.Normalized{}, pos, B.Line.body(l), False{}}, P.specRun(p), o, l, B.At{P.RunP.n(p), chrom, Nat.show(pos)}, pos)) : R.RunSt})):
   BL.fd_t(p, o, l, pos, chrom, sl, st, sd, s, k, hi, hin, hx, hok, hs, ht, hc, hbig, hk)
 
+# An out-of-scope record found on its bytes, written as it came (as the
+# fast path's, with a Skipped result).
+def run_skip_done(+p: P.RunP, +o: B.Opts, +l: B.Line, +pos: Nat, +chrom: String,
+  +sl: U32, +st: AT.Tree<U32>, +sd: Nat, +s: U32, +k: U32,
+  hi: {RunInv(p) == True{} : Bool},
+  hin: {P.RunP.i(p) == True{} : Bool},
+  hx: {P.RunP.x(p) == False{} : Bool},
+  hok: {D.ok(C.BT(sl, st), sd) == True{} : Bool},
+  hs: {Nat.is_le(Nat.add(U32.to_nat(s), U32.to_nat(k)), U32.to_nat(sl)) == True{} : Bool},
+  ht: {P.btext(sl, st, s, k) == B.Line.text(l) : String},
+  hc: {P.RunP.c(p) == Some{chrom} : Maybe<&2, String>},
+  hbig: {U32.is_le(536870912, P.RunP.obl(p)) == False{} : Bool},
+  hk: {U32.is_le(k, 268435457) == True{} : Bool}) ->
+  &p2: P.RunP -> ({NR.skip_done(P.mkRun(p), R.Opts.w(o), P.RunP.n(p), pos, C.BT(sl, st), s, k) == (P.mkRun(p2), C.BT(sl, st)) : NR.Run & D.Bytes}
+  & ({RunInv(p2) == True{} : Bool}
+  & {P.settle(P.specRun(p2)) == P.settle(R.body_line(B.Res{B.Skipped{}, pos, B.Line.body(l), False{}}, P.specRun(p), o, l, B.At{P.RunP.n(p), chrom, Nat.show(pos)}, pos)) : R.RunSt})):
+  BL.sk_t(p, o, l, pos, chrom, sl, st, sd, s, k, hi, hin, hx, hok, hs, ht, hc, hbig, hk)
+
 # The same through NR.same_done (the slow path's Same), with the line's At.
 def run_same_done(+p: P.RunP, +o: B.Opts, +l: B.Line, +at: B.At, +inpos: Nat,
   +sl: U32, +st: AT.Tree<U32>, +sd: Nat, +s: U32, +k: U32,

@@ -127,9 +127,10 @@ def PcsOK(+ps: List<&2, Pc>, +dcs: List<&2, String>) -> Type:
     case +p <> t:
       PcOK(p, String.concat(List.append(&2, String, texts(t), dcs))) & PcsOK(t, dcs)
 
-# A clean task's state: its run, the end of its last line, its window.
+# A clean task's state: its run, the end of its last line, its window, and
+# its phantom key (the plan's, or the one its second run started from).
 type TcP is Data:
-  TcP{rp: P.RunP, pd: P.PdP, wp: PC.WP}
+  TcP{rp: P.RunP, pd: P.PdP, wp: PC.WP, l: Nat}
 
 type TResP is Data:
   TDirtyP{}
@@ -139,17 +140,17 @@ type TResP is Data:
 type TOutP is Data:
   TOutP{len: U32, t: AT.Tree<U32>, d: Nat, r: TResP}
 
-def mkTRes(+fa: List<&2, B.Contig>, +k: U32, +c0: String, +l: Nat, +r: TResP) -> W.TRes:
+def mkTRes(+fa: List<&2, B.Contig>, +k: U32, +c0: String, +r: TResP) -> W.TRes:
   match r:
     case TDirtyP{}:
       W.TDirty{}
-    case TCleanP{TcP{+rp, +pd, +wp}}:
+    case TCleanP{TcP{+rp, +pd, +wp, +l}}:
       W.TClean{W.Tc{P.mkRun(rp), P.mkPd(pd), PC.mkWin(fa, wp), k, c0, l}}
 
 def mkTOut(+fa: List<&2, B.Contig>, +p: Pc, +x: TOutP) -> W.TOut:
   match p x:
-    case Pc{c, rs, ok, +k, +c0, +l} TOutP{+len, +t, d, +r}:
-      W.TOut{C.BT(len, t), mkTRes(fa, k, c0, l, r)}
+    case Pc{c, rs, ok, +k, +c0, l} TOutP{+len, +t, d, +r}:
+      W.TOut{C.BT(len, t), mkTRes(fa, k, c0, r)}
 
 def mkTOuts(+fa: List<&2, B.Contig>, +ps: List<&2, Pc>, +xs: List<&2, TOutP>) -> List<&1, W.TOut>:
   match ps xs:
@@ -161,21 +162,21 @@ def mkTOuts(+fa: List<&2, B.Contig>, +ps: List<&2, Pc>, +xs: List<&2, TOutP>) ->
 # What a clean task found, for the text cs that follows the piece: a good run
 # in the body and line end, a truthful window, and the lines ls it handled
 # (the piece's after k, up to the line end) moved into a run that stands for
-# the spec's run of ls from the phantom state.
-def TcOK(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +k: U32, +c0: String, +l: Nat, +cs: List<&2, String>, +x: TcP) -> Type:
+# the spec's run of ls from the phantom state (of its key l).
+def TcOK(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +k: U32, +c0: String, +cs: List<&2, String>, +x: TcP) -> Type:
   match x:
-    case TcP{+rp, +pd, +wp}:
+    case TcP{+rp, +pd, +wp, +l}:
       {PR.RunInv(rp) && P.RunP.i(rp) && Bool.not(P.RunP.x(rp)) && P.pd_ok(pd) && P.nolf(P.pdtext(pd)) && PC.wp_ok(fa, wp) && S.mb_win(S.MBP{rp}, wp) == True{} : Bool}
         & (&ls: List<&2, B.Line> -> ({B.Text.lines(String.append(after(c, k), String.concat(cs))) == List.append(&2, B.Line, ls, B.Text.lines(String.append(P.pdtext(pd), String.concat(cs)))) : List<&2, B.Line>}
           & {P.settle(P.specRun(rp)) == P.settle(L.run.go(ls, fa, dfs, o, SD.rs0(c0, l))) : R.RunSt}))
 
 # (Only a piece with reads, ok, can have a clean result.)
-def TResOK(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, ok: Bool, +k: U32, +c0: String, +l: Nat, +cs: List<&2, String>, +r: TResP) -> Type:
+def TResOK(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, ok: Bool, +k: U32, +c0: String, +cs: List<&2, String>, +r: TResP) -> Type:
   match ok r:
     case _ TDirtyP{}:
       Unit
     case True{} TCleanP{+x}:
-      TcOK(dfs, fa, o, c, k, c0, l, cs, x)
+      TcOK(dfs, fa, o, c, k, c0, cs, x)
     case False{} TCleanP{x}:
       Empty
 
@@ -183,8 +184,8 @@ def TResOK(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, ok: Bo
 # piece's bytes; the result is as above.
 def TOutOK(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +p: Pc, +cs: List<&2, String>, +x: TOutP) -> Type:
   match p x:
-    case Pc{+c, rs, +ok, +k, +c0, +l} TOutP{+len, +t, +d, +r}:
-      {D.ok(C.BT(len, t), d) == True{} : Bool} & ({D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>} & TResOK(dfs, fa, o, c, ok, k, c0, l, cs, r))
+    case Pc{+c, rs, +ok, +k, +c0, l} TOutP{+len, +t, +d, +r}:
+      {D.ok(C.BT(len, t), d) == True{} : Bool} & ({D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>} & TResOK(dfs, fa, o, c, ok, k, c0, cs, r))
 
 # Every piece's result, each followed by the later pieces' texts and dcs.
 def BatchOK(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +ps: List<&2, Pc>, +xs: List<&2, TOutP>, +dcs: List<&2, String>) -> Type:
@@ -303,35 +304,36 @@ def plan_step(+c: String, +t: List<&2, String>, +dcs: List<&2, String>,
 # Assembly: the batch
 # ---------------------------------------------------------------------------
 
-def conv(+r: LPP.LR) -> TResP:
+def conv(+r: LPP.LR, +l: Nat) -> TResP:
   match r:
     case LPP.LDirty{}:
       TDirtyP{}
     case LPP.LClean{+rp, +pd, +wp}:
-      TCleanP{TcP{rp, pd, wp}}
+      TCleanP{TcP{rp, pd, wp, l}}
+    case LPP.LAgain{l2, wp, sp}:
+      TDirtyP{}
 
-def mk_conv(+fa: List<&2, B.Contig>, +k: U32, +c0: String, +l: Nat, +r: LPP.LR) -> {mkTRes(fa, k, c0, l, conv(r)) == LPP.mkLR(fa, k, c0, l, r) : W.TRes}:
-  match r:
-    case LPP.LDirty{}:
-      {==}
-    case LPP.LClean{+rp, +pd, +wp}:
-      {==}
-
-def tres_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +ok: Bool, +k: U32, +c0: String, +l: Nat, +cs: List<&2, String>, +r: LPP.LR,
-  h: ON.ROK(dfs, fa, o, cs, c0, l, ON.LA(c, k, cs), r, ok)) -> TResOK(dfs, fa, o, c, ok, k, c0, l, cs, conv(r)):
+# A task's result as this file pictures it (a result is never LAgain: ROK).
+def conv_ok(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +ok: Bool, +k: U32, +c0: String, +l: Nat, +cs: List<&2, String>, +r: LPP.LR,
+  h: ON.ROK(dfs, fa, o, cs, c0, l, ON.LA(c, k, cs), r, ok)) ->
+  {mkTRes(fa, k, c0, conv(r, l)) == LPP.mkLR(fa, k, c0, l, r) : W.TRes} & TResOK(dfs, fa, o, c, ok, k, c0, cs, conv(r, l)):
   match ok:
     case True{}:
       match r:
         case LPP.LDirty{}:
-          Unit{}
+          ({==}, Unit{})
         case LPP.LClean{+rp, +pd, +wp}:
-          h
+          ({==}, h)
+        case LPP.LAgain{+l2, +wp, +sp}:
+          Empty.absurd({mkTRes(fa, k, c0, TDirtyP{}) == LPP.mkLR(fa, k, c0, l, LPP.LAgain{l2, wp, sp}) : W.TRes} & TResOK(dfs, fa, o, c, True{}, k, c0, cs, TDirtyP{}), h)
     case False{}:
       match r:
         case LPP.LDirty{}:
-          Unit{}
+          ({==}, Unit{})
         case LPP.LClean{+rp, +pd, +wp}:
-          h
+          Empty.absurd({mkTRes(fa, k, c0, TCleanP{TcP{rp, pd, wp, l}}) == LPP.mkLR(fa, k, c0, l, LPP.LClean{rp, pd, wp}) : W.TRes} & TResOK(dfs, fa, o, c, False{}, k, c0, cs, TCleanP{TcP{rp, pd, wp, l}}), h)
+        case LPP.LAgain{+l2, +wp, +sp}:
+          Empty.absurd({mkTRes(fa, k, c0, TDirtyP{}) == LPP.mkLR(fa, k, c0, l, LPP.LAgain{l2, wp, sp}) : W.TRes} & TResOK(dfs, fa, o, c, False{}, k, c0, cs, TDirtyP{}), h)
 
 def and_in(+a: Bool, +b: Bool, +ha: {a == True{} : Bool}, +hb: {b == True{} : Bool}) -> {Bool.and(a, b) == True{} : Bool}:
   %Equal.sym(Bool, a, True{}, ha) : {Bool.and(_, b) == True{} : Bool}
@@ -341,29 +343,43 @@ def BG(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +ps: List<&2, Pc>, +dc
   &xs: List<&2, TOutP> -> ({ts == mkTOuts(fa, ps, xs) : List<&1, W.TOut>} & BatchOK(dfs, fa, o, ps, xs, dcs))
 
 # A piece's task in front of the later pieces' tasks.
+def fcons.k2(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +rs: List<&2, Pr.Req>, +ok: Bool, +k: U32, +c0: String, +l: Nat,
+  +pt: List<&2, Pc>, +dcs: List<&2, String>, -tsk: W.TOut, -rest: List<&1, W.TOut>,
+  +len: U32, +t: AT.Tree<U32>, +d: Nat, +l2: Nat, +r: LPP.LR,
+  +eq: {tsk == W.TOut{C.BT(len, t), LPP.mkLR(fa, k, c0, l2, r)} : W.TOut},
+  +hok: {D.ok(C.BT(len, t), d) == True{} : Bool},
+  +hv: {D.view(C.BT(len, t)) == E.codes(c) : List<&2, U32>},
+  cv: {mkTRes(fa, k, c0, conv(r, l2)) == LPP.mkLR(fa, k, c0, l2, r) : W.TRes} & TResOK(dfs, fa, o, c, ok, k, c0, List.append(&2, String, texts(pt), dcs), conv(r, l2)),
+  ih: BG(dfs, fa, o, pt, dcs, rest)) ->
+  BG(dfs, fa, o, Pc{c, rs, ok, k, c0, l} <> pt, dcs, tsk <> rest):
+  (+ec, hres) = cv
+  (+xt, i1) = ih
+  (+ei, hbt) = i1
+  +e = {
+    %Equal.sym(List<&1, W.TOut>, rest, mkTOuts(fa, pt, xt), ei) :
+      {tsk <> _ == mkTOut(fa, Pc{c, rs, ok, k, c0, l}, TOutP{len, t, d, conv(r, l2)}) <> mkTOuts(fa, pt, xt) : List<&1, W.TOut>}
+    %Equal.sym(W.TOut, tsk, W.TOut{C.BT(len, t), LPP.mkLR(fa, k, c0, l2, r)}, eq) :
+      {_ <> mkTOuts(fa, pt, xt) == mkTOut(fa, Pc{c, rs, ok, k, c0, l}, TOutP{len, t, d, conv(r, l2)}) <> mkTOuts(fa, pt, xt) : List<&1, W.TOut>}
+    %ec :
+      {W.TOut{C.BT(len, t), _} <> mkTOuts(fa, pt, xt) == mkTOut(fa, Pc{c, rs, ok, k, c0, l}, TOutP{len, t, d, conv(r, l2)}) <> mkTOuts(fa, pt, xt) : List<&1, W.TOut>}
+    {==} : {tsk <> rest == mkTOuts(fa, Pc{c, rs, ok, k, c0, l} <> pt, TOutP{len, t, d, conv(r, l2)} <> xt) : List<&1, W.TOut>}}
+  (TOutP{len, t, d, conv(r, l2)} <> xt, (e, ((hok, (hv, hres)), hbt)))
+
 def fcons.k(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +c: String, +rs: List<&2, Pr.Req>, +ok: Bool, +k: U32, +c0: String, +l: Nat,
   +pt: List<&2, Pc>, +dcs: List<&2, String>, -tsk: W.TOut, -rest: List<&1, W.TOut>,
-  g: ON.OneG(dfs, fa, o, List.append(&2, String, texts(pt), dcs), c, ok, k, c0, l, tsk),
+  g: ON.OneG(dfs, fa, o, List.append(&2, String, texts(pt), dcs), c, ok, k, c0, tsk),
   ih: BG(dfs, fa, o, pt, dcs, rest)) ->
   BG(dfs, fa, o, Pc{c, rs, ok, k, c0, l} <> pt, dcs, tsk <> rest):
   (+len, g1) = g
   (+t, g2) = g1
   (+d, g3) = g2
-  (+r, g4) = g3
-  (+eq, g5) = g4
-  (+hok, g6) = g5
-  (+hv, hr) = g6
-  (+xt, i1) = ih
-  (+ei, hbt) = i1
-  +e = {
-    %Equal.sym(List<&1, W.TOut>, rest, mkTOuts(fa, pt, xt), ei) :
-      {tsk <> _ == mkTOut(fa, Pc{c, rs, ok, k, c0, l}, TOutP{len, t, d, conv(r)}) <> mkTOuts(fa, pt, xt) : List<&1, W.TOut>}
-    %Equal.sym(W.TOut, tsk, W.TOut{C.BT(len, t), LPP.mkLR(fa, k, c0, l, r)}, eq) :
-      {_ <> mkTOuts(fa, pt, xt) == mkTOut(fa, Pc{c, rs, ok, k, c0, l}, TOutP{len, t, d, conv(r)}) <> mkTOuts(fa, pt, xt) : List<&1, W.TOut>}
-    %mk_conv(fa, k, c0, l, r) :
-      {W.TOut{C.BT(len, t), _} <> mkTOuts(fa, pt, xt) == mkTOut(fa, Pc{c, rs, ok, k, c0, l}, TOutP{len, t, d, conv(r)}) <> mkTOuts(fa, pt, xt) : List<&1, W.TOut>}
-    {==} : {tsk <> rest == mkTOuts(fa, Pc{c, rs, ok, k, c0, l} <> pt, TOutP{len, t, d, conv(r)} <> xt) : List<&1, W.TOut>}}
-  (TOutP{len, t, d, conv(r)} <> xt, (e, ((hok, (hv, tres_ok(dfs, fa, o, c, ok, k, c0, l, List.append(&2, String, texts(pt), dcs), r, hr))), hbt)))
+  (+l2, g4) = g3
+  (+r, g5) = g4
+  (+eq, g6) = g5
+  (+hok, g7) = g6
+  (+hv, hr) = g7
+  fcons.k2(dfs, fa, o, c, rs, ok, k, c0, l, pt, dcs, tsk, rest, len, t, d, l2, r, eq, hok, hv,
+    conv_ok(dfs, fa, o, c, ok, k, c0, l2, List.append(&2, String, texts(pt), dcs), r, hr), ih)
 
 def TS(+dfs: B.Defs, +o: B.Opts, +fa: List<&2, B.Contig>, +ps: List<&2, Pc>) -> List<&1, HD.Task<&1, W.TOut>>:
   W.tasks(o, mkPls(ps), W.pairs(M.truths(fa, reqs_of(ps))), dfs)

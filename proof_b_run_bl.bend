@@ -212,6 +212,47 @@ def fd_t(+p: P.RunP, +o: B.Opts, +l: B.Line, +pos: Nat, +chrom: String, +sl: U32
         fd.k(n, h, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, o, bd, tm, pos, chrom, sl, st, sd, s, k,
           SR.sr_t(NR.Raw{}, n, h, Some{chrom}, cbl, cbt, e, la, f, b, bn, tl, R.bump(kk, False{}, False{}, False{}), obl, obt, ow, ns, pos, pos, n, None{}, k, sl, st, sd, s, k, String.append(bd, tm), R.Opts.w(o), hi2, hxl, hsz, (hok, (hs, ht)))))
 
+
+# An out-of-scope record found on its bytes (NR.skip_done): body_line of a
+# Skipped result.
+def SkG(+p: P.RunP, +o: B.Opts, +l: B.Line, +pos: Nat, +chrom: String, +sl: U32, +st: AT.Tree<U32>, +s: U32, +k: U32) -> Type:
+  &p2: P.RunP -> ({NR.skip_done(P.mkRun(p), R.Opts.w(o), P.RunP.n(p), pos, C.BT(sl, st), s, k) == (P.mkRun(p2), C.BT(sl, st)) : NR.Run & D.Bytes}
+  & ({RD.RunInv(p2) == True{} : Bool}
+  & {P.settle(P.specRun(p2)) == P.settle(R.body_line(B.Res{B.Skipped{}, pos, B.Line.body(l), False{}}, P.specRun(p), o, l, B.At{P.RunP.n(p), chrom, Nat.show(pos)}, pos)) : R.RunSt}))
+
+def sk.k(+n: Nat, +h: String, +cbl: U32, +cbt: AT.Tree<U32>, +e: List<&2, String>, +la: Maybe<&2, NR.Ck>, +f: List<&2, NR.Ck>, +b: List<&2, NR.Ck>, +bn: Nat, +tl: Nat, +kk: R.Cnt, +obl: U32, +obt: AT.Tree<U32>, +ow: U32, +ns: List<&2, B.Note>, +o: B.Opts, +bd: String, +tm: String, +pos: Nat, +chrom: String, +sl: U32, +st: AT.Tree<U32>, +sd: Nat, +s: U32, +k: U32,
+  sr: SR.SrG(NR.Raw{}, n, h, Some{chrom}, cbl, cbt, e, la, f, b, bn, tl, R.bump(kk, False{}, True{}, False{}), obl, obt, ow, ns, pos, pos, n, None{}, k, sl, st, sd, s, k, String.append(bd, tm), R.Opts.w(o))) -> SkG(P.RunP{n, True{}, h, Some{chrom}, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, False{}}, o, B.Line{bd, tm}, pos, chrom, sl, st, s, k):
+  (+p2, q1) = sr
+  (eq2, q2) = q1
+  (inv2, sp2) = q2
+  +sp3 = Equal.trans(R.RunSt, P.settle(P.specRun(p2)), P.settle(R.same_run(P.specRun(P.RunP{n, True{}, h, Some{chrom}, cbl, cbt, e, la, f, b, bn, tl, R.bump(kk, False{}, True{}, False{}), obl, obt, ow, ns, False{}}), R.Opts.w(o), NR.spec.item(NR.Ck{pos, pos, n, None{}, k}, chrom, String.append(bd, tm)))), P.settle(R.same_run(R.RunSt{n, True{}, h, Some{chrom}, e, NR.spec.last(la, FL.chromof(Some{chrom})), FL.ISS(RD.items(f, b), Some{chrom}, obl, obt, ow), R.bump(kk, False{}, True{}, False{}), String.take(FL.TXT(obl, obt), U32.to_nat(ow)), List.append(&2, B.Note, List.reverse(&2, B.Note, ns), Nil{}), False{}}, R.Opts.w(o), NR.spec.item(NR.Ck{pos, pos, n, None{}, k}, chrom, String.append(bd, tm)))), sp2,
+    Equal.cong(List<&2, B.Note>, R.RunSt, z => P.settle(R.same_run(R.RunSt{n, True{}, h, Some{chrom}, e, NR.spec.last(la, FL.chromof(Some{chrom})), FL.ISS(RD.items(f, b), Some{chrom}, obl, obt, ow), R.bump(kk, False{}, True{}, False{}), String.take(FL.TXT(obl, obt), U32.to_nat(ow)), z, False{}}, R.Opts.w(o), NR.spec.item(NR.Ck{pos, pos, n, None{}, k}, chrom, String.append(bd, tm)))), List.reverse(&2, B.Note, ns), List.append(&2, B.Note, List.reverse(&2, B.Note, ns), Nil{}), Equal.sym(List<&2, B.Note>, List.append(&2, B.Note, List.reverse(&2, B.Note, ns), Nil{}), List.reverse(&2, B.Note, ns), KD.app_nil_n(List.reverse(&2, B.Note, ns)))))
+  +sp5 = AB.subst(Bool, z => {P.settle(P.specRun(p2)) == P.settle(R.keyed.go(z, R.RunSt{n, True{}, h, Some{chrom}, e, NR.spec.last(la, FL.chromof(Some{chrom})), FL.ISS(RD.items(f, b), Some{chrom}, obl, obt, ow), R.bump(kk, False{}, True{}, False{}), String.take(FL.TXT(obl, obt), U32.to_nat(ow)), List.append(&2, B.Note, List.reverse(&2, B.Note, ns), Nil{}), False{}}, R.Opts.w(o), chrom, NR.spec.item(NR.Ck{pos, pos, n, None{}, k}, chrom, String.append(bd, tm)))) : R.RunSt}, True{}, String.eq(chrom, chrom), Equal.sym(Bool, String.eq(chrom, chrom), True{}, RBS.str_eq_refl(chrom)), sp3)
+  (p2, (eq2, (inv2, sp5)))
+
+def sk_t(+p: P.RunP, +o: B.Opts, +l: B.Line, +pos: Nat, +chrom: String, +sl: U32, +st: AT.Tree<U32>, +sd: Nat, +s: U32, +k: U32,
+  +hi: {RD.RunInv(p) == True{} : Bool},
+  +hin: {P.RunP.i(p) == True{} : Bool},
+  +hx: {P.RunP.x(p) == False{} : Bool},
+  +hok: {D.ok(C.BT(sl, st), sd) == True{} : Bool},
+  +hs: {Nat.is_le(Nat.add(U32.to_nat(s), U32.to_nat(k)), U32.to_nat(sl)) == True{} : Bool},
+  +ht: {P.btext(sl, st, s, k) == B.Line.text(l) : String},
+  +hc: {P.RunP.c(p) == Some{chrom} : Maybe<&2, String>},
+  +hbig: {U32.is_le(536870912, P.RunP.obl(p)) == False{} : Bool},
+  +hk: {U32.is_le(k, 268435457) == True{} : Bool}) -> SkG(p, o, l, pos, chrom, sl, st, s, k):
+  match p l:
+    case P.RunP{+n, False{}, +h, +c, +cbl, +cbt, +e, +la, +f, +b, +bn, +tl, +kk, +obl, +obt, +ow, +ns, +x} _:
+      Empty.absurd(SkG(P.RunP{n, False{}, h, c, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, x}, o, l, pos, chrom, sl, st, s, k), AB.false_ne_true(hin))
+    case P.RunP{+n, True{}, +h, +c, +cbl, +cbt, +e, +la, +f, +b, +bn, +tl, +kk, +obl, +obt, +ow, +ns, True{}} _:
+      Empty.absurd(SkG(P.RunP{n, True{}, h, c, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, True{}}, o, l, pos, chrom, sl, st, s, k), AB.false_ne_true(Equal.sym(Bool, True{}, False{}, hx)))
+    case P.RunP{+n, True{}, +h, +c, +cbl, +cbt, +e, +la, +f, +b, +bn, +tl, +kk, +obl, +obt, +ow, +ns, False{}} B.Line{+bd, +tm}:
+      +hxl = raw_len(sl, st, sd, s, k, String.append(bd, tm), hok, hs, ht)
+      +hsz = size_raw(obl, k, String.length(String.append(bd, tm)), hbig, hk, hxl)
+      +hi2 = AB.subst(Maybe<&2, String>, z => {RD.inv.k(True{}, h, z, cbl, cbt, f, b, bn, tl, obl, obt, ow, ns, False{}) == True{} : Bool}, c, Some{chrom}, hc, hi)
+      AB.subst(Maybe<&2, String>, z => SkG(P.RunP{n, True{}, h, z, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, False{}}, o, B.Line{bd, tm}, pos, chrom, sl, st, s, k), Some{chrom}, c, Equal.sym(Maybe<&2, String>, c, Some{chrom}, hc),
+        sk.k(n, h, cbl, cbt, e, la, f, b, bn, tl, kk, obl, obt, ow, ns, o, bd, tm, pos, chrom, sl, st, sd, s, k,
+          SR.sr_t(NR.Raw{}, n, h, Some{chrom}, cbl, cbt, e, la, f, b, bn, tl, R.bump(kk, False{}, True{}, False{}), obl, obt, ow, ns, pos, pos, n, None{}, k, sl, st, sd, s, k, String.append(bd, tm), R.Opts.w(o), hi2, hxl, hsz, (hok, (hs, ht)))))
+
 def BlG(+p: P.RunP, +r: B.Res, +o: B.Opts, +l: B.Line, +at: B.At, +inpos: Nat, +sl: U32, +st: AT.Tree<U32>, +s: U32, +k: U32) -> Type:
   &p2: P.RunP -> ({NR.body_line(r, P.mkRun(p), o, l, at, inpos, C.BT(sl, st), s, k) == (P.mkRun(p2), C.BT(sl, st)) : NR.Run & D.Bytes}
   & ({RD.RunInv(p2) == True{} : Bool}

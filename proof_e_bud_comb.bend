@@ -807,7 +807,7 @@ law comb_clean:
   for +hT: {B.Text.lines(String.append(PT.after(c, k), String.concat(List.append(&2, String, PT.texts(pt), cs)))) == List.append(&2, B.Line, ls, B.Text.lines(String.append(P.pdtext(pdT), String.concat(List.append(&2, String, PT.texts(pt), cs))))) : List<&2, B.Line>}
   for +hts: {BD.tots(PT.mkTOuts(fa, pt, xt)) == PT.texts(pt) : List<&2, String>}
   for he: WD.EofOK(e, ef, cs)
-  ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.comb.next(PT.mkTOuts(fa, PT.Pc{c, rs, True{}, k, c0, l} <> pt, PT.TOutP{len, t, d, PT.TCleanP{PT.TcP{rpT, pdT, wpT}}} <> xt), S.mkSt(fa, p), e))
+  ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.comb.next(PT.mkTOuts(fa, PT.Pc{c, rs, True{}, k, c0, l} <> pt, PT.TOutP{len, t, d, PT.TCleanP{PT.TcP{rpT, pdT, wpT, l}}} <> xt), S.mkSt(fa, p), e))
 
 def comb_clean(fa, T, cs, O, N, ef, p, c, rs, k, c0, l, a, rpT, pdT, wpT, ls, pt, xt, e, len, t, d, hb, hm, hg, hr, hbi, hok, hv, hc, hn, hT, hts, he):
   %QB.qn_mk(fa, p) : ST.BudW(fa, T, cs, ef, O, VCc(fa, T, cs, O, p, c, List.append(&2, String, PT.texts(pt), cs)), W.comb.clean(_, C.BT(len, t), W.Tc{P.mkRun(rpT), P.mkPd(pdT), PC.mkWin(fa, wpT), k, c0, l}, PT.mkTOuts(fa, pt, xt), e))
@@ -850,7 +850,7 @@ def comb_bud(dfs,fa, T, cs, O, N, ef, p, ps, xs, e, hb, hm, hst, hg, hr, hby, hp
       (+hok, i1) = h1
       (+hv, i2) = i1
       comb_dirty(fa, T, cs, O, N, ef, p, c, pt, xt, e, len, t, d, hb, hm, hg, hr, hbi, hok, hv, LI.tots_mk(dfs, fa, S.StP.o(p), pt, xt, cs, h2), he)
-    case Con{PT.Pc{+c, +rs, True{}, +k, +c0, +l}, +pt} Con{PT.TOutP{+len, +t, +d, PT.TCleanP{PT.TcP{+rpT, +pdT, +wpT}}}, +xt}:
+    case Con{PT.Pc{+c, +rs, True{}, +k, +c0, +l0}, +pt} Con{PT.TOutP{+len, +t, +d, PT.TCleanP{PT.TcP{+rpT, +pdT, +wpT, +l}}}, +xt}:
       (hp0, hps2) = hps
       (a1, q1) = hp0
       (a2, q2) = q1

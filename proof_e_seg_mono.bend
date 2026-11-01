@@ -9,36 +9,10 @@ import ./proof_run_steps.bend as ST
 import ./proof_e_defs.bend as SD
 import ./proof_e_seg_defs.bend as G
 
-# Phase E, area "seg": what only grows along a run (G.M: the messages and
+# Phase E, area "seg": what only grows along a run (G.M: being stopped and
 # the CHROMs started), so a good end state says the states before it were
 # good; and the backward fact: an item below l in T's first CHROM run's
 # buffer stops T or stays to the end (G.Bad).
-
-law app_ne:
-  for +ns: List<&2, B.Note>
-  for +x: B.Note
-  for +xs: List<&2, B.Note>
-  {List.is_empty(&2, B.Note, List.append(&2, B.Note, ns, x <> xs)) == False{} : Bool}
-
-def app_ne(ns, x, xs):
-  match ns:
-    case Nil{}:
-      {==}
-    case +y <> +t:
-      {==}
-
-law app_empty_l:
-  for +ns: List<&2, B.Note>
-  for +xs: List<&2, B.Note>
-  for h: {List.is_empty(&2, B.Note, List.append(&2, B.Note, ns, xs)) == True{} : Bool}
-  {List.is_empty(&2, B.Note, ns) == True{} : Bool}
-
-def app_empty_l(ns, xs, h):
-  match ns:
-    case Nil{}:
-      {==}
-    case +y <> +t:
-      h
 
 law push_cl:
   for +c: Maybe<&2, String>
@@ -52,7 +26,7 @@ def push_cl(c, e):
     case Some{+s}:
       {==}
 
-# A state that stopped with a message is not M.
+# A stopped state is not M.
 law stop_m:
   for +c0: String
   for +se: List<&2, String>
@@ -67,15 +41,12 @@ law stop_m:
   for +k: R.Cnt
   for +o: String
   for +ns: List<&2, B.Note>
-  for +x: Bool
   for +nt: B.Note
-  for hm: {G.M(c0, se, sc, R.RunSt{n, i, h, c, e, l, b, k, o, List.append(&2, B.Note, ns, [nt]), x}) == True{} : Bool}
+  for hm: {G.M(c0, se, sc, R.RunSt{n, i, h, c, e, l, b, k, o, List.append(&2, B.Note, ns, [nt]), True{}}) == True{} : Bool}
   Empty
 
-def stop_m(c0, se, sc, n, i, h, c, e, l, b, k, o, ns, x, nt, hm):
-  +e1 = P.and_true_l(List.is_empty(&2, B.Note, List.append(&2, B.Note, ns, [nt])), SD.chroms_ok(List.append(&2, String, SD.cur_list(c), e), c0, se, sc), hm)
-  P.false_ne_true(Equal.trans(Bool, False{}, List.is_empty(&2, B.Note, List.append(&2, B.Note, ns, [nt])), True{},
-    Equal.sym(Bool, List.is_empty(&2, B.Note, List.append(&2, B.Note, ns, [nt])), False{}, app_ne(ns, nt, Nil{})), e1))
+def stop_m(c0, se, sc, n, i, h, c, e, l, b, k, o, ns, nt, hm):
+  P.false_ne_true(hm)
 
 # M of the state before same_run.
 law sr_m:
@@ -102,7 +73,7 @@ def sr_m(c0, se, sc, n, i, h, c, e, l, b, k, o, ns, x, w, it, hm):
   ST.SR(s => {G.M(c0, se, sc, s) == True{} : Bool} -> {G.M(c0, se, sc, R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}) == True{} : Bool},
     n, i, h, c, e, l, b, k, o, ns, x, w, it,
     o3 => bad => prev => ef => hm2 => Empty.absurd({G.M(c0, se, sc, R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}) == True{} : Bool},
-      stop_m(c0, se, sc, n, i, h, c, e, l, Nil{}, k, o ++ o3, ns, True{}, B.Stop{B.Unsorted{}, Some{bad}, prev}, hm2)),
+      stop_m(c0, se, sc, n, i, h, c, e, l, Nil{}, k, o ++ o3, ns, B.Stop{B.Unsorted{}, Some{bad}, prev}, hm2)),
     o2 => l2 => ef => hm2 => hm2)(hm)
 
 # The CHROM a new run starts is fresh, and M held before.
@@ -128,7 +99,7 @@ law nr_cond:
 def nr_cond(c0, se, sc, n, i, h, chrom, c, e, k, o, ns, x, w, it, hm):
   +m = sr_m(c0, se, sc, n, i, h, Some{chrom}, R.push_cur(c, e), None{}, Nil{}, k, o, ns, x, w, it, hm)
   +cond = String.eq(chrom, c0) || (Bool.not(R.has(chrom, se)) && Bool.not(R.is_cur(sc, chrom)))
-  +ch = P.and_true_r(List.is_empty(&2, B.Note, ns), Bool.and(cond, SD.chroms_ok(R.push_cur(c, e), c0, se, sc)), m)
+  +ch = P.and_true_r(Bool.not(x), Bool.and(cond, SD.chroms_ok(R.push_cur(c, e), c0, se, sc)), m)
   P.and_true_l(cond, SD.chroms_ok(R.push_cur(c, e), c0, se, sc), ch)
 
 law nr_m0:
@@ -155,12 +126,12 @@ law nr_m0:
 def nr_m0(c0, se, sc, n, i, h, chrom, c, e, l, b, k, o, ns, x, w, it, hm):
   +m = sr_m(c0, se, sc, n, i, h, Some{chrom}, R.push_cur(c, e), None{}, Nil{}, k, o, ns, x, w, it, hm)
   +cond = String.eq(chrom, c0) || (Bool.not(R.has(chrom, se)) && Bool.not(R.is_cur(sc, chrom)))
-  +ch = P.and_true_r(List.is_empty(&2, B.Note, ns), Bool.and(cond, SD.chroms_ok(R.push_cur(c, e), c0, se, sc)), m)
+  +ch = P.and_true_r(Bool.not(x), Bool.and(cond, SD.chroms_ok(R.push_cur(c, e), c0, se, sc)), m)
   +ch2 = P.and_true_r(cond, SD.chroms_ok(R.push_cur(c, e), c0, se, sc), ch)
   %push_cl(c, e) :
-    {Bool.and(List.is_empty(&2, B.Note, ns), SD.chroms_ok(_, c0, se, sc)) == True{} : Bool}
-  S.and_intro(List.is_empty(&2, B.Note, ns), SD.chroms_ok(R.push_cur(c, e), c0, se, sc),
-    P.and_true_l(List.is_empty(&2, B.Note, ns), Bool.and(cond, SD.chroms_ok(R.push_cur(c, e), c0, se, sc)), m), ch2)
+    {Bool.and(Bool.not(x), SD.chroms_ok(_, c0, se, sc)) == True{} : Bool}
+  S.and_intro(Bool.not(x), SD.chroms_ok(R.push_cur(c, e), c0, se, sc),
+    P.and_true_l(Bool.not(x), Bool.and(cond, SD.chroms_ok(R.push_cur(c, e), c0, se, sc)), m), ch2)
 
 law nr_m:
   for +c0: String
@@ -187,9 +158,9 @@ def nr_m(c0, se, sc, n, i, h, c, e, l, b, k, o, ns, x, w, chrom, it, hm):
   ST.NR(s => {G.M(c0, se, sc, s) == True{} : Bool} -> {G.M(c0, se, sc, R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}) == True{} : Bool},
     n, i, h, c, e, l, b, k, o, ns, x, w, chrom, it,
     o3 => bad => prev => ef => hm2 => Empty.absurd({G.M(c0, se, sc, R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}) == True{} : Bool},
-      stop_m(c0, se, sc, n, i, h, c, e, l, b, k, o ++ o3, ns, True{}, B.Stop{B.Unsorted{}, Some{bad}, prev}, hm2)),
+      stop_m(c0, se, sc, n, i, h, c, e, l, b, k, o ++ o3, ns, B.Stop{B.Unsorted{}, Some{bad}, prev}, hm2)),
     o2 => l2 => ef => eg => hm2 => Empty.absurd({G.M(c0, se, sc, R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}) == True{} : Bool},
-      stop_m(c0, se, sc, n, i, h, c, e, l, b, k, o ++ o2, ns, True{}, B.Stop{B.Unsorted{}, Some{R.Item.at(it)}, None{}}, hm2)),
+      stop_m(c0, se, sc, n, i, h, c, e, l, b, k, o ++ o2, ns, B.Stop{B.Unsorted{}, Some{R.Item.at(it)}, None{}}, hm2)),
     o2 => l2 => ef => eg => hm2 => nr_m0(c0, se, sc, n, i, h, chrom, c, e, l, b, k, o ++ o2, ns, x, w, it, hm2))(hm)
 
 def keyed_m.go(+c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +g: Bool, +n: Nat, +i: Bool, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>,
@@ -251,11 +222,7 @@ law keyed_m2:
   {G.M(c0, se, sc, R.RunSt{n, i, h, c, e, l, b, k, o, ns, x}) == True{} : Bool}
 
 def keyed_m2(c0, se, sc, n, i, h, c, e, l, b, k, o, ns, x, w, it, nts, k2, hm):
-  +m = keyed_m(c0, se, sc, n, i, h, c, e, l, b, k, o, ns, x, w, it, nts, k2, hm)
-  +ch = SD.chroms_ok(List.append(&2, String, SD.cur_list(c), e), c0, se, sc)
-  S.and_intro(List.is_empty(&2, B.Note, ns), ch,
-    app_empty_l(ns, nts, P.and_true_l(List.is_empty(&2, B.Note, List.append(&2, B.Note, ns, nts)), ch, m)),
-    P.and_true_r(List.is_empty(&2, B.Note, List.append(&2, B.Note, ns, nts)), ch, m))
+  keyed_m(c0, se, sc, n, i, h, c, e, l, b, k, o, ns, x, w, it, nts, k2, hm)
 
 def hl_m(+c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +isc: Bool, +o: B.Opts, +li: B.Line, +n: Nat, +h: String, +c: Maybe<&2, String>, +e: List<&2, String>,
   +l: Maybe<&2, R.Item>, +b: List<&2, R.Item>, +k: R.Cnt, +out: String, +ns: List<&2, B.Note>,
@@ -275,7 +242,7 @@ def body_m(+c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +fa: List
   -goal = {{G.M(c0, se, sc, R.RunSt{n, i, h, c, e, l, b, k, out, ns, False{}}) == True{} : Bool} : Type}
   ST.BL(s => {G.M(c0, se, sc, s) == True{} : Bool} -> goal, L.judge(fa, X), R.RunSt{n, i, h, c, e, l, b, k, out, ns, False{}}, o, li, at, inpos,
     ST.judge_ok(fa, X),
-    cd => eu => hm2 => Empty.absurd(goal, stop_m(c0, se, sc, n, i, h, c, e, l, b, k, out ++ "", ns, True{}, B.Stop{cd, Some{at}, None{}}, hm2)),
+    cd => eu => hm2 => Empty.absurd(goal, stop_m(c0, se, sc, n, i, h, c, e, l, b, k, out ++ "", ns, B.Stop{cd, Some{at}, None{}}, hm2)),
     nts => k2 => eu => hm2 => keyed_m2(c0, se, sc, n, i, h, c, e, l, b, k, out, ns, False{}, R.Opts.w(o), L.item_of(L.judge(fa, X), li, at, inpos), nts, k2, hm2))(hm)
 
 def piece_m(+c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +fa: List<&2, B.Contig>, +o: B.Opts, +p: String, +st: R.RunSt, +term: String, +at: B.At, +inpos: Nat,
@@ -302,7 +269,7 @@ def problem_m(+c0: String, +se: List<&2, String>, +sc: Maybe<&2, String>, +stric
   {G.M(c0, se, sc, R.RunSt{n, i, h, c, e, l, b, k, out, ns, False{}}) == True{} : Bool}:
   match strict:
     case True{}:
-      Empty.absurd({G.M(c0, se, sc, R.RunSt{n, i, h, c, e, l, b, k, out, ns, False{}}) == True{} : Bool}, stop_m(c0, se, sc, n, i, h, c, e, l, b, k, out ++ "", ns, True{}, B.Stop{cd, Some{at}, None{}}, hm))
+      Empty.absurd({G.M(c0, se, sc, R.RunSt{n, i, h, c, e, l, b, k, out, ns, False{}}) == True{} : Bool}, stop_m(c0, se, sc, n, i, h, c, e, l, b, k, out ++ "", ns, B.Stop{cd, Some{at}, None{}}, hm))
     case False{}:
       keyed_m2(c0, se, sc, n, i, h, c, e, l, b, k, out, ns, False{}, w, R.Item{inpos, inpos, at, B.Line.text(li)}, [B.Warning{cd, at}], R.bump(k, False{}, False{}, True{}), hm)
 
