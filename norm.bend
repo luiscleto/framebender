@@ -24,12 +24,13 @@ import lawful-halves@0.1.0.0/halves.bend as HH
 #    reads per such piece (none if there is no such piece).
 # 3. Run: one task per piece (lawful-halves' H.all, in parallel). A task runs
 #    Q's pump on the piece's lines after its first LF, from a fresh run whose
-#    CHROM is the first line's and whose last written key is l (a phantom,
-#    above any key the task can write first: the task stops, UNSORTED, at
-#    its first write, and runs once more from the key it stopped at, which
-#    the merge checks against the true run's). It is clean when every complete line is handled on bytes,
-#    with no stop and no read its windows do not answer (its warnings, -c w,
-#    are kept, numbered from its first line).
+#    CHROM is the first line's and whose last written key is l (a phantom: a
+#    guess at the key of the task's first write, plan.first; if the task
+#    writes a smaller key it stops, UNSORTED, and runs once more from the key
+#    it stopped at, which the merge checks against the true run's). It is
+#    clean when every complete line is handled on bytes, with no stop and no
+#    read its windows do not answer (its warnings, -c w, are kept, numbered
+#    from its first line).
 # 4. Combine, in order: the line across the boundary is handled by Q on the
 #    true state; then a clean task whose run fits the true one (merge.ok) is
 #    spliced in, the true run's output and messages handed out in this step
@@ -372,22 +373,94 @@ def plan.last.k(+k: U32, +c1: String, +p1: Nat, +l: Nat, +s1: U32, r: D.Bytes & 
   (b, q) = r
   plan.last.k2(k, c1, p1, l, s1, b, q)
 
-# The phantom key is the first line's POS plus the piece's length: above any
-# key the task can write first (an item's key is at most its line's POS plus
-# its REF's length), so the task's first run stops at its first write and
-# runs again from that key, the highest phantom (merge.ok asks S's keys to be
-# at most the phantom). The first run reads only the lines up to that write.
-def plan.first(+len: U32, +k: U32, +s1: U32, c: Cp) -> Pl:
+# The phantom key: a guess at the key of the task's first write (any value
+# is correct). Above that write, the first run stops there (UNSORTED) and the
+# task runs again from that key, which costs a dense piece its lines within -w
+# bases of the first one, twice. Below it, the merge refuses the task when S's
+# buffered keys are above the phantom (a left trim moves a key past the next
+# lines' POS: scrambled padding, notes/speed.md). The guess is the first
+# line's POS moved right by its REF and ALTs' left trim (plan.est): its item's
+# key, unless the item is moved left.
+
+def plan.pre.if(same: Bool, +r: Nat) -> Nat:
+  match same:
+    case True{}:
+      Nat.add(1n, r)
+    case False{}:
+      0n
+
+# How many leading characters a and b share, at most m.
+def plan.pre(m: Nat, a: String, b: String) -> Nat:
+  match m a b:
+    case 1n+n SCon{+x, ta} SCon{+y, tb}:
+      plan.pre.if(U32.is_eq(B.Char.code(x), B.Char.code(y)), plan.pre(n, ta, tb))
+    case _ _ _:
+      0n
+
+# The bases a REF and an ALT lose on the left: after their common suffix is
+# cut (each keeping a base), their common prefix but one base.
+def plan.trim(+r: String, +a: String) -> Nat:
+  +m = Nat.min(String.length(r), String.length(a))
+  +sf = plan.pre(Nat.sub(m, 1n), String.reverse(r), String.reverse(a))
+  plan.pre(Nat.sub(Nat.sub(m, sf), 1n), r, a)
+
+def plan.trims(+r: String, as: List<&2, String>, +m: Nat) -> Nat:
+  match as:
+    case Nil{}:
+      m
+    case +a <> t:
+      plan.trims(r, t, Nat.min(m, plan.trim(r, a)))
+
+# The least of plan.trim over the ALTs (split at commas).
+def plan.est(+r: String, +alt: String) -> Nat:
+  plan.trims(r, String.split(alt, ','), String.length(r))
+
+# The first tab after j (e1 if none before it).
+def plan.tab(+e1: U32, r: D.Bytes & U32) -> D.Bytes & U32:
+  (b, +j) = r
+  F.find(b, (j + 1 : U32), e1, 9)
+
+def plan.ph.alt(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +r: String, q: D.Bytes & String) -> Pl:
+  (b, +a) = q
+  plan.last.k(k, c1, p1, Nat.add(p1, plan.est(r, a)), s1, rlf(b, len, s1))
+
+def plan.ph.t5(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +t4: U32, +r: String, q: D.Bytes & U32) -> Pl:
+  (b, +t5) = q
+  plan.ph.alt(k, c1, p1, s1, len, r, Q.text(b, (t4 + 1 : U32), (t5 - t4 - 1 : U32)))
+
+def plan.ph.ref(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +e1: U32, +t4: U32, q: D.Bytes & String) -> Pl:
+  (b, +r) = q
+  plan.ph.t5(k, c1, p1, s1, len, t4, r, F.find(b, (t4 + 1 : U32), e1, 9))
+
+# REF is t3+1 .. t4-1 and ALT from t4+1 up to the next tab (or the LF), when
+# the line has a non-empty REF and a tab after it; else the phantom is p1.
+def plan.ph.if(ok: Bool, +k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +e1: U32, +t3: U32, +t4: U32, b: D.Bytes) -> Pl:
+  match ok:
+    case True{}:
+      plan.ph.ref(k, c1, p1, s1, len, e1, t4, Q.text(b, (t3 + 1 : U32), (t4 - t3 - 1 : U32)))
+    case False{}:
+      plan.last.k(k, c1, p1, p1, s1, rlf(b, len, s1))
+
+def plan.ph.t4(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +e1: U32, +t3: U32, q: D.Bytes & U32) -> Pl:
+  (b, +t4) = q
+  plan.ph.if(U32.is_lt(t3, t4) && U32.is_lt(t4, e1), k, c1, p1, s1, len, e1, t3, t4, b)
+
+# The first line (s1 .. e1, e1 its LF): t3 is its third tab (after ID).
+def plan.ph(+k: U32, +c1: String, +p1: Nat, +s1: U32, +len: U32, +e1: U32, q: D.Bytes & U32) -> Pl:
+  (b, +t3) = q
+  plan.ph.t4(k, c1, p1, s1, len, e1, t3, plan.tab(e1, (b, t3)))
+
+def plan.first(+len: U32, +k: U32, +s1: U32, +e1: U32, c: Cp) -> Pl:
   match c:
     case Cp{b, True{}, +c1, +p1}:
-      plan.last.k(k, c1, p1, Nat.add(p1, U32.to_nat(len)), s1, rlf(b, len, s1))
+      plan.ph(k, c1, p1, s1, len, e1, plan.tab(e1, plan.tab(e1, F.find(b, s1, e1, 9))))
     case Cp{b, False{}, c1, p1}:
       Pl{b, Nil{}, False{}, k, "", 0n}
 
 def plan.e1.if(line: Bool, +len: U32, +k: U32, +e1: U32, b: D.Bytes) -> Pl:
   match line:
     case True{}:
-      plan.first(len, k, (k + 1 : U32), cp(b, (k + 1 : U32), e1))
+      plan.first(len, k, (k + 1 : U32), e1, cp(b, (k + 1 : U32), e1))
     case False{}:
       Pl{b, Nil{}, False{}, k, "", 0n}
 
@@ -681,10 +754,9 @@ def task.final(r: TOut) -> TOut:
     case TOut{b, TClean{c}}:
       TOut{b, TClean{c}}
 
-# The first run's result: when it stopped against the phantom (at its first
-# write, plan.first), the task runs once more from the key it stopped at,
-# with room for its output (task.res); the merge checks that key against the
-# true run's.
+# The first run's result: when it stopped against the phantom (an item below
+# the guess, plan.first), the task runs once more from the key it stopped at;
+# the merge checks that key against the true run's.
 def task.retry(+o: B.Opts, +len: U32, +k: U32, +el: U32, +c0: String, +dfs: B.Defs, r: TOut) -> TOut:
   match r:
     case TOut{b, TAgain{+l2, w, ws}}:
@@ -694,11 +766,9 @@ def task.retry(+o: B.Opts, +len: U32, +k: U32, +el: U32, +c0: String, +dfs: B.De
     case TOut{b, TClean{c}}:
       TOut{b, TClean{c}}
 
-# The first run stops at its first write (plan.first): it gets a small
-# output buffer (it grows if the run goes on).
 def task.start(+o: B.Opts, b: D.Bytes, +len: U32, +k: U32, p: Q.Win & List<&1, Q.Win>, +el: U32, +c0: String, +l: Nat, +dfs: B.Defs) -> TOut:
   (w, spare) = p
-  task.retry(o, len, k, el, c0, dfs, task.run1(o, b, len, k, w, spare, el, c0, l, 65536, dfs))
+  task.retry(o, len, k, el, c0, dfs, task.run1(o, b, len, k, w, spare, el, c0, l, task.res(o, len), dfs))
 
 def task.last.k(+o: B.Opts, +len: U32, ws: List<&1, Q.Win>, +k: U32, +c0: String, +l: Nat, b: D.Bytes, q: U32 & Bool, +dfs: B.Defs) -> TOut:
   (+el, fl) = q

@@ -442,6 +442,80 @@ def last_b(+k: U32, +c1: String, +p1: Nat, +l: Nat, +s1: U32, +len: U32, +t: AT.
     {W.plan.last.cp(k, c1, p1, l, _) == W.Pl{C.BT(len, t), LRS(len, t, c1, p1, s1), True{}, k, c1, l} : W.Pl}
   plcp(LOK(len, t, s1), k, c1, p1, l, LC(len, t, s1), LP(len, t, s1), len, t)
 
+# ---------------------------------------------------------------------------
+# The phantom (plan.first): the buffer comes back
+# ---------------------------------------------------------------------------
+
+# plan.tab's tab.
+def TB(+len: U32, +t: AT.Tree<U32>, +e1: U32, +j: U32) -> U32:
+  Pair.snd(D.Bytes, U32, F.find(C.BT(len, t), (j + 1 : U32), e1, 9))
+
+def tab_b(+len: U32, +t: AT.Tree<U32>, +e1: U32, +j: U32) ->
+  {W.plan.tab(e1, (C.BT(len, t), j)) == (C.BT(len, t), TB(len, t, e1, j)) : D.Bytes & U32}:
+  FE.find_pair(C.BT(len, t), (j + 1 : U32), e1, 9)
+
+# The first line's REF (after its tab t3, up to t4) and ALT (after t4, up to
+# the next tab), and the phantom.
+def RF(+len: U32, +t: AT.Tree<U32>, +t3: U32, +t4: U32) -> String:
+  Q.chars(TY(len, t, (t3 + 1 : U32), (t4 - t3 - 1 : U32)))
+
+def AF(+len: U32, +t: AT.Tree<U32>, +e1: U32, +t4: U32) -> String:
+  Q.chars(TY(len, t, (t4 + 1 : U32), (TB(len, t, e1, t4) - t4 - 1 : U32)))
+
+def PHI(+ok: Bool, +len: U32, +t: AT.Tree<U32>, +p1: Nat, +e1: U32, +t3: U32, +t4: U32) -> Nat:
+  match ok:
+    case True{}:
+      Nat.add(p1, W.plan.est(RF(len, t, t3, t4), AF(len, t, e1, t4)))
+    case False{}:
+      p1
+
+def ph.if(+ok: Bool, +len: U32, +t: AT.Tree<U32>, +k: U32, +c1: String, +p1: Nat, +s1: U32, +e1: U32, +t3: U32, +t4: U32) ->
+  {W.plan.ph.if(ok, k, c1, p1, s1, len, e1, t3, t4, C.BT(len, t)) == W.plan.last.k(k, c1, p1, PHI(ok, len, t, p1, e1, t3, t4), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}:
+  match ok:
+    case True{}:
+      +n3 = (t4 - t3 - 1 : U32)
+      +T5 = TB(len, t, e1, t4)
+      +n4 = (T5 - t4 - 1 : U32)
+      +R = RF(len, t, t3, t4)
+      %Equal.sym(D.Bytes & String, Q.text(C.BT(len, t), (t3 + 1 : U32), n3), (C.BT(len, t), R), text_p(len, t, (t3 + 1 : U32), n3)) :
+        {W.plan.ph.ref(k, c1, p1, s1, len, e1, t4, _) == W.plan.last.k(k, c1, p1, PHI(True{}, len, t, p1, e1, t3, t4), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+      %Equal.sym(D.Bytes & U32, F.find(C.BT(len, t), (t4 + 1 : U32), e1, 9), (C.BT(len, t), T5), FE.find_pair(C.BT(len, t), (t4 + 1 : U32), e1, 9)) :
+        {W.plan.ph.t5(k, c1, p1, s1, len, t4, R, _) == W.plan.last.k(k, c1, p1, PHI(True{}, len, t, p1, e1, t3, t4), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+      %Equal.sym(D.Bytes & String, Q.text(C.BT(len, t), (t4 + 1 : U32), n4), (C.BT(len, t), AF(len, t, e1, t4)), text_p(len, t, (t4 + 1 : U32), n4)) :
+        {W.plan.ph.alt(k, c1, p1, s1, len, R, _) == W.plan.last.k(k, c1, p1, PHI(True{}, len, t, p1, e1, t3, t4), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+      {==}
+    case False{}:
+      {==}
+
+def OKP(+len: U32, +t: AT.Tree<U32>, +e1: U32, +t3: U32) -> Bool:
+  U32.is_lt(t3, TB(len, t, e1, t3)) && U32.is_lt(TB(len, t, e1, t3), e1)
+
+def ph_b(+len: U32, +t: AT.Tree<U32>, +k: U32, +c1: String, +p1: Nat, +s1: U32, +e1: U32, +t3: U32) ->
+  {W.plan.ph(k, c1, p1, s1, len, e1, (C.BT(len, t), t3)) == W.plan.last.k(k, c1, p1, PHI(OKP(len, t, e1, t3), len, t, p1, e1, t3, TB(len, t, e1, t3)), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}:
+  %Equal.sym(D.Bytes & U32, W.plan.tab(e1, (C.BT(len, t), t3)), (C.BT(len, t), TB(len, t, e1, t3)), tab_b(len, t, e1, t3)) :
+    {W.plan.ph.t4(k, c1, p1, s1, len, e1, t3, _) == W.plan.last.k(k, c1, p1, PHI(OKP(len, t, e1, t3), len, t, p1, e1, t3, TB(len, t, e1, t3)), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+  ph.if(OKP(len, t, e1, t3), len, t, k, c1, p1, s1, e1, t3, TB(len, t, e1, t3))
+
+# The first line's third tab (after ID), and the phantom plan.first takes.
+def T3(+len: U32, +t: AT.Tree<U32>, +s1: U32, +e1: U32) -> U32:
+  TB(len, t, e1, TB(len, t, e1, CF(len, t, s1, e1)))
+
+def PH(+len: U32, +t: AT.Tree<U32>, +p1: Nat, +s1: U32, +e1: U32) -> Nat:
+  PHI(OKP(len, t, e1, T3(len, t, s1, e1)), len, t, p1, e1, T3(len, t, s1, e1), TB(len, t, e1, T3(len, t, s1, e1)))
+
+# plan.first, on a line with a tab: plan.last.k with the phantom PH.
+def first_b(+len: U32, +t: AT.Tree<U32>, +k: U32, +c1: String, +p1: Nat, +s1: U32, +e1: U32) ->
+  {W.plan.first(len, k, s1, e1, W.Cp{C.BT(len, t), True{}, c1, p1}) == W.plan.last.k(k, c1, p1, PH(len, t, p1, s1, e1), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}:
+  +T1 = CF(len, t, s1, e1)
+  +T2 = TB(len, t, e1, T1)
+  %Equal.sym(D.Bytes & U32, F.find(C.BT(len, t), s1, e1, 9), (C.BT(len, t), T1), FE.find_pair(C.BT(len, t), s1, e1, 9)) :
+    {W.plan.ph(k, c1, p1, s1, len, e1, W.plan.tab(e1, W.plan.tab(e1, _))) == W.plan.last.k(k, c1, p1, PH(len, t, p1, s1, e1), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+  %Equal.sym(D.Bytes & U32, W.plan.tab(e1, (C.BT(len, t), T1)), (C.BT(len, t), T2), tab_b(len, t, e1, T1)) :
+    {W.plan.ph(k, c1, p1, s1, len, e1, W.plan.tab(e1, _)) == W.plan.last.k(k, c1, p1, PH(len, t, p1, s1, e1), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+  %Equal.sym(D.Bytes & U32, W.plan.tab(e1, (C.BT(len, t), T2)), (C.BT(len, t), TB(len, t, e1, T2)), tab_b(len, t, e1, T2)) :
+    {W.plan.ph(k, c1, p1, s1, len, e1, _) == W.plan.last.k(k, c1, p1, PH(len, t, p1, s1, e1), s1, W.rlf(C.BT(len, t), len, s1)) : W.Pl}
+  ph_b(len, t, k, c1, p1, s1, e1, TB(len, t, e1, T2))
+
 def last_ok(+c1: String, +p1: Nat, +s1: U32, +len: U32, +t: AT.Tree<U32>,
   +hb1: {E.is_bytes(c1) == True{} : Bool}) ->
   {Bool.and(rs_ok2(LRS(len, t, c1, p1, s1)), two2(LRS(len, t, c1, p1, s1))) == True{} : Bool}:

@@ -296,8 +296,8 @@ def oneC(+dfs: B.Defs, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String
   %Equal.sym(Q.Win, W.task.win(R2, M.truths.one(fa, R2)), PC.mkWin(fa, WP2), we2) :
     OneG(dfs, fa, o, cs, c, True{}, k, c0, W.task.start(o, C.BT(len, tr), len, k, W.task.wins([PC.mkWin(fa, WP1), _]), EL, c0, l, dfs))
   retry_ok(dfs, fa, o, cs, c, k, c0, l, len, tr, d, EL, hfa, hab, hb0, hq, hok, hv, hk1, hL,
-    W.task.run1(o, C.BT(len, tr), len, k, PC.mkWin(fa, WP1), LP.mkWins(fa, [WP2]), EL, c0, l, 65536, dfs),
-    run1_ok(dfs, fa, o, cs, c, k, c0, l, 65536, len, tr, d, WP1, [WP2], EL, hfa, hab, hok, hv, hk1, hL, ST.run0_ok(c0, l, 65536, hb0, hq), wins2(fa, WP1, WP2, hw1, hw2)))
+    W.task.run1(o, C.BT(len, tr), len, k, PC.mkWin(fa, WP1), LP.mkWins(fa, [WP2]), EL, c0, l, W.task.res(o, len), dfs),
+    run1_ok(dfs, fa, o, cs, c, k, c0, l, W.task.res(o, len), len, tr, d, WP1, [WP2], EL, hfa, hab, hok, hv, hk1, hL, ST.run0_ok(c0, l, W.task.res(o, len), hb0, hq), wins2(fa, WP1, WP2, hw1, hw2)))
 
 def oneB(+dfs: B.Defs, +q2: Bool, +fa: List<&2, B.Contig>, +o: B.Opts, +cs: List<&2, String>, +c: String, +k: U32, +c0: String, +l: Nat,
   +R1: Pr.Req, +R2: Pr.Req,
