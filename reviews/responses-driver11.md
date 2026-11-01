@@ -17,3 +17,26 @@ against main's build (same 128, par 312, threads 2128, out, index, split 80): al
 | 3 | USAGE leaves out two slow cases the notes name: a rewritten record with INFO/END and a BAD_END line under `-c w` take the String path (scr with END: 3.5 s against 0.07 s); one `-m` line with very many large records is quadratic in `NR.mid` and can look like a hang | all three | **Fix** (fb-fix11). |
 | 4 | README: the scrambled-indels row (0.12-0.13 s; now about 0.07 s, still behind bcftools' 0.05) and the memory figures (fb-rewrite's windows: whole genome 65 MB at `--threads 1`, 340 MB at the default) are out of date | all three | **Fix** (fb-fix11), re-measured after 1 and 2. The full rewrite of the results section comes after the speed phase. |
 | 5 | fb-end costs about 4% at `--threads 1` on plain files | Claude | **Accept**, as decided when it was merged (gVCF and END files 7-20x faster); stated in the re-measured figures. |
+
+## Round 2
+
+Decisions 1-4 carried out by fb-fix11 (`notes/speed.md`, "fb-fix11"), merged in fb05255:
+- 1 (0c01467): the stand-in key is a guess from the first line's REF and ALT (POS plus the bases
+  trimmed off the left), so a dense piece runs once; a task runs again only when its first record
+  moves left of the guess. Both runs reserve their usual room (the 64 KiB first-run buffer is
+  gone). Cohort `-m` at `--threads 1` 4.93-5.07 -> 3.52-3.69 s (main 3.67-3.83), `sub.vcf`
+  0.75 -> 0.60 s and 49 -> 39 MB (main 0.63-0.66 s, 39 MB); scr and scr30 keep their gains.
+- 2 (deb5571): `NR.want` doubles below 256 MiB (was 64 MiB): w30k back to main's 801/849-856 MB;
+  h200 700 MB (main 955). Keeping the old rule for the splitter alone (h200 575 MB) needs 150-300
+  lines of proof; not done.
+- 3, 4 (6b05225): USAGE's "Speed and memory" section (END on a rewritten record, BAD_END under
+  `-c w`, one `-m` line with many large records, quadratic: 1,300 ALTs x 10,000 samples 121 s
+  against bcftools' 6.5 s) and the README's scrambled row, slower-than-bcftools clause and memory
+  figures.
+
+fb-fix11's gate: `check.sh`'s steps pass; same 128, par 312, threads 2128, out, index, split 80
+identical to main's build.
+
+Open, outside this review: a generated `-m` file (`data/tmp/fix11/`, ph30) with `-w 100000000`
+segfaulted once on main's build and on this one, and ran out a 900 s timeout on a rerun; it
+predates the branch.
