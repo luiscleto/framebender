@@ -795,3 +795,115 @@ the same across the builds in every run. Wall s (min-max of 3; kg.gz 2 runs, bcf
 - The splitter's own growth policy (above): 125 MB on h200, for its proofs.
 - The README's `--threads 8` and `--threads 4` memory rows, and its times, were not re-measured
   (the brief asked for `--threads 1` and the default).
+
+# fb-fix11b: driver review 11, round 2's fixes (2026-11-01)
+
+Brief: `notes/briefs/FIX11B.md` (decisions 6-8 in `reviews/responses-driver11.md`). Branch
+`speed-fix11b` from 8646585. No law, spec or contract change. Scratch: `data/tmp/fix11b/` (builds
+`fb_main` from main 984688a, `fb_base` from 8646585, `fb_new`, `fb_b1k`; the reviewers' inputs and
+mine in `in/`, their generators and `gen_big4k.py` in `gen/`; `bench.sh`, `cmp.sh`, `suite.sh`,
+`gate.sh`, `findsf.sh`).
+
+## 1. The phantom guess (decision 6)
+
+fb-fix11's guess decoded the first line's REF and ALT into Strings (`Q.text`) whatever their size,
+and `plan.trims` reversed REF and took its length again for every ALT. A 100,000-base REF with
+500 symbolic ALTs first in a piece (GPT's `plan_long_500.vcf`) took 1.5 s at `--threads 1`
+(main 0.06 s); 40 lines of 1 MB deletions or insertions (Claude's `gen_bigref.py`) were about 30%
+slower than main.
+
+Now (`norm.bend`, `plan.ph*`, `plan.est.n`, `plan.trims`): `plan.ph.t4` finds the tab after ALT
+(t5) before anything is decoded, and the guess is taken only when `t5 - t3` (REF, ALT and a tab)
+is at most `plan.big()` = 4096 bytes; else the phantom is POS. REF's reversal and length are
+computed once, and `plan.trims` stops at a trim of 0 (most first lines: an SNP's trim is 0 at the
+first ALT). Below the bound the guess's work is linear in the line's REF and ALT bytes.
+
+Proof: the phantom is existential in the piece lemma, so only `proof_e_task_buf.bend`'s `PHI`
+(now over t5), `ph.if`, `OKP` (the size test) and `ph_b` (one more `tab_b` rewrite) changed.
+`plan.trims` matches the list before the count, which is how bend accepts the self-call as
+decreasing (a mutually recursive helper was refused).
+
+A 1 KiB bound (`fb_b1k`) was tried on `big4k.vcf` (mine: dense chr22 lines, 60% with REF+ALT bytes
+of 3,700-4,500 and a left pad, so pieces start on both sides of 4 KiB): no faster than 4 KiB
+(0.396-0.421 s against 0.390-0.440 s at `--threads 1`, main 0.375-0.397 s; 5 rounds). That 5%
+against main is on fb_base too and not from the guess; 4 KiB was kept.
+
+## 2. README's scrambled row (decision 7)
+
+framebender and bcftools interleaved, 5 rounds, `data/scr.vcf -c w`: writing to a file (the
+README's method), bcftools 0.066-0.087 s and framebender 0.064-0.082 s (10 runs of each over
+`bench.sh` and a separate run); to `/dev/null`, bcftools 0.048-0.057 s and framebender
+0.062-0.071 s (Claude's 0.047-0.052 / 0.060-0.069). The row now reads 0.07-0.09 / 0.06-0.08 s,
+and the clause says such files are still somewhat slower when the output is not written to disk
+(0.06 against 0.05 s) and that 30 copies in a row (scr30) take 0.21 s against bcftools' 0.51 s.
+
+## 3. USAGE's many-ALT -m bullet (decision 8)
+
+One line, 325 ALTs, GT:AD (`data/tmp/memory/gen.py manyalt`, which reproduces Grok's 10,000-sample
+file byte for byte), `-c w -m -any`, default threads:
+
+| samples | new | main | bcftools |
+|---|---|---|---|
+| 10,000 | 7.37-7.42 s / 257-259 MB | 7.48 s / 321 MB | 0.48 s / 86 MB |
+| 100,000 | 74.7 s / 1379-1383 MB | 76.1 s / 1891 MB | 4.97 s / 642 MB |
+
+(new 3 rounds, main and bcftools 1.) The bullet now gives both runs' time and memory.
+
+## Timings
+
+`data/tmp/fix11b/bench.sh 5`, 14:12 to 14:25, main / base / new interleaved (order rotated each
+round), each run under `data/tmp/bench.lock`, `nice -n 19`, `taskset -c 0-15`, `-c w`, output to a
+file. Load 4.3 at the start (this agent's own correctness runs had just ended), 1.2-1.9 after; no
+other timing. Output md5 the same across the three builds on every input. Wall s (min-max of 5),
+peak RSS MB.
+
+| input | main | base (8646585) | new | bcftools |
+|---|---|---|---|---|
+| plan_long_500 (GPT) | 0.057-0.068 / 39-41 | 1.52-1.57 / 38-41 | **0.049-0.066 / 31-33** | |
+| same, `--threads 1` | 0.056-0.078 / 37 | 1.50-1.56 / 37-41 | **0.047-0.059 / 29** | |
+| plan_long_100 | 0.056-0.075 / 39-41 | 0.347-0.373 / 39-41 | 0.048-0.059 / 31-33 | |
+| same, `--threads 1` | 0.056-0.077 / 37 | 0.345-0.363 / 37 | 0.048-0.065 / 29 | |
+| plan_long_1 | 0.056-0.067 / 39-41 | 0.057-0.068 / 39-43 | 0.048-0.069 / 31-35 | |
+| same, `--threads 1` | 0.056-0.065 / 37-41 | 0.056-0.074 / 37 | 0.049-0.067 / 29 | |
+| bigdel, 1 MB deletions (Claude) | 2.23-2.36 / 645-648 | 2.93-3.02 / 641-646 | **2.23-2.36 / 643-646** | |
+| same, `--threads 1` | 3.39-3.54 / 233 | 4.15-4.22 / 233 | **3.41-3.54 / 233** | |
+| bigins, 1 MB insertions (Claude) | 1.53-1.54 / 479-484 | 2.13-2.18 / 477-482 | **1.51-1.57 / 479-482** | |
+| same, `--threads 1` | 1.90-1.95 / 245 | 2.55-2.63 / 243-245 | **1.90-2.01 / 243** | |
+| big4k (mine) | 0.291-0.310 / 77-83 | 0.302-0.331 / 79-81 | 0.304-0.322 / 77-79 | |
+| same, `--threads 1` | 0.374-0.388 / 29 | 0.393-0.421 / 29 | 0.390-0.422 / 29-33 | |
+| 1000 Genomes sub | 0.271-0.291 / 243-247 | 0.267-0.350 / 237-239 | 0.265-0.280 / 238-239 | |
+| sub, `--threads 1` | 0.632-0.644 / 39 | 0.585-0.629 / 39 | 0.583-0.635 / 39-43 | |
+| cohort | 0.109-0.121 / 238-241 | 0.112-0.120 / 238-239 | 0.110-0.119 / 237-239 | |
+| cohort, `--threads 1` | 0.276-0.326 / 51-53 | 0.244-0.362 / 51 | 0.260-0.349 / 51 | |
+| cohort `-m -any` | 1.14-1.26 / 356-363 | 1.03-1.13 / 325-330 | 0.98-1.14 / 324-331 | |
+| cohort `-m -any`, `--threads 1` | 3.56-3.81 / 75 | 3.52-3.78 / 75-79 | 3.54-3.78 / 75 | |
+| scr | 0.107-0.121 / 83-89 | 0.064-0.078 / 108-113 | 0.064-0.080 / 109-111 | 0.073-0.087 |
+| scr, `--threads 1` | 0.117-0.141 / 39 | 0.094-0.111 / 59 | 0.095-0.114 / 59 | |
+| scr30 | 0.701-0.724 / 247-249 | 0.200-0.222 / 241-243 | 0.207-0.223 / 242-243 | 0.509-0.534 |
+| scr30, `--threads 1` | 0.842-0.870 / 47 | 0.692-0.719 / 37-41 | 0.696-0.706 / 37 | |
+
+fb-fix11's results (cohort, sub, scr, scr30) are kept. The new build's 8 MB less on the
+plan_long files is the 100,000-base REF no longer decoded.
+
+## Checks
+
+- Gate (`gate.sh`, each step through `test/bcheck.sh`): `examples.bend` 38 TODOs only, `main.bend`
+  "rely on unsafe" only, `PROOF.bend` ALL PROOFS CHECK with `--check-only` and `--verdict`.
+- Against main's build, private dirs (`suite.sh`): `same.sh` 128, `par.sh` 312, `threads.sh` 2128
+  identical (usage errors and thread counts OK), `out.sh` OK, `index.sh` ALL PASS, `split.sh` 80
+  as bcftools.
+- `cmp.sh`, 239 runs, stdout, stderr and exit code against main's build: fb-fix11's set (ph30 with
+  `-w 100000000` left out: it crashes or runs 900 s on main's build) plus the plan_long files
+  (`-c e`/`-c w` x `--threads 1/3/16`, and `-m -any`), the 1 MB and 100 kb / 10 kb deletion and
+  insertion files (`-c e`/`-c w` x default and `--threads 1`), big4k, and the 325-ALT `-m` line.
+  All the same.
+
+## Found, not fixed (predates the branch)
+
+`data/kg/sub.vcf -c w -w 100000000` segfaults on main's build (984688a), on 8646585 and on this
+branch alike, every time, at the default and at `--threads 1`, with `ulimit -s unlimited` too:
+stderr ends "bend: memory fault (machine stack overflow?)", after 35,351 bytes of output (stdout
+and stderr the same across the builds). It is in fb-fix11's run set too, whose `cmp.sh` compared
+outputs but did not flag crashes; this branch's `cmp.sh` now prints CRASH lines. With the window
+as large as the 800 MB file, something in the trusted part or the runtime recurses deeply;
+not looked into further.
