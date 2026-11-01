@@ -1,11 +1,11 @@
 import Base
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_seq.bend as Q
-import lawful-bytes@0.1.0.0/proof_list.bend as BL
-import lawful-bytes@0.1.0.0/proof_same.bend as S
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_seq.bend as Q
+import lawful-bytes@0.1.1.0/proof_list.bend as BL
+import lawful-bytes@0.1.1.0/proof_same.bend as S
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U
-import lawful-fields@0.1.0.0/defs.bend as FD
+import lawful-fields@0.1.1.0/defs.bend as FD
 
 # List facts for proof_b_alleles.bend: FD.split at the first separator, and
 # take/drop/slice arithmetic. Every variable is reusable.

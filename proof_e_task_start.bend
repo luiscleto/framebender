@@ -16,10 +16,10 @@ import ./proof_b_run_num.bend as NM
 import ./proof_b_run_sz.bend as SZ
 import ./proof_b_cache_lem.bend as CL
 import ./proof_e_defs.bend as SD
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_grow.bend as G
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_grow.bend as G
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import lawful-arrays@0.1.0.0/proof_index.bend as I

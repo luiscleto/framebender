@@ -18,7 +18,7 @@ import ./proof_b_adv_tostr.bend as TS
 import ./proof_b_adv_line.bend as LI
 import ./proof_b_adv_sp.bend as HX
 import ./proof_b_defs_line.bend as DL
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # adv_ok on the #CHROM line in the byte mode (norm.bend head with isc True):

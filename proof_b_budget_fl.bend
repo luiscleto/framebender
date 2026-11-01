@@ -25,13 +25,13 @@ import ./proof_b_adv_judge.bend as JG
 import ./proof_b_adv_wr.bend as WR
 import ./proof_b_lines.bend as LN
 import ./proof_b_alleles_loop.bend as ALP
-import lawful-bytes@0.1.0.0/proof_list.bend as BL
+import lawful-bytes@0.1.1.0/proof_list.bend as BL
 import ./proof_b_run.bend as PR
 import ./proof_b_adv_ib.bend as IB
 import ./proof_b_adv_line.bend as LI
 import ./proof_b_adv_sp.bend as HX
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U

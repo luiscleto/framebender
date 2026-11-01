@@ -15,10 +15,10 @@ import ./proof_b_run_fin.bend as FN
 import ./proof_b_run_add.bend as AD
 import ./proof_b_run_sr.bend as SR
 import ./proof_run_base.bend as RBS
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_grow.bend as G
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_grow.bend as G
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N

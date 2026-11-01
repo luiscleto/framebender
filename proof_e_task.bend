@@ -19,8 +19,8 @@ import ./proof_e_task_loop.bend as LPP
 import ./proof_e_task_one.bend as ON
 import lawful-halves@0.1.0.0/proof_all.bend as HA
 import lawful-words@0.1.0.0/proof_nat.bend as N
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-halves@0.1.0.0/defs.bend as HD
 import lawful-halves@0.1.0.0/halves.bend as HH

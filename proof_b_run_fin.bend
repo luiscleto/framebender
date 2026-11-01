@@ -9,8 +9,8 @@ import ./proof_b_run_inv.bend as PI
 import ./proof_b_run_buf.bend as BF
 import ./proof_b_run_flush.bend as FL
 import ./proof_run_base.bend as RBS
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N

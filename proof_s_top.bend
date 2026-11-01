@@ -9,11 +9,11 @@ import ./proof_s_w.bend as W
 import ./proof_s_wt.bend as WT
 import ./proof_s_ws.bend as S
 import ./proof_s_ck.bend as CK
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/LAWS.bend as BL
-import lawful-bytes@0.1.0.0/PROOF.bend as BP
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/LAWS.bend as BL
+import lawful-bytes@0.1.1.0/PROOF.bend as BP
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-arrays@0.1.0.0/proof_base.bend as AB0
 import lawful-words@0.1.0.0/proof_nat.bend as N

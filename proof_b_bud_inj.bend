@@ -7,7 +7,7 @@ import ./norm_run.bend as NR
 import ./norm_split.bend as NS
 import ./proof_b_defs.bend as P
 import ./bytes_enc.bend as E
-import lawful-fields@0.1.0.0/defs.bend as FD
+import lawful-fields@0.1.1.0/defs.bend as FD
 import ./proof_b_cachedefs.bend as PC
 import ./proof_b_simdefs.bend as S
 import ./proof_b_adv_line.bend as LI
@@ -30,11 +30,11 @@ import ./proof_b_budget_fast.bend as BFa
 import ./proof_b_bud_split.bend as BS
 import ./proof_b_bud_ref.bend as BR
 import ./proof_b_adv_ref.bend as AR
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/fast.bend as F
-import lawful-bytes@0.1.0.0/proof_find.bend as PF
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/fast.bend as F
+import lawful-bytes@0.1.1.0/proof_find.bend as PF
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import lawful-words@0.1.0.0/proof_nat.bend as N

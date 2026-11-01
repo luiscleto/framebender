@@ -22,7 +22,7 @@ import ./proof_b_adv_str.bend as T
 import ./proof_b_adv_wf.bend as W
 import ./proof_b_adv_dec.bend as DE
 import ./proof_b_adv_wr.bend as WR
-import lawful-fields@0.1.0.0/defs.bend as FD
+import lawful-fields@0.1.1.0/defs.bend as FD
 import ./proof_b_run.bend as PR
 import ./proof_b_lines.bend as LN
 import ./proof_b_adv_nat.bend as LP
@@ -36,8 +36,8 @@ import ./proof_b_adv_ref.bend as AR
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 
 # The byte splitter's branch of the byte mode (norm_seq.bend's split.b,
 # split.out, inject): a line with a comma in ALT, split on its bytes, puts

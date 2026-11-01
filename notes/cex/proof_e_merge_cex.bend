@@ -6,7 +6,7 @@ import ./norm.bend as W
 import ./proof_b_defs.bend as P
 import ./proof_b_rundefs.bend as PR
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 
 # The counterexample to merge_spec before merge.ok's phantom test
 # (notes/parallel_proofs_merge.md): T's last is the phantom while T's CHROM is

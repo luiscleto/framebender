@@ -15,7 +15,7 @@ import ./proof_b_budget_dig.bend as G
 import ./proof_b_bud_start.bend as BSt
 import ./proof_b_drive.bend as DRV
 import ./proof_base.bend as PB
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./proof_e_bud_defs.bend as BD

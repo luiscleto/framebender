@@ -27,13 +27,13 @@ import ./proof_b_lit.bend as LT
 import ./proof_b_lines_pd.bend as Y
 import ./proof_b_lines_str.bend as LSS
 import lawful-words@0.1.0.0/proof_nat.bend as NN
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 import ./proof_c_defs.bend as Q
 import ./proof_c_pre.bend as PE
 import ./proof_c_cache.bend as CC
 import ./proof_c_advf.bend as AF
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import lawful-words@0.1.0.0/proof_nat.bend as N

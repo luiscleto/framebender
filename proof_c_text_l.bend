@@ -9,9 +9,9 @@ import ./proof_b_adv_slow.bend as SLW
 import ./proof_b_lines_str.bend as LSS
 import ./proof_c_text_s.bend as TS
 import ./proof_run_rec.bend as RR
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_same.bend as SM
-import lawful-bytes@0.1.0.0/proof_append.bend as PA
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_same.bend as SM
+import lawful-bytes@0.1.1.0/proof_append.bend as PA
 import lawful-words@0.1.0.0/proof_nat.bend as N
 
 # Phase C: the rewritten line's text, from the line's own bytes: its pieces

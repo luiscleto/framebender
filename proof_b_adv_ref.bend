@@ -23,8 +23,8 @@ import ./proof_b_adv_dec.bend as DE
 import ./proof_run_base.bend as RB
 import ./proof_s_one.bend as OI
 import ./proof_s_laws.bend as SLA
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U

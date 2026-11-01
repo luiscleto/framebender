@@ -12,8 +12,8 @@ import ./proof_e_merge_sp.bend as MS
 import ./proof_e_merge_ok.bend as OK
 import ./proof_run_base.bend as RB
 import lawful-words@0.1.0.0/proof_nat.bend as N
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/defs.bend as A
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import ./proof_e_seg_nf.bend as NF

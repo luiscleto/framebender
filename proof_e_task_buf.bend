@@ -3,11 +3,11 @@ import ./protocol.bend as Pr
 import ./norm_seq.bend as Q
 import ./norm.bend as W
 import ./bytes_enc.bend as E
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/fast.bend as F
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_same.bend as SM
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/fast.bend as F
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_same.bend as SM
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_bytes.bend as WB
 import ./proof_b_fasteq.bend as FE

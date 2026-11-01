@@ -9,9 +9,9 @@ import ./proof_s_cut.bend as K
 import ./proof_s_scan.bend as SC
 import ./proof_s_read.bend as RD
 import ./proof_b_fasteq.bend as FE
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/fast.bend as F
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/fast.bend as F
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U

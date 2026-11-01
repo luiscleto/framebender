@@ -9,9 +9,9 @@ import ./proof_c_tan_el.bend as TE
 import ./proof_c_tan_alk.bend as TA
 import ./proof_b_lit.bend as LT
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_same.bend as BS
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_same.bend as BS
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U

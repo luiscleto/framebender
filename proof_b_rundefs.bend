@@ -4,8 +4,8 @@ import ./run.bend as R
 import ./norm_run.bend as NR
 import ./bytes_enc.bend as E
 import ./proof_b_defs.bend as P
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # The run area's invariant (definitions only; the proofs are in

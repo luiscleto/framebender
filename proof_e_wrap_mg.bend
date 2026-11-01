@@ -17,8 +17,8 @@ import ./proof_e_defs.bend as SD
 import ./proof_e_seg.bend as SG
 import ./proof_e_merge.bend as MG
 import ./proof_e_wrap_spec.bend as SP
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Helpers for proof_e_wrap.bend (area E1): the merge of a clean piece, on

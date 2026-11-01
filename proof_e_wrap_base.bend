@@ -11,8 +11,8 @@ import ./proof_b_simdefs.bend as S
 import ./proof_b_drivedefs.bend as DR
 import ./proof_b_drive_out.bend as DO
 import ./proof_base.bend as PB
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 import ./norm_run.bend as NR
 import ./proof_e_task.bend as PT
 import ./proof_e_wrap_defs.bend as WD

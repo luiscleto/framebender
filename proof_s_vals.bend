@@ -10,11 +10,11 @@ import ./proof_s_ws.bend as S
 import ./proof_s_cut.bend as K
 import ./proof_s_scan.bend as SC
 import ./proof_s_read.bend as RD
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-fields@0.1.0.0/defs.bend as FD
-import lawful-fields@0.1.0.0/LAWS.bend as FL
-import lawful-fields@0.1.0.0/PROOF.bend as FP
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-fields@0.1.1.0/defs.bend as FD
+import lawful-fields@0.1.1.0/LAWS.bend as FL
+import lawful-fields@0.1.1.0/PROOF.bend as FP
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U

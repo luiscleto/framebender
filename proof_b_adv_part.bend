@@ -13,9 +13,9 @@ import ./proof_b_adv_wf.bend as W
 import ./proof_b_adv_str.bend as TS
 import ./proof_b_adv_line.bend as LI
 import ./proof_b_adv_nat.bend as LP
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as NN
 

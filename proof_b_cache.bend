@@ -10,19 +10,19 @@ import ./proof_window_defs.bend as WS
 import ./proof_b_defs.bend as P
 import ./proof_b_fasteq.bend as FE
 import ./norm_fast.bend as NF
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import ./proof_b_cache_lem.bend as X
 import ./proof_b_cache_te.bend as TE
 import ./proof_b_cache_hit.bend as H
 import ./proof_b_enc_lem.bend as EL
-import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-bytes@0.1.1.0/proof_ops.bend as O
 import lawful-words@0.1.0.0/proof_u32.bend as U
 import ./proof_b_enc.bend as PE
-import lawful-bytes@0.1.0.0/proof_same.bend as SM
+import lawful-bytes@0.1.1.0/proof_same.bend as SM
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./proof_window_lists.bend as WL
 import ./proof_b_cachedefs.bend as CD
@@ -430,8 +430,9 @@ def cx.z(+r: String, +a0: Nat, +b0: Nat, +a: Nat, +b: Nat,
   +TW = PE.enc_t(lt)
   +S = U32.from_nat(Nat.sub(Nat.min(a, l), Nat.min(a0, l)))
   %Equal.sym(Nat, Nat.sub(Nat.min(b, l), Nat.min(a, l)), 0n, hn) : {Norm.chars(Pair.snd(D.Bytes, List<&2, U32>, BY.to_list(C.BT(LW, TW), S, U32.from_nat(_)))) == CD.letters(r, a, b) : String}
-  %Equal.sym(D.Bytes & U32, BY.at(C.BT(LW, TW), S), (C.BT(LW, TW), C.AT(LW, TW, S)), C.at_pair_t(LW, TW, S)) :
-    {Norm.chars(Pair.snd(D.Bytes, List<&2, U32>, BY.to_list.go(U32.to_nat(0), _, S))) == CD.letters(r, a, b) : String}
+  +J = ((S + 0 : U32) - 1 : U32)
+  %Equal.sym(D.Bytes & U32, BY.at(C.BT(LW, TW), J), (C.BT(LW, TW), C.AT(LW, TW, J)), C.at_pair_t(LW, TW, J)) :
+    {Norm.chars(Pair.snd(D.Bytes, List<&2, U32>, BY.to_list.go(U32.to_nat(0), _, J, Nil{}))) == CD.letters(r, a, b) : String}
   Equal.sym(String, CD.letters(r, a, b), "", X.len0(CD.letters(r, a, b), Equal.trans(Nat, String.length(CD.letters(r, a, b)), Nat.sub(Nat.min(b, String.length(r)), Nat.min(a, String.length(r))), 0n, len_letters(r, a, b), hn)))
 
 # The bound for to_list's view law, and the indices as Nats.

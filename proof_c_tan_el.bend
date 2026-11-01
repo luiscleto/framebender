@@ -4,9 +4,9 @@ import ./norm_fix.bend as NX
 import ./proof_c_defs.bend as Q
 import ./proof_c_tan_lists.bend as TL
 import ./proof_c_tan_num.bend as TN
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_ops.bend as O
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U

@@ -19,8 +19,8 @@ import ./proof_e_wrap_defs.bend as WD
 import ./proof_e_wrap_base.bend as WB
 import ./proof_e_wrap_qx.bend as QX
 import ./proof_e_wrap_qd.bend as QD
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Helpers for proof_e_wrap.bend (area E1): a step of Q while combining (a

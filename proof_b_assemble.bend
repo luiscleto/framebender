@@ -18,7 +18,7 @@ import ./proof_b_drive_step.bend as DS
 import ./proof_base.bend as PB
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import lawful-words@0.1.0.0/proof_nat.bend as N
-import lawful-bytes@0.1.0.0/defs.bend as D
+import lawful-bytes@0.1.1.0/defs.bend as D
 import ./proof_b_fa_bytes.bend as FB
 import ./proof_b_drive_chunk.bend as DC
 

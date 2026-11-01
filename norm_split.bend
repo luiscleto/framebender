@@ -1,10 +1,10 @@
 import Base
 import ./types.bend as B
 import ./norm_run.bend as NR
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/fast.bend as F
-import lawful-fields@0.1.0.0/fields.bend as FC
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/fast.bend as F
+import lawful-fields@0.1.1.0/fields.bend as FC
 
 # framebender: splitting a multiallelic record on its bytes (code, not spec).
 # With -m, a body line whose ALT field has a comma is split here without

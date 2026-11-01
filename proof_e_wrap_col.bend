@@ -21,8 +21,8 @@ import ./proof_e_wrap_qd.bend as QD
 import ./LAWS.bend as L
 import ./proof_e_wrap_mc.bend as MC
 import ./proof_e_wrap_comb.bend as WC
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 import lawful-halves@0.1.0.0/halves.bend as HH
 
 # Helpers for proof_e_wrap.bend (area E1): no batch (a piece starts one or

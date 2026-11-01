@@ -4,7 +4,7 @@ import ./norm_seq.bend as Norm
 import ./norm_line.bend as J
 import ./bytes_enc.bend as E
 import ./norm_fast.bend as NF
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 import ./proof_b_defs.bend as P
 
 # The machine's reference cache (norm.bend: Win, win_of, serve, parts,

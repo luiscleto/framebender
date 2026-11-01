@@ -20,8 +20,8 @@ import ./proof_fast.bend as PF
 import ./proof_machine_fasta.bend as MF
 import ./proof_base.bend as PB
 import ./proof_machine_nat.bend as PN
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./proof_f_args.bend as A

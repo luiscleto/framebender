@@ -16,8 +16,8 @@ import ./proof_b_budget_sdefs.bend as BDs
 import ./proof_b_budget_step.bend as BS
 import ./proof_b_enc.bend as EN
 import ./proof_base.bend as PB
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U
 import lawful-arrays@0.1.0.0/proof_base.bend as AB

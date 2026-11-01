@@ -27,8 +27,8 @@ import ./proof_b_adv_wr.bend as WR
 import ./proof_b_adv_hit.bend as FH
 import ./proof_b_adv_msx.bend as MSX
 import ./proof_b_adv_injr.bend as IR
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as NN
 import lawful-words@0.1.0.0/proof_u32.bend as U

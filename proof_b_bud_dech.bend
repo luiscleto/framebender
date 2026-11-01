@@ -32,8 +32,8 @@ import ./proof_b_budget_lem.bend as BL
 import ./proof_b_bud_vd.bend as BV
 import ./proof_s_recs.bend as RSC
 import ./proof_b_bud_split.bend as BS
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import lawful-words@0.1.0.0/proof_nat.bend as N

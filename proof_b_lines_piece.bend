@@ -6,9 +6,9 @@ import ./proof_b_defs.bend as P
 import ./proof_b_enc.bend as EN
 import ./proof_b_lines_str.bend as S
 import ./proof_b_lines_pd.bend as Y
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_find.bend as FD
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_find.bend as FD
 
 # A piece given by the driver as a source from 0 (piece_src of
 # proof_b_lines.bend), through the enc area's enc_bt and enc_ok.

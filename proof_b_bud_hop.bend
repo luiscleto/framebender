@@ -24,9 +24,9 @@ import ./proof_b_run_ins.bend as RI
 import ./proof_b_enc.bend as EN
 import ./proof_b_lit.bend as LIT
 import ./proof_b_lines_str.bend as LS
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_ops.bend as O
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_ops.bend as O
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Two budget lemmas (notes/bytes_proofs_budget.md, "For pb-run", R1 and

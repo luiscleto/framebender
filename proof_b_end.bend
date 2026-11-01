@@ -12,8 +12,8 @@ import ./proof_b_end_inf.bend as IE
 import ./proof_b_end_key.bend as EK
 import ./proof_c_pre_ifo.bend as IF
 import ./proof_window_info.bend as W
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-arrays@0.1.0.0/proof_base.bend as AB
 import ./proof_b_cut_nat.bend as Z

@@ -1,10 +1,10 @@
 import Base
 import ./bytes_enc.bend as E
 import ./norm_seq.bend as Norm
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/bytes.bend as BY
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_same.bend as SM
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_same.bend as SM
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import ./proof_b_cache_lem.bend as X
 import ./proof_b_enc.bend as PE

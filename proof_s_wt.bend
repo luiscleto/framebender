@@ -7,9 +7,9 @@ import ./proof_b_run_buf.bend as BF
 import ./proof_b_adv_nat.bend as LP
 import ./proof_b_alleles_list.bend as LS
 import ./proof_s_w.bend as W
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
-import lawful-bytes@0.1.0.0/proof_seq.bend as Q
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_seq.bend as Q
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import lawful-words@0.1.0.0/proof_nat.bend as N
 import lawful-words@0.1.0.0/proof_u32.bend as U

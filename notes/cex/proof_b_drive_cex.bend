@@ -5,7 +5,7 @@ import ./run.bend as R
 import ./norm.bend as Norm
 import ./norm_run.bend as NR
 import ./bytes_enc.bend as E
-import lawful-bytes@0.1.0.0/bytes.bend as BY
+import lawful-bytes@0.1.1.0/bytes.bend as BY
 
 # Counterexamples to proof_b_drive.bend's pump_ok, step_eof, step_ref,
 # step_chunk (cases 1, 2) and start_ok (case 3) as stated (`bend proof_b_drive_cex.bend`;

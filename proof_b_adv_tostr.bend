@@ -13,7 +13,7 @@ import ./proof_b_simdefs.bend as S
 import ./proof_b_run.bend as PR
 import ./proof_b_adv_wf.bend as W
 import ./proof_b_adv_ms.bend as MS
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # The byte run switches to the String mode (norm.bend's to_ms, from

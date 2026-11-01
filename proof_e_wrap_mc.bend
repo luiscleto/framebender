@@ -25,8 +25,8 @@ import ./proof_e_wrap_mg.bend as MR
 import ./proof_e_wrap_seq.bend as WS
 import ./proof_e_wrap_fb.bend as FB
 import ./proof_e_wrap_mok.bend as MK
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 
 # Helpers for proof_e_wrap.bend (area E1): merge_case, a clean piece whose line across

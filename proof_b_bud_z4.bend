@@ -6,8 +6,8 @@ import ./proof_b_cachedefs.bend as CD
 import ./proof_b_adv_hit.bend as FH
 import ./proof_b_budget_need.bend as BN
 import ./proof_b_budget_sdefs.bend as BD
-import lawful-bytes@0.1.0.0/defs.bend as D
-import lawful-bytes@0.1.0.0/proof_core.bend as C
+import lawful-bytes@0.1.1.0/defs.bend as D
+import lawful-bytes@0.1.1.0/proof_core.bend as C
 import lawful-arrays@0.1.0.0/proof_tree.bend as AT
 import ./proof_b_bud_z4k.bend as ZK
 
