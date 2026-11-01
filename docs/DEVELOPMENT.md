@@ -92,10 +92,13 @@ NISTv4.2.1 GRCh38 benchmark VCF.
 
 ## Benchmarks
 
-`test/bench.sh ref.fa in.vcf [rounds] [-- options]` times framebender against bcftools, interleaved,
-writing to a file, and prints wall time, peak memory and the output's md5 (`CPUS=0-15` pins both).
-Time with `nice -n 19` and a `timeout`, one benchmark at a time, before/after runs back to back.
-`NOTES.md` (Q5) and `notes/fast.md` record every measurement and where the time goes.
+`test/bench.sh ref.fa in.vcf [rounds] [-- options]` times framebender (default and
+`--threads 1`) against bcftools (one job, and one job per chromosome through `test/bcfsplit.sh`),
+interleaved, writing to a file (by default in `data/tmp/bench`, on disk), and prints wall and CPU
+time, peak memory and the md5 of the output's records. Its comment lists the settings
+(`CPUS`, `MEMMAX`, `CHECK`, ...). Time one benchmark at a time, before/after runs back to back.
+[`BENCHMARK.md`](BENCHMARK.md) has the method and full tables of the README's figures; `NOTES.md`
+(Q5) and `notes/fast.md` record earlier measurements and where the time goes.
 
 ## Compare with the previous build
 

@@ -184,7 +184,8 @@ region queries for the new file.
 Two kinds of record take a slower path than the rest, with or without `-m`:
 
 - A record that needs rewriting (it moves, or loses bases) and has an INFO/END: HG002's 20,739
-  scrambled chr22 indels took 3.5 s with an END on every record, against 0.08 s without.
+  scrambled chr22 indels took 3.6–3.8 s with an END on every record, against 0.08 s without
+  (bcftools: 0.1 s with or without; [`BENCHMARK.md`](BENCHMARK.md)).
 - Under `-c w`, a line whose END is wrong (`BAD_END`), which is passed through with its warning.
 
 `-m` has its own costs (see `-m` above); `--threads` trades memory for speed.

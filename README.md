@@ -67,70 +67,54 @@ plain terms and says what they do not cover.
 
 ## Results against bcftools norm 1.24
 
-Same records on GIAB HG002 v4.2.1 (hg38): chr22 (50,284 records), the whole genome (4,048,342
-records), 20,739 indels moved to random equivalent positions, and the edge cases in `test/edge`.
-The main intentional differences: symbolic alleles such as `<DEL>` are passed through
-(bcftools realigns them), and some problems that bcftools warns about stop the run. The full list
-is in [`docs/USAGE.md`](docs/USAGE.md#differences-from-bcftools-norm).
+Same records as bcftools on GIAB HG002 v4.2.1 (hg38; chr22 and the whole genome), on 20,739 of
+its indels moved to random equivalent positions, and on the edge cases in `test/edge`. The
+intentional differences: symbolic alleles such as `<DEL>` are passed through (bcftools realigns
+them), some problems bcftools warns about stop the run, and the others listed in
+[`docs/USAGE.md`](docs/USAGE.md#differences-from-bcftools-norm).
 
-Speed, on one sample (GIAB HG002) and on a cohort of 3,202 (the 1000 Genomes high-coverage
-panel, chr22: 1,066,557 records of about 14 KB each, 14.8 GB uncompressed):
+Speed, on a laptop (Intel i9-13950HX, runs pinned to its 8 performance cores, 16 hardware
+threads; 30 GB of RAM, NVMe SSD; Linux, on AC power) with bcftools 1.24 and Bend 2.0.39: both
+tools with `-c w`, writing to a file, interleaved, 3 rounds. bcftools normalizes on one core; the
+usual way to use more is one job per chromosome, here 16 at a time on an indexed `.vcf.gz`, then
+joined in order (`test/bcfsplit.sh`). It gave the same records as one run on every input.
+Method and full tables: [`docs/BENCHMARK.md`](docs/BENCHMARK.md); `test/bench.sh` repeats it.
 
-| input | bcftools | framebender |
-|---|---|---|
-| HG002 chr22 | 0.11–0.12 s | 0.06 s |
-| HG002 whole genome (2.8 GB) | 8.0–8.1 s | 1.8 s |
-| HG002 whole genome, `.vcf.gz` | 7.9–8.0 s | 1.8 s |
-| HG002, 20,739 indels moved to random positions | 0.06–0.07 s | 0.07–0.08 s |
-| 1000 Genomes chr22, first 800 MB | 3.5–3.7 s | 0.29–0.30 s |
-| 1000 Genomes chr22, `.vcf.gz` (425 MiB) | 69.8 s | 6.9 s |
-| HG002 chr22, `-Oz -W` (with its index) | 0.13–0.14 s | 0.09–0.10 s |
-| HG002 whole genome, `-Oz -W` (with its index) | 6.5–6.6 s | 3.4–3.6 s |
-| HG002 whole genome, `-m -any` (47,781 records split) | 8.1–8.2 s | 2.4–2.5 s |
+Wall time:
 
-framebender reads the file in pieces and normalizes 16 at a time in parallel; the proof covers
-the parallel version, which gives byte-for-byte the output of the sequential one. The `-W` rows write a
-compressed file and its CSI index (bcftools with `--threads 16`, both on 16 CPUs; framebender's
-index is byte for byte bcftools index's of the same file, both with libdeflate). A file where
-nearly every record is rewritten, such as the scrambled indels, is still a little slower than
-bcftools (about 0.01 s on this 14 MB file); 30 copies of it in a row take 0.21 s against
-bcftools' 0.51 s. A file whose rewritten records carry an
-INFO/END is still slower than bcftools, and so is `-m` on files with
-many samples and many ALTs per line, where memory also grows with the records a line makes (see
-[USAGE](docs/USAGE.md)). framebender uses more memory, which `--threads` trades against speed (HG002 whole genome; the output is identical at every
-setting):
+| input | bcftools, 1 core | framebender, 1 core | bcftools, per chromosome, 16 jobs | framebender, 16 |
+|---|---|---|---|---|
+| HG002 chr22 (35 MB) | 0.13 s | 0.11–0.12 s | — (one chromosome) | 0.07–0.09 s |
+| HG002 chr22, 20,739 indels moved (14 MB) | 0.09–0.10 s | 0.11–0.13 s | — (one chromosome) | 0.08 s |
+| HG002 whole genome, `.vcf` (2.8 GB) | 8.1–8.3 s | 6.5–7.0 s | 8.5–9.1 s (with `bgzip` and index first) | 1.8–2.2 s |
+| HG002 whole genome, `.vcf.gz` (156 MB) | 8.3–8.4 s | 6.5–6.6 s | 4.6 s | 1.8–1.9 s |
+| same, `-Oz -W` (compressed output and its index) | 14.6–15.2 s | 16.9–17.4 s | 4.6–4.7 s | 3.4–3.5 s |
+| same, `-m -any` | 8.5–8.7 s | 9.1 s | 4.6–4.7 s | 2.4–2.5 s |
+| 1000 Genomes chr22, `.vcf.gz` (3,202 samples, 14.8 GB of text) | 71–73 s | 12.0–12.6 s (1.5 cores; on one, 15.7–15.8 s) | 33–34 s (16 stretches of the chromosome) | 7.4–7.5 s |
 
-| | time | peak memory |
-|---|---|---|
-| bcftools | 8.0–8.2 s | 11–12 MB |
-| framebender (default: 16 pieces at a time) | 1.8 s | 340 MB |
-| `--threads 8` | 2.1 s | 205 MB |
-| `--threads 4` | 2.7 s | 130 MB |
-| `--threads 1` | 6.0 s | 58–59 MB |
+Peak memory:
 
-On the 1000 Genomes file: bcftools 18 MB, framebender 315 MB (`--threads 1`: 105 MB, 11.0–11.1 s).
+| input | bcftools, 1 core | framebender, 1 core | bcftools, per chromosome, 16 jobs | framebender, 16 |
+|---|---|---|---|---|
+| HG002 whole genome, `.vcf.gz` | 19–22 MB | 62–65 MB | 471–487 MB | 340–343 MB |
+| same, `-Oz -W` | 29 MB | 80 MB | 480–485 MB | 366–371 MB |
+| same, `-m -any` | 19–22 MB | 66 MB | 479–484 MB | 409–410 MB |
+| 1000 Genomes chr22, `.vcf.gz` | 21 MB | 104–105 MB | 235–236 MB | 312–316 MB |
 
-Writing compressed `.vcf.gz` (HG002 whole genome; the same 150 MB file from both tools):
-
-| | time | peak memory |
-|---|---|---|
-| `bcftools norm -Oz` | 14.2–14.3 s | 11 MB |
-| `bcftools norm -Oz --threads 16` | 6.2–6.3 s | 17 MB |
-| framebender `-Oz` | 2.9 s | 345 MB |
-| framebender `-Oz1` (a 253 MB file) | 2.1 s | 345 MB |
-| framebender `--threads 1 -Oz` | 14.4–14.7 s | 46 MB |
-
-On the 1000 Genomes file, `.vcf.gz` in and out: bcftools `-Oz --threads 16` 65 s, framebender
-`-Oz` 14 s.
-
-How it was measured: a laptop with an Intel i9-13950HX (8 performance cores with 2 threads each,
-16 efficiency cores), 30 GB of RAM and an NVMe SSD, on Linux; bcftools 1.24, Bend 2.0.39. Both
-tools ran with `-c w`, writing to a file deleted before each run, pinned to the performance cores
-(`taskset -c 0-15`, which removes about 3 s of run-to-run noise on the whole genome), one at a
-time and interleaved, three rounds (two on the whole 1000 Genomes file and for compressed output,
-bcftools once on the 1000 Genomes file). Times are wall clock, memory is peak resident size.
-framebender's output was the same in every run.
-`test/bench.sh ref.fa in.vcf` repeats the comparison on any file.
+- On all cores framebender was the fastest on the large files: on the whole genome 4.5 times one
+  bcftools run and 2.5 times the per-chromosome jobs, on the cohort file about 10 and 4.5 times.
+  It needs no index and no join. It normalizes pieces of the file in parallel, and the proofs
+  cover this parallel version: the output is the same at every `--threads`.
+- On one core it was faster than bcftools on plain normalization (6.5 against 8.2 s on the whole
+  genome, 16 against 72 s on the cohort file), and slower when writing compressed output (17
+  against 15 s) or with `-m -any` (9.1 against 8.6 s). On the small files the two are within a
+  few hundredths of a second.
+- It uses more memory: 40–105 MB on one core and up to 410 MB at the default, against bcftools'
+  12–30 MB a job. `--threads` trades memory for speed.
+- Two kinds of input are much slower than in bcftools: records that need rewriting and carry an
+  INFO/END (3.6 s against 0.1 s on the moved indels, each given an END), and `-m` on lines with
+  many samples and many ALTs (7.7 s against 0.5 s on one line with 10,000 samples and 325 ALTs).
+  See [`docs/USAGE.md`](docs/USAGE.md#speed-and-memory).
 
 ## What the proofs and reviews caught
 
