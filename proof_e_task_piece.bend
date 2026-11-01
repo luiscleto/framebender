@@ -247,7 +247,7 @@ def g3(+g: Bool, +len: U32, +t: AT.Tree<U32>, +d: Nat, +c: String,
   +hk1: {U32.is_lt((K(len, t) + 1 : U32), len) == True{} : Bool},
   +hE: {U32.is_lt(E1(len, t), len) == True{} : Bool},
   +hg: {U32.is_lt(T1(len, t), E1(len, t)) == g : Bool}) ->
-  PieceG(len, t, c, W.plan.first(len, K(len, t), (K(len, t) + 1 : U32), W.Cp{C.BT(len, t), g, BUF.CC(g, len, t, (K(len, t) + 1 : U32), T1(len, t)), BUF.CP(g, len, t, T1(len, t), E1(len, t))})):
+  PieceG(len, t, c, W.plan.first(len, K(len, t), (K(len, t) + 1 : U32), E1(len, t), W.Cp{C.BT(len, t), g, BUF.CC(g, len, t, (K(len, t) + 1 : U32), T1(len, t)), BUF.CP(g, len, t, T1(len, t), E1(len, t))})):
   match g:
     case False{}:
       (Nil{}, (False{}, (K(len, t), ("", (0n, ({==}, ({==}, {==})))))))
@@ -256,8 +256,11 @@ def g3(+g: Bool, +len: U32, +t: AT.Tree<U32>, +d: Nat, +c: String,
       +k = K(len, t)
       +rs = BUF.LRS(len, t, C0(len, t), P1(len, t), s1)
       +hrs = BUF.last_ok(C0(len, t), P1(len, t), s1, len, t, BUF.cc_bytes(True{}, len, t, s1, T1(len, t)))
-      (rs, (True{}, (k, (C0(len, t), (Nat.add(P1(len, t), U32.to_nat(len)),
-        (BUF.last_b(k, C0(len, t), P1(len, t), Nat.add(P1(len, t), U32.to_nat(len)), s1, len, t),
+      +l = BUF.PH(len, t, P1(len, t), s1, E1(len, t))
+      %Equal.sym(W.Pl, W.plan.first(len, k, s1, E1(len, t), W.Cp{C.BT(len, t), True{}, C0(len, t), P1(len, t)}), W.plan.last.k(k, C0(len, t), P1(len, t), l, s1, W.rlf(C.BT(len, t), len, s1)), BUF.first_b(len, t, k, C0(len, t), P1(len, t), s1, E1(len, t))) :
+        PieceG(len, t, c, _)
+      (rs, (True{}, (k, (C0(len, t), (l,
+        (BUF.last_b(k, C0(len, t), P1(len, t), l, s1, len, t),
         (BUF.andl(BUF.rs_ok2(rs), BUF.two2(rs), hrs),
         (hrs, (BUF.cc_bytes(True{}, len, t, s1, T1(len, t)), (X => first_c0(len, t, d, c, hok, hv, hk1, hE, hg, X), (hk1, pre_lf(len, t, d, c, hok, hv, hK))))))))))))
 
@@ -276,7 +279,7 @@ def g2(+g: Bool, +len: U32, +t: AT.Tree<U32>, +d: Nat, +c: String,
       %Equal.sym(W.Cp, W.cp(C.BT(len, t), s1, E1(len, t)),
         W.Cp{C.BT(len, t), U32.is_lt(T1(len, t), E1(len, t)), BUF.CC(U32.is_lt(T1(len, t), E1(len, t)), len, t, s1, T1(len, t)), BUF.CP(U32.is_lt(T1(len, t), E1(len, t)), len, t, T1(len, t), E1(len, t))},
         BUF.cp_b(len, t, s1, E1(len, t))) :
-        PieceG(len, t, c, W.plan.first(len, K(len, t), s1, _))
+        PieceG(len, t, c, W.plan.first(len, K(len, t), s1, E1(len, t), _))
       g3(U32.is_lt(T1(len, t), E1(len, t)), len, t, d, c, hok, hv, hK, hk1, hg, {==})
 
 def G1(+len: U32, +t: AT.Tree<U32>) -> Bool:

@@ -96,7 +96,7 @@ law want_ge:
   {Nat.is_le(U32.to_nat(a), U32.to_nat(NR.want(a))) == True{} : Bool}
 
 def want_ge(a, h):
-  want_ge.c(U32.is_lt(a, 67108864), a, h)
+  want_ge.c(U32.is_lt(a, 268435456), a, h)
 
 # want_ge below 2^31.
 law want_ge31:
