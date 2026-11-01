@@ -50,3 +50,18 @@ byte-identical to main's (Claude 594 runs, GPT 980, Grok 218 plus the named file
 | 6 | The stand-in key's guess (`plan.trims`, `plan.ph.*`) decodes the first line's REF and ALT into Strings and redoes REF's length and reversal for every ALT: 100 kb REF x 500 ALTs first in a piece 1.54-1.61 s against main's 0.06 s; 1 MB alleles about 30% slower | GPT, Claude | **Fix** (fb-fix11b, `notes/briefs/FIX11B.md`): no guess (key = POS) when the first line's REF and ALT bytes exceed a small bound (read from the tab offsets, before decoding); REF's values once; stop when the trim reaches zero. Any key is correct, so no statement changes. |
 | 7 | README's scrambled-indels row reads as a tie (bcftools 0.07-0.09, framebender 0.08-0.09); interleaved runs give framebender 0.060-0.069 s, bcftools 0.047-0.053 s; the clause no longer says such files are slower | Claude, Grok | **Fix** (fb-fix11b): re-measure interleaved; keep "somewhat slower" for scr and mention scr30, where framebender wins. |
 | 8 | USAGE's many-ALT `-m` bullet says memory grows with time at 100,000 samples; measured 257 -> 1384 MB (5.4x) while time grows 10x | Grok | **Fix** (fb-fix11b): state the measured memory. |
+
+## Round 3
+
+Decisions 6-8 carried out by fb-fix11b (f8668d1, 39bb9c9), merged in 813b394; the lead's gate on
+813b394 passes. Reports: `claude-driver11-r3.md` (ACCEPT), `gpt-driver11-r3.md` (ACCEPT),
+`grok-driver11-r3.md`. All three: decisions 6 and 8 carried out (`plan_long_500` and the 1 MB
+alleles back to main's times), output identical to main's build (Claude 234 runs), nothing blocks
+the merge.
+
+| # | finding | by | decision |
+|---|---|---|---|
+| 9 | Decision 7's wording (scr a tie written to a file, slower only to `/dev/null`) does not hold: written to a file, framebender was slower in every round (Grok: 0.073-0.085 s against 0.062-0.070; Claude, on tmpfs: 0.070-0.077 against 0.056-0.066); fb-fix11b's tie was on the SSD | Grok, Claude (GPT: the gap stays on tmpfs) | **Fix** (lead): the row takes Claude's file runs (bcftools 0.06-0.07 s, framebender 0.07-0.08 s) and the clause says "a little slower (about 0.01 s)". Where the benchmark writes (`$TMPDIR`) is settled in the results rewrite. |
+
+Closed. Open, outside this review: `-w` of 2,000,000 or more crashes on main's build too
+(lawful-bytes' `to_list` recurses once per byte on the C stack); fixed separately.
