@@ -99,11 +99,12 @@ def depth.go(fuel: Nat, +d: Nat, +need: U32) -> Nat:
 def depth(+need: U32) -> Nat:
   depth.go(29n, 0n, need)
 
-# The bytes room grows a buffer to hold when it needs n: 2n below 64 MiB, n
+# The bytes room grows a buffer to hold when it needs n: 2n below 256 MiB, n
 # from there. Each block size keeps its own freed blocks, so a buffer that
 # grows through every size leaves one parked in each (one per task); below
-# 64 MiB a growth skips a size. From 64 MiB on, no block is more than twice
-# what it holds.
+# 256 MiB a growth skips a size (with n from 64 MiB, a -m window of 64 to
+# 256 MiB parked a 128 MiB block: notes/speed.md, fb-fix11). From 256 MiB on,
+# no block is more than twice what it holds.
 def want.if(small: Bool, +n: U32) -> U32:
   match small:
     case True{}:
@@ -112,7 +113,7 @@ def want.if(small: Bool, +n: U32) -> U32:
       n
 
 def want(+n: U32) -> U32:
-  want.if(U32.is_lt(n, 67108864), n)
+  want.if(U32.is_lt(n, 268435456), n)
 
 def room.if(ok: Bool, +n: U32, b: D.Bytes) -> D.Bytes:
   match ok:
