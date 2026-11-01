@@ -85,9 +85,13 @@ The summary line counts records after splitting.
   file where every line is refused). Under `-c e` the run stops at the first refused line.
 - Memory grows with the records a split line makes and with the records that wait in the `-w`
   window (each piece's records are held until it is merged). One line with 100,000 samples and 200
-  ALTs used 0.57 GB. 3,000 lines in a row with 2,000 samples and 30 ALTs used 2.0 GB (1.2 GB with
+  ALTs used 0.70 GB. 3,000 lines in a row with 2,000 samples and 30 ALTs used 1.9 GB (1.1 GB with
   `--threads 1`) and took 2.5 to 3 times as long as bcftools, which used 0.16 GB. More `--threads`
   speeds such files up only a little.
+- The time for one line grows with the square of the records it makes when they are large: one
+  line with 10,000 samples took 7.5 s with 325 ALTs, 30 s with 650 and 120 s with 1,300 (bcftools:
+  6.5 s). With 100,000 samples each record is ten times larger, and so are the time and memory:
+  such a run can look like a hang.
 
 Splitting loses information; read the records with that in mind:
 
@@ -170,6 +174,16 @@ region queries for the new file.
   `-o x.csi`), there is no warning. The warning touches nothing (`out.vcf.csi` may index
   `out.vcf`), and the run goes on as without it, also if the warning cannot be written. Plain
   output and stdout get no warning.
+
+## Speed and memory
+
+Two kinds of record take a slower path than the rest, with or without `-m`:
+
+- A record that needs rewriting (it moves, or loses bases) and has an INFO/END: HG002's 20,739
+  scrambled chr22 indels took 3.5 s with an END on every record, against 0.08 s without.
+- Under `-c w`, a line whose END is wrong (`BAD_END`), which is passed through with its warning.
+
+`-m` has its own costs (see `-m` above); `--threads` trades memory for speed.
 
 ## Differences from bcftools norm
 

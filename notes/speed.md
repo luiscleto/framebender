@@ -666,3 +666,132 @@ gives on `gen.py wide h200 1 200 100000` here: 0.40 s, 120 MB.)
   `same.sh` 128, `par.sh` 312, `threads.sh` 2128 identical, `out.sh` OK, `index.sh` ALL PASS,
   `split.sh` 80 as bcftools; `ident.sh`: h200, w30, w5, w30k, w5k and the sparse file, `-c w` and
   `-c e`, `--threads` 1, default, 16: 36 of 36 identical.
+
+# fb-fix11: driver review 11's fixes (2026-11-01)
+
+Brief: `notes/briefs/FIX11.md` (reports `reviews/claude-driver11.md`, `reviews/gpt-driver11.md`).
+Branch `speed-fix11` from b9c598a. Commits 0c01467 (the phantom), deb5571 (`NR.want`), and the docs.
+No law, spec or contract change. Scratch: `data/tmp/fix11/` (builds `fb_*` from `mk.sh`/`var.sh`,
+variant patches `p_*.py`, `bench.sh`, `cmp.sh`, `suite.sh`, `gate.sh`, `gen_ph.py`).
+
+## 1. Plain and -m cohort files (the phantom)
+
+**Where the time went.** fb-rewrite's phantom (first line's POS plus the piece's length) stops every
+task's first run at its first write; on a dense file that write comes only once a line `-w` bases
+on is read, so the task read those lines twice: about 6 of the cohort's 26 lines a piece (132 KB
+lines, one every 170 bases), 0.6 ms a piece on the 1000 Genomes sub. Builds tried (one round each,
+then three on the cohort):
+
+| build | sub `--threads 1` | cohort `-m` `--threads 1` | scr | scr30 |
+|---|---|---|---|---|
+| main | 0.49-0.51 | 3.47-3.88 | 0.109-0.112 | 0.70-0.71 |
+| speed (b9c598a) | 0.61-0.62 | 4.82-4.83 | 0.070-0.073 | 0.188-0.195 |
+| old phantom (POS), task.res for both runs | 0.48-0.50 | 3.49-3.70 | 0.103-0.104 | 0.34-0.36 |
+| **guessed phantom**, task.res for both runs | 0.48 | 3.47-3.71 | 0.068 | 0.192 |
+
+**What changed** (`norm.bend`, `plan.first` and `plan.ph*`, `plan.est`): the phantom is the first
+line's POS moved right by its REF and ALTs' left trim, computed on the plan's copy of the first
+line's REF and ALT (common suffix cut, then common prefix but one base, the least over the ALTs).
+That is the first item's key unless the item moves left. Two cases:
+- The guess is above the task's first write (a left shift): the first run stops there, UNSORTED,
+  and runs again from that key. That is what fb-rewrite's phantom always did.
+- It equals the first write: the task runs once, from the same phantom fb-rewrite's retry would
+  have used, so the merges scr and scr30 gained are kept.
+
+On SNP-first pieces it is the POS, as on main. With one run again, the first run reserves
+`task.res`, so 3a3c539's 64 KiB start is undone (it had cost sub 39 to 49 MB at `--threads 1`).
+
+**Proofs.** The phantom is existential in the piece lemma (any value is correct), so only the new
+reads needed a lemma: `proof_e_task_buf.bend`'s `first_b` (`plan.first` on a line with a tab is
+`plan.last.k` with the phantom `PH`; `tab_b`, `ph.if`, `ph_b` hand the buffer back through
+`F.find` and `Q.text`, about 70 lines). Also `proof_e_task_piece.bend`'s `g3` (witness `PH`) and
+`proof_e_task_one.bend`'s `oneC` (room `task.res`). One check round.
+
+## 2. NR.want on w30k
+
+With n from 64 MiB, a window growing through 64-256 MiB parks a 128 MiB block. Variants (-m -any,
+one round, MB at `--threads 1` / default):
+
+| build | w30k | h200 | w30 |
+|---|---|---|---|
+| main | 796 / 847 | 952 / 954 | 1567 / 2384 |
+| speed (2n below 64 MiB, n from there) | 926 / 972 | 568 / 571 | 1186 / 1996 |
+| 1.5n from 64 MiB | 926 / 968 | 571 / 575 | |
+| 2n below 128 MiB | 799 / 854 | 703 / 702 | |
+| **2n below 256 MiB** (kept) | 800 / 843 | 694 / 703 | 1056 / 1872 |
+| 2n below 256 MiB for NR.room, 64 MiB for the splitter's copy | 799 / 854 | 575 / 575 | 1056 / 1867 |
+
+w5 is the same in all (217 / 877-902 MB). The last row is best everywhere, but it was not kept:
+`proof_s_w.bend` proves the splitter's room equal to `NR.room` (`room_eq`, `put_eq`) and borrows
+`proof_b_run_buf.bend`'s room and `put_bytes_t` lemmas through it; a separate policy needs those
+lemmas over the growth (an estimated 150-300 lines) for 125 MB on h200 only. h200 stays well under
+main's. Proof: `want_ge`'s constant.
+
+## Timings
+
+`data/tmp/fix11/bench.sh 3 main speed new`, 11:46 to 12:31; load 1.4 to 3.6 (another reviewer's
+runs in /tmp; no other timing). Each run is under `data/tmp/bench.lock`, `nice -n 19`,
+`taskset -c 0-15`, `-c w`, with output to a file (removed first, then a sync). The output md5 was
+the same across the builds in every run. Wall s (min-max of 3; kg.gz 2 runs, bcftools 1), peak RSS MB.
+
+| input | main | speed | new | bcftools |
+|---|---|---|---|---|
+| 1000 Genomes sub (800 MB) | 0.28-0.29 / 227-247 | 0.30-0.32 / 262-284 | 0.27-0.33 / 219-239 | 3.35-3.57 |
+| sub, `--threads 1` | 0.63-0.66 / 39 | 0.75-0.78 / 49 | **0.59-0.61 / 39** | |
+| cohort (218 MB) | 0.111-0.121 / 237 | 0.127-0.129 / 278 | 0.113-0.117 / 239 | |
+| cohort, `--threads 1` | 0.31-0.34 / 51 | 0.31-0.41 / 51 | 0.28-0.33 / 51 | |
+| cohort `-m -any` | 1.15-1.20 / 352-357 | 1.30-1.33 / 358-364 | **1.05-1.09 / 323-326** | 1.27-1.36 |
+| cohort `-m -any`, `--threads 1` | 3.67-3.83 / 75 | 4.93-5.07 / 77 | **3.52-3.69 / 73-75** | |
+| scr | 0.107-0.123 / 81-91 | 0.067-0.083 / 105-113 | 0.076-0.088 / 104-111 | 0.073-0.092 |
+| scr, `--threads 1` | 0.127-0.130 / 39 | 0.099-0.108 / 60 | 0.101-0.108 / 59 | |
+| scr30 | 0.72-0.73 / 238-253 | 0.21-0.23 / 234-244 | 0.21-0.24 / 231-242 | 0.51-0.53 |
+| scr30, `--threads 1` | 0.86-0.88 / 47 | 0.70-0.71 / 37 | 0.70-0.71 / 37 | |
+| scr, valid END on every record | 8.3-8.7 / 79-90 | 3.61-3.70 / 94-100 | 3.51-3.65 / 91-101 | (exit 255) |
+| same, `--threads 1` | 8.3-8.7 / 39 | 6.68-6.70 / 55 | 6.73-6.78 / 55 | |
+| HG002 chr22 | 0.065-0.066 / 130-141 | 0.057-0.071 / 131-139 | 0.052-0.065 / 130-140 | 0.113-0.117 |
+| HG002 chr22, `--threads 1` | 0.095-0.106 / 39 | 0.100-0.113 / 39 | 0.094-0.095 / 39 | |
+| HG002 whole genome | 2.33-2.51 / 329-334 | 2.30-2.48 / 341-344 | 2.27-2.36 / 336-344 | 8.77-8.80 |
+| HG002 whole genome, `--threads 1` | 6.62-6.80 / 43 | 6.89-7.04 / 57-59 | 6.92-7.05 / 58-59 | |
+| 1000 Genomes chr22 `.vcf.gz` | 6.82-6.98 / 311-325 | 6.79-6.98 / 406-411 | 6.79-6.82 / 313-316 | 67.8 / 18 |
+| same, `--threads 1` | 11.9-12.2 / 102-105 | 12.4-12.6 / 105 | 11.0-11.1 / 105 | |
+| h200 `-m -any` | 2.36-2.53 / 952-960 | 2.09-2.22 / 568-577 | 2.14-2.22 / 696-705 | |
+| h200, `--threads 1` | 2.35-2.51 / 954-958 | 2.07-2.16 / 570-575 | 2.13-2.20 / 698-703 | |
+| w30k `-m -any` | 11.7-12.2 / 855-863 | 11.7-11.8 / 982-989 | 11.7-12.2 / **849-856** | |
+| w30k, `--threads 1` | 12.3-12.4 / 800-807 | 12.2-13.1 / 927-929 | 12.4-13.0 / **801** | |
+| w5 `-m -any` | 13.8-13.9 / 879-896 | 13.7-13.8 / 910-930 | 13.8-14.6 / 879-902 | |
+| w5, `--threads 1` | 22.2-22.8 / 217-219 | 21.5-23.0 / 218-221 | 21.6-23.2 / 217-219 | |
+| w30 `-m -any` | 50.9-51.7 / 2385-2394 | 50.2-51.1 / 2005-2009 | 48.8-50.8 / 1866-1870 | |
+| w30, `--threads 1` | 59.7-60.3 / 1568-1570 | 57.3-60.4 / 1186 | 57.5-60.4 / 1056-1058 | |
+
+- The whole genome at `--threads 1` stays 4% slower and 15 MB larger than main, on speed and new
+  alike: fb-end's END check and fb-rewrite's half windows (their sections), not this branch.
+- The genome times here are above the README's (1.8 s, 6.0 s) for main's build too: they ran on
+  another day, and this machine had other load. The README keeps its times and takes the
+  memory figures.
+- bcftools stops on the END scramble (exit 255).
+- `-m` on one line with many large records, new build: 10,000 samples with 325 / 650 / 1,300 ALTs
+  took 7.5 / 30.3 / 120.7 s (255 / 369 / 954 MB); bcftools 6.5 s on the last (USAGE).
+
+## Checks
+
+- Gate (`gate.sh`, each step through `test/bcheck.sh`): `examples.bend` 38 TODOs only, `main.bend`
+  "rely on unsafe" only, `PROOF.bend` ALL PROOFS CHECK with `--check-only` and `--verdict`.
+- Against main's build (984688a), stdout, stderr and exit code, private dirs (`suite.sh`):
+  `same.sh` 128, `par.sh` 312, `threads.sh` 2128 identical (usage errors and thread counts OK),
+  `out.sh` OK, `index.sh` ALL PASS, `split.sh` 80 as bcftools.
+- `cmp.sh`, 191 runs against main's build, each file under `-c e`, `-c w`, `--threads 1/3/16`,
+  `-w 1/50/100000/100000000`, and `-m -any` at the default and `--threads 1`. The files: scr, scr2,
+  scr1, scr30, the END and gVCF scrambles, chr22 and its END and gVCF shapes, the 1000 Genomes sub,
+  the cohort, and `gen_ph.py`'s ph2 and ph30 (scrambles with a second ALT, `<DEL>`, `*`, `.`, lower
+  case, or a one-base ALT added, so that pieces start on every shape the guess reads). Also h200,
+  w30k, w5k, sp30 (`-c e`/`-c w` x 3 thread counts), w30 and w5. All the same but one run: ph30 with
+  `-w 100000000`. Main's build and this one both segfaulted there, and stderr differed. Rerun:
+  main, speed and new all hit the 900 s timeout with the same stdout, stderr differing only in how
+  far each got. This is not from this branch: a whole-file window over 141 MB with `ALT_DUP`
+  lines is pathologically slow on main too, and its segfault was not looked into.
+
+## Not done
+
+- The splitter's own growth policy (above): 125 MB on h200, for its proofs.
+- The README's `--threads 8` and `--threads 4` memory rows, and its times, were not re-measured
+  (the brief asked for `--threads 1` and the default).
